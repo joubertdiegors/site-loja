@@ -1,0 +1,32 @@
+{% load i18n %}JD PRINT
+
+{% translate "Pedido confirmado!" %}
+
+{% blocktranslate with name=customer.full_name|default:user.username %}Olá, {{ name }}. Recebemos seu pagamento e já colocamos seu pedido na fila.{% endblocktranslate %}
+
+{% translate "Pedido" %}: {{ order.number }}
+{% translate "Data" %}: {{ order.created_at|date:"d/m/Y H:i" }}
+
+--- {% translate "Itens" %} ---
+{% for item in items %}{{ item.quantity }} x {{ item.product_name }}{% if item.variant_label %} ({{ item.variant_label }}){% endif %} — {{ order.currency_symbol }} {{ item.total|floatformat:2 }}
+{% if item.has_personalization %}{% if item.personalization_type == "photo" %}    {% translate "Foto enviada" %}{% if item.personalization_upload %}: {{ item.personalization_upload.original_name }}{% endif %}{% else %}    {% translate "Texto" %}: {{ item.personalization_text }}{% endif %}
+{% endif %}{% endfor %}
+{% translate "Subtotal" %}: {{ order.currency_symbol }} {{ order.subtotal|floatformat:2 }}
+{% translate "Entrega" %}: {{ order.currency_symbol }} {{ order.shipping_total|floatformat:2 }}{% if order.shipping_method_label %} ({{ order.shipping_method_label }}){% endif %}
+{% if order.tax_total %}{% blocktranslate with rate=order.tax_rate|floatformat:"-2" %}TVA {{ rate }}% (incluída){% endblocktranslate %}: {{ order.currency_symbol }} {{ order.tax_total|floatformat:2 }}
+{% endif %}{% translate "Total" %}: {{ order.currency_symbol }} {{ order.total|floatformat:2 }}
+
+{% if order.delivery_days_display %}{% translate "Prazo estimado" %}: {% blocktranslate with days=order.delivery_days_display %}{{ days }} dias úteis{% endblocktranslate %}
+{% endif %}
+--- {% translate "Entrega" %} ---
+{% for line in shipping_address.lines %}{{ line }}
+{% endfor %}
+--- {% translate "Faturamento" %} ---
+{% for line in billing_address.lines %}{{ line }}
+{% endfor %}
+{% translate "Acompanhe seu pedido" %}:
+{{ order_url }}
+
+--
+{% translate "A JD PRINT nunca pede senha, dados bancários ou código por e-mail." %}
+{{ site_url }}

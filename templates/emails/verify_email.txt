@@ -1,0 +1,16 @@
+{% load i18n %}JD PRINT
+
+{% translate "Confirme seu endereço de e-mail" %}
+
+{% blocktranslate with username=user.username %}Olá, {{ username }}. Você criou uma conta na JD PRINT.{% endblocktranslate %}
+
+{% translate "Abra o endereço abaixo para confirmar seu e-mail:" %}
+{{ verification_url }}
+
+{% blocktranslate count hours=validity_hours %}Este link é válido por {{ hours }} hora e só pode ser utilizado uma vez.{% plural %}Este link é válido por {{ hours }} horas e só pode ser utilizado uma vez.{% endblocktranslate %}
+
+{% translate "Se você não criou esta conta, ignore este e-mail." %}
+
+--
+{% translate "A JD PRINT nunca pede senha, dados bancários ou código por e-mail." %}
+{{ site_url }}

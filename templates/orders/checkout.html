@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% load i18n jdprint %}
+
+{% comment %}
+Checkout.
+
+Três estados na mesma URL, todos com resposta 200 — a de sempre,
+`/carrinho/finalizar/`:
+
+  1. carrinho vazio    -> estado vazio com link para a loja;
+  2. visitante         -> resumo + convite para entrar (a compra não se perde);
+  3. cliente com itens -> os quatro passos.
+
+Desktop: escolhas à esquerda, resumo fixo à direita. Celular: tudo empilhado,
+com o resumo antes do botão de pagar — é o que o cliente confere por último.
+{% endcomment %}
+
+{% block content %}
+  <section class="container-page py-8 sm:py-12">
+
+    <header class="flex flex-wrap items-end justify-between gap-4">
+      <div>
+        <p class="section-eyebrow">{% translate "Finalizar compra" %}</p>
+        <h1 class="section-title mt-2">{% translate "Checkout" %}</h1>
+      </div>
+      <a href="{% url 'cart:detail' %}" class="link-brand text-sm">
+        {% icon "chevron-left" "h-3.5 w-3.5 rtl:rotate-180" %}
+        {% translate "Voltar ao carrinho" %}
+      </a>
+    </header>
+
+    {% if not lines %}
+
+      {# ---- 1. Carrinho vazio -------------------------------------------- #}
+      <div class="mt-8 max-w-2xl">
+        <div class="empty-state">
+          <span class="empty-state-icon" aria-hidden="true">{% icon "cart" "h-6 w-6" %}</span>
+          <p class="font-display text-lg font-bold text-ink">{% translate "Não há nada para finalizar" %}</p>
+          <p class="max-w-md text-sm text-ink-soft">
+            {% translate "Escolha um modelo e ele aparece aqui." %}
+          </p>
+          <a href="{% url 'catalog:models_shop' %}" class="btn-primary mt-1">
+            {% translate "Ver modelos" %}
+            {% icon "arrow-right" "h-4 w-4 rtl:rotate-180" %}
+          </a>
+        </div>
+      </div>
+
+    {% else %}
+
+      <div class="mt-8 grid items-start gap-6 lg:grid-cols-[1.6fr_1fr] lg:gap-7">
+
+        {# ================= Coluna das escolhas ========================== #}
+        <div class="grid gap-4">
+
+          {# ---- Passo 1: identificação ---------------------------------- #}
+          <section class="card p-5 sm:p-6" aria-labelledby="titulo-identificacao">
+            <div class="flex items-center gap-3">
+              <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full font-mono text-[12px] font-medium
+                           {% if is_authenticated %}bg-state-success-soft text-state-success-dark{% else %}bg-brand-100 text-brand-700{% endif %}"
+                    aria-hidden="true">
+                {% if is_authenticated %}{% icon "check" "h-3.5 w-3.5" %}{% else %}1{% endif %}
+              </span>
+              <h2 id="titulo-identificacao" class="font-display text-lg font-bold text-ink">
+                {% translate "Identificação" %}
+              </h2>
+            </div>
+
+            {% if is_authenticated %}
+              <p class="mt-3 text-sm text-ink-soft">
+                {% blocktranslate with name=user.display_name email=user.email %}Comprando como <strong class="text-ink">{{ name }}</strong> · {{ email }}{% endblocktranslate %}
+              </p>
+            {% else %}
+              <p class="mt-3 text-sm leading-relaxed text-ink-soft">
+                {% translate "Para finalizar a compra é preciso ter conta: é onde o pedido fica guardado e onde você acompanha a entrega. Seu carrinho continua exatamente como está." %}
+              </p>
+              <div class="mt-4 flex flex-wrap gap-2.5">
+                <a href="{% url 'accounts:login' %}?next={% url 'cart:checkout' %}" class="btn-primary">
+                  {% translate "Entrar" %}
+                </a>
+                <a href="{% url 'accounts:register' %}?next={% url 'cart:checkout' %}" class="btn-secondary">
+                  {% translate "Criar conta" %}
+                </a>
+              </div>
+            {% endif %}
+          </section>
+
+          {% if is_authenticated %}
+
+            {% if problems %}
+              <div class="alert-warning" role="alert">
+                {% icon "alert" "h-4 w-4 shrink-0" %}
+                <span>
+                  <strong class="block">{% translate "Alguns itens precisam da sua atenção" %}</strong>
+                  <span class="mt-1 block">
+                    {% for problem in problems %}{{ problem.message }}{% if not forloop.last %} {% endif %}{% endfor %}
+                  </span>
+                  <a href="{% url 'cart:detail' %}" class="mt-2 inline-flex text-sm font-bold underline">
+                    {% translate "Ajustar o carrinho" %}
+                  </a>
+                </span>
+              </div>
+            {% endif %}
+
+            <form method="post" action="{% url 'cart:checkout' %}" class="contents">
+              {% csrf_token %}
+
+              {% include "orders/_delivery.html" %}
+
+              {# ---- Passo 4: pagamento ---------------------------------- #}
+              <section class="card p-5 sm:p-6" aria-labelledby="titulo-pagamento">
+                <div class="flex items-center gap-3">
+                  <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-100 font-mono text-[12px] font-medium text-brand-700" aria-hidden="true">4</span>
+                  <h2 id="titulo-pagamento" class="font-display text-lg font-bold text-ink">
+                    {% translate "Pagamento" %}
+                  </h2>
+                </div>
+
+                <p class="mt-3 flex items-start gap-2 text-sm leading-relaxed text-ink-soft">
+                  {% icon "shield" "mt-0.5 h-4 w-4 shrink-0 text-brand-600" %}
+                  <span>
+                    {% translate "O pagamento acontece na página segura da Stripe. Os dados do seu cartão não passam pelos nossos servidores." %}
+                  </span>
+                </p>
+
+                <div class="mt-4">
+                  <label class="form-label" for="{{ form.customer_note.id_for_label }}">
+                    {{ form.customer_note.label }}
+                  </label>
+                  {{ form.customer_note }}
+                </div>
+
+                {% if not payment_available %}
+                  <p class="alert-error mt-4" role="alert">
+                    {% icon "alert" "h-4 w-4 shrink-0" %}
+                    <span>{% translate "O pagamento on-line está temporariamente indisponível. Tente novamente em instantes." %}</span>
+                  </p>
+                {% endif %}
+
+                <button type="submit" class="btn-primary btn-lg mt-5 w-full"
+                        {% if not draft.has_shipping or problems or not payment_available %}disabled{% endif %}>
+                  {% icon "credit-card" "h-4 w-4" %}
+                  {% comment %}
+                    O valor mora fora do bloco que o HTMX troca; por isso ele tem
+                    id próprio e volta como troca fora de banda (ver _delivery).
+                  {% endcomment %}
+                  <span id="checkout-cta-total">
+                    {% blocktranslate with total=draft.total|floatformat:2 %}Pagar €&nbsp;{{ total }}{% endblocktranslate %}
+                  </span>
+                </button>
+
+                <p class="mt-3 text-center font-mono text-[10.5px] uppercase tracking-[0.08em] text-ink-muted">
+                  {% translate "Você será levado à Stripe para concluir" %}
+                </p>
+              </section>
+            </form>
+
+          {% endif %}
+        </div>
+
+        {# ================= Coluna do resumo ============================= #}
+        <div id="checkout-summary" class="lg:sticky lg:top-28">
+          {% include "orders/_summary.html" %}
+        </div>
+      </div>
+
+    {% endif %}
+  </section>
+{% endblock %}

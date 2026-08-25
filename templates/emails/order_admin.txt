@@ -1,0 +1,41 @@
+{% load i18n %}JD PRINT — {% translate "Novo pedido para produzir" %}
+
+{{ order.number }} · {{ order.created_at|date:"d/m/Y H:i" }} · {{ order.currency_symbol }} {{ order.total|floatformat:2 }}
+{% if order.is_gift %}
+*** {% translate "ENVIAR COMO PRESENTE" %} — {% translate "o destinatário não é o titular da conta." %} ***
+{% endif %}
+--- {% translate "Cliente" %} ---
+{{ customer.full_name|default:user.username }}
+{{ user.email }}
+{% if customer.phone %}{{ customer.phone }}
+{% endif %}{% if customer.company_name %}{{ customer.company_name }}{% if customer.vat_number %} · {{ customer.vat_number }}{% endif %}
+{% endif %}{% translate "Idioma" %}: {{ order.language|default:"pt-br" }}
+
+--- {% translate "Itens" %} ---
+{% for item in items %}{{ item.quantity }} x {{ item.product_name }}{% if item.variant_label %} ({{ item.variant_label }}){% endif %}
+    SKU: {{ item.sku|default:"—" }} · {{ item.get_fulfillment_type_display }}{% if item.production_days %} · {% blocktranslate with days=item.production_days %}produção {{ days }} dia(s){% endblocktranslate %}{% endif %}
+{% if item.has_personalization %}{% if item.personalization_type == "photo" %}    {% translate "FOTO" %}: {% if item.personalization_upload %}{{ item.personalization_upload.original_name }} — {{ site_url }}{{ item.personalization_upload.file.url }}{% endif %}{% else %}    {% translate "TEXTO" %}: {{ item.personalization_text }}{% endif %}
+{% endif %}{% if item.personalization_notes %}    {% translate "Observações" %}: {{ item.personalization_notes }}
+{% endif %}    {{ order.currency_symbol }} {{ item.total|floatformat:2 }}
+{% endfor %}
+{% translate "Subtotal" %}: {{ order.currency_symbol }} {{ order.subtotal|floatformat:2 }}
+{% translate "Entrega" %}: {{ order.currency_symbol }} {{ order.shipping_total|floatformat:2 }} ({{ order.shipping_method_label }})
+{% if order.tax_total %}{% blocktranslate with rate=order.tax_rate|floatformat:"-2" %}TVA {{ rate }}% (incluída){% endblocktranslate %}: {{ order.currency_symbol }} {{ order.tax_total|floatformat:2 }}
+{% endif %}{% translate "Total" %}: {{ order.currency_symbol }} {{ order.total|floatformat:2 }}
+
+--- {% translate "Produção e entrega" %} ---
+{% blocktranslate with days=order.production_days %}Produção: {{ days }} dia(s) útil(eis){% endblocktranslate %}
+{{ order.shipping_method_label }}{% if order.delivery_days_display %} · {% blocktranslate with days=order.delivery_days_display %}prazo total {{ days }} dias úteis{% endblocktranslate %}{% endif %}
+{% blocktranslate with weight=order.total_weight_grams %}Peso do pedido: {{ weight }} g{% endblocktranslate %}
+{% if order.customer_note %}
+{% translate "Observação do cliente" %}: {{ order.customer_note }}
+{% endif %}
+--- {% translate "Entrega" %} ---
+{% for line in shipping_address.lines %}{{ line }}
+{% endfor %}{% if shipping_address.phone %}{{ shipping_address.phone }}
+{% endif %}
+--- {% translate "Faturamento" %} ---
+{% for line in billing_address.lines %}{{ line }}
+{% endfor %}{% if billing_address.vat_number %}{{ billing_address.vat_number }}
+{% endif %}
+{% translate "Abrir no Admin" %}: {{ admin_url }}

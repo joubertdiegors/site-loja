@@ -1,0 +1,45 @@
+{% extends "accounts/base_account.html" %}
+{% load i18n jdprint %}
+
+{% block account_title %}{% translate "Meus dados" %}{% endblock %}
+{% block account_subtitle %}
+  <p class="section-subtitle">
+    {% translate "São os dados do cliente — usados em faturas e entregas. Usuário, e-mail e senha ficam em Segurança." %}
+  </p>
+{% endblock %}
+
+{% block account_body %}
+  <div class="card max-w-2xl p-6 sm:p-7">
+    <form method="post" class="space-y-5" novalidate>
+      {% csrf_token %}
+
+      {% if form.non_field_errors %}
+        <div class="form-alert" role="alert">
+          {% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
+        </div>
+      {% endif %}
+
+      <div class="grid gap-5 sm:grid-cols-2">
+        {% include "accounts/_field.html" with field=form.first_name %}
+        {% include "accounts/_field.html" with field=form.last_name %}
+      </div>
+
+      {% include "accounts/_field.html" with field=form.phone %}
+
+      <fieldset class="space-y-5 rounded-card border border-surface-line bg-surface-soft p-5">
+        <legend class="px-2 font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-ink-muted">
+          {% translate "Empresa (opcional)" %}
+        </legend>
+        {% include "accounts/_field.html" with field=form.company_name %}
+        {% include "accounts/_field.html" with field=form.vat_number %}
+      </fieldset>
+
+      {% include "accounts/_field.html" with field=form.preferred_language %}
+
+      <div class="flex items-center gap-3 pt-1">
+        <button type="submit" class="btn-primary">{% translate "Salvar" %}</button>
+        <a class="btn-ghost" href="{% url 'accounts:dashboard' %}">{% translate "Cancelar" %}</a>
+      </div>
+    </form>
+  </div>
+{% endblock %}

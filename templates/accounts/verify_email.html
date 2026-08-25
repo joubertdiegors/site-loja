@@ -1,0 +1,64 @@
+{% extends "accounts/base_auth.html" %}
+{% load i18n jdprint %}
+
+{% block auth_eyebrow %}<p class="section-eyebrow">{% translate "Sua conta" %}</p>{% endblock %}
+{% block auth_title %}
+  {% if status == "ok" %}{% translate "E-mail confirmado" %}
+  {% elif status == "expired" %}{% translate "Link expirado" %}
+  {% elif status == "already" %}{% translate "Link já utilizado" %}
+  {% else %}{% translate "Link inválido" %}{% endif %}
+{% endblock %}
+
+{% block auth_body %}
+  {% if status == "ok" %}
+
+    <div class="flex flex-col items-center gap-4 text-center">
+      <span class="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600" aria-hidden="true">
+        {% icon "check" "h-6 w-6" %}
+      </span>
+      <p class="text-sm text-ink-soft">
+        {% translate "Pronto! Seu endereço de e-mail está confirmado." %}
+      </p>
+      <a class="btn-primary w-full" href="{% url 'accounts:dashboard' %}">
+        {% translate "Ir para minha conta" %}
+      </a>
+    </div>
+
+  {% elif status == "expired" %}
+
+    <div class="space-y-4 text-center">
+      <p class="text-sm text-ink-soft">{% translate "Este link de confirmação expirou." %}</p>
+      {% if user.is_authenticated %}
+        <form method="post" action="{% url 'accounts:resend_verification' %}">
+          {% csrf_token %}
+          <button type="submit" class="btn-primary w-full">{% translate "Enviar novo e-mail" %}</button>
+        </form>
+      {% else %}
+        <a class="btn-primary w-full" href="{% url 'accounts:resend_verification_page' %}">
+          {% translate "Enviar novo e-mail" %}
+        </a>
+      {% endif %}
+    </div>
+
+  {% elif status == "already" %}
+
+    <div class="space-y-4 text-center">
+      <p class="text-sm text-ink-soft">
+        {% translate "Este link de confirmação já foi utilizado ou não é mais válido." %}
+      </p>
+      <a class="btn-secondary w-full" href="{% url 'accounts:login' %}">{% translate "Entrar" %}</a>
+    </div>
+
+  {% else %}
+
+    <div class="space-y-4 text-center">
+      <p class="text-sm text-ink-soft">
+        {% translate "Este link de confirmação já foi utilizado ou não é mais válido." %}
+      </p>
+      <a class="btn-secondary w-full" href="{% url 'accounts:resend_verification_page' %}">
+        {% translate "Enviar novo e-mail" %}
+      </a>
+    </div>
+
+  {% endif %}
+{% endblock %}

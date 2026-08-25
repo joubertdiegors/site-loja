@@ -1,0 +1,69 @@
+{% extends "accounts/base_account.html" %}
+{% load i18n jdprint %}
+
+{% comment %}
+Cadastro e edição de endereço. O mesmo template para os dois: só muda o título.
+
+`next_url` chega quando o cliente veio do checkout — nesse caso ele volta para
+lá depois de salvar, em vez de cair na lista de endereços no meio de uma compra.
+{% endcomment %}
+
+{% block account_title %}
+  {% if is_new %}{% translate "Novo endereço" %}{% else %}{% translate "Editar endereço" %}{% endif %}
+{% endblock %}
+{% block account_subtitle %}
+  <p class="section-subtitle">{% translate "Quem recebe pode não ser quem compra — é o que torna o presente possível." %}</p>
+{% endblock %}
+
+{% block account_body %}
+  <div class="max-w-2xl">
+    <form method="post" class="card space-y-5 p-6 sm:p-7">
+      {% csrf_token %}
+      {% if next_url %}<input type="hidden" name="next" value="{{ next_url }}">{% endif %}
+
+      {% if form.non_field_errors %}
+        <div class="alert-error" role="alert">
+          {% icon "alert" "h-4 w-4 shrink-0" %}
+          <span>{{ form.non_field_errors.0 }}</span>
+        </div>
+      {% endif %}
+
+      {% include "accounts/_field.html" with field=form.label %}
+
+      <div class="grid gap-5 sm:grid-cols-2">
+        {% include "accounts/_field.html" with field=form.first_name %}
+        {% include "accounts/_field.html" with field=form.last_name %}
+      </div>
+
+      <div class="grid gap-5 sm:grid-cols-2">
+        {% include "accounts/_field.html" with field=form.company_name %}
+        {% include "accounts/_field.html" with field=form.vat_number %}
+      </div>
+
+      {% include "accounts/_field.html" with field=form.phone %}
+
+      <div class="border-t border-surface-line pt-5">
+        {% include "accounts/_field.html" with field=form.street %}
+      </div>
+      {% include "accounts/_field.html" with field=form.street_extra %}
+
+      <div class="grid gap-5 sm:grid-cols-[1fr_2fr]">
+        {% include "accounts/_field.html" with field=form.postal_code %}
+        {% include "accounts/_field.html" with field=form.city %}
+      </div>
+
+      <div class="grid gap-5 sm:grid-cols-2">
+        {% include "accounts/_field.html" with field=form.region %}
+        {% include "accounts/_field.html" with field=form.country %}
+      </div>
+
+      <div class="flex flex-wrap items-center gap-3 border-t border-surface-line pt-5">
+        <button type="submit" class="btn-primary">{% translate "Salvar endereço" %}</button>
+        <a href="{{ next_url|default:'' }}{% if not next_url %}{% url 'accounts:addresses' %}{% endif %}"
+           class="btn-ghost">
+          {% translate "Cancelar" %}
+        </a>
+      </div>
+    </form>
+  </div>
+{% endblock %}

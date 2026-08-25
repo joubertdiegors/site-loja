@@ -1,0 +1,22 @@
+{% comment %}
+Um campo de formulário: rótulo, campo, ajuda e erros.
+
+Usado por todas as telas de conta para o erro aparecer sempre no mesmo lugar,
+com a mesma cor, e para o rótulo estar sempre ligado ao campo (`for`/`id`).
+`field-has-error` pinta a borda do campo sem precisar mexer no widget.
+{% endcomment %}
+<div class="space-y-1.5 {% if field.errors %}field-has-error{% endif %}">
+  <label class="form-label" for="{{ field.id_for_label }}">
+    {{ field.label }}{% if field.field.required %}<span class="text-brand-600" aria-hidden="true"> *</span>{% endif %}
+  </label>
+
+  {{ field }}
+
+  {% if field.help_text %}
+    <div class="form-help">{{ field.help_text }}</div>
+  {% endif %}
+
+  {% for error in field.errors %}
+    <p class="form-error">{{ error }}</p>
+  {% endfor %}
+</div>

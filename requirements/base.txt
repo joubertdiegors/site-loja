@@ -1,0 +1,6 @@
+# Alvo de execucao: Python 3.13 (teto do PythonAnywhere, system image "innit").
+# O Django 6.1 aceita 3.12/3.13/3.14; quem limita e a hospedagem, nao o Django.
+Django==6.1
+psycopg[binary]==3.3.4
+python-dotenv==1.2.3
+stripe==15.5.1

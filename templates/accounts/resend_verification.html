@@ -1,0 +1,18 @@
+{% extends "accounts/base_auth.html" %}
+{% load i18n %}
+
+{% block auth_eyebrow %}<p class="section-eyebrow">{% translate "Sua conta" %}</p>{% endblock %}
+{% block auth_title %}{% translate "Reenviar confirmação" %}{% endblock %}
+{% block auth_subtitle %}
+  <p class="section-subtitle mx-auto">
+    {% translate "Informe o e-mail usado no cadastro e enviaremos um novo link." %}
+  </p>
+{% endblock %}
+
+{% block auth_body %}
+  <form method="post" action="{% url 'accounts:resend_verification' %}" class="space-y-5" novalidate>
+    {% csrf_token %}
+    {% include "accounts/_field.html" with field=form.email %}
+    <button type="submit" class="btn-primary w-full">{% translate "Enviar" %}</button>
+  </form>
+{% endblock %}

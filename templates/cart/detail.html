@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% load i18n jdprint %}
+
+{% block content %}
+  <section class="container-page py-10 sm:py-14">
+    <header class="mb-8">
+      <p class="section-eyebrow">{% translate "Sua seleção" %}</p>
+      <h1 class="section-title mt-2">{% translate "Meu carrinho" %}</h1>
+    </header>
+
+    {# Alvo das trocas do HTMX. Sem JavaScript, a página inteira recarrega. #}
+    <div id="cart-panel">
+      {% include "cart/_cart_panel.html" %}
+    </div>
+  </section>
+{% endblock %}

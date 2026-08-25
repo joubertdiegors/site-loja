@@ -1,0 +1,26 @@
+# A maquina de desenvolvimento e Windows e o servidor e Linux. Sem esta regra
+# o repositorio acaba guardando CRLF e arquivos de texto chegam quebrados no
+# deploy. No repositorio, sempre LF; no disco, o que a plataforma usar.
+* text=auto eol=lf
+
+# Binarios: o git nao deve tentar normalizar final de linha aqui.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.gif binary
+*.ico binary
+*.svg text eol=lf
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.pdf binary
+*.stl binary
+*.mo binary
+*.sqlite3 binary
+
+# Artefato gerado: marcar como tal deixa o diff do GitHub colapsado por padrao
+# e tira o `tailwind.css` das estatisticas de linguagem do repositorio.
+static/css/tailwind.css linguist-generated=true
+static/vendor/*.min.js linguist-vendored=true

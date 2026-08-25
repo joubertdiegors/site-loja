@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% load i18n jdprint %}
+
+{% comment %}
+O cliente voltou da Stripe sem pagar.
+
+Nada se perdeu: o pedido está gravado como pendente e pode ser pago pela conta.
+Nenhum tom de erro — desistir de uma tela de pagamento é normal.
+{% endcomment %}
+
+{% block content %}
+  <section class="container-page py-12 sm:py-16">
+    <div class="mx-auto max-w-2xl">
+      <div class="card p-8 text-center sm:p-10">
+        <span class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-surface-brand text-brand-700" aria-hidden="true">
+          {% icon "credit-card" "h-6 w-6" %}
+        </span>
+
+        <h1 class="mt-5 font-display text-2xl font-bold tracking-[-0.02em] text-ink sm:text-3xl">
+          {% translate "Pagamento não concluído" %}
+        </h1>
+        <p class="mt-3 text-sm leading-relaxed text-ink-soft sm:text-base">
+          {% translate "Seu pedido continua guardado. Você pode retomar o pagamento quando quiser — nada foi cobrado." %}
+        </p>
+        <p class="mt-5 font-mono text-sm text-ink">
+          {% translate "Pedido" %} <strong class="text-brand-800">{{ order.number }}</strong>
+          · {{ order.currency_symbol }}&nbsp;{{ order.total|floatformat:2 }}
+        </p>
+
+        <div class="mt-7 flex flex-wrap justify-center gap-3">
+          <form method="post" action="{% url 'orders:retry_payment' order.number %}">
+            {% csrf_token %}
+            <button type="submit" class="btn-primary">
+              {% icon "credit-card" "h-4 w-4" %}
+              {% translate "Retomar pagamento" %}
+            </button>
+          </form>
+          <a href="{{ order.get_absolute_url }}" class="btn-secondary">
+            {% translate "Ver meu pedido" %}
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+{% endblock %}

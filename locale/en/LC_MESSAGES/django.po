@@ -1,0 +1,1582 @@
+# Tradução da interface da JD PRINT (Inglês).
+# As traduções de CONTEÚDO (produtos, categorias, seções) ficam no banco de
+# dados, não aqui. Este arquivo cobre apenas os textos fixos da interface.
+msgid ""
+msgstr ""
+"Project-Id-Version: JD PRINT\n"
+"Report-Msgid-Bugs-To: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: en\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+
+msgid "Ir para o conteúdo"
+msgstr "Skip to content"
+
+msgid "Navegação principal"
+msgstr "Main navigation"
+
+msgid "Navegação principal (celular)"
+msgstr "Main navigation (mobile)"
+
+msgid "Buscar produtos"
+msgstr "Search products"
+
+msgid "Buscar produtos (em breve)"
+msgstr "Search products (coming soon)"
+
+msgid "Escolher idioma"
+msgstr "Choose language"
+
+msgid "Favoritos (em breve)"
+msgstr "Wishlist (coming soon)"
+
+msgid "Favoritos em breve"
+msgstr "Wishlist coming soon"
+
+msgid "Minha conta (em breve)"
+msgstr "My account (coming soon)"
+
+msgid "Carrinho (em breve)"
+msgstr "Cart (coming soon)"
+
+msgid "Abrir menu"
+msgstr "Open menu"
+
+msgid "Em breve"
+msgstr "Coming soon"
+
+msgid "Produtos"
+msgstr "Products"
+
+msgid "Todos os produtos"
+msgstr "All products"
+
+msgid "Ver produtos"
+msgstr "Browse products"
+
+msgid "Ver todos"
+msgstr "See all"
+
+msgid "Impressão 3D criativa"
+msgstr "Creative 3D printing"
+
+msgid "Peças únicas, impressas sob medida"
+msgstr "Unique pieces, printed to order"
+
+msgid "Modelos decorativos, acessórios e filamentos escolhidos com cuidado. Feitos na Bélgica, com acabamento e cor à sua escolha."
+msgstr "Decorative models, accessories and filaments, carefully chosen. Made in Belgium, your finish and colour."
+
+msgid "Cores e materiais à escolha"
+msgstr "Colours and materials of your choice"
+
+msgid "Produção sob encomenda"
+msgstr "Made to order"
+
+msgid "Envio para toda a Europa"
+msgstr "Shipping across Europe"
+
+msgid "Espaço reservado para o banner promocional. Cadastre um banner em Home › Banners da Home."
+msgstr "Space reserved for the promotional banner. Add one in Home › Home banners."
+
+msgid "Destaque"
+msgstr "Featured"
+
+msgid "Sob encomenda"
+msgstr "Made to order"
+
+msgid "Esgotado"
+msgstr "Sold out"
+
+msgid "Sob consulta"
+msgstr "On request"
+
+msgid "Cores disponíveis"
+msgstr "Available colours"
+
+msgid "Foto em breve"
+msgstr "Photo coming soon"
+
+msgid "Produtos anteriores"
+msgstr "Previous products"
+
+msgid "Próximos produtos"
+msgstr "Next products"
+
+msgid "A vitrine está sendo montada"
+msgstr "The shop window is being set up"
+
+msgid "Ainda não há seções ativas com produtos. Crie uma seção em Home › Seções da Home no painel administrativo."
+msgstr "No active sections with products yet. Create one in Home › Home sections in the admin."
+
+msgid "Navegue por"
+msgstr "Browse by"
+
+msgid "Categorias"
+msgstr "Categories"
+
+msgid "Encontre mais rápido o que procura."
+msgstr "Find what you are looking for, faster."
+
+msgid "Personalização"
+msgstr "Customisation"
+
+msgid "Tem uma ideia? A gente imprime."
+msgstr "Got an idea? We print it."
+
+msgid "Cores, tamanhos e materiais à sua escolha — e projetos sob encomenda para o que não existe na loja."
+msgstr "Colours, sizes and materials of your choice — plus custom projects for what the shop does not carry."
+
+msgid "Produtos criativos feitos com impressão 3D. Peças decorativas, acessórios e filamentos — com opção de personalização e produção sob encomenda."
+msgstr "Creative products made with 3D printing. Decorative pieces, accessories and filaments — customisable and made to order."
+
+msgid "Ajuda"
+msgstr "Help"
+
+msgid "Envios e prazos"
+msgstr "Shipping and delivery times"
+
+msgid "Trocas e devoluções"
+msgstr "Returns and exchanges"
+
+msgid "Contato"
+msgstr "Contact"
+
+msgid "Páginas em construção."
+msgstr "Pages under construction."
+
+msgid "Compra segura"
+msgstr "Secure checkout"
+
+msgid "Em construção"
+msgstr "Under construction"
+
+msgid "Página em construção. A loja completa chega em breve."
+msgstr "Page under construction. The full shop is coming soon."
+
+msgid "Esta página faz parte da próxima etapa da loja. O produto já está cadastrado e aparece normalmente na página inicial."
+msgstr "This page is part of the next stage of the shop. The product is already registered and appears on the home page."
+
+msgid "Voltar para a página inicial"
+msgstr "Back to the home page"
+
+msgid "JD PRINT — Impressão 3D criativa"
+msgstr "JD PRINT — Creative 3D printing"
+
+msgid "Produtos criativos feitos com impressão 3D: modelos decorativos, acessórios e filamentos. Peças sob encomenda e personalização."
+msgstr "Creative 3D-printed products: decorative models, accessories and filaments. Made to order and customisable."
+
+msgid "%(site_name)s — página inicial"
+msgstr "%(site_name)s — home page"
+
+msgid "Adicionar %(name)s aos favoritos (em breve)"
+msgstr "Add %(name)s to wishlist (coming soon)"
+
+msgid "Imagem de %(name)s ainda não cadastrada"
+msgstr "Image for %(name)s not added yet"
+
+msgid "© %(current_year)s %(site_name)s. Todos os direitos reservados."
+msgstr "© %(current_year)s %(site_name)s. All rights reserved."
+
+msgid "Pronto em %(days)s dia"
+msgid_plural "Pronto em %(days)s dias"
+msgstr[0] "Ready in %(days)s day"
+msgstr[1] "Ready in %(days)s days"
+
+msgid "%(total)s produto"
+msgid_plural "%(total)s produtos"
+msgstr[0] "%(total)s product"
+msgstr[1] "%(total)s products"
+
+msgid "Catálogo"
+msgstr "Catalogue"
+
+msgid "Modelos"
+msgstr "Models"
+
+msgid "Descubra nossos modelos impressos em 3D"
+msgstr "Discover our 3D-printed models"
+
+msgid "Vitrine ainda não configurada"
+msgstr "Shop not configured yet"
+
+msgid "Filtros"
+msgstr "Filters"
+
+msgid "Todos"
+msgstr "All"
+
+msgid "Ordenar"
+msgstr "Sort by"
+
+msgid "Aplicar"
+msgstr "Apply"
+
+msgid "Mais recentes"
+msgstr "Newest"
+
+msgid "Nome A-Z"
+msgstr "Name A-Z"
+
+msgid "Nome Z-A"
+msgstr "Name Z-A"
+
+msgid "Preço menor → maior"
+msgstr "Price low to high"
+
+msgid "Preço maior → menor"
+msgstr "Price high to low"
+
+msgid "Paginação"
+msgstr "Pagination"
+
+msgid "Anterior"
+msgstr "Previous"
+
+msgid "Próximo"
+msgstr "Next"
+
+msgid "Nenhum produto por aqui ainda"
+msgstr "No products here yet"
+
+msgid "Experimente outra categoria ou volte em breve."
+msgstr "Try another category or come back soon."
+
+msgid "Ver todos os modelos"
+msgstr "See all models"
+
+msgid "Ver modelos"
+msgstr "See models"
+
+msgid "Adicionar ao carrinho"
+msgstr "Add to cart"
+
+msgid "Meu carrinho"
+msgstr "My cart"
+
+msgid "Sua seleção"
+msgstr "Your selection"
+
+msgid "Seu carrinho está vazio"
+msgstr "Your cart is empty"
+
+msgid "Escolha um modelo e ele aparece aqui."
+msgstr "Pick a model and it shows up here."
+
+msgid "Produtos no carrinho"
+msgstr "Products in the cart"
+
+msgid "Produto"
+msgstr "Product"
+
+msgid "Quantidade"
+msgstr "Quantity"
+
+msgid "Preço"
+msgstr "Price"
+
+msgid "Remover"
+msgstr "Remove"
+
+msgid "por unidade"
+msgstr "each"
+
+msgid "Máximo em estoque"
+msgstr "Maximum in stock"
+
+msgid "Quantidade máxima disponível"
+msgstr "Maximum available quantity"
+
+msgid "Resumo"
+msgstr "Summary"
+
+msgid "Subtotal"
+msgstr "Subtotal"
+
+msgid "Envio"
+msgstr "Shipping"
+
+msgid "calculado no checkout"
+msgstr "calculated at checkout"
+
+msgid "Finalizar compra"
+msgstr "Checkout"
+
+msgid "Continuar comprando"
+msgstr "Continue shopping"
+
+msgid "Finalização de compra"
+msgstr "Checkout"
+
+msgid "O pagamento e a entrega entram na próxima etapa da loja. Seu carrinho continua guardado."
+msgstr "Payment and delivery come in the next stage. Your cart is kept."
+
+msgid "Voltar ao carrinho"
+msgstr "Back to the cart"
+
+msgid "Meu carrinho — JD PRINT"
+msgstr "My cart — JD PRINT"
+
+msgid "Produtos selecionados no seu carrinho."
+msgstr "Products selected in your cart."
+
+msgid "Finalizar compra — JD PRINT"
+msgstr "Checkout — JD PRINT"
+
+msgid "Produto adicionado ao carrinho."
+msgstr "Product added to the cart."
+
+msgid "Produto removido do carrinho."
+msgstr "Product removed from the cart."
+
+msgid "Carrinho atualizado."
+msgstr "Cart updated."
+
+msgid "Produto esgotado no momento."
+msgstr "Product is sold out right now."
+
+msgid "Este produto não está disponível."
+msgstr "This product is not available."
+
+msgid "Este produto não estava no carrinho."
+msgstr "This product was not in the cart."
+
+msgid "Produto esgotado: item removido."
+msgstr "Product sold out: item removed."
+
+msgid "Adicionamos o máximo disponível: %(count)s unidade(s)."
+msgstr "We added the maximum available: %(count)s unit(s)."
+
+msgid "Disponível apenas %(count)s unidade(s) deste produto."
+msgstr "Only %(count)s unit(s) available for this product."
+
+msgid "Diminuir quantidade de %(name)s"
+msgstr "Decrease quantity of %(name)s"
+
+msgid "Aumentar quantidade de %(name)s"
+msgstr "Increase quantity of %(name)s"
+
+msgid "Remover %(name)s do carrinho"
+msgstr "Remove %(name)s from the cart"
+
+msgid "Página %(number)s"
+msgstr "Page %(number)s"
+
+msgid "Carrinho, %(total)s item"
+msgid_plural "Carrinho, %(total)s itens"
+msgstr[0] "Cart, %(total)s item"
+msgstr[1] "Cart, %(total)s items"
+
+msgid "%(total)s item no carrinho"
+msgid_plural "%(total)s itens no carrinho"
+msgstr[0] "%(total)s item in the cart"
+msgstr[1] "%(total)s items in the cart"
+
+msgid "Mostrar"
+msgstr "Show"
+
+msgid "Escolher opções"
+msgstr "Choose options"
+
+msgid "Personalizar"
+msgstr "Customise"
+
+msgid "Você está aqui"
+msgstr "You are here"
+
+msgid "Início"
+msgstr "Home"
+
+msgid "Fotos do produto"
+msgstr "Product photos"
+
+msgid "Opção"
+msgstr "Option"
+
+msgid "Cor"
+msgstr "Colour"
+
+msgid "Tamanho"
+msgstr "Size"
+
+msgid "Material"
+msgstr "Material"
+
+msgid "Marca"
+msgstr "Brand"
+
+msgid "Peso"
+msgstr "Weight"
+
+msgid "Dimensões"
+msgstr "Dimensions"
+
+msgid "Tempo de impressão"
+msgstr "Print time"
+
+msgid "Referência"
+msgstr "Reference"
+
+msgid "Descrição"
+msgstr "Description"
+
+msgid "Especificações"
+msgstr "Specifications"
+
+msgid "Informações adicionais"
+msgstr "Additional information"
+
+msgid "Em estoque"
+msgstr "In stock"
+
+msgid "Últimas unidades"
+msgstr "Last few left"
+
+msgid "Produzido sob encomenda"
+msgstr "Made to order"
+
+msgid "esgotado"
+msgstr "sold out"
+
+msgid "Aumentar quantidade"
+msgstr "Increase quantity"
+
+msgid "Diminuir quantidade"
+msgstr "Decrease quantity"
+
+msgid "Escolha sua personalização"
+msgstr "Choose your customisation"
+
+msgid "Como deseja personalizar?"
+msgstr "How would you like to customise it?"
+
+msgid "Enviar uma foto"
+msgstr "Upload a photo"
+
+msgid "Informar um texto"
+msgstr "Enter a text"
+
+msgid "Enviar sua foto"
+msgstr "Upload your photo"
+
+msgid "Texto que deseja personalizar"
+msgstr "Text to personalise"
+
+msgid "Observações"
+msgstr "Notes"
+
+msgid "Observações (opcional)"
+msgstr "Notes (optional)"
+
+msgid "Ex.: quero o nome na parte inferior."
+msgstr "E.g. put the name at the bottom."
+
+msgid "Texto"
+msgstr "Text"
+
+msgid "Com foto"
+msgstr "With photo"
+
+msgid "Foto enviada"
+msgstr "Photo uploaded"
+
+msgid "Envie a foto da personalização."
+msgstr "Upload the customisation photo."
+
+msgid "Informe o texto da personalização."
+msgstr "Enter the customisation text."
+
+msgid "Escolha entre enviar uma foto ou informar um texto."
+msgstr "Choose between uploading a photo or entering a text."
+
+msgid "Envie uma imagem JPG, PNG ou WEBP."
+msgstr "Upload a JPG, PNG or WEBP image."
+
+msgid "O arquivo enviado está vazio."
+msgstr "The uploaded file is empty."
+
+msgid "A imagem pode ter no máximo %(limit)s MB."
+msgstr "The image can be at most %(limit)s MB."
+
+msgid "O texto pode ter no máximo %(limit)s caracteres."
+msgstr "The text can be at most %(limit)s characters."
+
+msgid "As observações podem ter no máximo %(limit)s caracteres."
+msgstr "Notes can be at most %(limit)s characters."
+
+msgid "Escolha uma opção do produto."
+msgstr "Choose a product option."
+
+msgid "Esta opção não está disponível."
+msgstr "This option is not available."
+
+msgid "Este item não estava no carrinho."
+msgstr "This item was not in the cart."
+
+msgid "Não foi possível adicionar o produto."
+msgstr "The product could not be added."
+
+msgid "Seu carrinho"
+msgstr "Your cart"
+
+msgid "Fechar carrinho"
+msgstr "Close cart"
+
+msgid "Ver carrinho"
+msgstr "View cart"
+
+msgid "Envio calculado no checkout."
+msgstr "Shipping calculated at checkout."
+
+msgid "Sua conta"
+msgstr "Your account"
+
+msgid "Minha conta"
+msgstr "My account"
+
+msgid "Meus pedidos"
+msgstr "My orders"
+
+msgid "Meus dados"
+msgstr "My details"
+
+msgid "Menu da conta"
+msgstr "Account menu"
+
+msgid "Sair"
+msgstr "Sign out"
+
+msgid "Entrar"
+msgstr "Sign in"
+
+msgid "Criar conta"
+msgstr "Create account"
+
+msgid "Acesso"
+msgstr "Access"
+
+msgid "Usuário"
+msgstr "Username"
+
+msgid "Nome"
+msgstr "First name"
+
+msgid "Telefone"
+msgstr "Phone"
+
+msgid "Empresa"
+msgstr "Company"
+
+msgid "Empresa (opcional)"
+msgstr "Company (optional)"
+
+msgid "E-mail"
+msgstr "Email"
+
+msgid "Senha"
+msgstr "Password"
+
+msgid "Idioma preferido"
+msgstr "Preferred language"
+
+msgid "Cliente desde"
+msgstr "Customer since"
+
+msgid "Salvar"
+msgstr "Save"
+
+msgid "Enviar"
+msgstr "Send"
+
+msgid "Usuário ou e-mail"
+msgstr "Username or email"
+
+msgid "Use seu nome de usuário ou o e-mail cadastrado."
+msgstr "Use your username or the email you registered with."
+
+msgid "Usuário, e-mail ou senha incorretos."
+msgstr "Incorrect username, email or password."
+
+msgid "Esqueci minha senha"
+msgstr "I forgot my password"
+
+msgid "Ainda não tem conta?"
+msgstr "No account yet?"
+
+msgid "Já tem conta?"
+msgstr "Already have an account?"
+
+msgid "Voltar para entrar"
+msgstr "Back to sign in"
+
+msgid "Entrar — JD PRINT"
+msgstr "Sign in — JD PRINT"
+
+msgid "Criar conta — JD PRINT"
+msgstr "Create account — JD PRINT"
+
+msgid "Três campos e pronto. Nome, telefone e dados de faturamento ficam para depois."
+msgstr "Three fields and you are done. Name, phone and billing details come later."
+
+msgid "Enviaremos um e-mail para confirmar seu endereço. Seu carrinho continua com você."
+msgstr "We will send an email to confirm your address. Your cart stays with you."
+
+msgid "Usado para confirmar a conta e para falar sobre seus pedidos."
+msgstr "Used to confirm your account and to talk about your orders."
+
+msgid "Este nome de usuário não está disponível."
+msgstr "This username is not available."
+
+msgid "Já existe uma conta com este e-mail."
+msgstr "An account with this email already exists."
+
+msgid "Já existe uma conta com este e-mail. Tente entrar."
+msgstr "An account with this email already exists. Try signing in."
+
+msgid "O nome de usuário não pode ser um endereço de e-mail."
+msgstr "The username cannot be an email address."
+
+msgid "O nome de usuário precisa de pelo menos %(min)s caracteres."
+msgstr "The username needs at least %(min)s characters."
+
+msgid "O nome de usuário pode ter no máximo %(max)s caracteres."
+msgstr "The username can be at most %(max)s characters."
+
+msgid "Use apenas letras sem acento, números, hífen e sublinhado, começando e terminando com letra ou número."
+msgstr "Use only unaccented letters, numbers, hyphen and underscore, starting and ending with a letter or a number."
+
+msgid "Telefone inválido. Use números, espaços, +, ( ) ou hífen."
+msgstr "Invalid phone number. Use digits, spaces, +, ( ) or hyphen."
+
+msgid "Minha conta — JD PRINT"
+msgstr "My account — JD PRINT"
+
+msgid "Meus dados — JD PRINT"
+msgstr "My details — JD PRINT"
+
+msgid "Confirme seu e-mail"
+msgstr "Confirm your email"
+
+msgid "E-mail confirmado"
+msgstr "Email confirmed"
+
+msgid "E-mail confirmado."
+msgstr "Email confirmed."
+
+msgid "Enviar novo e-mail"
+msgstr "Send a new email"
+
+msgid "Trocar minha senha"
+msgstr "Change my password"
+
+msgid "Completar meus dados"
+msgstr "Complete my details"
+
+msgid "Ainda não preenchido. Serão pedidos na hora de finalizar a compra."
+msgstr "Not filled in yet. These will be asked at checkout."
+
+msgid "Seu carrinho está vazio."
+msgstr "Your cart is empty."
+
+msgid "Dados atualizados."
+msgstr "Details updated."
+
+msgid "São os dados do cliente — usados em faturas e entregas. Usuário, e-mail e senha ficam em Minha conta."
+msgstr "These are the customer details — used on invoices and deliveries. Username, email and password live under My account."
+
+msgid "Confirmação de e-mail — JD PRINT"
+msgstr "Email confirmation — JD PRINT"
+
+msgid "Confirme seu endereço de e-mail"
+msgstr "Confirm your email address"
+
+msgid "Confirme seu endereço de e-mail — JD PRINT"
+msgstr "Confirm your email address — JD PRINT"
+
+msgid "Confirme seu endereço de e-mail para concluir seu cadastro na JD PRINT."
+msgstr "Confirm your email address to complete your registration at JD PRINT."
+
+msgid "Clique no botão abaixo para confirmar seu endereço:"
+msgstr "Click the button below to confirm your address:"
+
+msgid "Abra o endereço abaixo para confirmar seu e-mail:"
+msgstr "Open the address below to confirm your email:"
+
+msgid "CONFIRMAR MEU E-MAIL"
+msgstr "CONFIRM MY EMAIL"
+
+msgid "Se você não criou esta conta, ignore este e-mail."
+msgstr "If you did not create this account, ignore this email."
+
+msgid "Se o botão não funcionar, copie este endereço no navegador:"
+msgstr "If the button does not work, copy this address into your browser:"
+
+msgid "A JD PRINT nunca pede senha, dados bancários ou código por e-mail."
+msgstr "JD PRINT never asks for passwords, bank details or codes by email."
+
+msgid "Pronto! Seu endereço de e-mail está confirmado."
+msgstr "Done! Your email address is confirmed."
+
+msgid "Ir para minha conta"
+msgstr "Go to my account"
+
+msgid "Link expirado"
+msgstr "Link expired"
+
+msgid "Link inválido"
+msgstr "Invalid link"
+
+msgid "Link já utilizado"
+msgstr "Link already used"
+
+msgid "Este link de confirmação expirou."
+msgstr "This confirmation link has expired."
+
+msgid "Este link de confirmação já foi utilizado ou não é mais válido."
+msgstr "This confirmation link has already been used or is no longer valid."
+
+msgid "Reenviar confirmação"
+msgstr "Resend confirmation"
+
+msgid "Reenviar confirmação — JD PRINT"
+msgstr "Resend confirmation — JD PRINT"
+
+msgid "Informe o e-mail usado no cadastro e enviaremos um novo link."
+msgstr "Give us the email you signed up with and we will send a new link."
+
+msgid "Seu e-mail já está confirmado."
+msgstr "Your email is already confirmed."
+
+msgid "Aguarde alguns instantes antes de pedir um novo e-mail."
+msgstr "Please wait a moment before asking for another email."
+
+msgid "E-mail de confirmação reenviado para %(email)s."
+msgstr "Confirmation email sent again to %(email)s."
+
+msgid "Conta criada. Enviamos um e-mail para %(email)s — confirme para concluir."
+msgstr "Account created. We sent an email to %(email)s — confirm it to finish."
+
+msgid "Se existir uma conta associada a este e-mail, enviaremos as instruções em instantes."
+msgstr "If an account exists for this email, we will send the instructions shortly."
+
+msgid "Recuperar senha"
+msgstr "Recover password"
+
+msgid "Recuperar senha — JD PRINT"
+msgstr "Recover password — JD PRINT"
+
+msgid "Informe o e-mail da sua conta e enviaremos um link para criar uma nova senha."
+msgstr "Give us your account email and we will send a link to create a new password."
+
+msgid "Enviar instruções"
+msgstr "Send instructions"
+
+msgid "Verifique seu e-mail"
+msgstr "Check your email"
+
+msgid "Não recebeu? Confira a caixa de spam antes de tentar de novo."
+msgstr "Nothing received? Check the spam folder before trying again."
+
+msgid "Redefinição de senha"
+msgstr "Password reset"
+
+msgid "Redefinição de senha — JD PRINT"
+msgstr "Password reset — JD PRINT"
+
+msgid "Recebemos um pedido para redefinir a senha da sua conta JD PRINT."
+msgstr "We received a request to reset the password of your JD PRINT account."
+
+msgid "Abra o endereço abaixo para criar uma nova senha:"
+msgstr "Open the address below to create a new password:"
+
+msgid "CRIAR NOVA SENHA"
+msgstr "CREATE NEW PASSWORD"
+
+msgid "Se não foi você quem pediu, ignore este e-mail: sua senha continua a mesma."
+msgstr "If you did not ask for this, ignore this email: your password stays the same."
+
+msgid "Nova senha"
+msgstr "New password"
+
+msgid "Nova senha — JD PRINT"
+msgstr "New password — JD PRINT"
+
+msgid "Salvar nova senha"
+msgstr "Save new password"
+
+msgid "Este link de redefinição já foi utilizado ou não é mais válido."
+msgstr "This reset link has already been used or is no longer valid."
+
+msgid "Pedir um novo link"
+msgstr "Ask for a new link"
+
+msgid "Senha alterada"
+msgstr "Password changed"
+
+msgid "Sua senha foi alterada. Já pode entrar com ela."
+msgstr "Your password has been changed. You can sign in with it now."
+
+msgid "Não perca seu carrinho"
+msgstr "Don't lose your cart"
+
+msgid "Crie uma conta ou entre para mantê-lo disponível mesmo se trocar de dispositivo."
+msgstr "Create an account or sign in to keep it even if you switch devices."
+
+msgid "Seu carrinho foi recuperado."
+msgstr "Your cart is back."
+
+msgid "Enviamos um link para %(email)s. Ele vale por tempo limitado e só pode ser usado uma vez."
+msgstr "We sent a link to %(email)s. It lasts for a limited time and can only be used once."
+
+msgid "Olá, %(username)s. Você criou uma conta na JD PRINT."
+msgstr "Hello %(username)s. You created an account at JD PRINT."
+
+msgid "Olá, %(username)s. Recebemos um pedido para redefinir a senha da sua conta."
+msgstr "Hello %(username)s. We received a request to reset the password of your account."
+
+msgid "Seu carrinho foi recuperado. Ajustamos a quantidade de %(items)s ao estoque disponível."
+msgstr "Your cart is back. We adjusted the quantity of %(items)s to the available stock."
+
+msgid "Aguarde %(seconds)s segundo."
+msgid_plural "Aguarde %(seconds)s segundos."
+msgstr[0] "Wait %(seconds)s second."
+msgstr[1] "Wait %(seconds)s seconds."
+
+msgid "%(total)s item guardado na sua conta."
+msgid_plural "%(total)s itens guardados na sua conta."
+msgstr[0] "%(total)s item kept in your account."
+msgstr[1] "%(total)s items kept in your account."
+
+msgid "Este link é válido por %(hours)s hora e só pode ser utilizado uma vez."
+msgid_plural "Este link é válido por %(hours)s horas e só pode ser utilizado uma vez."
+msgstr[0] "This link is valid for %(hours)s hour and can only be used once."
+msgstr[1] "This link is valid for %(hours)s hours and can only be used once."
+
+msgid "Visão geral"
+msgstr "Overview"
+
+msgid "Segurança"
+msgstr "Security"
+
+msgid "Endereços"
+msgstr "Addresses"
+
+msgid "Bem-vindo de volta à JD PRINT."
+msgstr "Welcome back to JD PRINT."
+
+msgid "Chegam com o checkout."
+msgstr "They arrive with checkout."
+
+msgid "Nome, telefone, empresa"
+msgstr "Name, phone, company"
+
+msgid "Nenhum cadastrado"
+msgstr "None saved"
+
+msgid "Senha e e-mail"
+msgstr "Password and e-mail"
+
+msgid "Idioma dos e-mails"
+msgstr "E-mail language"
+
+msgid "Trocar senha ou e-mail"
+msgstr "Change password or e-mail"
+
+msgid "Cancelar"
+msgstr "Cancel"
+
+msgid "São os dados do cliente — usados em faturas e entregas. Usuário, e-mail e senha ficam em Segurança."
+msgstr "These are the customer details — used on invoices and deliveries. Username, e-mail and password live under Security."
+
+msgid "Senha, endereço de e-mail e confirmação da conta."
+msgstr "Password, e-mail address and account confirmation."
+
+msgid "Alterar senha"
+msgstr "Change password"
+
+msgid "Pedimos a senha atual para garantir que é você."
+msgstr "We ask for your current password to make sure it is you."
+
+msgid "Alterar e-mail"
+msgstr "Change e-mail"
+
+msgid "Hoje: %(email)s."
+msgstr "Currently: %(email)s."
+
+msgid "Ao trocar, o novo endereço precisa ser confirmado de novo."
+msgstr "After the change, the new address has to be confirmed again."
+
+msgid "Novo e-mail"
+msgstr "New e-mail"
+
+msgid "Sua senha atual"
+msgstr "Your current password"
+
+msgid "Senha incorreta."
+msgstr "Wrong password."
+
+msgid "Este já é o seu e-mail atual."
+msgstr "That is already your current e-mail."
+
+msgid "Senha alterada."
+msgstr "Password changed."
+
+msgid "E-mail alterado para %(email)s. Enviamos um link de confirmação."
+msgstr "E-mail changed to %(email)s. We have sent a confirmation link."
+
+msgid "Segurança — JD PRINT"
+msgstr "Security — JD PRINT"
+
+msgid "Seu e-mail ainda não foi confirmado."
+msgstr "Your e-mail has not been confirmed yet."
+
+msgid "Enviamos um link para %(email)s — confirme para acompanhar seus pedidos."
+msgstr "We sent a link to %(email)s — confirm it to follow your orders."
+
+msgid "Usados na entrega e na fatura."
+msgstr "Used for delivery and invoicing."
+
+msgid "Nenhum endereço cadastrado"
+msgstr "No address saved"
+
+msgid "O cadastro de endereços chega junto com a finalização de compra — é lá que ele passa a ser usado."
+msgstr "Saving addresses arrives together with checkout — that is where they will be used."
+
+msgid "Endereços — JD PRINT"
+msgstr "Addresses — JD PRINT"
+
+msgid "O histórico das suas compras."
+msgstr "The history of your purchases."
+
+msgid "Ainda não há pedidos"
+msgstr "No orders yet"
+
+msgid "A finalização de compra ainda está sendo construída. Assim que ela existir, seus pedidos aparecem aqui."
+msgstr "Checkout is still being built. As soon as it exists, your orders will show up here."
+
+msgid "Meus pedidos — JD PRINT"
+msgstr "My orders — JD PRINT"
+
+msgid "Seleção"
+msgstr "Selection"
+
+msgid "Como trabalhamos"
+msgstr "How we work"
+
+msgid "Produção própria"
+msgstr "We print it ourselves"
+
+msgid "Impressão feita por nós, com controle de camada e acabamento."
+msgstr "Printed by us, with control over layers and finish."
+
+msgid "Personalização real"
+msgstr "Real personalisation"
+
+msgid "Foto ou texto aplicados na peça antes da impressão."
+msgstr "Photo or text applied to the piece before printing."
+
+msgid "Cada peça sai na cor e no material que você escolher."
+msgstr "Every piece comes in the colour and material you choose."
+
+msgid "Área de imagem do banner"
+msgstr "Banner image area"
+
+msgid "Personalizável"
+msgstr "Customisable"
+
+msgid "Sem estoque"
+msgstr "Out of stock"
+
+msgid "a partir de"
+msgstr "from"
+
+msgid "Ref."
+msgstr "Ref."
+
+msgid "Remover filtro"
+msgstr "Remove filter"
+
+msgid "%(formats)s até %(size)s MB."
+msgstr "%(formats)s up to %(size)s MB."
+
+msgid "Espaço reservado à logo oficial"
+msgstr "Space reserved for the official logo"
+
+msgid "%(total)s item"
+msgid_plural "%(total)s itens"
+msgstr[0] "%(total)s item"
+msgstr[1] "%(total)s items"
+
+msgid "Olá, %(name)s!"
+msgstr "Hello, %(name)s!"
+
+msgid "cliente desde %(since)s"
+msgstr "customer since %(since)s"
+
+msgid "Ver mídia %(number)s"
+msgstr "View media %(number)s"
+
+msgid "Crie a categoria \"%(expected_slug)s\" no painel administrativo para que os modelos apareçam aqui."
+msgstr "Create the \"%(expected_slug)s\" category in the admin so the models show up here."
+
+msgid "Aguardando pagamento"
+msgstr "Awaiting payment"
+
+msgid "Confirmado"
+msgstr "Confirmed"
+
+msgid "Concluído"
+msgstr "Completed"
+
+msgid "Cancelado"
+msgstr "Cancelled"
+
+msgid "Reembolsado"
+msgstr "Refunded"
+
+msgid "Pendente"
+msgstr "Pending"
+
+msgid "Pago"
+msgstr "Paid"
+
+msgid "Recusado"
+msgstr "Declined"
+
+msgid "Parcialmente reembolsado"
+msgstr "Partially refunded"
+
+msgid "Não iniciado"
+msgstr "Not started"
+
+msgid "Em produção"
+msgstr "In production"
+
+msgid "Pronto"
+msgstr "Ready"
+
+msgid "Pronto para envio"
+msgstr "Ready to ship"
+
+msgid "Enviado"
+msgstr "Shipped"
+
+msgid "Entregue"
+msgstr "Delivered"
+
+msgid "Criado"
+msgstr "Created"
+
+msgid "Processando"
+msgstr "Processing"
+
+msgid "Sem solicitação"
+msgstr "No request"
+
+msgid "Do estoque"
+msgstr "From stock"
+
+msgid "Personalizado"
+msgstr "Personalised"
+
+msgid "Pagamento recusado"
+msgstr "Payment declined"
+
+msgid "Pedido criado"
+msgstr "Order created"
+
+msgid "Pedido criado."
+msgstr "Order created."
+
+msgid "Pagamento iniciado"
+msgstr "Payment started"
+
+msgid "Pagamento iniciado."
+msgstr "Payment started."
+
+msgid "Nova tentativa de pagamento."
+msgstr "New payment attempt."
+
+msgid "Pagamento confirmado"
+msgstr "Payment confirmed"
+
+msgid "Pagamento confirmado."
+msgstr "Payment confirmed."
+
+msgid "Pedido confirmado"
+msgstr "Order confirmed"
+
+msgid "Pedido confirmado."
+msgstr "Order confirmed."
+
+msgid "Pedido cancelado"
+msgstr "Order cancelled"
+
+msgid "Pedido cancelado."
+msgstr "Order cancelled."
+
+msgid "Cancelamento solicitado"
+msgstr "Cancellation requested"
+
+msgid "Cancelamento aprovado"
+msgstr "Cancellation approved"
+
+msgid "Cancelamento recusado"
+msgstr "Cancellation refused"
+
+msgid "Estoque insuficiente"
+msgstr "Not enough stock"
+
+msgid "Observação"
+msgstr "Note"
+
+msgid "Checkout"
+msgstr "Checkout"
+
+msgid "Identificação"
+msgstr "Who is buying"
+
+msgid "Pagamento"
+msgstr "Payment"
+
+msgid "Forma de entrega"
+msgstr "Delivery method"
+
+msgid "Endereço de entrega"
+msgstr "Delivery address"
+
+msgid "Endereço de faturamento"
+msgstr "Billing address"
+
+msgid "Faturamento"
+msgstr "Billing"
+
+msgid "Fatura"
+msgstr "Invoice"
+
+msgid "Entrega"
+msgstr "Delivery"
+
+msgid "Itens"
+msgstr "Items"
+
+msgid "Valores"
+msgstr "Amounts"
+
+msgid "Total"
+msgstr "Total"
+
+msgid "Total pago"
+msgstr "Total paid"
+
+msgid "Desconto"
+msgstr "Discount"
+
+msgid "Resumo do pedido"
+msgstr "Order summary"
+
+msgid "Prazo estimado"
+msgstr "Estimated delivery"
+
+msgid "Presente"
+msgstr "Gift"
+
+msgid "Cliente"
+msgstr "Customer"
+
+msgid "Idioma"
+msgstr "Language"
+
+msgid "Pedido"
+msgstr "Order"
+
+msgid "Cartão"
+msgstr "Card"
+
+msgid "Código de rastreio"
+msgstr "Tracking number"
+
+msgid "Rastreio"
+msgstr "Tracking"
+
+msgid "Acompanhamento"
+msgstr "Order updates"
+
+msgid "Observação do cliente"
+msgstr "Customer note"
+
+msgid "Observação para a produção"
+msgstr "Note for production"
+
+msgid "Produção e entrega"
+msgstr "Production and delivery"
+
+msgid "confirmado"
+msgstr "confirmed"
+
+msgid "pago"
+msgstr "paid"
+
+msgid "escolha o endereço"
+msgstr "choose the address"
+
+msgid "país indisponível"
+msgstr "country unavailable"
+
+msgid "Não há nada para finalizar"
+msgstr "Nothing to check out"
+
+msgid "Para finalizar a compra é preciso ter conta: é onde o pedido fica guardado e onde você acompanha a entrega. Seu carrinho continua exatamente como está."
+msgstr "Checking out needs an account: that is where the order is kept and where you follow the delivery. Your cart stays exactly as it is."
+
+msgid "Comprando como <strong class=\"text-ink\">%(name)s</strong> · %(email)s"
+msgstr "Buying as <strong class=\"text-ink\">%(name)s</strong> · %(email)s"
+
+msgid "Alguns itens precisam da sua atenção"
+msgstr "Some items need your attention"
+
+msgid "Alguns itens precisam da sua atenção."
+msgstr "Some items need your attention."
+
+msgid "Ajustar o carrinho"
+msgstr "Adjust the cart"
+
+msgid "O pagamento acontece na página segura da Stripe. Os dados do seu cartão não passam pelos nossos servidores."
+msgstr "Payment happens on Stripe's secure page. Your card details never touch our servers."
+
+msgid "Algo que devemos saber antes de imprimir?"
+msgstr "Anything we should know before printing?"
+
+msgid "Você será levado à Stripe para concluir"
+msgstr "You will be taken to Stripe"
+
+msgid "Pagar €&nbsp;%(total)s"
+msgstr "Pay €&nbsp;%(total)s"
+
+msgid "Pagar"
+msgstr "Pay"
+
+msgid "Pagar agora"
+msgstr "Pay now"
+
+msgid "Retomar pagamento"
+msgstr "Resume payment"
+
+msgid "Escolha o endereço de entrega para ver as opções."
+msgstr "Choose the delivery address to see the options."
+
+msgid "Usar outro endereço"
+msgstr "Use another address"
+
+msgid "Falta o endereço de entrega"
+msgstr "The delivery address is missing"
+
+msgid "Cadastre para onde devemos enviar. Leva menos de um minuto."
+msgstr "Tell us where to deliver. It takes less than a minute."
+
+msgid "A fatura vai para o mesmo endereço"
+msgstr "Send the invoice to the same address"
+
+msgid "Enviar como presente"
+msgstr "Send as a gift"
+
+msgid "Enviar como presente."
+msgstr "Send as a gift."
+
+msgid "A entrega vai para outra pessoa; a fatura continua no seu nome."
+msgstr "Delivery goes to someone else; the invoice stays in your name."
+
+msgid "Ainda não temos tarifa cadastrada para %(country)s com o peso deste pedido. Fale conosco e resolvemos."
+msgstr "We have no rate yet for %(country)s at this order's weight. Get in touch and we will sort it out."
+
+msgid "Pedido confirmado!"
+msgstr "Order confirmed!"
+
+msgid "Obrigado pela sua compra. Enviamos um e-mail com todos os detalhes."
+msgstr "Thank you for your purchase. We have e-mailed you all the details."
+
+msgid "Estamos confirmando seu pagamento"
+msgstr "We are confirming your payment"
+
+msgid "O banco ainda está respondendo. Assim que a confirmação chegar, enviamos o e-mail com todos os detalhes — normalmente em poucos segundos."
+msgstr "The bank is still answering. As soon as the confirmation arrives we send the e-mail with all the details — usually within seconds."
+
+msgid "Ver meu pedido"
+msgstr "View my order"
+
+msgid "Ver pedido"
+msgstr "View order"
+
+msgid "Pagamento não concluído"
+msgstr "Payment not completed"
+
+msgid "Pagamento não concluído — JD PRINT"
+msgstr "Payment not completed — JD PRINT"
+
+msgid "Seu pedido continua guardado. Você pode retomar o pagamento quando quiser — nada foi cobrado."
+msgstr "Your order is safe. You can resume the payment whenever you like — nothing was charged."
+
+msgid "Novo endereço"
+msgstr "New address"
+
+msgid "Novo endereço — JD PRINT"
+msgstr "New address — JD PRINT"
+
+msgid "Editar endereço"
+msgstr "Edit address"
+
+msgid "Editar endereço — JD PRINT"
+msgstr "Edit address — JD PRINT"
+
+msgid "Remover endereço"
+msgstr "Delete address"
+
+msgid "Remover endereço — JD PRINT"
+msgstr "Delete address — JD PRINT"
+
+msgid "Salvar endereço"
+msgstr "Save address"
+
+msgid "Cadastrar endereço"
+msgstr "Add an address"
+
+msgid "Editar"
+msgstr "Edit"
+
+msgid "Tornar padrão"
+msgstr "Make default"
+
+msgid "Endereço salvo."
+msgstr "Address saved."
+
+msgid "Endereço atualizado."
+msgstr "Address updated."
+
+msgid "Endereço removido."
+msgstr "Address deleted."
+
+msgid "Endereço padrão atualizado."
+msgstr "Default address updated."
+
+msgid "Casa, Trabalho, Presente da Marie..."
+msgstr "Home, Work, Marie's gift…"
+
+msgid "Quem recebe pode não ser quem compra — é o que torna o presente possível."
+msgstr "The recipient need not be the buyer — that is what makes a gift possible."
+
+msgid "Cadastre para onde devemos enviar. Você pode ter quantos endereços quiser — casa, trabalho, presente."
+msgstr "Tell us where to deliver. You can keep as many addresses as you like — home, work, gift."
+
+msgid "Tem certeza de que quer remover este endereço?"
+msgstr "Are you sure you want to delete this address?"
+
+msgid "Seus pedidos anteriores não mudam: cada um guarda a própria cópia do endereço de entrega e de faturamento."
+msgstr "Your past orders do not change: each one keeps its own copy of the delivery and billing addresses."
+
+msgid "Ainda não entregamos neste país."
+msgstr "We do not deliver to this country yet."
+
+msgid "Ainda não entregamos em %(country)s. Escolha outro endereço."
+msgstr "We do not deliver to %(country)s yet. Please choose another address."
+
+msgid "Pedido %(number)s — JD PRINT"
+msgstr "Order %(number)s — JD PRINT"
+
+msgid "Quando você finalizar uma compra, ela aparece aqui com o histórico completo."
+msgstr "As soon as you complete a purchase it shows up here with its full history."
+
+msgid "Solicitar cancelamento"
+msgstr "Request cancellation"
+
+msgid "Solicitar cancelamento — JD PRINT"
+msgstr "Request cancellation — JD PRINT"
+
+msgid "Por que quer cancelar?"
+msgstr "Why do you want to cancel?"
+
+msgid "Conte o que aconteceu — ajuda a resolver mais rápido."
+msgstr "Tell us what happened — it helps us sort it out faster."
+
+msgid "Escreva o motivo do cancelamento."
+msgstr "Please write the reason for the cancellation."
+
+msgid "Enviar solicitação"
+msgstr "Send request"
+
+msgid "Voltar ao pedido"
+msgstr "Back to the order"
+
+msgid "O cancelamento não é automático: analisamos o pedido e respondemos. Se a produção já tiver começado, explicamos as opções."
+msgstr "Cancelling is not automatic: we look at the order and get back to you. If production has already started we will explain the options."
+
+msgid "Pedido de cancelamento enviado. Respondemos assim que analisarmos."
+msgstr "Cancellation request sent. We will reply as soon as we have looked at it."
+
+msgid "Este pedido não pode mais ser cancelado por aqui."
+msgstr "This order can no longer be cancelled here."
+
+msgid "Cancelamento em análise"
+msgstr "Cancellation under review"
+
+msgid "Recebemos seu pedido de cancelamento e respondemos em breve."
+msgstr "We received your cancellation request and will reply shortly."
+
+msgid "Escolha para onde enviar."
+msgstr "Choose where to deliver."
+
+msgid "Escolha o endereço de faturamento."
+msgstr "Choose the billing address."
+
+msgid "Escolha o endereço de entrega e o de faturamento."
+msgstr "Choose the delivery and billing addresses."
+
+msgid "Escolha uma forma de entrega."
+msgstr "Choose a delivery method."
+
+msgid "Escolha uma forma de entrega válida para este endereço."
+msgstr "Choose a delivery method that serves this address."
+
+msgid "%(name)s não está mais disponível."
+msgstr "%(name)s is no longer available."
+
+msgid "%(name)s está esgotado."
+msgstr "%(name)s is out of stock."
+
+msgid "%(name)s está sem preço definido."
+msgstr "%(name)s has no price set."
+
+msgid "%(name)s precisa de personalização."
+msgstr "%(name)s needs personalisation."
+
+msgid "A opção escolhida de %(name)s saiu do catálogo."
+msgstr "The option you picked for %(name)s left the catalogue."
+
+msgid "Só temos %(count)s unidade(s) de %(name)s."
+msgstr "We only have %(count)s unit(s) of %(name)s."
+
+msgid "%(name)s: faltaram %(count)s unidade(s)."
+msgstr "%(name)s: %(count)s unit(s) short."
+
+msgid "Estoque insuficiente na confirmação do pagamento:\n%(list)s"
+msgstr "Not enough stock when the payment was confirmed:\n%(list)s"
+
+msgid "O pagamento on-line está temporariamente indisponível. Tente novamente em instantes."
+msgstr "Online payment is temporarily unavailable. Please try again in a moment."
+
+msgid "Não foi possível iniciar o pagamento. Tente novamente em instantes."
+msgstr "We could not start the payment. Please try again in a moment."
+
+msgid "O meio de pagamento não está instalado neste servidor."
+msgstr "The payment provider is not installed on this server."
+
+msgid "Personalização: %(text)s"
+msgstr "Personalisation: %(text)s"
+
+msgid "Pedido %(number)s confirmado — JD PRINT"
+msgstr "Order %(number)s confirmed — JD PRINT"
+
+msgid "Pedido %(number)s confirmado"
+msgstr "Order %(number)s confirmed"
+
+msgid "Pedido %(number)s enviado — JD PRINT"
+msgstr "Order %(number)s shipped — JD PRINT"
+
+msgid "Pedido %(number)s enviado"
+msgstr "Order %(number)s shipped"
+
+msgid "Pedido confirmado — JD PRINT"
+msgstr "Order confirmed — JD PRINT"
+
+msgid "[JD PRINT] Novo pedido %(number)s — %(total)s %(currency)s"
+msgstr "[JD PRINT] New order %(number)s — %(total)s %(currency)s"
+
+msgid "Novo pedido %(number)s"
+msgstr "New order %(number)s"
+
+msgid "Novo pedido para produzir"
+msgstr "New order to produce"
+
+msgid "Recebemos seu pagamento — pedido %(number)s."
+msgstr "We received your payment — order %(number)s."
+
+msgid "Olá, %(name)s. Recebemos seu pagamento e já colocamos seu pedido na fila."
+msgstr "Hello, %(name)s. We received your payment and your order is in the queue."
+
+msgid "Olá, %(name)s. Seu pedido saiu para entrega."
+msgstr "Hello, %(name)s. Your order is on its way."
+
+msgid "Seu pedido foi enviado!"
+msgstr "Your order has shipped!"
+
+msgid "Seu pedido saiu para entrega."
+msgstr "Your order is on its way."
+
+msgid "Rastreio %(tracking)s"
+msgstr "Tracking %(tracking)s"
+
+msgid "Acompanhar meu pedido"
+msgstr "Follow my order"
+
+msgid "Acompanhar a entrega"
+msgstr "Track the delivery"
+
+msgid "Ver os detalhes do pedido"
+msgstr "See the order details"
+
+msgid "Qualquer dúvida, é só responder a este e-mail."
+msgstr "Any questions? Just reply to this e-mail."
+
+msgid "Abrir no Admin"
+msgstr "Open in the admin"
+
+msgid "O destinatário não é o titular da conta — confira o endereço de entrega."
+msgstr "The recipient is not the account holder — check the delivery address."
+
+msgid "Produção: %(days)s dia(s) útil(eis)"
+msgstr "Production: %(days)s working day(s)"
+
+msgid "produção %(days)s dia(s) útil(eis)"
+msgstr "production %(days)s working day(s)"
+
+msgid "prazo total %(days)s dias úteis"
+msgstr "total %(days)s working days"
+
+msgid "Peso do pedido: %(weight)s g"
+msgstr "Order weight: %(weight)s g"
+
+msgid "Inclui %(production)s dia(s) útil(eis) de produção."
+msgstr "Includes %(production)s working day(s) of production."
+
+msgid "%(days)s dias úteis"
+msgstr "%(days)s working days"
+
+msgid "Prazo estimado: %(days)s dias úteis"
+msgstr "Estimated delivery: %(days)s working days"
+
+msgid "Produção %(production)s + transporte %(min)s–%(max)s"
+msgstr "Production %(production)s + transit %(min)s–%(max)s"
+
+msgid "TVA %(rate)s% (incluída)"
+msgstr "VAT %(rate)s% (included)"
+
+msgid "%(count)s pedido(s) marcado(s) como enviado(s)."
+msgstr "%(count)s order(s) marked as shipped."
+
+msgid "%(count)s cancelamento(s) aprovado(s). O reembolso, se houver, é feito na Stripe."
+msgstr "%(count)s cancellation(s) approved. Any refund is issued in Stripe."
+
+msgid "%(count)s cancelamento(s) recusado(s)."
+msgstr "%(count)s cancellation(s) refused."
+
+msgid "sem tarifa para este destino"
+msgstr "no rate for this destination"
+
+msgid "Nenhum ainda"
+msgstr "None yet"
+
+msgid "%(total)s pedido"
+msgid_plural "%(total)s pedidos"
+msgstr[0] "%(total)s order"
+msgstr[1] "%(total)s orders"

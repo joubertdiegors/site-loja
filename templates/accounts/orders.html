@@ -1,0 +1,84 @@
+{% extends "accounts/base_account.html" %}
+{% load i18n jdprint %}
+
+{% comment %}
+"Minha conta › Meus pedidos".
+
+Os três estados aparecem separados (pedido, pagamento, produção) porque é isso
+que o cliente quer saber: "já pagou?" e "já saiu?" são perguntas diferentes.
+{% endcomment %}
+
+{% block account_title %}{% translate "Meus pedidos" %}{% endblock %}
+{% block account_subtitle %}
+  <p class="section-subtitle">{% translate "O histórico das suas compras." %}</p>
+{% endblock %}
+
+{% block account_body %}
+
+  {% if orders %}
+
+    <ul class="grid gap-4" role="list">
+      {% for order in orders %}
+        <li class="card p-5 sm:p-6">
+
+          <div class="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <a href="{{ order.get_absolute_url }}"
+                 class="focus-ring rounded font-mono text-sm font-medium tracking-[0.06em] text-brand-800 transition-colors hover:text-brand-600">
+                {{ order.number }}
+              </a>
+              <p class="mt-0.5 text-[13px] text-ink-muted">
+                {{ order.created_at|date:"d/m/Y" }} ·
+                {% blocktranslate count total=order.item_count %}{{ total }} item{% plural %}{{ total }} itens{% endblocktranslate %}
+              </p>
+            </div>
+
+            <p class="font-display text-lg font-bold tabular-price text-ink">
+              {{ order.currency_symbol }}&nbsp;{{ order.total|floatformat:2 }}
+            </p>
+          </div>
+
+          <div class="mt-4 flex flex-wrap items-center gap-2">
+            {% include "orders/_status_badges.html" %}
+          </div>
+
+          <div class="mt-4 flex flex-wrap items-center gap-3 border-t border-surface-line pt-4">
+            <a href="{{ order.get_absolute_url }}" class="btn-soft btn-sm">
+              {% translate "Ver pedido" %}
+              {% icon "arrow-right" "h-3.5 w-3.5 rtl:rotate-180" %}
+            </a>
+            {% if not order.is_paid and not order.is_cancelled %}
+              <form method="post" action="{% url 'orders:retry_payment' order.number %}">
+                {% csrf_token %}
+                <button type="submit" class="btn-primary btn-sm">
+                  {% icon "credit-card" "h-3.5 w-3.5" %}{% translate "Pagar" %}
+                </button>
+              </form>
+            {% endif %}
+            {% if order.tracking_number %}
+              <span class="ms-auto font-mono text-[11px] uppercase tracking-[0.06em] text-ink-muted">
+                {% translate "Rastreio" %}: {{ order.tracking_number }}
+              </span>
+            {% endif %}
+          </div>
+        </li>
+      {% endfor %}
+    </ul>
+
+  {% else %}
+
+    <div class="max-w-2xl">
+      <div class="empty-state">
+        <span class="empty-state-icon" aria-hidden="true">{% icon "receipt" "h-6 w-6" %}</span>
+        <p class="font-display text-lg font-bold text-ink">{% translate "Ainda não há pedidos" %}</p>
+        <p class="max-w-md text-sm text-ink-soft">
+          {% translate "Quando você finalizar uma compra, ela aparece aqui com o histórico completo." %}
+        </p>
+        <a class="btn-primary btn-sm mt-1" href="{% url 'catalog:models_shop' %}">
+          {% translate "Ver modelos" %}
+        </a>
+      </div>
+    </div>
+
+  {% endif %}
+{% endblock %}

@@ -1,0 +1,522 @@
+@import "tailwindcss";
+@import "./fonts.css";
+
+/* Onde o Tailwind procura as classes usadas. */
+@source "../../templates";
+@source "../../apps";
+
+/* ===========================================================================
+   JD PRINT — Design System
+
+   Conceito: "Layered Craft" — precisão técnica, resultado criativo.
+
+   Três ideias sustentam tudo:
+
+   1. O fundo NÃO é branco. É lavanda (--color-surface). Os cards brancos
+      flutuam sobre ele; sem isso a loja parece painel administrativo.
+   2. O ritmo das seções alterna três fundos e só três: claro, lavanda e
+      profundo (roxo-índigo). Nada de gradiente pesado.
+   3. A assinatura gráfica é a LINHA DE CAMADA — listras de 1px a cada 7px
+      (`.layers`). Aparece em faixas e espaços reservados de imagem, e some
+      quando a foto real entra. É a única "referência a impressão 3D".
+
+   O roxo governa: só ele veste botão de ação. Ciano, magenta e âmbar
+   identificam categoria e estado, sempre em fundo suave com texto escuro.
+
+   >>> AJUSTE AQUI quando a logo oficial estiver no projeto: troque
+   --color-brand-600 pelo roxo exato da logo e ajuste a escala ao redor.
+   Nenhum template precisa mudar.
+=========================================================================== */
+@theme {
+  /* -- Roxo da marca ----------------------------------------------------- */
+  --color-brand-50: #f5f1ff;
+  --color-brand-100: #efe9ff;
+  --color-brand-200: #dccbff;
+  --color-brand-300: #b794f8;
+  --color-brand-400: #a17bf7;
+  --color-brand-500: #8b5cf6;
+  --color-brand-600: #6d2ce0;
+  --color-brand-700: #5a1fc4;
+  --color-brand-800: #40158c;
+  --color-brand-900: #2a0e5e;
+  --color-brand-950: #17102b;
+
+  /* -- Texto ------------------------------------------------------------- */
+  --color-ink: #1b1533;
+  --color-ink-soft: #4a4266;
+  --color-ink-muted: #6b6486;
+
+  /* -- Superfícies ------------------------------------------------------- */
+  --color-surface: #f5f3fb;         /* fundo da página (lavanda 2%) */
+  --color-surface-soft: #fbfaff;    /* áreas internas dentro do card */
+  --color-surface-brand: #efe9ff;   /* faixas e blocos de destaque */
+  --color-surface-deep: #17102b;    /* hero, rodapé, blocos escuros */
+  --color-surface-line: #e6e0f5;
+  --color-surface-line-strong: #d3c9ec;
+
+  /* -- Cores de categoria (chips, ícones, etiquetas) --------------------- */
+  --color-cyan-50: #f0fbfe;
+  --color-cyan-100: #e1f6fc;
+  --color-cyan-500: #10b4de;
+  --color-cyan-600: #0a9bc1;
+  --color-cyan-700: #0a7e9b;
+
+  --color-magenta-50: #fef4f9;
+  --color-magenta-100: #fde7f1;
+  --color-magenta-500: #ee3d96;
+  --color-magenta-600: #d32a7f;
+  --color-magenta-700: #b32271;
+
+  --color-indigo-100: #e7eafe;
+  --color-indigo-500: #4a56d2;
+  --color-indigo-700: #303a9e;
+
+  /* -- Estados ----------------------------------------------------------- */
+  --color-state-success: #12a65a;
+  --color-state-success-dark: #0b5c34;
+  --color-state-success-soft: #e3f7ec;
+  --color-state-warning: #d98411;
+  --color-state-warning-dark: #7a4a05;
+  --color-state-warning-soft: #fff4e0;
+  --color-state-error: #dc2f55;
+  --color-state-error-dark: #8e1631;
+  --color-state-error-soft: #fde9ee;
+
+  /* -- Tipografia -------------------------------------------------------- */
+  --font-sans: "Manrope", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  --font-display: "Space Grotesk", "Manrope", ui-sans-serif, system-ui,
+    -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas,
+    "Liberation Mono", monospace;
+
+  /* -- Raio -------------------------------------------------------------- */
+  --radius-control: 10px;   /* botões, campos, selects */
+  --radius-card: 18px;      /* cards */
+  --radius-block: 24px;     /* blocos de seção */
+
+  /* -- Sombra ------------------------------------------------------------ */
+  --shadow-card: 0 1px 2px rgb(27 21 51 / 0.04), 0 12px 28px -18px rgb(45 25 95 / 0.25);
+  --shadow-lift: 0 1px 2px rgb(27 21 51 / 0.04), 0 18px 34px -20px rgb(45 25 95 / 0.4);
+  --shadow-action: 0 6px 16px -8px rgb(109 44 224 / 0.7);
+}
+
+/* ---------------------------------------------------------------------------
+   Utilitários próprios
+
+   Precisam ser @utility (e não .classe dentro de @layer components) para
+   poderem ser reutilizados com @apply.
+--------------------------------------------------------------------------- */
+@utility focus-ring {
+  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white;
+}
+
+@utility btn {
+  @apply focus-ring inline-flex items-center justify-center gap-2 rounded-control px-5 py-3 text-sm font-bold transition-colors duration-150;
+
+  /* Botão desabilitado tem que parecer desabilitado. Apareceu na etapa 7: o
+     "Pagar" do checkout fica bloqueado enquanto falta frete ou meio de
+     pagamento, e sem isto ele continuava com cara de clicável. */
+  @apply disabled:cursor-not-allowed disabled:opacity-45;
+}
+
+@utility badge {
+  @apply inline-flex items-center gap-1 rounded-[7px] px-2.5 py-1.5 font-mono text-[11px] font-medium uppercase tracking-[0.08em];
+}
+
+@utility alert {
+  @apply flex items-start gap-3 rounded-[14px] px-4 py-3.5 text-sm;
+}
+
+@utility chip {
+  @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold;
+}
+
+/* A assinatura da marca: camadas de 1px a cada 7px. */
+@utility layers {
+  background-image: repeating-linear-gradient(
+    180deg,
+    rgb(109 44 224 / 0.13) 0 1px,
+    transparent 1px 7px
+  );
+  background-color: var(--color-brand-50);
+}
+
+@utility layers-light {
+  background-image: repeating-linear-gradient(
+    180deg,
+    rgb(255 255 255 / 0.05) 0 1px,
+    transparent 1px 8px
+  );
+}
+
+/* Malha da mesa de impressão — fundo dos blocos escuros. */
+@utility grid-mesh {
+  background-image:
+    linear-gradient(rgb(139 92 246 / 0.09) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(139 92 246 / 0.09) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+@layer components {
+  .container-page {
+    @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+
+  /* ---- Botões --------------------------------------------------------- */
+  .btn-primary {
+    @apply btn bg-brand-600 text-white shadow-action hover:bg-brand-700;
+  }
+
+  .btn-secondary {
+    @apply btn border-[1.5px] border-surface-line-strong bg-white text-brand-700 hover:border-brand-600 hover:bg-brand-50;
+  }
+
+  .btn-cyan {
+    @apply btn bg-cyan-500 text-white hover:bg-cyan-600;
+  }
+
+  .btn-dark {
+    @apply btn bg-surface-deep text-white hover:bg-brand-800;
+  }
+
+  /* Botão do card: discreto em repouso, cheio quando o cursor está no card.
+     O protagonista é o produto, não o botão. */
+  .btn-soft {
+    @apply btn bg-brand-50 text-brand-700 group-hover:bg-brand-600 group-hover:text-white hover:bg-brand-600 hover:text-white;
+  }
+
+  .btn-ghost {
+    @apply btn text-brand-700 hover:bg-brand-50;
+  }
+
+  .btn-danger {
+    @apply btn bg-state-error text-white hover:bg-state-error-dark;
+  }
+
+  .btn-sm {
+    @apply gap-1.5 rounded-[8px] px-3.5 py-2.5 text-[13px];
+  }
+
+  .btn-lg {
+    @apply rounded-xl px-7 py-4 text-base;
+  }
+
+  .icon-button {
+    @apply focus-ring inline-flex h-10 w-10 items-center justify-center rounded-control text-ink-soft transition-colors duration-150 hover:bg-brand-50 hover:text-brand-700;
+  }
+
+  .nav-link {
+    @apply focus-ring rounded-lg px-3 py-2 text-sm font-semibold text-ink-soft transition-colors duration-150 hover:text-brand-700;
+  }
+
+  .nav-link-active {
+    @apply text-brand-700;
+  }
+
+  .link-brand {
+    @apply focus-ring rounded font-bold text-brand-700 underline-offset-4 transition-colors hover:text-brand-800 hover:underline;
+  }
+
+  /* ---- Cards ---------------------------------------------------------- */
+  .card {
+    @apply overflow-hidden rounded-card border border-surface-line bg-white shadow-card transition duration-200;
+  }
+
+  .card-hover {
+    @apply hover:-translate-y-1 hover:border-surface-line-strong hover:shadow-lift;
+  }
+
+  /* Bloco de seção: mais largo que um card, sem sombra. */
+  .panel {
+    @apply rounded-block border border-surface-line bg-white;
+  }
+
+  /* ---- Etiquetas ------------------------------------------------------ */
+  .badge-brand {
+    @apply badge bg-brand-600 text-white;
+  }
+
+  .badge-brand-soft {
+    @apply badge bg-brand-100 text-brand-700;
+  }
+
+  .badge-magenta {
+    @apply badge bg-magenta-500 text-white;
+  }
+
+  .badge-magenta-soft {
+    @apply badge bg-magenta-100 text-magenta-700;
+  }
+
+  .badge-cyan {
+    @apply badge bg-cyan-100 text-cyan-700;
+  }
+
+  .badge-mint {
+    @apply badge bg-state-success-soft text-state-success-dark;
+  }
+
+  .badge-amber {
+    @apply badge bg-state-warning-soft text-state-warning-dark;
+  }
+
+  .badge-muted {
+    @apply badge bg-state-error-soft text-state-error-dark;
+  }
+
+  /* Etiqueta técnica: fundo escuro, para especificações. */
+  .badge-tech {
+    @apply badge bg-surface-deep text-brand-200;
+  }
+
+  /* ---- Cabeçalhos de seção -------------------------------------------- */
+  .section-eyebrow {
+    @apply font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-brand-700;
+  }
+
+  .section-title {
+    @apply font-display text-2xl font-bold tracking-[-0.02em] text-ink sm:text-3xl;
+  }
+
+  .section-subtitle {
+    @apply mt-2 max-w-2xl text-sm text-ink-soft sm:text-base;
+  }
+
+  /* Mobile 2 colunas, tablet 3, desktop 4. */
+  .product-grid {
+    @apply grid grid-cols-2 gap-4 sm:gap-5 md:grid-cols-3 lg:grid-cols-4;
+  }
+
+  .carousel-track {
+    @apply flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth pb-3 sm:gap-5;
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-brand-200) transparent;
+  }
+
+  .carousel-track::-webkit-scrollbar {
+    height: 6px;
+  }
+
+  .carousel-track::-webkit-scrollbar-thumb {
+    border-radius: 9999px;
+    background-color: var(--color-brand-200);
+  }
+
+  .carousel-track::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .carousel-item {
+    @apply w-[65%] flex-none snap-start sm:w-[46%] md:w-[31%] lg:w-[23.5%];
+  }
+
+  .skip-link {
+    @apply sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-control focus:bg-brand-700 focus:px-4 focus:py-2 focus:text-sm focus:font-bold focus:text-white;
+  }
+
+  /* ---- Formulários ---------------------------------------------------- */
+  .form-input,
+  .form-select,
+  .form-textarea {
+    @apply focus-ring w-full rounded-control border-[1.5px] border-surface-line bg-white px-3.5 py-3 text-sm text-ink placeholder:text-ink-muted;
+  }
+
+  .form-input:focus,
+  .form-select:focus,
+  .form-textarea:focus {
+    @apply border-brand-500;
+  }
+
+  /* O erro pinta o campo sem precisar mexer no widget do formulário. */
+  .field-has-error .form-input,
+  .field-has-error .form-select,
+  .field-has-error .form-textarea {
+    @apply border-state-error bg-state-error-soft/40;
+  }
+
+  .form-label {
+    @apply block text-[13.5px] font-semibold text-ink-soft;
+  }
+
+  .form-help {
+    @apply text-xs leading-relaxed text-ink-muted;
+
+    /* O help_text de senha do Django chega como <ul>. */
+    & ul {
+      @apply list-disc space-y-0.5 ps-4;
+    }
+  }
+
+  .form-error {
+    @apply text-xs font-semibold text-state-error;
+  }
+
+  .form-alert {
+    @apply rounded-control border border-state-error/30 bg-state-error-soft px-4 py-3 text-sm font-medium text-state-error-dark;
+  }
+
+  /* Campo de busca do header (ícone à esquerda). */
+  .field-input {
+    @apply focus-ring w-full rounded-full border-[1.5px] border-surface-line bg-surface-soft py-2.5 pl-10 pr-4 text-sm text-ink placeholder:text-ink-muted;
+  }
+
+  /* ---- Avisos --------------------------------------------------------- */
+  .alert-info {
+    @apply alert border-l-[3px] border-brand-600 bg-brand-100 text-brand-800;
+  }
+
+  .alert-success {
+    @apply alert border-l-[3px] border-state-success bg-state-success-soft text-state-success-dark;
+  }
+
+  .alert-warning {
+    @apply alert border-l-[3px] border-state-warning bg-state-warning-soft text-state-warning-dark;
+  }
+
+  .alert-error {
+    @apply alert border-l-[3px] border-state-error bg-state-error-soft text-state-error-dark;
+  }
+
+  /* ---- Shop ----------------------------------------------------------- */
+  .shop-filter {
+    @apply focus-ring flex items-center justify-between gap-2 rounded-[11px] px-3 py-2.5 text-sm text-ink-soft transition-colors duration-150 hover:bg-brand-50 hover:text-brand-700;
+  }
+
+  .shop-filter-active {
+    @apply bg-brand-100 font-bold text-brand-800;
+  }
+
+  .shop-filter-count {
+    @apply font-mono text-[11px] text-ink-muted;
+  }
+
+  .page-link {
+    @apply focus-ring inline-flex h-10 min-w-10 items-center justify-center gap-1 rounded-control border-[1.5px] border-surface-line bg-white px-3 font-mono text-[13px] text-ink-soft transition-colors duration-150 hover:border-brand-300 hover:text-brand-700;
+  }
+
+  .page-link-active {
+    @apply border-brand-600 bg-brand-600 text-white hover:border-brand-600 hover:text-white;
+  }
+
+  .page-link-disabled {
+    @apply cursor-not-allowed opacity-40 hover:border-surface-line hover:text-ink-soft;
+  }
+
+  /* ---- Página do produto ---------------------------------------------- */
+  .variant-option {
+    @apply inline-flex cursor-pointer items-center gap-2 rounded-control border-[1.5px] border-surface-line bg-white px-3.5 py-2.5 text-sm font-semibold text-ink-soft transition-colors duration-150 hover:border-brand-300 hover:text-brand-700;
+  }
+
+  .variant-option:has(input:checked) {
+    @apply border-brand-600 bg-brand-50 text-brand-800;
+  }
+
+  .variant-option:has(input:focus-visible) {
+    @apply ring-2 ring-brand-500 ring-offset-2;
+  }
+
+  .variant-option:has(input:disabled) {
+    @apply cursor-not-allowed opacity-40;
+  }
+
+  /* ---- Área do cliente ------------------------------------------------- */
+  .account-link {
+    @apply focus-ring flex items-center gap-2.5 rounded-[11px] border-l-[3px] border-transparent px-3.5 py-3 text-sm font-semibold text-ink-soft transition-colors duration-150 hover:bg-brand-50 hover:text-brand-700;
+  }
+
+  .account-link-active {
+    @apply border-brand-600 bg-brand-100 font-bold text-brand-800;
+  }
+
+  .menu-item {
+    @apply focus-ring flex items-center gap-2.5 rounded-[11px] px-3 py-2.5 text-sm font-semibold text-ink-soft transition-colors hover:bg-brand-50 hover:text-brand-700;
+  }
+
+  .auth-card {
+    @apply rounded-card border border-surface-line bg-white p-6 shadow-card sm:p-7;
+  }
+
+  /* ---- Estado vazio ---------------------------------------------------- */
+  .empty-state {
+    @apply flex flex-col items-center gap-3 rounded-card border border-dashed border-surface-line-strong bg-white/70 px-6 py-12 text-center;
+  }
+
+  .empty-state-icon {
+    @apply layers flex h-14 w-14 items-center justify-center rounded-[14px] text-brand-600;
+  }
+
+  /* ---- Avisos curtos (toast) ------------------------------------------ */
+  .toast-region {
+    @apply pointer-events-none fixed inset-x-0 bottom-4 z-50 flex flex-col items-center gap-2 px-4;
+  }
+
+  .toast {
+    @apply flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-bold shadow-lg shadow-brand-900/20;
+    animation: jd-toast 4.5s forwards;
+  }
+
+  .toast-success {
+    @apply bg-surface-deep text-white;
+  }
+
+  .toast-warning {
+    @apply bg-state-warning text-white;
+  }
+
+  .toast-error {
+    @apply bg-state-error text-white;
+  }
+}
+
+@keyframes jd-toast {
+  0% { opacity: 0; transform: translateY(0.5rem); }
+  8% { opacity: 1; transform: translateY(0); }
+  85% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(0.5rem); visibility: hidden; }
+}
+
+/* Enquanto o HTMX carrega, a área em atualização fica levemente apagada. */
+.htmx-request.htmx-indicator,
+.htmx-request .htmx-indicator {
+  opacity: 0.55;
+  transition: opacity 0.15s ease;
+}
+
+#shop-results.htmx-request {
+  opacity: 0.55;
+  transition: opacity 0.15s ease;
+}
+
+@layer utilities {
+  /* Espaço reservado de imagem: as camadas da marca. */
+  .placeholder-mesh {
+    @apply layers;
+  }
+
+  .marker-line {
+    background-image: linear-gradient(
+      90deg,
+      var(--color-brand-600),
+      var(--color-magenta-500) 55%,
+      var(--color-state-warning)
+    );
+  }
+
+  /* Preço: dígitos de largura fixa não "dançam" ao trocar de variante. */
+  .tabular-price {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Quem pediu menos movimento recebe menos movimento. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

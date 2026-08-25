@@ -1,0 +1,136 @@
+{% load i18n jdprint %}
+{% comment %}
+Header.
+
+A navegação usa as categorias raiz ativas do banco (context processor
+apps.core.context_processors.site) — nenhuma categoria escrita no template.
+
+A faixa escura do topo repete as três promessas que a loja já faz no hero;
+não há promoção inventada aqui. Busca e favoritos continuam presentes com a
+estrutura visual pronta, desabilitados e marcados como indisponíveis para
+leitores de tela em vez de fingirem funcionar.
+{% endcomment %}
+
+{# Faixa de camadas: a assinatura gráfica da marca abre a página. #}
+<div class="bg-surface-deep layers-light">
+  <div class="container-page">
+    <ul class="flex items-center justify-center gap-x-6 gap-y-1 overflow-hidden py-2.5 font-mono text-[10.5px] uppercase tracking-[0.1em] text-brand-200 sm:text-[11px]" role="list">
+      <li class="whitespace-nowrap">{% translate "Produção sob encomenda" %}</li>
+      <li class="hidden whitespace-nowrap sm:list-item" aria-hidden="true">·</li>
+      <li class="hidden whitespace-nowrap sm:list-item">{% translate "Cores e materiais à escolha" %}</li>
+      <li class="hidden whitespace-nowrap lg:list-item" aria-hidden="true">·</li>
+      <li class="hidden whitespace-nowrap lg:list-item">{% translate "Envio para toda a Europa" %}</li>
+    </ul>
+  </div>
+</div>
+
+<header class="sticky top-0 z-30 border-b border-surface-line bg-white/95 backdrop-blur">
+  <div class="container-page">
+    <div class="flex h-16 items-center justify-between gap-4 sm:h-18">
+
+      <div class="flex items-center gap-6">
+        {% include "components/logo.html" %}
+
+        <nav class="hidden lg:block" aria-label="{% translate 'Navegação principal' %}">
+          <ul class="flex items-center gap-1" role="list">
+            {% for category in nav_categories %}
+              <li>
+                {# Ativo = a URL da categoria é a página atual. Sem contexto novo. #}
+                <a class="nav-link{% if request.path == category.get_absolute_url %} nav-link-active{% endif %}"
+                   href="{{ category.get_absolute_url }}"
+                   {% if request.path == category.get_absolute_url %}aria-current="page"{% endif %}>
+                  {{ category.name }}
+                </a>
+              </li>
+            {% empty %}
+              <li><a class="nav-link" href="{% url 'catalog:models_shop' %}">{% translate "Produtos" %}</a></li>
+            {% endfor %}
+          </ul>
+        </nav>
+      </div>
+
+      <div class="flex items-center gap-1 sm:gap-2">
+        {# Busca: campo visual; a página de resultados chega na etapa da busca. #}
+        <div class="relative hidden md:block">
+          <span class="pointer-events-none absolute inset-y-0 start-0 flex items-center ps-3.5 text-ink-muted">
+            {% icon "search" "h-4 w-4" %}
+          </span>
+          <label class="sr-only" for="busca">{% translate "Buscar produtos" %}</label>
+          <input id="busca" type="search" class="field-input w-44 lg:w-60" disabled
+                 title="{% translate 'Em breve' %}"
+                 placeholder="{% translate 'Buscar produtos' %}">
+        </div>
+
+        {% include "components/language_selector.html" %}
+
+        <button type="button" class="icon-button hidden sm:inline-flex" disabled
+                aria-label="{% translate 'Favoritos (em breve)' %}" title="{% translate 'Em breve' %}">
+          {% icon "heart" %}
+        </button>
+
+        {% include "components/account_menu.html" %}
+        {% include "components/cart_counter.html" %}
+
+        <button type="button" class="icon-button lg:hidden" data-menu-toggle
+                aria-controls="menu-mobile" aria-expanded="false"
+                aria-label="{% translate 'Abrir menu' %}">
+          <span data-menu-icon="open">{% icon "menu" %}</span>
+          <span data-menu-icon="close" class="hidden">{% icon "close" %}</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  {# Menu mobile #}
+  <div id="menu-mobile" class="hidden border-t border-surface-line bg-white lg:hidden" data-menu-panel>
+    <nav class="container-page py-4" aria-label="{% translate 'Navegação principal (celular)' %}">
+      <div class="relative mb-4 md:hidden">
+        <span class="pointer-events-none absolute inset-y-0 start-0 flex items-center ps-3.5 text-ink-muted">
+          {% icon "search" "h-4 w-4" %}
+        </span>
+        <label class="sr-only" for="busca-mobile">{% translate "Buscar produtos" %}</label>
+        <input id="busca-mobile" type="search" class="field-input" disabled
+               title="{% translate 'Em breve' %}"
+               placeholder="{% translate 'Buscar produtos' %}">
+      </div>
+
+      <ul class="space-y-1" role="list">
+        {% for category in nav_categories %}
+          <li>
+            <a class="focus-ring flex items-center justify-between rounded-[11px] px-3 py-3 text-sm font-semibold text-ink transition-colors hover:bg-brand-50 hover:text-brand-700"
+               href="{{ category.get_absolute_url }}">
+              {{ category.name }}
+              {% icon "chevron-right" "h-4 w-4 rtl:rotate-180" %}
+            </a>
+          </li>
+        {% empty %}
+          <li>
+            <a class="focus-ring flex rounded-[11px] px-3 py-3 text-sm font-semibold text-ink hover:bg-brand-50"
+               href="{% url 'catalog:models_shop' %}">{% translate "Produtos" %}</a>
+          </li>
+        {% endfor %}
+      </ul>
+
+      {# Conta no menu do celular: o menu suspenso do desktop não cabe aqui. #}
+      <div class="mt-4 border-t border-surface-line pt-4">
+        {% if user.is_authenticated %}
+          <p class="px-3 pb-2 font-mono text-[11px] uppercase tracking-[0.12em] text-ink-muted">{{ user.display_name }}</p>
+          <a class="focus-ring flex rounded-[11px] px-3 py-3 text-sm font-semibold text-ink hover:bg-brand-50"
+             href="{% url 'accounts:dashboard' %}">{% translate "Minha conta" %}</a>
+          <a class="focus-ring flex rounded-[11px] px-3 py-3 text-sm font-semibold text-ink hover:bg-brand-50"
+             href="{% url 'accounts:profile' %}">{% translate "Meus dados" %}</a>
+          <form method="post" action="{% url 'accounts:logout' %}">
+            {% csrf_token %}
+            <button type="submit"
+                    class="focus-ring flex w-full rounded-[11px] px-3 py-3 text-start text-sm font-semibold text-ink hover:bg-brand-50">
+              {% translate "Sair" %}
+            </button>
+          </form>
+        {% else %}
+          <a class="btn-primary w-full" href="{% url 'accounts:login' %}">{% translate "Entrar" %}</a>
+          <a class="btn-secondary mt-2 w-full" href="{% url 'accounts:register' %}">{% translate "Criar conta" %}</a>
+        {% endif %}
+      </div>
+    </nav>
+  </div>
+</header>

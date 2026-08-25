@@ -1,0 +1,54 @@
+{% extends "emails/base_email.html" %}
+{% load i18n %}
+
+{% comment %}
+Aviso de envio. Curto de propósito: o cliente quer o código de rastreio, não um
+resumo do que já sabe.
+{% endcomment %}
+
+{% block email_title %}{% blocktranslate with number=order.number %}Pedido {{ number }} enviado{% endblocktranslate %}{% endblock %}
+{% block email_preview %}{% if order.tracking_number %}{% blocktranslate with tracking=order.tracking_number %}Rastreio {{ tracking }}{% endblocktranslate %}{% else %}{% translate "Seu pedido saiu para entrega." %}{% endif %}{% endblock %}
+
+{% block email_body %}
+  <h1 style="margin:16px 0 12px 0;font-size:20px;line-height:1.3;color:#1b1533;">
+    {% translate "Seu pedido foi enviado!" %}
+  </h1>
+
+  <p style="margin:0 0 16px 0;font-size:15px;line-height:1.6;color:#4a4266;">
+    {% blocktranslate with name=customer.full_name|default:user.username %}Olá, {{ name }}. Seu pedido saiu para entrega.{% endblocktranslate %}
+  </p>
+
+  <p style="margin:0 0 20px 0;padding:12px 14px;background-color:#efe9ff;border-radius:10px;font-size:15px;color:#1b1533;">
+    <strong style="font-family:monospace;letter-spacing:1px;">{{ order.number }}</strong>
+    {% if order.shipping_method_label %}
+      <span style="display:block;font-size:13px;color:#6b6486;margin-top:2px;">
+        {{ order.shipping_method_label }}
+      </span>
+    {% endif %}
+  </p>
+
+  {% if order.tracking_number %}
+    <p style="margin:0 0 20px 0;font-size:15px;color:#1b1533;">
+      <strong>{% translate "Código de rastreio" %}:</strong>
+      <span style="font-family:monospace;">{{ order.tracking_number }}</span>
+    </p>
+
+    {% if tracking_url %}
+      <p style="margin:0 0 20px 0;">
+        <a href="{{ tracking_url }}"
+           style="display:inline-block;background-color:#6d2ce0;color:#ffffff;font-size:15px;font-weight:bold;text-decoration:none;padding:14px 26px;border-radius:10px;">
+          {% translate "Acompanhar a entrega" %}
+        </a>
+      </p>
+    {% endif %}
+  {% endif %}
+
+  <p style="margin:0 0 6px 0;font-size:14px;color:#1b1533;"><strong>{% translate "Entrega" %}</strong></p>
+  <p style="margin:0 0 20px 0;font-size:14px;line-height:1.6;color:#4a4266;">
+    {% for line in shipping_address.lines %}{{ line }}<br>{% endfor %}
+  </p>
+
+  <p style="margin:0;font-size:13px;color:#6b6486;">
+    <a href="{{ order_url }}" style="color:#6d2ce0;">{% translate "Ver os detalhes do pedido" %}</a>
+  </p>
+{% endblock %}

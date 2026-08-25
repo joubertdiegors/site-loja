@@ -1,0 +1,240 @@
+{% extends "accounts/base_account.html" %}
+{% load i18n jdprint %}
+
+{% comment %}
+Detalhe do pedido.
+
+Tudo o que aparece aqui vem do **snapshot** gravado na compra: nome, SKU,
+variante, preço, prazo, endereços. Se o produto for renomeado ou sair do
+catálogo amanhã, esta página continua mostrando o que o cliente comprou.
+
+A linha do tempo mostra só os eventos marcados como visíveis — decisões
+internas ficam no admin.
+{% endcomment %}
+
+{% block account_eyebrow %}{% translate "Meus pedidos" %}{% endblock %}
+{% block account_title %}{{ order.number }}{% endblock %}
+{% block account_subtitle %}
+  <p class="section-subtitle">
+    {{ order.created_at|date:"d/m/Y H:i" }}
+  </p>
+{% endblock %}
+
+{% block account_body %}
+
+  <div class="flex flex-wrap items-center gap-2">
+    {% include "orders/_status_badges.html" %}
+  </div>
+
+  {% if order.cancellation_status == "requested" %}
+    <div class="alert-warning mt-4" role="status">
+      {% icon "clock" "h-4 w-4 shrink-0" %}
+      <span>
+        <strong class="block">{% translate "Cancelamento em análise" %}</strong>
+        {% translate "Recebemos seu pedido de cancelamento e respondemos em breve." %}
+      </span>
+    </div>
+  {% elif order.cancellation_status == "refused" and order.cancellation_decision_note %}
+    <div class="alert-info mt-4" role="status">
+      {% icon "mail" "h-4 w-4 shrink-0" %}
+      <span>
+        <strong class="block">{% translate "Cancelamento recusado" %}</strong>
+        {{ order.cancellation_decision_note }}
+      </span>
+    </div>
+  {% endif %}
+
+  <div class="mt-6 grid items-start gap-5 lg:grid-cols-[1.5fr_1fr]">
+
+    {# ================= Itens e histórico ============================== #}
+    <div class="grid gap-5">
+
+      <section class="card p-5 sm:p-6" aria-labelledby="titulo-itens">
+        <h2 id="titulo-itens" class="font-display text-lg font-bold text-ink">
+          {% translate "Itens" %}
+        </h2>
+
+        <ul class="mt-4 divide-y divide-surface-line" role="list">
+          {% for item in items %}
+            <li class="flex gap-3 py-4">
+              <span class="flex h-14 w-14 shrink-0 items-center justify-center rounded-[10px] border border-surface-line bg-surface-soft font-display text-lg font-bold text-brand-700" aria-hidden="true">
+                {{ item.product_name|initial }}
+              </span>
+
+              <div class="min-w-0 flex-1">
+                <p class="text-sm font-bold text-ink">{{ item.product_name }}</p>
+                {% if item.variant_label %}
+                  <p class="font-mono text-[10.5px] uppercase tracking-[0.06em] text-ink-muted">
+                    {{ item.variant_label }}
+                  </p>
+                {% endif %}
+                {% if item.sku %}
+                  <p class="font-mono text-[10.5px] text-ink-muted">{{ item.sku }}</p>
+                {% endif %}
+
+                {% if item.has_personalization %}
+                  <div class="mt-1.5 rounded-[8px] border border-magenta-500/20 bg-magenta-50 px-2.5 py-1.5 text-[11px] text-magenta-700">
+                    {% if item.personalization_type == "photo" %}
+                      <span class="font-bold">{% translate "Foto enviada" %}</span>
+                      {% if item.personalization_upload %}
+                        <span class="opacity-80">— {{ item.personalization_upload.original_name|truncatechars:30 }}</span>
+                      {% endif %}
+                    {% else %}
+                      <span class="font-bold">{% translate "Texto" %}:</span> {{ item.personalization_text }}
+                    {% endif %}
+                    {% if item.personalization_notes %}
+                      <p class="mt-0.5 opacity-80">{{ item.personalization_notes }}</p>
+                    {% endif %}
+                  </div>
+                {% endif %}
+
+                <p class="mt-1.5 text-[13px] text-ink-soft">
+                  {{ item.quantity }} × {{ order.currency_symbol }}&nbsp;{{ item.unit_price|floatformat:2 }}
+                </p>
+              </div>
+
+              <span class="font-display text-sm font-bold tabular-price text-ink">
+                {{ order.currency_symbol }}&nbsp;{{ item.total|floatformat:2 }}
+              </span>
+            </li>
+          {% endfor %}
+        </ul>
+      </section>
+
+      <section class="card p-5 sm:p-6" aria-labelledby="titulo-historico">
+        <h2 id="titulo-historico" class="font-display text-lg font-bold text-ink">
+          {% translate "Acompanhamento" %}
+        </h2>
+
+        <ol class="mt-4 space-y-0" role="list">
+          {% for entry in history %}
+            <li class="relative flex gap-3 pb-4 last:pb-0">
+              <span class="relative flex flex-col items-center" aria-hidden="true">
+                <span class="mt-1 h-2.5 w-2.5 shrink-0 rounded-full {% if forloop.last %}bg-brand-600{% else %}bg-surface-line-strong{% endif %}"></span>
+                {% if not forloop.last %}
+                  <span class="w-px flex-1 bg-surface-line"></span>
+                {% endif %}
+              </span>
+              <span class="min-w-0 flex-1">
+                <span class="block text-sm font-bold text-ink">{{ entry.get_event_display }}</span>
+                <span class="block font-mono text-[10.5px] uppercase tracking-[0.06em] text-ink-muted">
+                  {{ entry.created_at|date:"d/m/Y H:i" }}
+                </span>
+                {% if entry.message %}
+                  <span class="mt-0.5 block text-[13px] text-ink-soft">{{ entry.message }}</span>
+                {% endif %}
+              </span>
+            </li>
+          {% endfor %}
+        </ol>
+      </section>
+    </div>
+
+    {# ================= Entrega, fatura e valores ====================== #}
+    <div class="grid gap-5">
+
+      <section class="card p-5 sm:p-6" aria-labelledby="titulo-valores">
+        <h2 id="titulo-valores" class="font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-ink-muted">
+          {% translate "Valores" %}
+        </h2>
+
+        <dl class="mt-4 space-y-2 text-sm">
+          <div class="flex items-baseline justify-between gap-4">
+            <dt class="text-ink-soft">{% translate "Subtotal" %}</dt>
+            <dd class="tabular-price text-ink">{{ order.currency_symbol }}&nbsp;{{ order.subtotal|floatformat:2 }}</dd>
+          </div>
+          {% if order.discount_total %}
+            <div class="flex items-baseline justify-between gap-4">
+              <dt class="text-ink-soft">{% translate "Desconto" %}</dt>
+              <dd class="tabular-price text-state-success-dark">−{{ order.currency_symbol }}&nbsp;{{ order.discount_total|floatformat:2 }}</dd>
+            </div>
+          {% endif %}
+          <div class="flex items-baseline justify-between gap-4">
+            <dt class="text-ink-soft">{% translate "Entrega" %}</dt>
+            <dd class="tabular-price text-ink">{{ order.currency_symbol }}&nbsp;{{ order.shipping_total|floatformat:2 }}</dd>
+          </div>
+          {% if order.tax_total %}
+            <div class="flex items-baseline justify-between gap-4">
+              <dt class="text-ink-muted">
+                {% blocktranslate with rate=order.tax_rate|floatformat:"-2" %}TVA {{ rate }}% (incluída){% endblocktranslate %}
+              </dt>
+              <dd class="tabular-price text-ink-muted">{{ order.currency_symbol }}&nbsp;{{ order.tax_total|floatformat:2 }}</dd>
+            </div>
+          {% endif %}
+        </dl>
+
+        <div class="mt-4 flex items-baseline justify-between gap-4 border-t border-surface-line pt-4">
+          <span class="text-sm font-bold text-ink">{% translate "Total" %}</span>
+          <span class="font-display text-2xl font-bold tabular-price text-brand-800">
+            {{ order.currency_symbol }}&nbsp;{{ order.total|floatformat:2 }}
+          </span>
+        </div>
+      </section>
+
+      <section class="card p-5 sm:p-6" aria-labelledby="titulo-entrega-pedido">
+        <h2 id="titulo-entrega-pedido" class="font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-ink-muted">
+          {% translate "Entrega" %}
+        </h2>
+
+        {% if order.shipping_address %}
+          <address class="mt-3 text-[13px] not-italic leading-relaxed text-ink-soft">
+            {% for line in order.shipping_address.lines %}{{ line }}<br>{% endfor %}
+          </address>
+        {% endif %}
+
+        {% if order.shipping_method_label %}
+          <p class="mt-3 border-t border-surface-line pt-3 text-[13px] text-ink">
+            {{ order.shipping_method_label }}
+            {% if order.delivery_days_display %}
+              <span class="block text-ink-muted">
+                {% blocktranslate with days=order.delivery_days_display %}{{ days }} dias úteis{% endblocktranslate %}
+              </span>
+            {% endif %}
+          </p>
+        {% endif %}
+
+        {% if order.tracking_number %}
+          <p class="mt-3 rounded-control bg-surface-brand px-3 py-2.5 text-[13px] text-ink">
+            <span class="block font-mono text-[10.5px] uppercase tracking-[0.08em] text-ink-muted">
+              {% translate "Código de rastreio" %}
+            </span>
+            {% if order.tracking_url %}
+              <a href="{{ order.tracking_url }}" class="link-brand font-mono" target="_blank" rel="noopener">
+                {{ order.tracking_number }}
+              </a>
+            {% else %}
+              <span class="font-mono">{{ order.tracking_number }}</span>
+            {% endif %}
+          </p>
+        {% endif %}
+      </section>
+
+      {% if order.billing_address %}
+        <section class="card p-5 sm:p-6" aria-labelledby="titulo-fatura">
+          <h2 id="titulo-fatura" class="font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-ink-muted">
+            {% translate "Faturamento" %}
+          </h2>
+          <address class="mt-3 text-[13px] not-italic leading-relaxed text-ink-soft">
+            {% for line in order.billing_address.lines %}{{ line }}<br>{% endfor %}
+          </address>
+        </section>
+      {% endif %}
+
+      <div class="flex flex-wrap gap-2">
+        {% if not order.is_paid and not order.is_cancelled %}
+          <form method="post" action="{% url 'orders:retry_payment' order.number %}">
+            {% csrf_token %}
+            <button type="submit" class="btn-primary btn-sm">
+              {% icon "credit-card" "h-3.5 w-3.5" %}{% translate "Pagar agora" %}
+            </button>
+          </form>
+        {% endif %}
+        {% if order.can_request_cancellation %}
+          <a href="{% url 'orders:cancel' order.number %}" class="btn-ghost btn-sm text-state-error hover:bg-state-error-soft">
+            {% translate "Solicitar cancelamento" %}
+          </a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+{% endblock %}

@@ -1,0 +1,75 @@
+{% load i18n jdprint %}
+{% comment %}
+Uma seção da Home.
+
+Espera `section` (ResolvedSection, ver apps/home/services.py) com título,
+subtítulo, layout, CTA e a lista de produtos já resolvida. O template não
+sabe — nem precisa saber — se os produtos vieram de escolha manual, de uma
+categoria ou dos destaques.
+
+O fundo alterna entre claro e lavanda conforme a posição na lista: é o que dá
+ritmo à página sem depender de quantas seções o administrador criou.
+{% endcomment %}
+<section class="{% if forloop.counter0|divisibleby:2 %}bg-white{% else %}bg-surface-brand{% endif %} border-y border-surface-line py-12 sm:py-14"
+         aria-labelledby="{{ section.anchor }}">
+  <div class="container-page">
+
+    <div class="flex flex-wrap items-end justify-between gap-4">
+      <div>
+        <p class="section-eyebrow">{% translate "Seleção" %}</p>
+        <h2 id="{{ section.anchor }}" class="section-title mt-2">{{ section.title }}</h2>
+        {% if section.subtitle %}
+          <p class="section-subtitle">{{ section.subtitle }}</p>
+        {% endif %}
+      </div>
+
+      <div class="flex items-center gap-2">
+        {% if section.layout == "carousel" %}
+          <div class="hidden gap-1 sm:flex" data-carousel-controls>
+            <button type="button" class="icon-button border border-surface-line bg-white" data-carousel-prev
+                    aria-label="{% translate 'Produtos anteriores' %}">
+              {% icon "chevron-left" "h-4 w-4 rtl:rotate-180" %}
+            </button>
+            <button type="button" class="icon-button border border-surface-line bg-white" data-carousel-next
+                    aria-label="{% translate 'Próximos produtos' %}">
+              {% icon "chevron-right" "h-4 w-4 rtl:rotate-180" %}
+            </button>
+          </div>
+        {% endif %}
+
+        {% if section.has_cta %}
+          <a href="{{ section.cta_link }}" class="link-brand hidden text-sm sm:inline-flex sm:items-center sm:gap-1">
+            {{ section.cta_label|default:_("Ver todos") }}
+            {% icon "arrow-right" "h-3.5 w-3.5 rtl:rotate-180" %}
+          </a>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if section.layout == "carousel" %}
+      <div class="mt-6" data-carousel>
+        <ul class="carousel-track" role="list" data-carousel-track tabindex="0"
+            aria-label="{{ section.title }}">
+          {% for product in section.products %}
+            <li class="carousel-item">{% include "components/product_card.html" %}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% else %}
+      <ul class="product-grid mt-6" role="list">
+        {% for product in section.products %}
+          <li>{% include "components/product_card.html" %}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+
+    {% if section.has_cta %}
+      <div class="mt-6 sm:hidden">
+        <a href="{{ section.cta_link }}" class="btn-secondary w-full">
+          {{ section.cta_label|default:_("Ver todos") }}
+          {% icon "arrow-right" "h-4 w-4 rtl:rotate-180" %}
+        </a>
+      </div>
+    {% endif %}
+  </div>
+</section>

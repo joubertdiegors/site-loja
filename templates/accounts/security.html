@@ -1,0 +1,65 @@
+{% extends "accounts/base_account.html" %}
+{% load i18n jdprint %}
+
+{% block account_title %}{% translate "Segurança" %}{% endblock %}
+{% block account_subtitle %}
+  <p class="section-subtitle">{% translate "Senha, endereço de e-mail e confirmação da conta." %}</p>
+{% endblock %}
+
+{% block account_body %}
+  <div class="flex max-w-2xl flex-col gap-6">
+
+    {% include "accounts/_email_status.html" %}
+
+    {# ---- Senha ------------------------------------------------------- #}
+    <div class="card p-6 sm:p-7">
+      <h2 class="font-display text-lg font-bold text-ink">{% translate "Alterar senha" %}</h2>
+      <p class="mt-1 text-sm text-ink-soft">
+        {% translate "Pedimos a senha atual para garantir que é você." %}
+      </p>
+
+      <form method="post" class="mt-5 space-y-5" novalidate>
+        {% csrf_token %}
+        <input type="hidden" name="form" value="password">
+
+        {% if password_form.non_field_errors %}
+          <div class="form-alert" role="alert">
+            {% for error in password_form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
+          </div>
+        {% endif %}
+
+        {% for field in password_form %}
+          {% include "accounts/_field.html" with field=field %}
+        {% endfor %}
+
+        <button type="submit" class="btn-primary">{% translate "Salvar nova senha" %}</button>
+      </form>
+    </div>
+
+    {# ---- E-mail ------------------------------------------------------ #}
+    <div class="card p-6 sm:p-7">
+      <h2 class="font-display text-lg font-bold text-ink">{% translate "Alterar e-mail" %}</h2>
+      <p class="mt-1 text-sm text-ink-soft">
+        {% blocktranslate with email=user.email %}Hoje: {{ email }}.{% endblocktranslate %}
+        {% translate "Ao trocar, o novo endereço precisa ser confirmado de novo." %}
+      </p>
+
+      <form method="post" class="mt-5 space-y-5" novalidate>
+        {% csrf_token %}
+        <input type="hidden" name="form" value="email">
+
+        {% if email_form.non_field_errors %}
+          <div class="form-alert" role="alert">
+            {% for error in email_form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
+          </div>
+        {% endif %}
+
+        {% for field in email_form %}
+          {% include "accounts/_field.html" with field=field %}
+        {% endfor %}
+
+        <button type="submit" class="btn-secondary">{% translate "Alterar e-mail" %}</button>
+      </form>
+    </div>
+  </div>
+{% endblock %}

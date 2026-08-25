@@ -1,0 +1,41 @@
+{% extends "accounts/base_auth.html" %}
+{% load i18n %}
+
+{% block auth_eyebrow %}<p class="section-eyebrow">{% translate "Sua conta" %}</p>{% endblock %}
+{% block auth_title %}{% translate "Criar conta" %}{% endblock %}
+{% block auth_subtitle %}
+  <p class="section-subtitle mx-auto">
+    {% translate "Três campos e pronto. Nome, telefone e dados de faturamento ficam para depois." %}
+  </p>
+{% endblock %}
+
+{% block auth_body %}
+  <form method="post" class="space-y-5" novalidate>
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+      <div class="form-alert" role="alert">
+        {% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
+      </div>
+    {% endif %}
+
+    {% for field in form %}
+      {% include "accounts/_field.html" with field=field %}
+    {% endfor %}
+
+    {% if request.GET.next %}<input type="hidden" name="next" value="{{ request.GET.next }}">{% endif %}
+
+    <button type="submit" class="btn-primary w-full">{% translate "Criar conta" %}</button>
+
+    <p class="text-xs text-ink-muted">
+      {% translate "Enviaremos um e-mail para confirmar seu endereço. Seu carrinho continua com você." %}
+    </p>
+  </form>
+{% endblock %}
+
+{% block auth_footer %}
+  <p class="mt-6 text-center text-sm text-ink-soft">
+    {% translate "Já tem conta?" %}
+    <a class="link-brand" href="{% url 'accounts:login' %}">{% translate "Entrar" %}</a>
+  </p>
+{% endblock %}

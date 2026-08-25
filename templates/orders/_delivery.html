@@ -1,0 +1,179 @@
+{% load i18n jdprint %}
+{% comment %}
+Endereço de entrega + forma de entrega + resumo.
+
+É o pedaço que muda quando o cliente troca de endereço: outro país significa
+outras tarifas e outro imposto. O HTMX troca só este bloco (`#checkout-delivery`),
+então o formulário inteiro não é remontado e nada digitado se perde.
+
+Espera: `addresses`, `selected_address`, `draft`, `form`.
+{% endcomment %}
+<div id="checkout-delivery" class="contents">
+
+  {# ---- Passo 2: entrega ------------------------------------------------ #}
+  <section class="card p-5 sm:p-6" aria-labelledby="titulo-entrega">
+    <div class="flex items-center gap-3">
+      <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-100 font-mono text-[12px] font-medium text-brand-700" aria-hidden="true">2</span>
+      <h2 id="titulo-entrega" class="font-display text-lg font-bold text-ink">
+        {% translate "Endereço de entrega" %}
+      </h2>
+    </div>
+
+    {% if addresses %}
+      <ul class="mt-4 grid gap-2.5 sm:grid-cols-2" role="list">
+        {% for address in addresses %}
+          <li>
+            <label class="flex h-full cursor-pointer gap-3 rounded-card border-[1.5px] p-3.5 transition-colors
+                          {% if selected_address and address.pk == selected_address.pk %}border-brand-600 bg-brand-50{% else %}border-surface-line hover:border-brand-300{% endif %}">
+              <input type="radio" name="shipping_address" value="{{ address.pk }}"
+                     class="mt-0.5 h-4 w-4 shrink-0 accent-brand-600"
+                     {% if selected_address and address.pk == selected_address.pk %}checked{% endif %}
+                     hx-get="{% url 'cart:checkout' %}?partial=delivery"
+                     hx-target="#checkout-delivery"
+                     hx-swap="outerHTML"
+                     hx-include="[name='shipping_address']">
+              <span class="min-w-0">
+                <span class="block text-sm font-bold text-ink">{{ address.display_label }}</span>
+                <span class="mt-0.5 block text-[13px] leading-relaxed text-ink-soft">
+                  {{ address.street }}{% if address.street_extra %}, {{ address.street_extra }}{% endif %}<br>
+                  {{ address.postal_code }} {{ address.city }} · {{ address.country.name }}
+                </span>
+                {% if not address.country.is_active %}
+                  <span class="mt-1.5 inline-flex items-center gap-1 font-mono text-[10.5px] uppercase tracking-[0.06em] text-state-error">
+                    {% icon "alert" "h-3 w-3" %}{% translate "país indisponível" %}
+                  </span>
+                {% endif %}
+              </span>
+            </label>
+          </li>
+        {% endfor %}
+      </ul>
+
+      <a href="{% url 'accounts:address_create' %}?next={% url 'cart:checkout' %}"
+         class="btn-ghost btn-sm mt-3">
+        {% icon "plus" "h-4 w-4" %}{% translate "Usar outro endereço" %}
+      </a>
+    {% else %}
+      <div class="empty-state mt-4">
+        <span class="empty-state-icon" aria-hidden="true">{% icon "map-pin" "h-6 w-6" %}</span>
+        <p class="font-display text-base font-bold text-ink">{% translate "Falta o endereço de entrega" %}</p>
+        <p class="max-w-md text-sm text-ink-soft">
+          {% translate "Cadastre para onde devemos enviar. Leva menos de um minuto." %}
+        </p>
+        <a href="{% url 'accounts:address_create' %}?next={% url 'cart:checkout' %}" class="btn-primary btn-sm mt-1">
+          {% icon "plus" "h-4 w-4" %}{% translate "Cadastrar endereço" %}
+        </a>
+      </div>
+    {% endif %}
+
+    {% if form.shipping_address.errors %}
+      <p class="form-error mt-3">{{ form.shipping_address.errors.0 }}</p>
+    {% endif %}
+
+    {% if addresses %}
+      <div class="mt-4 space-y-3 border-t border-surface-line pt-4">
+        <label class="flex cursor-pointer items-start gap-2.5 text-sm text-ink">
+          <input type="checkbox" name="billing_same_as_shipping" value="1" checked
+                 class="mt-0.5 h-4 w-4 shrink-0 accent-brand-600" data-billing-toggle>
+          <span>{% translate "A fatura vai para o mesmo endereço" %}</span>
+        </label>
+
+        {# Sem JS o bloco fica à vista; o servidor obedece ao "mesmo endereço". #}
+        <div data-billing-block>
+          <p class="form-label">{% translate "Endereço de faturamento" %}</p>
+          <div class="mt-1.5 grid gap-2 sm:grid-cols-2">
+            {% for address in addresses %}
+              <label class="flex cursor-pointer gap-2.5 rounded-control border border-surface-line p-3 text-[13px] leading-relaxed text-ink-soft transition-colors hover:border-brand-300">
+                <input type="radio" name="billing_address" value="{{ address.pk }}"
+                       class="mt-0.5 h-4 w-4 shrink-0 accent-brand-600"
+                       {% if address.is_default_billing %}checked{% endif %}>
+                <span>
+                  <span class="block font-bold text-ink">{{ address.display_label }}</span>
+                  {{ address.postal_code }} {{ address.city }} · {{ address.country.name }}
+                </span>
+              </label>
+            {% endfor %}
+          </div>
+        </div>
+
+        <label class="flex cursor-pointer items-start gap-2.5 text-sm text-ink">
+          <input type="checkbox" name="is_gift" value="1" class="mt-0.5 h-4 w-4 shrink-0 accent-brand-600"
+                 {% if form.is_gift.value %}checked{% endif %}>
+          <span>
+            {% translate "Enviar como presente" %}
+            <span class="block text-[13px] text-ink-muted">
+              {% translate "A entrega vai para outra pessoa; a fatura continua no seu nome." %}
+            </span>
+          </span>
+        </label>
+      </div>
+    {% endif %}
+  </section>
+
+  {# ---- Passo 3: forma de entrega --------------------------------------- #}
+  <section class="card p-5 sm:p-6" aria-labelledby="titulo-metodo">
+    <div class="flex items-center gap-3">
+      <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-100 font-mono text-[12px] font-medium text-brand-700" aria-hidden="true">3</span>
+      <h2 id="titulo-metodo" class="font-display text-lg font-bold text-ink">
+        {% translate "Forma de entrega" %}
+      </h2>
+    </div>
+
+    {% if draft.options %}
+      <ul class="mt-4 space-y-2.5" role="list">
+        {% for option in draft.options %}
+          <li>
+            <label class="flex cursor-pointer items-center gap-3 rounded-card border-[1.5px] p-3.5 transition-colors
+                          {% if draft.shipping_option and option.method.pk == draft.shipping_option.method.pk %}border-brand-600 bg-brand-50{% else %}border-surface-line hover:border-brand-300{% endif %}">
+              <input type="radio" name="shipping_method" value="{{ option.method.pk }}"
+                     class="h-4 w-4 shrink-0 accent-brand-600"
+                     {% if draft.shipping_option and option.method.pk == draft.shipping_option.method.pk %}checked{% endif %}
+                     hx-get="{% url 'cart:checkout' %}?partial=delivery"
+                     hx-target="#checkout-delivery"
+                     hx-swap="outerHTML"
+                     hx-include="[name='shipping_address'],[name='shipping_method']">
+              <span class="min-w-0 flex-1">
+                <span class="block text-sm font-bold text-ink">{{ option.label }}</span>
+                <span class="block text-[13px] text-ink-soft">
+                  {% blocktranslate with days=option.days_display %}{{ days }} dias úteis{% endblocktranslate %}
+                  {% if option.method.description %} · {{ option.method.description }}{% endif %}
+                </span>
+              </span>
+              <span class="font-display font-bold tabular-price text-ink">
+                €&nbsp;{{ option.price|floatformat:2 }}
+              </span>
+            </label>
+          </li>
+        {% endfor %}
+      </ul>
+    {% elif selected_address %}
+      <p class="alert-warning mt-4">
+        {% icon "alert" "h-4 w-4 shrink-0" %}
+        <span>
+          {% blocktranslate with country=selected_address.country.name %}Ainda não temos tarifa cadastrada para {{ country }} com o peso deste pedido. Fale conosco e resolvemos.{% endblocktranslate %}
+        </span>
+      </p>
+    {% else %}
+      <p class="mt-4 text-sm text-ink-muted">
+        {% translate "Escolha o endereço de entrega para ver as opções." %}
+      </p>
+    {% endif %}
+
+    {% if form.shipping_method.errors %}
+      <p class="form-error mt-3">{{ form.shipping_method.errors.0 }}</p>
+    {% endif %}
+  </section>
+
+  {% comment %}
+    Na resposta parcial o resumo volta junto, fora do alvo da troca: ele mora
+    na outra coluna e mudaria de valor sem ninguém mandar recarregar.
+  {% endcomment %}
+  {% if partial %}
+    <div id="checkout-summary" hx-swap-oob="true">
+      {% include "orders/_summary.html" %}
+    </div>
+    <span id="checkout-cta-total" hx-swap-oob="true">
+      {% blocktranslate with total=draft.total|floatformat:2 %}Pagar €&nbsp;{{ total }}{% endblocktranslate %}
+    </span>
+  {% endif %}
+</div>

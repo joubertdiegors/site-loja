@@ -1,0 +1,46 @@
+{% extends "accounts/base_account.html" %}
+{% load i18n jdprint %}
+
+{% comment %}
+Solicitação de cancelamento.
+
+O cliente **pede**; a loja decide. A tela diz isso com todas as letras, para
+ninguém sair achando que o pedido já foi cancelado — sobretudo quando a peça
+já está na impressora.
+{% endcomment %}
+
+{% block account_eyebrow %}{% translate "Meus pedidos" %}{% endblock %}
+{% block account_title %}{% translate "Solicitar cancelamento" %}{% endblock %}
+{% block account_subtitle %}
+  <p class="section-subtitle">{{ order.number }}</p>
+{% endblock %}
+
+{% block account_body %}
+  <div class="max-w-xl">
+    <form method="post" class="card space-y-5 p-6 sm:p-7">
+      {% csrf_token %}
+
+      <p class="alert-info" role="status">
+        {% icon "mail" "h-4 w-4 shrink-0" %}
+        <span>
+          {% translate "O cancelamento não é automático: analisamos o pedido e respondemos. Se a produção já tiver começado, explicamos as opções." %}
+        </span>
+      </p>
+
+      <div class="space-y-1.5 {% if form.reason.errors %}field-has-error{% endif %}">
+        <label class="form-label" for="{{ form.reason.id_for_label }}">
+          {{ form.reason.label }}<span class="text-brand-600" aria-hidden="true"> *</span>
+        </label>
+        {{ form.reason }}
+        {% for error in form.reason.errors %}
+          <p class="form-error">{{ error }}</p>
+        {% endfor %}
+      </div>
+
+      <div class="flex flex-wrap items-center gap-3 border-t border-surface-line pt-5">
+        <button type="submit" class="btn-danger">{% translate "Enviar solicitação" %}</button>
+        <a href="{{ order.get_absolute_url }}" class="btn-ghost">{% translate "Voltar ao pedido" %}</a>
+      </div>
+    </form>
+  </div>
+{% endblock %}

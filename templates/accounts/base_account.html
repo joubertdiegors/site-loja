@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% load i18n jdprint %}
+{% comment %}
+Moldura das telas de quem já entrou: saudação, menu lateral e conteúdo.
+
+É uma área de loja, não um painel administrativo: o nome vem grande, os
+atalhos usam a cor da categoria e o aviso de e-mail é uma faixa, nunca um
+modal. O item ativo é marcado por `account_page`, definido em cada view.
+{% endcomment %}
+
+{% block content %}
+  <section class="container-page py-8 sm:py-12">
+
+    <header class="flex flex-wrap items-end justify-between gap-4">
+      <div>
+        <p class="section-eyebrow">{% block account_eyebrow %}{% translate "Minha conta" %}{% endblock %}</p>
+        <h1 class="section-title mt-2">
+          {% block account_title %}
+            {% blocktranslate with name=user.display_name %}Olá, {{ name }}!{% endblocktranslate %}
+          {% endblock %}
+        </h1>
+        {% block account_subtitle %}{% endblock %}
+      </div>
+      <p class="font-mono text-[11px] uppercase tracking-[0.1em] text-ink-muted">
+        {% blocktranslate with since=user.date_joined|date:"m/Y" %}cliente desde {{ since }}{% endblocktranslate %}
+      </p>
+    </header>
+
+    <div class="mt-8 grid gap-6 lg:grid-cols-[250px_1fr] lg:gap-7">
+
+      {# ---- Menu ------------------------------------------------------- #}
+      <nav class="card h-fit p-3 lg:sticky lg:top-28" aria-label="{% translate 'Menu da conta' %}">
+        <ul class="space-y-0.5" role="list">
+          <li>
+            <a class="account-link {% if account_page == 'dashboard' %}account-link-active{% endif %}"
+               href="{% url 'accounts:dashboard' %}"
+               {% if account_page == 'dashboard' %}aria-current="page"{% endif %}>
+              {% icon "user" "h-4 w-4" %}{% translate "Visão geral" %}
+            </a>
+          </li>
+          <li>
+            <a class="account-link {% if account_page == 'profile' %}account-link-active{% endif %}"
+               href="{% url 'accounts:profile' %}"
+               {% if account_page == 'profile' %}aria-current="page"{% endif %}>
+              {% icon "cube" "h-4 w-4" %}{% translate "Meus dados" %}
+            </a>
+          </li>
+          <li>
+            <a class="account-link {% if account_page == 'security' %}account-link-active{% endif %}"
+               href="{% url 'accounts:security' %}"
+               {% if account_page == 'security' %}aria-current="page"{% endif %}>
+              {% icon "shield" "h-4 w-4" %}{% translate "Segurança" %}
+            </a>
+          </li>
+          <li>
+            <a class="account-link {% if account_page == 'addresses' %}account-link-active{% endif %}"
+               href="{% url 'accounts:addresses' %}"
+               {% if account_page == 'addresses' %}aria-current="page"{% endif %}>
+              {% icon "truck" "h-4 w-4" %}{% translate "Endereços" %}
+            </a>
+          </li>
+          <li>
+            <a class="account-link {% if account_page == 'orders' %}account-link-active{% endif %}"
+               href="{% url 'accounts:orders' %}"
+               {% if account_page == 'orders' %}aria-current="page"{% endif %}>
+              {% icon "cart" "h-4 w-4" %}<span class="whitespace-nowrap">{% translate "Meus pedidos" %}</span>
+            </a>
+          </li>
+        </ul>
+
+        <div class="my-2 h-px bg-surface-line"></div>
+
+        <form method="post" action="{% url 'accounts:logout' %}">
+          {% csrf_token %}
+          <button type="submit"
+                  class="account-link w-full text-start text-state-error hover:bg-state-error-soft hover:text-state-error-dark">
+            {% icon "logout" "h-4 w-4" %}{% translate "Sair" %}
+          </button>
+        </form>
+      </nav>
+
+      <div class="min-w-0">
+        {% block account_body %}{% endblock %}
+      </div>
+    </div>
+  </section>
+{% endblock %}

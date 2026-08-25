@@ -1,0 +1,1582 @@
+# Tradução da interface da JD PRINT (Francês).
+# As traduções de CONTEÚDO (produtos, categorias, seções) ficam no banco de
+# dados, não aqui. Este arquivo cobre apenas os textos fixos da interface.
+msgid ""
+msgstr ""
+"Project-Id-Version: JD PRINT\n"
+"Report-Msgid-Bugs-To: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: fr\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+
+msgid "Ir para o conteúdo"
+msgstr "Aller au contenu"
+
+msgid "Navegação principal"
+msgstr "Navigation principale"
+
+msgid "Navegação principal (celular)"
+msgstr "Navigation principale (mobile)"
+
+msgid "Buscar produtos"
+msgstr "Rechercher des produits"
+
+msgid "Buscar produtos (em breve)"
+msgstr "Rechercher des produits (bientôt)"
+
+msgid "Escolher idioma"
+msgstr "Choisir la langue"
+
+msgid "Favoritos (em breve)"
+msgstr "Favoris (bientôt)"
+
+msgid "Favoritos em breve"
+msgstr "Favoris bientôt"
+
+msgid "Minha conta (em breve)"
+msgstr "Mon compte (bientôt)"
+
+msgid "Carrinho (em breve)"
+msgstr "Panier (bientôt)"
+
+msgid "Abrir menu"
+msgstr "Ouvrir le menu"
+
+msgid "Em breve"
+msgstr "Bientôt"
+
+msgid "Produtos"
+msgstr "Produits"
+
+msgid "Todos os produtos"
+msgstr "Tous les produits"
+
+msgid "Ver produtos"
+msgstr "Voir les produits"
+
+msgid "Ver todos"
+msgstr "Tout voir"
+
+msgid "Impressão 3D criativa"
+msgstr "Impression 3D créative"
+
+msgid "Peças únicas, impressas sob medida"
+msgstr "Des pièces uniques, imprimées sur mesure"
+
+msgid "Modelos decorativos, acessórios e filamentos escolhidos com cuidado. Feitos na Bélgica, com acabamento e cor à sua escolha."
+msgstr "Modèles décoratifs, accessoires et filaments choisis avec soin. Fabriqués en Belgique, finition et couleur au choix."
+
+msgid "Cores e materiais à escolha"
+msgstr "Couleurs et matériaux au choix"
+
+msgid "Produção sob encomenda"
+msgstr "Production sur commande"
+
+msgid "Envio para toda a Europa"
+msgstr "Livraison dans toute l'Europe"
+
+msgid "Espaço reservado para o banner promocional. Cadastre um banner em Home › Banners da Home."
+msgstr "Emplacement réservé à la bannière promotionnelle. Ajoutez-en une dans Home › Bannières."
+
+msgid "Destaque"
+msgstr "À la une"
+
+msgid "Sob encomenda"
+msgstr "Sur commande"
+
+msgid "Esgotado"
+msgstr "Épuisé"
+
+msgid "Sob consulta"
+msgstr "Sur demande"
+
+msgid "Cores disponíveis"
+msgstr "Couleurs disponibles"
+
+msgid "Foto em breve"
+msgstr "Photo bientôt"
+
+msgid "Produtos anteriores"
+msgstr "Produits précédents"
+
+msgid "Próximos produtos"
+msgstr "Produits suivants"
+
+msgid "A vitrine está sendo montada"
+msgstr "La vitrine est en préparation"
+
+msgid "Ainda não há seções ativas com produtos. Crie uma seção em Home › Seções da Home no painel administrativo."
+msgstr "Aucune section active avec des produits pour l'instant. Créez-en une dans Home › Sections de la Home."
+
+msgid "Navegue por"
+msgstr "Parcourir par"
+
+msgid "Categorias"
+msgstr "Catégories"
+
+msgid "Encontre mais rápido o que procura."
+msgstr "Trouvez plus vite ce que vous cherchez."
+
+msgid "Personalização"
+msgstr "Personnalisation"
+
+msgid "Tem uma ideia? A gente imprime."
+msgstr "Vous avez une idée ? On l'imprime."
+
+msgid "Cores, tamanhos e materiais à sua escolha — e projetos sob encomenda para o que não existe na loja."
+msgstr "Couleurs, tailles et matériaux au choix — et des projets sur mesure pour ce qui n'existe pas en boutique."
+
+msgid "Produtos criativos feitos com impressão 3D. Peças decorativas, acessórios e filamentos — com opção de personalização e produção sob encomenda."
+msgstr "Des produits créatifs en impression 3D. Pièces décoratives, accessoires et filaments — personnalisation et production sur commande."
+
+msgid "Ajuda"
+msgstr "Aide"
+
+msgid "Envios e prazos"
+msgstr "Livraison et délais"
+
+msgid "Trocas e devoluções"
+msgstr "Échanges et retours"
+
+msgid "Contato"
+msgstr "Contact"
+
+msgid "Páginas em construção."
+msgstr "Pages en construction."
+
+msgid "Compra segura"
+msgstr "Achat sécurisé"
+
+msgid "Em construção"
+msgstr "En construction"
+
+msgid "Página em construção. A loja completa chega em breve."
+msgstr "Page en construction. La boutique complète arrive bientôt."
+
+msgid "Esta página faz parte da próxima etapa da loja. O produto já está cadastrado e aparece normalmente na página inicial."
+msgstr "Cette page fait partie de la prochaine étape de la boutique. Le produit est déjà enregistré et apparaît sur la page d'accueil."
+
+msgid "Voltar para a página inicial"
+msgstr "Retour à l'accueil"
+
+msgid "JD PRINT — Impressão 3D criativa"
+msgstr "JD PRINT — Impression 3D créative"
+
+msgid "Produtos criativos feitos com impressão 3D: modelos decorativos, acessórios e filamentos. Peças sob encomenda e personalização."
+msgstr "Des produits créatifs en impression 3D : modèles décoratifs, accessoires et filaments. Pièces sur commande et personnalisation."
+
+msgid "%(site_name)s — página inicial"
+msgstr "%(site_name)s — accueil"
+
+msgid "Adicionar %(name)s aos favoritos (em breve)"
+msgstr "Ajouter %(name)s aux favoris (bientôt)"
+
+msgid "Imagem de %(name)s ainda não cadastrada"
+msgstr "Image de %(name)s pas encore ajoutée"
+
+msgid "© %(current_year)s %(site_name)s. Todos os direitos reservados."
+msgstr "© %(current_year)s %(site_name)s. Tous droits réservés."
+
+msgid "Pronto em %(days)s dia"
+msgid_plural "Pronto em %(days)s dias"
+msgstr[0] "Prêt en %(days)s jour"
+msgstr[1] "Prêt en %(days)s jours"
+
+msgid "%(total)s produto"
+msgid_plural "%(total)s produtos"
+msgstr[0] "%(total)s produit"
+msgstr[1] "%(total)s produits"
+
+msgid "Catálogo"
+msgstr "Catalogue"
+
+msgid "Modelos"
+msgstr "Modèles"
+
+msgid "Descubra nossos modelos impressos em 3D"
+msgstr "Découvrez nos modèles imprimés en 3D"
+
+msgid "Vitrine ainda não configurada"
+msgstr "Vitrine pas encore configurée"
+
+msgid "Filtros"
+msgstr "Filtres"
+
+msgid "Todos"
+msgstr "Tous"
+
+msgid "Ordenar"
+msgstr "Trier"
+
+msgid "Aplicar"
+msgstr "Appliquer"
+
+msgid "Mais recentes"
+msgstr "Plus récents"
+
+msgid "Nome A-Z"
+msgstr "Nom A-Z"
+
+msgid "Nome Z-A"
+msgstr "Nom Z-A"
+
+msgid "Preço menor → maior"
+msgstr "Prix croissant"
+
+msgid "Preço maior → menor"
+msgstr "Prix décroissant"
+
+msgid "Paginação"
+msgstr "Pagination"
+
+msgid "Anterior"
+msgstr "Précédent"
+
+msgid "Próximo"
+msgstr "Suivant"
+
+msgid "Nenhum produto por aqui ainda"
+msgstr "Aucun produit ici pour le moment"
+
+msgid "Experimente outra categoria ou volte em breve."
+msgstr "Essayez une autre catégorie ou revenez bientôt."
+
+msgid "Ver todos os modelos"
+msgstr "Voir tous les modèles"
+
+msgid "Ver modelos"
+msgstr "Voir les modèles"
+
+msgid "Adicionar ao carrinho"
+msgstr "Ajouter au panier"
+
+msgid "Meu carrinho"
+msgstr "Mon panier"
+
+msgid "Sua seleção"
+msgstr "Votre sélection"
+
+msgid "Seu carrinho está vazio"
+msgstr "Votre panier est vide"
+
+msgid "Escolha um modelo e ele aparece aqui."
+msgstr "Choisissez un modèle et il apparaîtra ici."
+
+msgid "Produtos no carrinho"
+msgstr "Produits dans le panier"
+
+msgid "Produto"
+msgstr "Produit"
+
+msgid "Quantidade"
+msgstr "Quantité"
+
+msgid "Preço"
+msgstr "Prix"
+
+msgid "Remover"
+msgstr "Retirer"
+
+msgid "por unidade"
+msgstr "par unité"
+
+msgid "Máximo em estoque"
+msgstr "Maximum en stock"
+
+msgid "Quantidade máxima disponível"
+msgstr "Quantité maximale disponible"
+
+msgid "Resumo"
+msgstr "Résumé"
+
+msgid "Subtotal"
+msgstr "Sous-total"
+
+msgid "Envio"
+msgstr "Livraison"
+
+msgid "calculado no checkout"
+msgstr "calculée au paiement"
+
+msgid "Finalizar compra"
+msgstr "Passer commande"
+
+msgid "Continuar comprando"
+msgstr "Continuer les achats"
+
+msgid "Finalização de compra"
+msgstr "Passage en caisse"
+
+msgid "O pagamento e a entrega entram na próxima etapa da loja. Seu carrinho continua guardado."
+msgstr "Le paiement et la livraison arrivent à la prochaine étape. Votre panier est conservé."
+
+msgid "Voltar ao carrinho"
+msgstr "Retour au panier"
+
+msgid "Meu carrinho — JD PRINT"
+msgstr "Mon panier — JD PRINT"
+
+msgid "Produtos selecionados no seu carrinho."
+msgstr "Produits sélectionnés dans votre panier."
+
+msgid "Finalizar compra — JD PRINT"
+msgstr "Passer commande — JD PRINT"
+
+msgid "Produto adicionado ao carrinho."
+msgstr "Produit ajouté au panier."
+
+msgid "Produto removido do carrinho."
+msgstr "Produit retiré du panier."
+
+msgid "Carrinho atualizado."
+msgstr "Panier mis à jour."
+
+msgid "Produto esgotado no momento."
+msgstr "Produit épuisé pour le moment."
+
+msgid "Este produto não está disponível."
+msgstr "Ce produit n'est pas disponible."
+
+msgid "Este produto não estava no carrinho."
+msgstr "Ce produit n'était pas dans le panier."
+
+msgid "Produto esgotado: item removido."
+msgstr "Produit épuisé : article retiré."
+
+msgid "Adicionamos o máximo disponível: %(count)s unidade(s)."
+msgstr "Nous avons ajouté le maximum disponible : %(count)s unité(s)."
+
+msgid "Disponível apenas %(count)s unidade(s) deste produto."
+msgstr "Seulement %(count)s unité(s) disponible(s) pour ce produit."
+
+msgid "Diminuir quantidade de %(name)s"
+msgstr "Diminuer la quantité de %(name)s"
+
+msgid "Aumentar quantidade de %(name)s"
+msgstr "Augmenter la quantité de %(name)s"
+
+msgid "Remover %(name)s do carrinho"
+msgstr "Retirer %(name)s du panier"
+
+msgid "Página %(number)s"
+msgstr "Page %(number)s"
+
+msgid "Carrinho, %(total)s item"
+msgid_plural "Carrinho, %(total)s itens"
+msgstr[0] "Panier, %(total)s article"
+msgstr[1] "Panier, %(total)s articles"
+
+msgid "%(total)s item no carrinho"
+msgid_plural "%(total)s itens no carrinho"
+msgstr[0] "%(total)s article dans le panier"
+msgstr[1] "%(total)s articles dans le panier"
+
+msgid "Mostrar"
+msgstr "Afficher"
+
+msgid "Escolher opções"
+msgstr "Choisir les options"
+
+msgid "Personalizar"
+msgstr "Personnaliser"
+
+msgid "Você está aqui"
+msgstr "Vous êtes ici"
+
+msgid "Início"
+msgstr "Accueil"
+
+msgid "Fotos do produto"
+msgstr "Photos du produit"
+
+msgid "Opção"
+msgstr "Option"
+
+msgid "Cor"
+msgstr "Couleur"
+
+msgid "Tamanho"
+msgstr "Taille"
+
+msgid "Material"
+msgstr "Matériau"
+
+msgid "Marca"
+msgstr "Marque"
+
+msgid "Peso"
+msgstr "Poids"
+
+msgid "Dimensões"
+msgstr "Dimensions"
+
+msgid "Tempo de impressão"
+msgstr "Temps d'impression"
+
+msgid "Referência"
+msgstr "Référence"
+
+msgid "Descrição"
+msgstr "Description"
+
+msgid "Especificações"
+msgstr "Caractéristiques"
+
+msgid "Informações adicionais"
+msgstr "Informations complémentaires"
+
+msgid "Em estoque"
+msgstr "En stock"
+
+msgid "Últimas unidades"
+msgstr "Dernières pièces"
+
+msgid "Produzido sob encomenda"
+msgstr "Fabriqué sur commande"
+
+msgid "esgotado"
+msgstr "épuisé"
+
+msgid "Aumentar quantidade"
+msgstr "Augmenter la quantité"
+
+msgid "Diminuir quantidade"
+msgstr "Diminuer la quantité"
+
+msgid "Escolha sua personalização"
+msgstr "Choisissez votre personnalisation"
+
+msgid "Como deseja personalizar?"
+msgstr "Comment souhaitez-vous personnaliser ?"
+
+msgid "Enviar uma foto"
+msgstr "Envoyer une photo"
+
+msgid "Informar um texto"
+msgstr "Saisir un texte"
+
+msgid "Enviar sua foto"
+msgstr "Envoyer votre photo"
+
+msgid "Texto que deseja personalizar"
+msgstr "Texte à personnaliser"
+
+msgid "Observações"
+msgstr "Remarques"
+
+msgid "Observações (opcional)"
+msgstr "Remarques (facultatif)"
+
+msgid "Ex.: quero o nome na parte inferior."
+msgstr "Ex. : je veux le nom en bas."
+
+msgid "Texto"
+msgstr "Texte"
+
+msgid "Com foto"
+msgstr "Avec photo"
+
+msgid "Foto enviada"
+msgstr "Photo envoyée"
+
+msgid "Envie a foto da personalização."
+msgstr "Envoyez la photo de la personnalisation."
+
+msgid "Informe o texto da personalização."
+msgstr "Saisissez le texte de la personnalisation."
+
+msgid "Escolha entre enviar uma foto ou informar um texto."
+msgstr "Choisissez entre envoyer une photo ou saisir un texte."
+
+msgid "Envie uma imagem JPG, PNG ou WEBP."
+msgstr "Envoyez une image JPG, PNG ou WEBP."
+
+msgid "O arquivo enviado está vazio."
+msgstr "Le fichier envoyé est vide."
+
+msgid "A imagem pode ter no máximo %(limit)s MB."
+msgstr "L'image ne peut pas dépasser %(limit)s Mo."
+
+msgid "O texto pode ter no máximo %(limit)s caracteres."
+msgstr "Le texte ne peut pas dépasser %(limit)s caractères."
+
+msgid "As observações podem ter no máximo %(limit)s caracteres."
+msgstr "Les remarques ne peuvent pas dépasser %(limit)s caractères."
+
+msgid "Escolha uma opção do produto."
+msgstr "Choisissez une option du produit."
+
+msgid "Esta opção não está disponível."
+msgstr "Cette option n'est pas disponible."
+
+msgid "Este item não estava no carrinho."
+msgstr "Cet article n'était pas dans le panier."
+
+msgid "Não foi possível adicionar o produto."
+msgstr "Impossible d'ajouter le produit."
+
+msgid "Seu carrinho"
+msgstr "Votre panier"
+
+msgid "Fechar carrinho"
+msgstr "Fermer le panier"
+
+msgid "Ver carrinho"
+msgstr "Voir le panier"
+
+msgid "Envio calculado no checkout."
+msgstr "Livraison calculée au paiement."
+
+msgid "Sua conta"
+msgstr "Votre compte"
+
+msgid "Minha conta"
+msgstr "Mon compte"
+
+msgid "Meus pedidos"
+msgstr "Mes commandes"
+
+msgid "Meus dados"
+msgstr "Mes informations"
+
+msgid "Menu da conta"
+msgstr "Menu du compte"
+
+msgid "Sair"
+msgstr "Se déconnecter"
+
+msgid "Entrar"
+msgstr "Se connecter"
+
+msgid "Criar conta"
+msgstr "Créer un compte"
+
+msgid "Acesso"
+msgstr "Accès"
+
+msgid "Usuário"
+msgstr "Utilisateur"
+
+msgid "Nome"
+msgstr "Prénom"
+
+msgid "Telefone"
+msgstr "Téléphone"
+
+msgid "Empresa"
+msgstr "Entreprise"
+
+msgid "Empresa (opcional)"
+msgstr "Entreprise (facultatif)"
+
+msgid "E-mail"
+msgstr "E-mail"
+
+msgid "Senha"
+msgstr "Mot de passe"
+
+msgid "Idioma preferido"
+msgstr "Langue préférée"
+
+msgid "Cliente desde"
+msgstr "Client depuis"
+
+msgid "Salvar"
+msgstr "Enregistrer"
+
+msgid "Enviar"
+msgstr "Envoyer"
+
+msgid "Usuário ou e-mail"
+msgstr "Identifiant ou e-mail"
+
+msgid "Use seu nome de usuário ou o e-mail cadastrado."
+msgstr "Utilisez votre identifiant ou l'e-mail de votre compte."
+
+msgid "Usuário, e-mail ou senha incorretos."
+msgstr "Identifiant, e-mail ou mot de passe incorrects."
+
+msgid "Esqueci minha senha"
+msgstr "Mot de passe oublié"
+
+msgid "Ainda não tem conta?"
+msgstr "Pas encore de compte ?"
+
+msgid "Já tem conta?"
+msgstr "Vous avez déjà un compte ?"
+
+msgid "Voltar para entrar"
+msgstr "Retour à la connexion"
+
+msgid "Entrar — JD PRINT"
+msgstr "Se connecter — JD PRINT"
+
+msgid "Criar conta — JD PRINT"
+msgstr "Créer un compte — JD PRINT"
+
+msgid "Três campos e pronto. Nome, telefone e dados de faturamento ficam para depois."
+msgstr "Trois champs et c'est tout. Nom, téléphone et facturation viendront plus tard."
+
+msgid "Enviaremos um e-mail para confirmar seu endereço. Seu carrinho continua com você."
+msgstr "Nous enverrons un e-mail pour confirmer votre adresse. Votre panier reste avec vous."
+
+msgid "Usado para confirmar a conta e para falar sobre seus pedidos."
+msgstr "Utilisé pour confirmer le compte et pour vos commandes."
+
+msgid "Este nome de usuário não está disponível."
+msgstr "Cet identifiant n'est pas disponible."
+
+msgid "Já existe uma conta com este e-mail."
+msgstr "Un compte existe déjà avec cet e-mail."
+
+msgid "Já existe uma conta com este e-mail. Tente entrar."
+msgstr "Un compte existe déjà avec cet e-mail. Essayez de vous connecter."
+
+msgid "O nome de usuário não pode ser um endereço de e-mail."
+msgstr "L'identifiant ne peut pas être une adresse e-mail."
+
+msgid "O nome de usuário precisa de pelo menos %(min)s caracteres."
+msgstr "L'identifiant doit contenir au moins %(min)s caractères."
+
+msgid "O nome de usuário pode ter no máximo %(max)s caracteres."
+msgstr "L'identifiant ne peut pas dépasser %(max)s caractères."
+
+msgid "Use apenas letras sem acento, números, hífen e sublinhado, começando e terminando com letra ou número."
+msgstr "Utilisez uniquement des lettres sans accent, des chiffres, le tiret et le tiret bas, en commençant et en terminant par une lettre ou un chiffre."
+
+msgid "Telefone inválido. Use números, espaços, +, ( ) ou hífen."
+msgstr "Téléphone invalide. Utilisez des chiffres, des espaces, +, ( ) ou un tiret."
+
+msgid "Minha conta — JD PRINT"
+msgstr "Mon compte — JD PRINT"
+
+msgid "Meus dados — JD PRINT"
+msgstr "Mes informations — JD PRINT"
+
+msgid "Confirme seu e-mail"
+msgstr "Confirmez votre e-mail"
+
+msgid "E-mail confirmado"
+msgstr "E-mail confirmé"
+
+msgid "E-mail confirmado."
+msgstr "E-mail confirmé."
+
+msgid "Enviar novo e-mail"
+msgstr "Envoyer un nouvel e-mail"
+
+msgid "Trocar minha senha"
+msgstr "Changer mon mot de passe"
+
+msgid "Completar meus dados"
+msgstr "Compléter mes informations"
+
+msgid "Ainda não preenchido. Serão pedidos na hora de finalizar a compra."
+msgstr "Pas encore renseigné. Ces informations seront demandées au moment du paiement."
+
+msgid "Seu carrinho está vazio."
+msgstr "Votre panier est vide."
+
+msgid "Dados atualizados."
+msgstr "Informations mises à jour."
+
+msgid "São os dados do cliente — usados em faturas e entregas. Usuário, e-mail e senha ficam em Minha conta."
+msgstr "Ce sont les informations du client — utilisées pour les factures et les livraisons. Identifiant, e-mail et mot de passe se trouvent dans Mon compte."
+
+msgid "Confirmação de e-mail — JD PRINT"
+msgstr "Confirmation d'e-mail — JD PRINT"
+
+msgid "Confirme seu endereço de e-mail"
+msgstr "Confirmez votre adresse e-mail"
+
+msgid "Confirme seu endereço de e-mail — JD PRINT"
+msgstr "Confirmez votre adresse e-mail — JD PRINT"
+
+msgid "Confirme seu endereço de e-mail para concluir seu cadastro na JD PRINT."
+msgstr "Confirmez votre adresse e-mail pour finaliser votre inscription chez JD PRINT."
+
+msgid "Clique no botão abaixo para confirmar seu endereço:"
+msgstr "Cliquez sur le bouton ci-dessous pour confirmer votre adresse :"
+
+msgid "Abra o endereço abaixo para confirmar seu e-mail:"
+msgstr "Ouvrez l'adresse ci-dessous pour confirmer votre e-mail :"
+
+msgid "CONFIRMAR MEU E-MAIL"
+msgstr "CONFIRMER MON E-MAIL"
+
+msgid "Se você não criou esta conta, ignore este e-mail."
+msgstr "Si vous n'avez pas créé ce compte, ignorez cet e-mail."
+
+msgid "Se o botão não funcionar, copie este endereço no navegador:"
+msgstr "Si le bouton ne fonctionne pas, copiez cette adresse dans le navigateur :"
+
+msgid "A JD PRINT nunca pede senha, dados bancários ou código por e-mail."
+msgstr "JD PRINT ne demande jamais de mot de passe, de données bancaires ou de code par e-mail."
+
+msgid "Pronto! Seu endereço de e-mail está confirmado."
+msgstr "C'est fait ! Votre adresse e-mail est confirmée."
+
+msgid "Ir para minha conta"
+msgstr "Aller à mon compte"
+
+msgid "Link expirado"
+msgstr "Lien expiré"
+
+msgid "Link inválido"
+msgstr "Lien invalide"
+
+msgid "Link já utilizado"
+msgstr "Lien déjà utilisé"
+
+msgid "Este link de confirmação expirou."
+msgstr "Ce lien de confirmation a expiré."
+
+msgid "Este link de confirmação já foi utilizado ou não é mais válido."
+msgstr "Ce lien de confirmation a déjà été utilisé ou n'est plus valable."
+
+msgid "Reenviar confirmação"
+msgstr "Renvoyer la confirmation"
+
+msgid "Reenviar confirmação — JD PRINT"
+msgstr "Renvoyer la confirmation — JD PRINT"
+
+msgid "Informe o e-mail usado no cadastro e enviaremos um novo link."
+msgstr "Indiquez l'e-mail utilisé lors de l'inscription et nous enverrons un nouveau lien."
+
+msgid "Seu e-mail já está confirmado."
+msgstr "Votre e-mail est déjà confirmé."
+
+msgid "Aguarde alguns instantes antes de pedir um novo e-mail."
+msgstr "Patientez quelques instants avant de demander un nouvel e-mail."
+
+msgid "E-mail de confirmação reenviado para %(email)s."
+msgstr "E-mail de confirmation renvoyé à %(email)s."
+
+msgid "Conta criada. Enviamos um e-mail para %(email)s — confirme para concluir."
+msgstr "Compte créé. Nous avons envoyé un e-mail à %(email)s — confirmez pour terminer."
+
+msgid "Se existir uma conta associada a este e-mail, enviaremos as instruções em instantes."
+msgstr "Si un compte est associé à cet e-mail, nous enverrons les instructions dans un instant."
+
+msgid "Recuperar senha"
+msgstr "Récupérer le mot de passe"
+
+msgid "Recuperar senha — JD PRINT"
+msgstr "Récupérer le mot de passe — JD PRINT"
+
+msgid "Informe o e-mail da sua conta e enviaremos um link para criar uma nova senha."
+msgstr "Indiquez l'e-mail de votre compte et nous enverrons un lien pour créer un nouveau mot de passe."
+
+msgid "Enviar instruções"
+msgstr "Envoyer les instructions"
+
+msgid "Verifique seu e-mail"
+msgstr "Vérifiez votre e-mail"
+
+msgid "Não recebeu? Confira a caixa de spam antes de tentar de novo."
+msgstr "Rien reçu ? Vérifiez le dossier spam avant de réessayer."
+
+msgid "Redefinição de senha"
+msgstr "Réinitialisation du mot de passe"
+
+msgid "Redefinição de senha — JD PRINT"
+msgstr "Réinitialisation du mot de passe — JD PRINT"
+
+msgid "Recebemos um pedido para redefinir a senha da sua conta JD PRINT."
+msgstr "Nous avons reçu une demande de réinitialisation du mot de passe de votre compte JD PRINT."
+
+msgid "Abra o endereço abaixo para criar uma nova senha:"
+msgstr "Ouvrez l'adresse ci-dessous pour créer un nouveau mot de passe :"
+
+msgid "CRIAR NOVA SENHA"
+msgstr "CRÉER UN NOUVEAU MOT DE PASSE"
+
+msgid "Se não foi você quem pediu, ignore este e-mail: sua senha continua a mesma."
+msgstr "Si vous n'êtes pas à l'origine de cette demande, ignorez cet e-mail : votre mot de passe reste inchangé."
+
+msgid "Nova senha"
+msgstr "Nouveau mot de passe"
+
+msgid "Nova senha — JD PRINT"
+msgstr "Nouveau mot de passe — JD PRINT"
+
+msgid "Salvar nova senha"
+msgstr "Enregistrer le nouveau mot de passe"
+
+msgid "Este link de redefinição já foi utilizado ou não é mais válido."
+msgstr "Ce lien de réinitialisation a déjà été utilisé ou n'est plus valable."
+
+msgid "Pedir um novo link"
+msgstr "Demander un nouveau lien"
+
+msgid "Senha alterada"
+msgstr "Mot de passe modifié"
+
+msgid "Sua senha foi alterada. Já pode entrar com ela."
+msgstr "Votre mot de passe a été modifié. Vous pouvez déjà l'utiliser pour vous connecter."
+
+msgid "Não perca seu carrinho"
+msgstr "Ne perdez pas votre panier"
+
+msgid "Crie uma conta ou entre para mantê-lo disponível mesmo se trocar de dispositivo."
+msgstr "Créez un compte ou connectez-vous pour le garder même en changeant d'appareil."
+
+msgid "Seu carrinho foi recuperado."
+msgstr "Votre panier a été récupéré."
+
+msgid "Enviamos um link para %(email)s. Ele vale por tempo limitado e só pode ser usado uma vez."
+msgstr "Nous avons envoyé un lien à %(email)s. Il a une durée limitée et ne peut servir qu'une fois."
+
+msgid "Olá, %(username)s. Você criou uma conta na JD PRINT."
+msgstr "Bonjour %(username)s. Vous avez créé un compte chez JD PRINT."
+
+msgid "Olá, %(username)s. Recebemos um pedido para redefinir a senha da sua conta."
+msgstr "Bonjour %(username)s. Nous avons reçu une demande de réinitialisation du mot de passe de votre compte."
+
+msgid "Seu carrinho foi recuperado. Ajustamos a quantidade de %(items)s ao estoque disponível."
+msgstr "Votre panier a été récupéré. Nous avons ajusté la quantité de %(items)s au stock disponible."
+
+msgid "Aguarde %(seconds)s segundo."
+msgid_plural "Aguarde %(seconds)s segundos."
+msgstr[0] "Patientez %(seconds)s seconde."
+msgstr[1] "Patientez %(seconds)s secondes."
+
+msgid "%(total)s item guardado na sua conta."
+msgid_plural "%(total)s itens guardados na sua conta."
+msgstr[0] "%(total)s article gardé dans votre compte."
+msgstr[1] "%(total)s articles gardés dans votre compte."
+
+msgid "Este link é válido por %(hours)s hora e só pode ser utilizado uma vez."
+msgid_plural "Este link é válido por %(hours)s horas e só pode ser utilizado uma vez."
+msgstr[0] "Ce lien est valable %(hours)s heure et ne peut être utilisé qu'une seule fois."
+msgstr[1] "Ce lien est valable %(hours)s heures et ne peut être utilisé qu'une seule fois."
+
+msgid "Visão geral"
+msgstr "Vue d'ensemble"
+
+msgid "Segurança"
+msgstr "Sécurité"
+
+msgid "Endereços"
+msgstr "Adresses"
+
+msgid "Bem-vindo de volta à JD PRINT."
+msgstr "Bon retour chez JD PRINT."
+
+msgid "Chegam com o checkout."
+msgstr "Ils arrivent avec le paiement."
+
+msgid "Nome, telefone, empresa"
+msgstr "Nom, téléphone, entreprise"
+
+msgid "Nenhum cadastrado"
+msgstr "Aucune enregistrée"
+
+msgid "Senha e e-mail"
+msgstr "Mot de passe et e-mail"
+
+msgid "Idioma dos e-mails"
+msgstr "Langue des e-mails"
+
+msgid "Trocar senha ou e-mail"
+msgstr "Changer le mot de passe ou l'e-mail"
+
+msgid "Cancelar"
+msgstr "Annuler"
+
+msgid "São os dados do cliente — usados em faturas e entregas. Usuário, e-mail e senha ficam em Segurança."
+msgstr "Ce sont les données client — utilisées pour les factures et les livraisons. Identifiant, e-mail et mot de passe se trouvent dans Sécurité."
+
+msgid "Senha, endereço de e-mail e confirmação da conta."
+msgstr "Mot de passe, adresse e-mail et confirmation du compte."
+
+msgid "Alterar senha"
+msgstr "Changer le mot de passe"
+
+msgid "Pedimos a senha atual para garantir que é você."
+msgstr "Nous demandons le mot de passe actuel pour vérifier que c'est bien vous."
+
+msgid "Alterar e-mail"
+msgstr "Changer l'e-mail"
+
+msgid "Hoje: %(email)s."
+msgstr "Aujourd'hui : %(email)s."
+
+msgid "Ao trocar, o novo endereço precisa ser confirmado de novo."
+msgstr "Après le changement, la nouvelle adresse doit être confirmée à nouveau."
+
+msgid "Novo e-mail"
+msgstr "Nouvel e-mail"
+
+msgid "Sua senha atual"
+msgstr "Votre mot de passe actuel"
+
+msgid "Senha incorreta."
+msgstr "Mot de passe incorrect."
+
+msgid "Este já é o seu e-mail atual."
+msgstr "C'est déjà votre e-mail actuel."
+
+msgid "Senha alterada."
+msgstr "Mot de passe modifié."
+
+msgid "E-mail alterado para %(email)s. Enviamos um link de confirmação."
+msgstr "E-mail changé pour %(email)s. Nous avons envoyé un lien de confirmation."
+
+msgid "Segurança — JD PRINT"
+msgstr "Sécurité — JD PRINT"
+
+msgid "Seu e-mail ainda não foi confirmado."
+msgstr "Votre e-mail n'est pas encore confirmé."
+
+msgid "Enviamos um link para %(email)s — confirme para acompanhar seus pedidos."
+msgstr "Nous avons envoyé un lien à %(email)s — confirmez-le pour suivre vos commandes."
+
+msgid "Usados na entrega e na fatura."
+msgstr "Utilisées pour la livraison et la facture."
+
+msgid "Nenhum endereço cadastrado"
+msgstr "Aucune adresse enregistrée"
+
+msgid "O cadastro de endereços chega junto com a finalização de compra — é lá que ele passa a ser usado."
+msgstr "L'enregistrement des adresses arrivera avec le paiement — c'est là qu'elles serviront."
+
+msgid "Endereços — JD PRINT"
+msgstr "Adresses — JD PRINT"
+
+msgid "O histórico das suas compras."
+msgstr "L'historique de vos achats."
+
+msgid "Ainda não há pedidos"
+msgstr "Aucune commande pour l'instant"
+
+msgid "A finalização de compra ainda está sendo construída. Assim que ela existir, seus pedidos aparecem aqui."
+msgstr "Le paiement est encore en construction. Dès qu'il existera, vos commandes apparaîtront ici."
+
+msgid "Meus pedidos — JD PRINT"
+msgstr "Mes commandes — JD PRINT"
+
+msgid "Seleção"
+msgstr "Sélection"
+
+msgid "Como trabalhamos"
+msgstr "Notre façon de travailler"
+
+msgid "Produção própria"
+msgstr "Production maison"
+
+msgid "Impressão feita por nós, com controle de camada e acabamento."
+msgstr "Impression réalisée par nos soins, avec contrôle des couches et de la finition."
+
+msgid "Personalização real"
+msgstr "Personnalisation réelle"
+
+msgid "Foto ou texto aplicados na peça antes da impressão."
+msgstr "Photo ou texte appliqués sur la pièce avant l'impression."
+
+msgid "Cada peça sai na cor e no material que você escolher."
+msgstr "Chaque pièce sort dans la couleur et la matière que vous choisissez."
+
+msgid "Área de imagem do banner"
+msgstr "Zone d'image de la bannière"
+
+msgid "Personalizável"
+msgstr "Personnalisable"
+
+msgid "Sem estoque"
+msgstr "Rupture de stock"
+
+msgid "a partir de"
+msgstr "à partir de"
+
+msgid "Ref."
+msgstr "Réf."
+
+msgid "Remover filtro"
+msgstr "Retirer le filtre"
+
+msgid "%(formats)s até %(size)s MB."
+msgstr "%(formats)s jusqu'à %(size)s Mo."
+
+msgid "Espaço reservado à logo oficial"
+msgstr "Emplacement réservé au logo officiel"
+
+msgid "%(total)s item"
+msgid_plural "%(total)s itens"
+msgstr[0] "%(total)s article"
+msgstr[1] "%(total)s articles"
+
+msgid "Olá, %(name)s!"
+msgstr "Bonjour %(name)s !"
+
+msgid "cliente desde %(since)s"
+msgstr "client depuis %(since)s"
+
+msgid "Ver mídia %(number)s"
+msgstr "Voir le média %(number)s"
+
+msgid "Crie a categoria \"%(expected_slug)s\" no painel administrativo para que os modelos apareçam aqui."
+msgstr "Créez la catégorie « %(expected_slug)s » dans l'administration pour que les modèles apparaissent ici."
+
+msgid "Aguardando pagamento"
+msgstr "En attente de paiement"
+
+msgid "Confirmado"
+msgstr "Confirmée"
+
+msgid "Concluído"
+msgstr "Terminée"
+
+msgid "Cancelado"
+msgstr "Annulée"
+
+msgid "Reembolsado"
+msgstr "Remboursée"
+
+msgid "Pendente"
+msgstr "En attente"
+
+msgid "Pago"
+msgstr "Payé"
+
+msgid "Recusado"
+msgstr "Refusé"
+
+msgid "Parcialmente reembolsado"
+msgstr "Partiellement remboursée"
+
+msgid "Não iniciado"
+msgstr "Non commencée"
+
+msgid "Em produção"
+msgstr "En production"
+
+msgid "Pronto"
+msgstr "Prêt"
+
+msgid "Pronto para envio"
+msgstr "Prêt à expédier"
+
+msgid "Enviado"
+msgstr "Expédiée"
+
+msgid "Entregue"
+msgstr "Livrée"
+
+msgid "Criado"
+msgstr "Créé"
+
+msgid "Processando"
+msgstr "En cours"
+
+msgid "Sem solicitação"
+msgstr "Aucune demande"
+
+msgid "Do estoque"
+msgstr "En stock"
+
+msgid "Personalizado"
+msgstr "Personnalisé"
+
+msgid "Pagamento recusado"
+msgstr "Paiement refusé"
+
+msgid "Pedido criado"
+msgstr "Commande créée"
+
+msgid "Pedido criado."
+msgstr "Commande créée."
+
+msgid "Pagamento iniciado"
+msgstr "Paiement lancé"
+
+msgid "Pagamento iniciado."
+msgstr "Paiement lancé."
+
+msgid "Nova tentativa de pagamento."
+msgstr "Nouvelle tentative de paiement."
+
+msgid "Pagamento confirmado"
+msgstr "Paiement confirmé"
+
+msgid "Pagamento confirmado."
+msgstr "Paiement confirmé."
+
+msgid "Pedido confirmado"
+msgstr "Commande confirmée"
+
+msgid "Pedido confirmado."
+msgstr "Commande confirmée."
+
+msgid "Pedido cancelado"
+msgstr "Commande annulée"
+
+msgid "Pedido cancelado."
+msgstr "Commande annulée."
+
+msgid "Cancelamento solicitado"
+msgstr "Annulation demandée"
+
+msgid "Cancelamento aprovado"
+msgstr "Annulation acceptée"
+
+msgid "Cancelamento recusado"
+msgstr "Annulation refusée"
+
+msgid "Estoque insuficiente"
+msgstr "Stock insuffisant"
+
+msgid "Observação"
+msgstr "Remarque"
+
+msgid "Checkout"
+msgstr "Paiement"
+
+msgid "Identificação"
+msgstr "Identification"
+
+msgid "Pagamento"
+msgstr "Paiement"
+
+msgid "Forma de entrega"
+msgstr "Mode de livraison"
+
+msgid "Endereço de entrega"
+msgstr "Adresse de livraison"
+
+msgid "Endereço de faturamento"
+msgstr "Adresse de facturation"
+
+msgid "Faturamento"
+msgstr "Facturation"
+
+msgid "Fatura"
+msgstr "Facture"
+
+msgid "Entrega"
+msgstr "Livraison"
+
+msgid "Itens"
+msgstr "Articles"
+
+msgid "Valores"
+msgstr "Montants"
+
+msgid "Total"
+msgstr "Total"
+
+msgid "Total pago"
+msgstr "Total payé"
+
+msgid "Desconto"
+msgstr "Remise"
+
+msgid "Resumo do pedido"
+msgstr "Récapitulatif"
+
+msgid "Prazo estimado"
+msgstr "Délai estimé"
+
+msgid "Presente"
+msgstr "Cadeau"
+
+msgid "Cliente"
+msgstr "Client"
+
+msgid "Idioma"
+msgstr "Langue"
+
+msgid "Pedido"
+msgstr "Commande"
+
+msgid "Cartão"
+msgstr "Carte"
+
+msgid "Código de rastreio"
+msgstr "Numéro de suivi"
+
+msgid "Rastreio"
+msgstr "Suivi"
+
+msgid "Acompanhamento"
+msgstr "Suivi de la commande"
+
+msgid "Observação do cliente"
+msgstr "Remarque du client"
+
+msgid "Observação para a produção"
+msgstr "Remarque pour la production"
+
+msgid "Produção e entrega"
+msgstr "Production et livraison"
+
+msgid "confirmado"
+msgstr "confirmé"
+
+msgid "pago"
+msgstr "payé"
+
+msgid "escolha o endereço"
+msgstr "choisissez l'adresse"
+
+msgid "país indisponível"
+msgstr "pays indisponible"
+
+msgid "Não há nada para finalizar"
+msgstr "Rien à payer pour l'instant"
+
+msgid "Para finalizar a compra é preciso ter conta: é onde o pedido fica guardado e onde você acompanha a entrega. Seu carrinho continua exatamente como está."
+msgstr "Pour finaliser la commande, il faut un compte : c'est là que la commande est conservée et que vous suivez la livraison. Votre panier reste exactement tel quel."
+
+msgid "Comprando como <strong class=\"text-ink\">%(name)s</strong> · %(email)s"
+msgstr "Commande au nom de <strong class=\"text-ink\">%(name)s</strong> · %(email)s"
+
+msgid "Alguns itens precisam da sua atenção"
+msgstr "Certains articles demandent votre attention"
+
+msgid "Alguns itens precisam da sua atenção."
+msgstr "Certains articles demandent votre attention."
+
+msgid "Ajustar o carrinho"
+msgstr "Modifier le panier"
+
+msgid "O pagamento acontece na página segura da Stripe. Os dados do seu cartão não passam pelos nossos servidores."
+msgstr "Le paiement se fait sur la page sécurisée de Stripe. Les données de votre carte ne passent pas par nos serveurs."
+
+msgid "Algo que devemos saber antes de imprimir?"
+msgstr "Quelque chose à savoir avant l'impression ?"
+
+msgid "Você será levado à Stripe para concluir"
+msgstr "Vous serez redirigé vers Stripe"
+
+msgid "Pagar €&nbsp;%(total)s"
+msgstr "Payer €&nbsp;%(total)s"
+
+msgid "Pagar"
+msgstr "Payer"
+
+msgid "Pagar agora"
+msgstr "Payer maintenant"
+
+msgid "Retomar pagamento"
+msgstr "Reprendre le paiement"
+
+msgid "Escolha o endereço de entrega para ver as opções."
+msgstr "Choisissez l'adresse de livraison pour voir les options."
+
+msgid "Usar outro endereço"
+msgstr "Utiliser une autre adresse"
+
+msgid "Falta o endereço de entrega"
+msgstr "Il manque l'adresse de livraison"
+
+msgid "Cadastre para onde devemos enviar. Leva menos de um minuto."
+msgstr "Indiquez où livrer. Cela prend moins d'une minute."
+
+msgid "A fatura vai para o mesmo endereço"
+msgstr "La facture va à la même adresse"
+
+msgid "Enviar como presente"
+msgstr "Envoyer en cadeau"
+
+msgid "Enviar como presente."
+msgstr "Envoyer en cadeau."
+
+msgid "A entrega vai para outra pessoa; a fatura continua no seu nome."
+msgstr "La livraison part chez quelqu'un d'autre ; la facture reste à votre nom."
+
+msgid "Ainda não temos tarifa cadastrada para %(country)s com o peso deste pedido. Fale conosco e resolvemos."
+msgstr "Nous n'avons pas encore de tarif pour %(country)s avec le poids de cette commande. Écrivez-nous et nous trouverons une solution."
+
+msgid "Pedido confirmado!"
+msgstr "Commande confirmée !"
+
+msgid "Obrigado pela sua compra. Enviamos um e-mail com todos os detalhes."
+msgstr "Merci pour votre achat. Nous vous avons envoyé un e-mail avec tous les détails."
+
+msgid "Estamos confirmando seu pagamento"
+msgstr "Nous confirmons votre paiement"
+
+msgid "O banco ainda está respondendo. Assim que a confirmação chegar, enviamos o e-mail com todos os detalhes — normalmente em poucos segundos."
+msgstr "La banque répond encore. Dès la confirmation reçue, nous envoyons l'e-mail avec tous les détails — d'habitude en quelques secondes."
+
+msgid "Ver meu pedido"
+msgstr "Voir ma commande"
+
+msgid "Ver pedido"
+msgstr "Voir la commande"
+
+msgid "Pagamento não concluído"
+msgstr "Paiement non finalisé"
+
+msgid "Pagamento não concluído — JD PRINT"
+msgstr "Paiement non finalisé — JD PRINT"
+
+msgid "Seu pedido continua guardado. Você pode retomar o pagamento quando quiser — nada foi cobrado."
+msgstr "Votre commande est conservée. Vous pouvez reprendre le paiement quand vous voulez — rien n'a été débité."
+
+msgid "Novo endereço"
+msgstr "Nouvelle adresse"
+
+msgid "Novo endereço — JD PRINT"
+msgstr "Nouvelle adresse — JD PRINT"
+
+msgid "Editar endereço"
+msgstr "Modifier l'adresse"
+
+msgid "Editar endereço — JD PRINT"
+msgstr "Modifier l'adresse — JD PRINT"
+
+msgid "Remover endereço"
+msgstr "Supprimer l'adresse"
+
+msgid "Remover endereço — JD PRINT"
+msgstr "Supprimer l'adresse — JD PRINT"
+
+msgid "Salvar endereço"
+msgstr "Enregistrer l'adresse"
+
+msgid "Cadastrar endereço"
+msgstr "Ajouter une adresse"
+
+msgid "Editar"
+msgstr "Modifier"
+
+msgid "Tornar padrão"
+msgstr "Définir par défaut"
+
+msgid "Endereço salvo."
+msgstr "Adresse enregistrée."
+
+msgid "Endereço atualizado."
+msgstr "Adresse mise à jour."
+
+msgid "Endereço removido."
+msgstr "Adresse supprimée."
+
+msgid "Endereço padrão atualizado."
+msgstr "Adresse par défaut mise à jour."
+
+msgid "Casa, Trabalho, Presente da Marie..."
+msgstr "Maison, Bureau, Cadeau de Marie…"
+
+msgid "Quem recebe pode não ser quem compra — é o que torna o presente possível."
+msgstr "Le destinataire n'est pas forcément l'acheteur — c'est ce qui rend le cadeau possible."
+
+msgid "Cadastre para onde devemos enviar. Você pode ter quantos endereços quiser — casa, trabalho, presente."
+msgstr "Indiquez où livrer. Vous pouvez avoir autant d'adresses que vous voulez — maison, bureau, cadeau."
+
+msgid "Tem certeza de que quer remover este endereço?"
+msgstr "Voulez-vous vraiment supprimer cette adresse ?"
+
+msgid "Seus pedidos anteriores não mudam: cada um guarda a própria cópia do endereço de entrega e de faturamento."
+msgstr "Vos commandes précédentes ne changent pas : chacune garde sa propre copie des adresses de livraison et de facturation."
+
+msgid "Ainda não entregamos neste país."
+msgstr "Nous ne livrons pas encore dans ce pays."
+
+msgid "Ainda não entregamos em %(country)s. Escolha outro endereço."
+msgstr "Nous ne livrons pas encore en %(country)s. Choisissez une autre adresse."
+
+msgid "Pedido %(number)s — JD PRINT"
+msgstr "Commande %(number)s — JD PRINT"
+
+msgid "Quando você finalizar uma compra, ela aparece aqui com o histórico completo."
+msgstr "Dès que vous finalisez un achat, il apparaît ici avec tout son historique."
+
+msgid "Solicitar cancelamento"
+msgstr "Demander l'annulation"
+
+msgid "Solicitar cancelamento — JD PRINT"
+msgstr "Demander l'annulation — JD PRINT"
+
+msgid "Por que quer cancelar?"
+msgstr "Pourquoi souhaitez-vous annuler ?"
+
+msgid "Conte o que aconteceu — ajuda a resolver mais rápido."
+msgstr "Dites-nous ce qui s'est passé — cela aide à résoudre plus vite."
+
+msgid "Escreva o motivo do cancelamento."
+msgstr "Indiquez le motif de l'annulation."
+
+msgid "Enviar solicitação"
+msgstr "Envoyer la demande"
+
+msgid "Voltar ao pedido"
+msgstr "Retour à la commande"
+
+msgid "O cancelamento não é automático: analisamos o pedido e respondemos. Se a produção já tiver começado, explicamos as opções."
+msgstr "L'annulation n'est pas automatique : nous examinons la commande et vous répondons. Si la production a déjà commencé, nous vous expliquons les options."
+
+msgid "Pedido de cancelamento enviado. Respondemos assim que analisarmos."
+msgstr "Demande d'annulation envoyée. Nous répondons dès que nous l'aurons examinée."
+
+msgid "Este pedido não pode mais ser cancelado por aqui."
+msgstr "Cette commande ne peut plus être annulée ici."
+
+msgid "Cancelamento em análise"
+msgstr "Annulation à l'étude"
+
+msgid "Recebemos seu pedido de cancelamento e respondemos em breve."
+msgstr "Nous avons reçu votre demande d'annulation et vous répondons sous peu."
+
+msgid "Escolha para onde enviar."
+msgstr "Choisissez l'adresse de livraison."
+
+msgid "Escolha o endereço de faturamento."
+msgstr "Choisissez l'adresse de facturation."
+
+msgid "Escolha o endereço de entrega e o de faturamento."
+msgstr "Choisissez l'adresse de livraison et celle de facturation."
+
+msgid "Escolha uma forma de entrega."
+msgstr "Choisissez un mode de livraison."
+
+msgid "Escolha uma forma de entrega válida para este endereço."
+msgstr "Choisissez un mode de livraison valable pour cette adresse."
+
+msgid "%(name)s não está mais disponível."
+msgstr "%(name)s n'est plus disponible."
+
+msgid "%(name)s está esgotado."
+msgstr "%(name)s est en rupture de stock."
+
+msgid "%(name)s está sem preço definido."
+msgstr "%(name)s n'a pas de prix défini."
+
+msgid "%(name)s precisa de personalização."
+msgstr "%(name)s demande une personnalisation."
+
+msgid "A opção escolhida de %(name)s saiu do catálogo."
+msgstr "L'option choisie de %(name)s n'est plus au catalogue."
+
+msgid "Só temos %(count)s unidade(s) de %(name)s."
+msgstr "Il ne reste que %(count)s exemplaire(s) de %(name)s."
+
+msgid "%(name)s: faltaram %(count)s unidade(s)."
+msgstr "%(name)s : il manque %(count)s exemplaire(s)."
+
+msgid "Estoque insuficiente na confirmação do pagamento:\n%(list)s"
+msgstr "Stock insuffisant à la confirmation du paiement :\n%(list)s"
+
+msgid "O pagamento on-line está temporariamente indisponível. Tente novamente em instantes."
+msgstr "Le paiement en ligne est momentanément indisponible. Réessayez dans un instant."
+
+msgid "Não foi possível iniciar o pagamento. Tente novamente em instantes."
+msgstr "Impossible de lancer le paiement. Réessayez dans un instant."
+
+msgid "O meio de pagamento não está instalado neste servidor."
+msgstr "Le moyen de paiement n'est pas installé sur ce serveur."
+
+msgid "Personalização: %(text)s"
+msgstr "Personnalisation : %(text)s"
+
+msgid "Pedido %(number)s confirmado — JD PRINT"
+msgstr "Commande %(number)s confirmée — JD PRINT"
+
+msgid "Pedido %(number)s confirmado"
+msgstr "Commande %(number)s confirmée"
+
+msgid "Pedido %(number)s enviado — JD PRINT"
+msgstr "Commande %(number)s expédiée — JD PRINT"
+
+msgid "Pedido %(number)s enviado"
+msgstr "Commande %(number)s expédiée"
+
+msgid "Pedido confirmado — JD PRINT"
+msgstr "Commande confirmée — JD PRINT"
+
+msgid "[JD PRINT] Novo pedido %(number)s — %(total)s %(currency)s"
+msgstr "[JD PRINT] Nouvelle commande %(number)s — %(total)s %(currency)s"
+
+msgid "Novo pedido %(number)s"
+msgstr "Nouvelle commande %(number)s"
+
+msgid "Novo pedido para produzir"
+msgstr "Nouvelle commande à produire"
+
+msgid "Recebemos seu pagamento — pedido %(number)s."
+msgstr "Nous avons reçu votre paiement — commande %(number)s."
+
+msgid "Olá, %(name)s. Recebemos seu pagamento e já colocamos seu pedido na fila."
+msgstr "Bonjour %(name)s. Nous avons reçu votre paiement et votre commande est en file."
+
+msgid "Olá, %(name)s. Seu pedido saiu para entrega."
+msgstr "Bonjour %(name)s. Votre commande est partie en livraison."
+
+msgid "Seu pedido foi enviado!"
+msgstr "Votre commande est expédiée !"
+
+msgid "Seu pedido saiu para entrega."
+msgstr "Votre commande est partie en livraison."
+
+msgid "Rastreio %(tracking)s"
+msgstr "Suivi %(tracking)s"
+
+msgid "Acompanhar meu pedido"
+msgstr "Suivre ma commande"
+
+msgid "Acompanhar a entrega"
+msgstr "Suivre la livraison"
+
+msgid "Ver os detalhes do pedido"
+msgstr "Voir le détail de la commande"
+
+msgid "Qualquer dúvida, é só responder a este e-mail."
+msgstr "Une question ? Répondez simplement à cet e-mail."
+
+msgid "Abrir no Admin"
+msgstr "Ouvrir dans l'admin"
+
+msgid "O destinatário não é o titular da conta — confira o endereço de entrega."
+msgstr "Le destinataire n'est pas le titulaire du compte — vérifiez l'adresse de livraison."
+
+msgid "Produção: %(days)s dia(s) útil(eis)"
+msgstr "Production : %(days)s jour(s) ouvré(s)"
+
+msgid "produção %(days)s dia(s) útil(eis)"
+msgstr "production %(days)s jour(s) ouvré(s)"
+
+msgid "prazo total %(days)s dias úteis"
+msgstr "délai total %(days)s jours ouvrés"
+
+msgid "Peso do pedido: %(weight)s g"
+msgstr "Poids de la commande : %(weight)s g"
+
+msgid "Inclui %(production)s dia(s) útil(eis) de produção."
+msgstr "Comprend %(production)s jour(s) ouvré(s) de production."
+
+msgid "%(days)s dias úteis"
+msgstr "%(days)s jours ouvrés"
+
+msgid "Prazo estimado: %(days)s dias úteis"
+msgstr "Délai estimé : %(days)s jours ouvrés"
+
+msgid "Produção %(production)s + transporte %(min)s–%(max)s"
+msgstr "Production %(production)s + transport %(min)s–%(max)s"
+
+msgid "TVA %(rate)s% (incluída)"
+msgstr "TVA %(rate)s% (incluse)"
+
+msgid "%(count)s pedido(s) marcado(s) como enviado(s)."
+msgstr "%(count)s commande(s) marquée(s) comme expédiée(s)."
+
+msgid "%(count)s cancelamento(s) aprovado(s). O reembolso, se houver, é feito na Stripe."
+msgstr "%(count)s annulation(s) acceptée(s). Le remboursement éventuel se fait dans Stripe."
+
+msgid "%(count)s cancelamento(s) recusado(s)."
+msgstr "%(count)s annulation(s) refusée(s)."
+
+msgid "sem tarifa para este destino"
+msgstr "pas de tarif pour cette destination"
+
+msgid "Nenhum ainda"
+msgstr "Aucune pour l'instant"
+
+msgid "%(total)s pedido"
+msgid_plural "%(total)s pedidos"
+msgstr[0] "%(total)s commande"
+msgstr[1] "%(total)s commandes"

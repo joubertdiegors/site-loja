@@ -1,0 +1,20 @@
+{% load i18n %}JD PRINT
+
+{% translate "Seu pedido foi enviado!" %}
+
+{% blocktranslate with name=customer.full_name|default:user.username %}Olá, {{ name }}. Seu pedido saiu para entrega.{% endblocktranslate %}
+
+{% translate "Pedido" %}: {{ order.number }}
+{% if order.shipping_method_label %}{% translate "Transportadora" %}: {{ order.shipping_method_label }}
+{% endif %}{% if order.tracking_number %}{% translate "Código de rastreio" %}: {{ order.tracking_number }}
+{% if tracking_url %}{{ tracking_url }}
+{% endif %}{% endif %}
+--- {% translate "Entrega" %} ---
+{% for line in shipping_address.lines %}{{ line }}
+{% endfor %}
+{% translate "Acompanhe seu pedido" %}:
+{{ order_url }}
+
+--
+{% translate "A JD PRINT nunca pede senha, dados bancários ou código por e-mail." %}
+{{ site_url }}

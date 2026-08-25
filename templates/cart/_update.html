@@ -1,0 +1,23 @@
+{% comment %}
+Resposta do HTMX às ações do carrinho.
+
+Não substitui nada no lugar do clique: manda apenas os pedaços que mudaram,
+por troca "out of band" — contador do header, aviso e, na página do carrinho,
+o painel com as linhas e o subtotal.
+{% endcomment %}
+{% include "components/cart_counter.html" with oob=True %}
+{% include "cart/_drawer_count.html" with oob=True %}
+
+<div id="cart-drawer-body" class="flex flex-1 flex-col overflow-hidden" hx-swap-oob="true">
+  {% include "cart/_drawer_body.html" %}
+</div>
+
+<div id="toast-region" class="toast-region" hx-swap-oob="true">
+  {% include "components/toast.html" %}
+</div>
+
+{% if render_panel %}
+  <div id="cart-panel" hx-swap-oob="true">
+    {% include "cart/_cart_panel.html" %}
+  </div>
+{% endif %}

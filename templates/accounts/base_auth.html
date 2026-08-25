@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% comment %}
+Moldura das telas de acesso (entrar, criar conta, senha, confirmação).
+
+Um cartão estreito e centrado, sem distração — a mesma identidade da loja, com
+o conteúdo entregue pelos blocos.
+{% endcomment %}
+
+{% block content %}
+  <section class="container-page flex justify-center py-10 sm:py-16">
+    <div class="w-full max-w-md">
+      <header class="mb-6 text-center">
+        {% block auth_eyebrow %}{% endblock %}
+        <h1 class="section-title mt-2">{% block auth_title %}{% endblock %}</h1>
+        {% block auth_subtitle %}{% endblock %}
+      </header>
+
+      <div class="auth-card">
+        {% block auth_body %}{% endblock %}
+      </div>
+
+      {% block auth_footer %}{% endblock %}
+    </div>
+  </section>
+{% endblock %}

@@ -1,0 +1,130 @@
+# ===========================================================================
+# JD PRINT - .gitignore
+#
+# O repositorio e PUBLICO. A regra que rege este arquivo: codigo e assets de
+# origem entram; dado, segredo e artefato de maquina nao entram NUNCA.
+#
+# Duas excecoes deliberadas, documentadas onde aparecem abaixo:
+#   * static/css/tailwind.css  (gerado, mas versionado)
+#   * locale/**/*.mo           (gerado, mas versionado)
+# ===========================================================================
+
+# ---------------------------------------------------------------------------
+# Segredos
+#
+# O `.env` real nunca entra, em nenhuma variante de nome. O `.env.example` e a
+# unica excecao: ele so tem nomes de variaveis e placeholders, e serve de
+# documentacao da configuracao necessaria.
+# ---------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+id_rsa*
+*.ppk
+
+# ---------------------------------------------------------------------------
+# Banco de dados
+#
+# O padrao `db.sqlite3*` cobre o banco de desenvolvimento E os backups com
+# sufixo (`db.sqlite3.bak-etapa4`). Isto nao e zelo excessivo: o banco local
+# tem contas com hash de senha, enderecos, pedidos e sessoes de pessoas reais.
+# `*.bak*` esta separado de proposito, porque `*.bak` sozinho nao pega sufixo.
+# ---------------------------------------------------------------------------
+db.sqlite3*
+*.sqlite3
+*.sqlite
+*.sqlite3-journal
+*.db
+*.sql
+*.dump
+*.bak
+*.bak*
+*.backup
+
+# ---------------------------------------------------------------------------
+# Uploads de cliente
+#
+# `media/` e dado da aplicacao, nao codigo: foto que o cliente mandou para a
+# litofania, banner, imagem de produto. O git nao transporta isso -- ver
+# docs/DEPLOY_PYTHONANYWHERE.md. O `.gitkeep` fica para a pasta existir apos o
+# clone, senao o MEDIA_ROOT nao existe numa instalacao nova.
+# ---------------------------------------------------------------------------
+media/*
+!media/.gitkeep
+uploads/
+customizations/
+
+# ---------------------------------------------------------------------------
+# Artefatos gerados
+#
+# `staticfiles/` e a saida do collectstatic (STATIC_ROOT): refeita no deploy.
+#
+# NAO confundir com `static/`, que E versionado. Duas coisas geradas ficam de
+# proposito no repositorio, para o servidor nao precisar de Node nem gettext:
+#   * static/css/tailwind.css   -> `npm run build:css`
+#   * locale/**/LC_MESSAGES/*.mo -> `python scripts/compile_messages.py`
+# Quem mexer nos templates ou nos .po precisa rodar o build e commitar junto.
+# ---------------------------------------------------------------------------
+staticfiles/
+
+# ---------------------------------------------------------------------------
+# Python
+# ---------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Ambiente virtual (recriado com `py -3.13 -m venv venv`)
+venv/
+.venv/
+env/
+ENV/
+
+# Testes e cobertura
+.pytest_cache/
+.tox/
+.coverage
+.coverage.*
+htmlcov/
+
+# ---------------------------------------------------------------------------
+# Node (usado so para o build do Tailwind)
+# ---------------------------------------------------------------------------
+node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# ---------------------------------------------------------------------------
+# Logs e temporarios
+#
+# Log de aplicacao pode conter e-mail, IP e corpo de requisicao. Fica fora.
+# ---------------------------------------------------------------------------
+*.log
+logs/
+*.tmp
+*.temp
+*.orig
+*.rej
+*~
+
+# ---------------------------------------------------------------------------
+# Editores e sistema operacional
+# ---------------------------------------------------------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+*.code-workspace
+.DS_Store
+Thumbs.db
+desktop.ini
+Desktop.ini

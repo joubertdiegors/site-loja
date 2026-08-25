@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% load i18n jdprint %}
+
+{% comment %}
+Página provisória de produto/categoria.
+
+Existe para que os links da Home apontem para um destino real enquanto a loja
+não é construída. Será substituída pelas páginas definitivas — as URLs não
+mudam.
+{% endcomment %}
+
+{% block title %}
+  {% if page_kind == "product" %}{{ object.display_name }} — {{ site_name }}
+  {% elif page_kind == "category" %}{{ object.name }} — {{ site_name }}
+  {% else %}{% translate "Produtos" %} — {{ site_name }}{% endif %}
+{% endblock %}
+
+{% block meta_description %}{% translate "Página em construção. A loja completa chega em breve." %}{% endblock %}
+
+{% block content %}
+  <section class="container-page py-16 sm:py-24">
+    <div class="card mx-auto max-w-2xl p-8 text-center sm:p-12">
+      <span class="badge-brand">{% translate "Em construção" %}</span>
+
+      <h1 class="mt-5 text-2xl font-bold tracking-tight text-ink sm:text-3xl">
+        {% if page_kind == "product" %}{{ object.display_name }}
+        {% elif page_kind == "category" %}{{ object.full_path }}
+        {% else %}{% translate "Todos os produtos" %}{% endif %}
+      </h1>
+
+      <p class="mt-3 text-sm text-ink-soft sm:text-base">
+        {% translate "Esta página faz parte da próxima etapa da loja. O produto já está cadastrado e aparece normalmente na página inicial." %}
+      </p>
+
+      <a href="{% url 'home:index' %}" class="btn-secondary mt-7">
+        {% icon "chevron-left" "h-4 w-4 rtl:rotate-180" %}
+        {% translate "Voltar para a página inicial" %}
+      </a>
+    </div>
+  </section>
+{% endblock %}

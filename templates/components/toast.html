@@ -1,0 +1,18 @@
+{% comment %}
+Aviso curto ("Produto adicionado ao carrinho"). Sem JavaScript de temporizador:
+a animação em CSS o esconde sozinha depois de alguns segundos. role="status"
+faz o leitor de tela anunciar sem roubar o foco.
+{% endcomment %}
+{% if toast_message %}
+  <div class="toast {% if toast_level == 'error' %}toast-error{% elif toast_level == 'warning' %}toast-warning{% else %}toast-success{% endif %}"
+       role="status" aria-live="polite">
+    {% if toast_level == 'error' %}
+      <span aria-hidden="true">×</span>
+    {% elif toast_level == 'warning' %}
+      <span aria-hidden="true">!</span>
+    {% else %}
+      <span aria-hidden="true">✓</span>
+    {% endif %}
+    <span>{{ toast_message }}</span>
+  </div>
+{% endif %}

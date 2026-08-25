@@ -1,0 +1,60 @@
+{% load i18n jdprint %}
+{% comment %}
+Rodapé.
+
+Fundo profundo com a listra de camada: fecha a página no mesmo tom em que a
+faixa do topo a abre. As categorias vêm do banco; as páginas institucionais
+ainda não existem e estão marcadas como tal, sem link falso.
+{% endcomment %}
+<footer class="mt-16 bg-surface-deep layers-light text-brand-100">
+  <div class="container-page py-14">
+
+    <div class="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
+      <div class="lg:col-span-2">
+        {% include "components/logo.html" with dark=True %}
+        <p class="mt-5 max-w-sm text-sm leading-relaxed text-brand-200/85">
+          {% translate "Produtos criativos feitos com impressão 3D. Peças decorativas, acessórios e filamentos — com opção de personalização e produção sob encomenda." %}
+        </p>
+        <div class="marker-line mt-6 h-1 w-24 rounded-full"></div>
+      </div>
+
+      <div>
+        <h2 class="font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-white">{% translate "Categorias" %}</h2>
+        <ul class="mt-4 space-y-2.5" role="list">
+          {% for category in nav_categories %}
+            <li>
+              <a class="focus-ring rounded text-sm text-brand-200/85 transition-colors hover:text-white"
+                 href="{{ category.get_absolute_url }}">{{ category.name }}</a>
+            </li>
+          {% empty %}
+            <li class="text-sm text-brand-200/60">{% translate "Em breve" %}</li>
+          {% endfor %}
+        </ul>
+      </div>
+
+      <div>
+        <h2 class="font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-white">{% translate "Ajuda" %}</h2>
+        <ul class="mt-4 space-y-2.5 text-sm text-brand-200/60" role="list">
+          {# Páginas institucionais entram nas próximas etapas. #}
+          <li>{% translate "Envios e prazos" %}</li>
+          <li>{% translate "Trocas e devoluções" %}</li>
+          <li>{% translate "Contato" %}</li>
+        </ul>
+        <p class="mt-3 font-mono text-[10.5px] uppercase tracking-[0.1em] text-brand-200/70">
+          {% translate "Páginas em construção." %}
+        </p>
+      </div>
+    </div>
+
+    <div class="mt-12 flex flex-col gap-3 border-t border-white/10 pt-6 sm:flex-row sm:items-center sm:justify-between">
+      <p class="font-mono text-[11px] text-brand-200/60">
+        {% now "Y" as current_year %}
+        {% blocktranslate %}© {{ current_year }} {{ site_name }}. Todos os direitos reservados.{% endblocktranslate %}
+      </p>
+      <p class="flex items-center gap-2 font-mono text-[11px] text-brand-200/60">
+        {% icon "shield" "h-4 w-4 text-brand-300" %}
+        {% translate "Compra segura" %}
+      </p>
+    </div>
+  </div>
+</footer>

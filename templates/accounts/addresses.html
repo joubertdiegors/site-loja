@@ -1,0 +1,104 @@
+{% extends "accounts/base_account.html" %}
+{% load i18n jdprint %}
+
+{% comment %}
+"Minha conta › Endereços".
+
+O padrão de entrega e o de faturamento são marcados com selo, e trocar o padrão
+é POST (com CSRF): mudar dado por GET seria um link que qualquer imagem em
+qualquer site poderia disparar.
+{% endcomment %}
+
+{% block account_title %}{% translate "Endereços" %}{% endblock %}
+{% block account_subtitle %}
+  <p class="section-subtitle">{% translate "Usados na entrega e na fatura." %}</p>
+{% endblock %}
+
+{% block account_body %}
+
+  {% if addresses %}
+
+    <div class="flex justify-end">
+      <a href="{% url 'accounts:address_create' %}" class="btn-primary btn-sm">
+        {% icon "plus" "h-4 w-4" %}{% translate "Novo endereço" %}
+      </a>
+    </div>
+
+    <ul class="mt-4 grid gap-4 sm:grid-cols-2" role="list">
+      {% for address in addresses %}
+        <li class="card flex h-full flex-col p-5">
+
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0">
+              <p class="font-display text-base font-bold text-ink">{{ address.display_label }}</p>
+              {% if address.company_name %}
+                <p class="font-mono text-[10.5px] uppercase tracking-[0.06em] text-ink-muted">
+                  {{ address.company_name }}
+                </p>
+              {% endif %}
+            </div>
+            <span class="flex shrink-0 flex-wrap justify-end gap-1">
+              {% if address.is_default_shipping %}
+                <span class="badge-brand-soft whitespace-nowrap">{% translate "Entrega" %}</span>
+              {% endif %}
+              {% if address.is_default_billing %}
+                <span class="badge-cyan whitespace-nowrap">{% translate "Fatura" %}</span>
+              {% endif %}
+            </span>
+          </div>
+
+          <address class="mt-3 flex-1 text-[13px] not-italic leading-relaxed text-ink-soft">
+            {% for line in address.lines %}{{ line }}<br>{% endfor %}
+            {% if address.phone %}
+              <span class="mt-1 block font-mono text-[11px] text-ink-muted">{{ address.phone }}</span>
+            {% endif %}
+          </address>
+
+          {% if not address.country.is_active %}
+            <p class="mt-3 flex items-start gap-1.5 rounded-control bg-state-warning-soft px-2.5 py-2 text-[12px] leading-relaxed text-state-warning-dark">
+              {% icon "alert" "mt-0.5 h-3.5 w-3.5 shrink-0" %}
+              <span>{% translate "Ainda não entregamos neste país." %}</span>
+            </p>
+          {% endif %}
+
+          <div class="mt-4 flex flex-wrap items-center gap-2 border-t border-surface-line pt-3">
+            <a href="{% url 'accounts:address_edit' address.pk %}" class="btn-ghost btn-sm">
+              {% icon "pencil" "h-3.5 w-3.5" %}{% translate "Editar" %}
+            </a>
+
+            {% if not address.is_default_shipping or not address.is_default_billing %}
+              <form method="post" action="{% url 'accounts:address_default' address.pk %}">
+                {% csrf_token %}
+                <input type="hidden" name="kind" value="both">
+                <button type="submit" class="btn-ghost btn-sm">
+                  {% icon "check" "h-3.5 w-3.5" %}{% translate "Tornar padrão" %}
+                </button>
+              </form>
+            {% endif %}
+
+            <a href="{% url 'accounts:address_delete' address.pk %}"
+               class="btn-ghost btn-sm ms-auto text-state-error hover:bg-state-error-soft">
+              {% icon "trash" "h-3.5 w-3.5" %}{% translate "Remover" %}
+            </a>
+          </div>
+        </li>
+      {% endfor %}
+    </ul>
+
+  {% else %}
+
+    <div class="max-w-2xl">
+      <div class="empty-state">
+        <span class="empty-state-icon" aria-hidden="true">{% icon "map-pin" "h-6 w-6" %}</span>
+        <p class="font-display text-lg font-bold text-ink">{% translate "Nenhum endereço cadastrado" %}</p>
+        <p class="max-w-md text-sm text-ink-soft">
+          {% translate "Cadastre para onde devemos enviar. Você pode ter quantos endereços quiser — casa, trabalho, presente." %}
+        </p>
+        <a href="{% url 'accounts:address_create' %}" class="btn-primary btn-sm mt-1">
+          {% icon "plus" "h-4 w-4" %}{% translate "Cadastrar endereço" %}
+        </a>
+      </div>
+    </div>
+
+  {% endif %}
+{% endblock %}

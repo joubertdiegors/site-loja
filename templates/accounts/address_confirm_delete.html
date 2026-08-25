@@ -1,0 +1,36 @@
+{% extends "accounts/base_account.html" %}
+{% load i18n jdprint %}
+
+{% comment %}
+Confirmação de remoção. A exclusão é POST (o `DeleteView` do Django exige) —
+nunca um link que um GET qualquer possa disparar.
+
+Pedidos antigos não são afetados: eles guardam a própria cópia do endereço.
+{% endcomment %}
+
+{% block account_title %}{% translate "Remover endereço" %}{% endblock %}
+
+{% block account_body %}
+  <div class="max-w-xl">
+    <div class="card p-6 sm:p-7">
+      <p class="text-sm text-ink-soft">{% translate "Tem certeza de que quer remover este endereço?" %}</p>
+
+      <address class="mt-4 rounded-card border border-surface-line bg-surface-soft p-4 text-[13px] not-italic leading-relaxed text-ink">
+        <strong class="block font-display text-base">{{ object.display_label }}</strong>
+        {% for line in object.lines %}{{ line }}<br>{% endfor %}
+      </address>
+
+      <p class="mt-4 text-[13px] leading-relaxed text-ink-muted">
+        {% translate "Seus pedidos anteriores não mudam: cada um guarda a própria cópia do endereço de entrega e de faturamento." %}
+      </p>
+
+      <form method="post" class="mt-6 flex flex-wrap items-center gap-3">
+        {% csrf_token %}
+        <button type="submit" class="btn-danger">
+          {% icon "trash" "h-4 w-4" %}{% translate "Remover endereço" %}
+        </button>
+        <a href="{% url 'accounts:addresses' %}" class="btn-ghost">{% translate "Cancelar" %}</a>
+      </form>
+    </div>
+  </div>
+{% endblock %}

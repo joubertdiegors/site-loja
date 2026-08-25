@@ -1,0 +1,54 @@
+{% load i18n jdprint %}
+{% comment %}
+Conta no header.
+
+Visitante vê "Entrar"; quem entrou vê um menu com as telas da conta. O e-mail
+completo não aparece aqui — só o nome curto (primeiro nome, se já informado,
+senão o usuário): o header fica visível para quem estiver junto da pessoa.
+
+O menu usa <details>, que já dá teclado, Esc e clique fora (app.js fecha os
+abertos ao clicar em outro lugar). Sair é POST com CSRF, nunca um link.
+{% endcomment %}
+
+{% if user.is_authenticated %}
+
+  <details class="relative" data-dropdown data-account-menu>
+    <summary class="focus-ring flex cursor-pointer list-none items-center gap-1.5 rounded-full px-2 py-2 text-sm font-semibold text-ink-soft transition-colors hover:text-brand-700"
+             aria-label="{% translate 'Minha conta' %}">
+      {% icon "user" %}
+      <span class="hidden max-w-24 truncate sm:inline">{{ user.display_name }}</span>
+      {% icon "chevron-down" "h-3.5 w-3.5" %}
+    </summary>
+
+    <div class="absolute end-0 z-40 mt-2 w-56 overflow-hidden rounded-2xl border border-surface-line bg-white p-1.5 shadow-xl shadow-brand-900/10">
+      <p class="truncate px-3 py-2 text-xs text-ink-muted">{{ user.username }}</p>
+
+      <a class="menu-item" href="{% url 'accounts:dashboard' %}">
+        {% icon "user" "h-4 w-4" %}{% translate "Minha conta" %}
+      </a>
+
+      <span class="menu-item cursor-not-allowed opacity-50" title="{% translate 'Em breve' %}">
+        {% icon "cart" "h-4 w-4" %}{% translate "Meus pedidos" %}
+      </span>
+
+      <a class="menu-item" href="{% url 'accounts:profile' %}">
+        {% icon "cube" "h-4 w-4" %}{% translate "Meus dados" %}
+      </a>
+
+      <form method="post" action="{% url 'accounts:logout' %}" class="border-t border-surface-line pt-1.5 mt-1.5">
+        {% csrf_token %}
+        <button type="submit" class="menu-item w-full text-start">
+          {% icon "logout" "h-4 w-4" %}{% translate "Sair" %}
+        </button>
+      </form>
+    </div>
+  </details>
+
+{% else %}
+
+  <a href="{% url 'accounts:login' %}" class="icon-button" aria-label="{% translate 'Entrar' %}"
+     title="{% translate 'Entrar' %}">
+    {% icon "user" %}
+  </a>
+
+{% endif %}

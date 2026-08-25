@@ -1,0 +1,53 @@
+{% load i18n %}<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block email_title %}{{ site_name }}{% endblock %}</title>
+</head>
+{% comment %}
+E-mail transacional da JD PRINT.
+
+Estilo em atributos `style` (nada de folha de estilo externa nem de classe:
+cliente de e-mail não carrega CSS externo) e nenhuma imagem remota — a marca é
+tipográfica, como no header enquanto a logo oficial não está no projeto.
+{% endcomment %}
+<body style="margin:0;padding:0;background-color:#f5f3fb;font-family:Helvetica,Arial,sans-serif;color:#1b1533;">
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;">{% block email_preview %}{% endblock %}</div>
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f5f3fb;padding:24px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+               style="max-width:520px;background-color:#ffffff;border-radius:16px;border:1px solid #e6e0f5;overflow:hidden;">
+
+          <tr>
+            <td style="padding:24px 28px 8px 28px;">
+              <span style="display:inline-block;background-color:#1b1533;color:#ffffff;font-weight:bold;font-size:14px;letter-spacing:-0.5px;padding:8px 10px;border-radius:8px;">JD</span>
+              <span style="font-size:16px;font-weight:bold;letter-spacing:-0.3px;margin-left:8px;">JD <span style="color:#6d2ce0;">PRINT</span></span>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:8px 28px 28px 28px;">
+              {% block email_body %}{% endblock %}
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:18px 28px;background-color:#fbfaff;border-top:1px solid #e6e0f5;font-size:12px;color:#6b6486;">
+              <p style="margin:0 0 6px 0;">
+                {% blocktranslate %}A JD PRINT nunca pede senha, dados bancários ou código por e-mail.{% endblocktranslate %}
+              </p>
+              <p style="margin:0;">
+                <a href="{{ site_url }}" style="color:#6d2ce0;text-decoration:none;">{{ site_url }}</a>
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

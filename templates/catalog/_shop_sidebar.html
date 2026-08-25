@@ -1,0 +1,45 @@
+{% load i18n jdprint %}
+{% comment %}
+Barra de categorias do Shop.
+
+Vive fora de `#shop-results`, mas precisa mudar junto com ele: quando a
+resposta é parcial (HTMX), este bloco volta marcado com `hx-swap-oob` e o
+navegador troca a barra sozinho. Sem isso a categoria ativa ficaria congelada.
+{% endcomment %}
+<nav id="shop-categories" class="mt-3 lg:mt-0 lg:sticky lg:top-28"
+     aria-labelledby="titulo-categorias-shop"
+     {% if oob %}hx-swap-oob="true"{% endif %}>
+  <div class="card p-3">
+    <h2 id="titulo-categorias-shop"
+        class="px-2.5 pb-2 pt-1.5 font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-ink-muted">
+      {% translate "Categorias" %}
+    </h2>
+
+    <ul class="space-y-0.5" role="list">
+      <li>
+        <a href="{% querystring categoria=None page=None %}"
+           hx-get="{% querystring categoria=None page=None %}"
+           hx-target="#shop-results" hx-push-url="true" hx-indicator="#shop-results"
+           class="{% if not selected_category %}shop-filter shop-filter-active{% else %}shop-filter{% endif %}"
+           {% if not selected_category %}aria-current="true"{% endif %}>
+          <span>{% translate "Todos" %}</span>
+          <span class="shop-filter-count">{{ total_count }}</span>
+        </a>
+      </li>
+
+      {% for node in sidebar_nodes %}
+        <li>
+          <a href="{% querystring categoria=node.slug page=None %}"
+             hx-get="{% querystring categoria=node.slug page=None %}"
+             hx-target="#shop-results" hx-push-url="true" hx-indicator="#shop-results"
+             class="{% if node.is_selected %}shop-filter shop-filter-active{% else %}shop-filter{% endif %}"
+             style="padding-inline-start: {{ node.depth|add:1 }}rem"
+             {% if node.is_selected %}aria-current="true"{% endif %}>
+            <span>{{ node.name }}</span>
+            <span class="shop-filter-count">{{ node.count }}</span>
+          </a>
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
+</nav>

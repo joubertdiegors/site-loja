@@ -1,0 +1,157 @@
+{% load i18n jdprint %}
+{% comment %}
+Linhas do carrinho + subtotal.
+
+É o alvo das trocas do HTMX (id "cart-panel" no template pai). Sem JavaScript,
+os mesmos formulários funcionam por POST + redirecionamento.
+{% endcomment %}
+{% if cart.is_empty %}
+
+  <div class="empty-state">
+    <span class="empty-state-icon" aria-hidden="true">{% icon "cart" "h-6 w-6" %}</span>
+    <p class="font-display text-lg font-bold text-ink">{% translate "Seu carrinho está vazio" %}</p>
+    <p class="max-w-md text-sm text-ink-soft">
+      {% translate "Escolha um modelo e ele aparece aqui." %}
+    </p>
+    <a href="{% url 'catalog:models_shop' %}" class="btn-primary mt-1">
+      {% translate "Ver modelos" %}
+      {% icon "arrow-right" "h-4 w-4 rtl:rotate-180" %}
+    </a>
+  </div>
+
+{% else %}
+
+  <div class="grid gap-6 lg:grid-cols-[1.6fr_1fr] lg:items-start">
+
+    <div class="card overflow-hidden">
+      <table class="w-full text-sm max-sm:block">
+        <caption class="sr-only">{% translate "Produtos no carrinho" %}</caption>
+        <thead class="border-b border-surface-line bg-surface-soft text-left font-mono text-[11px] uppercase tracking-[0.12em] text-ink-muted max-sm:hidden">
+          <tr>
+            <th scope="col" class="px-4 py-3 font-medium">{% translate "Produto" %}</th>
+            <th scope="col" class="px-4 py-3 font-medium">{% translate "Quantidade" %}</th>
+            <th scope="col" class="px-4 py-3 text-end font-medium">{% translate "Preço" %}</th>
+            <th scope="col" class="px-4 py-3"><span class="sr-only">{% translate "Remover" %}</span></th>
+          </tr>
+        </thead>
+        <tbody class="max-sm:block">
+          {% for line in cart.lines %}
+            <tr class="border-b border-surface-line last:border-0 align-middle max-sm:relative max-sm:block max-sm:px-4 max-sm:py-4">
+              <td class="px-4 py-4 max-sm:block max-sm:px-0 max-sm:pb-3 max-sm:pe-10 max-sm:pt-0">
+                <div class="flex items-center gap-3">
+                  <a href="{{ line.product.get_absolute_url }}" class="focus-ring block h-16 w-16 shrink-0 overflow-hidden rounded-[12px] border border-surface-line">
+                    {% include "components/product_media.html" with media=line.product.display_media name=line.display_name compact=True %}
+                  </a>
+                  <div>
+                    <a href="{{ line.product.get_absolute_url }}"
+                       class="focus-ring rounded font-bold text-ink transition-colors hover:text-brand-700">
+                      {{ line.product.display_name }}
+                    </a>
+                    {% if line.variant_label %}
+                      <p class="font-mono text-[11px] uppercase tracking-[0.06em] text-ink-muted">{{ line.variant_label }}</p>
+                    {% endif %}
+                    <p class="text-xs text-ink-muted">
+                      {{ line.product.currency_symbol }}&nbsp;{{ line.unit_price|floatformat:2 }}
+                      {% translate "por unidade" %}
+                    </p>
+
+                    {% if line.has_customization %}
+                      <div class="mt-1.5 rounded-[8px] border border-magenta-500/20 bg-magenta-50 px-2.5 py-1.5 text-[11px] text-magenta-700">
+                        {% if line.customization_type == "photo" %}
+                          <span class="font-bold">{% translate "Foto enviada" %}</span>
+                          {% if line.upload %}
+                            <span class="opacity-80">— {{ line.upload.original_name|truncatechars:30 }}</span>
+                          {% endif %}
+                        {% else %}
+                          <span class="font-bold">{% translate "Texto" %}:</span>
+                          “{{ line.customization_text|truncatechars:60 }}”
+                        {% endif %}
+                        {% if line.customization_notes %}
+                          <p class="mt-0.5 opacity-80">
+                            {% translate "Observações" %}: {{ line.customization_notes|truncatechars:80 }}
+                          </p>
+                        {% endif %}
+                      </div>
+                    {% endif %}
+
+                    {% if line.product.made_to_order %}
+                      <p class="mt-1"><span class="badge-amber">{% translate "Sob encomenda" %}</span></p>
+                    {% endif %}
+                  </div>
+                </div>
+              </td>
+
+              <td class="px-4 py-4 max-sm:block max-sm:px-0 max-sm:py-0">
+                <div class="inline-flex items-center rounded-control border border-surface-line bg-white">
+                  <form method="post" action="{% url 'cart:update' %}" hx-post="{% url 'cart:update' %}" hx-swap="none">
+                    {% csrf_token %}
+                    <input type="hidden" name="line" value="{{ line.key }}">
+                    <input type="hidden" name="action" value="decrement">
+                    <button type="submit" class="focus-ring flex h-9 w-9 items-center justify-center rounded-s-control text-brand-700 transition-colors hover:bg-brand-50"
+                            aria-label="{% blocktranslate with name=line.product.display_name %}Diminuir quantidade de {{ name }}{% endblocktranslate %}">−</button>
+                  </form>
+
+                  <span class="w-8 text-center font-mono text-[13px] font-medium text-ink" aria-live="polite">{{ line.quantity }}</span>
+
+                  <form method="post" action="{% url 'cart:update' %}" hx-post="{% url 'cart:update' %}" hx-swap="none">
+                    {% csrf_token %}
+                    <input type="hidden" name="line" value="{{ line.key }}">
+                    <input type="hidden" name="action" value="increment">
+                    <button type="submit"
+                            class="focus-ring flex h-9 w-9 items-center justify-center rounded-e-control text-brand-700 transition-colors hover:bg-brand-50 disabled:cursor-not-allowed disabled:opacity-40"
+                            {% if line.at_maximum %}disabled title="{% translate 'Quantidade máxima disponível' %}"{% endif %}
+                            aria-label="{% blocktranslate with name=line.product.display_name %}Aumentar quantidade de {{ name }}{% endblocktranslate %}">+</button>
+                  </form>
+                </div>
+                {% if line.at_maximum and not line.product.made_to_order and not line.product.allow_backorder %}
+                  <p class="mt-1 font-mono text-[10.5px] text-ink-muted">{% translate "Máximo em estoque" %}</p>
+                {% endif %}
+              </td>
+
+              <td class="px-4 py-4 text-end font-display font-bold tabular-price text-ink max-sm:mt-2 max-sm:block max-sm:px-0 max-sm:py-0 max-sm:text-start max-sm:text-base">
+                {{ line.product.currency_symbol }}&nbsp;{{ line.total|floatformat:2 }}
+              </td>
+
+              <td class="px-4 py-4 text-end max-sm:absolute max-sm:end-2 max-sm:top-3 max-sm:block max-sm:p-0">
+                <form method="post" action="{% url 'cart:remove' %}" hx-post="{% url 'cart:remove' %}" hx-swap="none">
+                  {% csrf_token %}
+                  <input type="hidden" name="line" value="{{ line.key }}">
+                  <button type="submit" class="focus-ring rounded-full p-2 text-ink-muted transition-colors hover:bg-state-error-soft hover:text-state-error"
+                          aria-label="{% blocktranslate with name=line.product.display_name %}Remover {{ name }} do carrinho{% endblocktranslate %}">
+                    {% icon "close" "h-4 w-4" %}
+                  </button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <aside class="card p-6" aria-labelledby="resumo-titulo">
+      <h2 id="resumo-titulo" class="font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-ink-muted">
+        {% translate "Resumo" %}
+      </h2>
+
+      <dl class="mt-4 space-y-2 text-sm">
+        <div class="flex items-center justify-between">
+          <dt class="text-ink-soft">{% translate "Subtotal" %}</dt>
+          <dd class="font-display text-2xl font-bold tabular-price text-brand-800">€&nbsp;{{ cart.subtotal|floatformat:2 }}</dd>
+        </div>
+        <div class="flex items-center justify-between">
+          <dt class="text-ink-soft">{% translate "Envio" %}</dt>
+          <dd class="text-ink-muted">{% translate "calculado no checkout" %}</dd>
+        </div>
+      </dl>
+
+      <a href="{% url 'cart:checkout' %}" class="btn-primary mt-6 w-full">
+        {% translate "Finalizar compra" %}
+        {% icon "arrow-right" "h-4 w-4 rtl:rotate-180" %}
+      </a>
+      <a href="{% url 'catalog:models_shop' %}" class="btn-secondary mt-3 w-full">
+        {% translate "Continuar comprando" %}
+      </a>
+    </aside>
+  </div>
+
+{% endif %}

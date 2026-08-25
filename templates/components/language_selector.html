@@ -1,0 +1,41 @@
+{% load i18n jdprint %}
+{% comment %}
+Seletor de idioma.
+
+A lista vem de `site_languages` (tabela core.SiteLanguage, via context
+processor) — os idiomas oferecidos na loja hoje, definidos no admin em
+"Núcleo › Idiomas da loja". Nada de idioma escrito no template.
+
+A troca usa a view do projeto (`set_language`), que grava o cookie e
+redireciona para a mesma página no idioma novo. <details> dá comportamento de
+teclado nativo sem JavaScript.
+{% endcomment %}
+{% get_current_language as current_language %}
+
+<details class="relative" data-dropdown>
+  <summary class="focus-ring flex cursor-pointer list-none items-center gap-1 rounded-full px-3 py-2 text-sm font-semibold text-ink-soft transition-colors hover:text-brand-700"
+           aria-label="{% translate 'Escolher idioma' %}">
+    {% icon "globe" "h-4 w-4" %}
+    <span class="uppercase">{{ current_language|slice:":2" }}</span>
+    {% icon "chevron-down" "h-3.5 w-3.5" %}
+  </summary>
+
+  <div class="absolute end-0 z-40 mt-2 w-52 overflow-hidden rounded-2xl border border-surface-line bg-white p-1.5 shadow-xl shadow-brand-900/10">
+    <form action="{% url 'set_language' %}" method="post">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ request.get_full_path }}">
+      <ul class="space-y-0.5" role="list">
+        {% for language in site_languages %}
+          <li>
+            <button type="submit" name="language" value="{{ language.code }}"
+                    class="focus-ring flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2 text-start text-sm transition-colors hover:bg-brand-50 {% if language.code == current_language %}bg-brand-50 font-semibold text-brand-700{% else %}text-ink-soft{% endif %}"
+                    {% if language.code == current_language %}aria-current="true"{% endif %}>
+              <span>{{ language.native_name }}</span>
+              <span class="text-xs uppercase text-ink-muted">{{ language.code }}</span>
+            </button>
+          </li>
+        {% endfor %}
+      </ul>
+    </form>
+  </div>
+</details>

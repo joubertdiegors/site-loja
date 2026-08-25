@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% load i18n jdprint %}
+
+{% comment %}
+Home.
+
+Nada de conteúdo fixo aqui: o hero vem do banner cadastrado, as faixas de
+produtos vêm das seções ativas (em ordem) e as categorias vêm do banco.
+Acrescentar, remover ou reordenar seções é trabalho do Admin — este arquivo
+não muda.
+{% endcomment %}
+
+{% block content %}
+
+  {% include "components/hero.html" %}
+
+  {# ---- Categorias: logo abaixo do hero, como atalho ------------------- #}
+  {% if category_cards %}
+    <section class="border-b border-surface-line bg-white py-8" aria-labelledby="titulo-categorias">
+      <div class="container-page">
+        <h2 id="titulo-categorias" class="sr-only">{% translate "Categorias" %}</h2>
+        <ul class="flex flex-wrap gap-3" role="list">
+          {% for card in category_cards %}
+            <li class="min-w-[8.5rem] flex-1">{% include "components/category_card.html" %}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </section>
+  {% endif %}
+
+  {# ---- Seções dinâmicas ------------------------------------------------ #}
+  {% for section in sections %}
+    {% include "components/home_section.html" %}
+  {% empty %}
+    <section class="container-page py-16">
+      <div class="empty-state mx-auto max-w-2xl">
+        <span class="empty-state-icon" aria-hidden="true">{% icon "sparkles" "h-6 w-6" %}</span>
+        <h2 class="font-display text-lg font-bold text-ink">{% translate "A vitrine está sendo montada" %}</h2>
+        <p class="max-w-md text-sm text-ink-soft">
+          {% translate "Ainda não há seções ativas com produtos. Crie uma seção em Home › Seções da Home no painel administrativo." %}
+        </p>
+      </div>
+    </section>
+  {% endfor %}
+
+  {# ---- Como a JD PRINT trabalha --------------------------------------- #}
+  <section class="container-page py-12 sm:py-14" aria-labelledby="titulo-como">
+    <h2 id="titulo-como" class="sr-only">{% translate "Como trabalhamos" %}</h2>
+    <ul class="grid gap-4 sm:grid-cols-3" role="list">
+      <li class="card flex h-full flex-col gap-2.5 p-6">
+        <span class="flex h-9 w-9 items-center justify-center rounded-[10px] bg-brand-100 text-brand-700" aria-hidden="true">
+          {% icon "cube" "h-4 w-4" %}
+        </span>
+        <strong class="text-[15px] text-ink">{% translate "Produção própria" %}</strong>
+        <span class="text-sm leading-relaxed text-ink-soft">
+          {% translate "Impressão feita por nós, com controle de camada e acabamento." %}
+        </span>
+      </li>
+      <li class="card flex h-full flex-col gap-2.5 p-6">
+        <span class="flex h-9 w-9 items-center justify-center rounded-[10px] bg-cyan-100 text-cyan-700" aria-hidden="true">
+          {% icon "palette" "h-4 w-4" %}
+        </span>
+        <strong class="text-[15px] text-ink">{% translate "Cores e materiais à escolha" %}</strong>
+        <span class="text-sm leading-relaxed text-ink-soft">
+          {% translate "Cada peça sai na cor e no material que você escolher." %}
+        </span>
+      </li>
+      <li class="card flex h-full flex-col gap-2.5 p-6">
+        <span class="flex h-9 w-9 items-center justify-center rounded-[10px] bg-magenta-100 text-magenta-700" aria-hidden="true">
+          {% icon "sparkles" "h-4 w-4" %}
+        </span>
+        <strong class="text-[15px] text-ink">{% translate "Personalização real" %}</strong>
+        <span class="text-sm leading-relaxed text-ink-soft">
+          {% translate "Foto ou texto aplicados na peça antes da impressão." %}
+        </span>
+      </li>
+    </ul>
+  </section>
+
+  {# ---- Chamada final --------------------------------------------------- #}
+  <section class="container-page pb-6">
+    <div class="bg-surface-deep layers-light overflow-hidden rounded-block px-6 py-10 sm:px-10 sm:py-14">
+      <div class="grid items-center gap-6 lg:grid-cols-[1.4fr_1fr]">
+        <div>
+          <p class="font-mono text-[11px] uppercase tracking-[0.16em] text-brand-300">
+            {% translate "Personalização" %}
+          </p>
+          <h2 class="mt-3 font-display text-2xl font-bold tracking-[-0.02em] text-white sm:text-3xl">
+            {% translate "Tem uma ideia? A gente imprime." %}
+          </h2>
+          <p class="mt-3 max-w-xl text-sm leading-relaxed text-brand-100/85 sm:text-base">
+            {% translate "Cores, tamanhos e materiais à sua escolha — e projetos sob encomenda para o que não existe na loja." %}
+          </p>
+        </div>
+        <div class="flex flex-wrap gap-3 lg:justify-end">
+          <a href="{% url 'catalog:models_shop' %}" class="btn-primary btn-lg">
+            {% translate "Ver produtos" %}
+            {% icon "arrow-right" "h-4 w-4 rtl:rotate-180" %}
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+{% endblock %}

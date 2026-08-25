@@ -1,0 +1,23 @@
+/* Ajustes leves no formulário de produto do admin.
+   O Tailwind entra na vitrine (etapa seguinte); aqui basta melhorar a
+   legibilidade das seções do cadastro. */
+
+.module h2 {
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: 0.78rem;
+}
+
+fieldset.module {
+  margin-bottom: 1.25rem;
+  border-radius: 6px;
+}
+
+.form-row .help {
+  font-style: normal;
+  opacity: 0.85;
+}
+
+.inline-group h2 {
+  letter-spacing: 0.04em;
+}

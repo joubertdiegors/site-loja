@@ -1,0 +1,12 @@
+{% load i18n %}
+{% comment %}
+Total de itens mostrado no cabeçalho da gaveta.
+
+Vive num arquivo próprio porque o cabeçalho da gaveta NÃO é trocado pelo HTMX
+(o alvo é só `#cart-drawer-body`). Assim o número chega por troca "out of
+band" e nunca fica desatualizado.
+{% endcomment %}
+<p id="cart-drawer-count" class="mt-0.5 font-mono text-[11px] uppercase tracking-[0.1em] text-brand-200"
+   {% if oob %}hx-swap-oob="true"{% endif %}>
+  {% blocktranslate count total=cart.total_quantity %}{{ total }} item{% plural %}{{ total }} itens{% endblocktranslate %}
+</p>

@@ -1,0 +1,1582 @@
+# Tradução da interface da JD PRINT (Holandês).
+# As traduções de CONTEÚDO (produtos, categorias, seções) ficam no banco de
+# dados, não aqui. Este arquivo cobre apenas os textos fixos da interface.
+msgid ""
+msgstr ""
+"Project-Id-Version: JD PRINT\n"
+"Report-Msgid-Bugs-To: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: nl\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+
+msgid "Ir para o conteúdo"
+msgstr "Ga naar de inhoud"
+
+msgid "Navegação principal"
+msgstr "Hoofdnavigatie"
+
+msgid "Navegação principal (celular)"
+msgstr "Hoofdnavigatie (mobiel)"
+
+msgid "Buscar produtos"
+msgstr "Producten zoeken"
+
+msgid "Buscar produtos (em breve)"
+msgstr "Producten zoeken (binnenkort)"
+
+msgid "Escolher idioma"
+msgstr "Taal kiezen"
+
+msgid "Favoritos (em breve)"
+msgstr "Favorieten (binnenkort)"
+
+msgid "Favoritos em breve"
+msgstr "Favorieten binnenkort"
+
+msgid "Minha conta (em breve)"
+msgstr "Mijn account (binnenkort)"
+
+msgid "Carrinho (em breve)"
+msgstr "Winkelwagen (binnenkort)"
+
+msgid "Abrir menu"
+msgstr "Menu openen"
+
+msgid "Em breve"
+msgstr "Binnenkort"
+
+msgid "Produtos"
+msgstr "Producten"
+
+msgid "Todos os produtos"
+msgstr "Alle producten"
+
+msgid "Ver produtos"
+msgstr "Producten bekijken"
+
+msgid "Ver todos"
+msgstr "Alles bekijken"
+
+msgid "Impressão 3D criativa"
+msgstr "Creatief 3D-printen"
+
+msgid "Peças únicas, impressas sob medida"
+msgstr "Unieke stukken, op maat geprint"
+
+msgid "Modelos decorativos, acessórios e filamentos escolhidos com cuidado. Feitos na Bélgica, com acabamento e cor à sua escolha."
+msgstr "Zorgvuldig gekozen decoratieve modellen, accessoires en filamenten. Gemaakt in België, afwerking en kleur naar keuze."
+
+msgid "Cores e materiais à escolha"
+msgstr "Kleuren en materialen naar keuze"
+
+msgid "Produção sob encomenda"
+msgstr "Productie op bestelling"
+
+msgid "Envio para toda a Europa"
+msgstr "Verzending in heel Europa"
+
+msgid "Espaço reservado para o banner promocional. Cadastre um banner em Home › Banners da Home."
+msgstr "Ruimte gereserveerd voor de promotiebanner. Voeg er een toe in Home › Homebanners."
+
+msgid "Destaque"
+msgstr "Uitgelicht"
+
+msgid "Sob encomenda"
+msgstr "Op bestelling"
+
+msgid "Esgotado"
+msgstr "Uitverkocht"
+
+msgid "Sob consulta"
+msgstr "Op aanvraag"
+
+msgid "Cores disponíveis"
+msgstr "Beschikbare kleuren"
+
+msgid "Foto em breve"
+msgstr "Foto binnenkort"
+
+msgid "Produtos anteriores"
+msgstr "Vorige producten"
+
+msgid "Próximos produtos"
+msgstr "Volgende producten"
+
+msgid "A vitrine está sendo montada"
+msgstr "De etalage wordt klaargemaakt"
+
+msgid "Ainda não há seções ativas com produtos. Crie uma seção em Home › Seções da Home no painel administrativo."
+msgstr "Nog geen actieve secties met producten. Maak er een in Home › Homesecties."
+
+msgid "Navegue por"
+msgstr "Bladeren op"
+
+msgid "Categorias"
+msgstr "Categorieën"
+
+msgid "Encontre mais rápido o que procura."
+msgstr "Vind sneller wat u zoekt."
+
+msgid "Personalização"
+msgstr "Personalisatie"
+
+msgid "Tem uma ideia? A gente imprime."
+msgstr "Heeft u een idee? Wij printen het."
+
+msgid "Cores, tamanhos e materiais à sua escolha — e projetos sob encomenda para o que não existe na loja."
+msgstr "Kleuren, maten en materialen naar keuze — en maatwerk voor wat niet in de winkel staat."
+
+msgid "Produtos criativos feitos com impressão 3D. Peças decorativas, acessórios e filamentos — com opção de personalização e produção sob encomenda."
+msgstr "Creatieve producten met 3D-printen. Decoratieve stukken, accessoires en filamenten — met personalisatie en productie op bestelling."
+
+msgid "Ajuda"
+msgstr "Hulp"
+
+msgid "Envios e prazos"
+msgstr "Verzending en levertijden"
+
+msgid "Trocas e devoluções"
+msgstr "Ruilen en retourneren"
+
+msgid "Contato"
+msgstr "Contact"
+
+msgid "Páginas em construção."
+msgstr "Pagina's in aanbouw."
+
+msgid "Compra segura"
+msgstr "Veilig winkelen"
+
+msgid "Em construção"
+msgstr "In aanbouw"
+
+msgid "Página em construção. A loja completa chega em breve."
+msgstr "Pagina in aanbouw. De volledige winkel komt binnenkort."
+
+msgid "Esta página faz parte da próxima etapa da loja. O produto já está cadastrado e aparece normalmente na página inicial."
+msgstr "Deze pagina hoort bij de volgende fase van de winkel. Het product staat al geregistreerd en verschijnt op de homepagina."
+
+msgid "Voltar para a página inicial"
+msgstr "Terug naar de startpagina"
+
+msgid "JD PRINT — Impressão 3D criativa"
+msgstr "JD PRINT — Creatief 3D-printen"
+
+msgid "Produtos criativos feitos com impressão 3D: modelos decorativos, acessórios e filamentos. Peças sob encomenda e personalização."
+msgstr "Creatieve 3D-geprinte producten: decoratieve modellen, accessoires en filamenten. Op bestelling en personaliseerbaar."
+
+msgid "%(site_name)s — página inicial"
+msgstr "%(site_name)s — startpagina"
+
+msgid "Adicionar %(name)s aos favoritos (em breve)"
+msgstr "%(name)s aan favorieten toevoegen (binnenkort)"
+
+msgid "Imagem de %(name)s ainda não cadastrada"
+msgstr "Afbeelding van %(name)s nog niet toegevoegd"
+
+msgid "© %(current_year)s %(site_name)s. Todos os direitos reservados."
+msgstr "© %(current_year)s %(site_name)s. Alle rechten voorbehouden."
+
+msgid "Pronto em %(days)s dia"
+msgid_plural "Pronto em %(days)s dias"
+msgstr[0] "Klaar in %(days)s dag"
+msgstr[1] "Klaar in %(days)s dagen"
+
+msgid "%(total)s produto"
+msgid_plural "%(total)s produtos"
+msgstr[0] "%(total)s product"
+msgstr[1] "%(total)s producten"
+
+msgid "Catálogo"
+msgstr "Catalogus"
+
+msgid "Modelos"
+msgstr "Modellen"
+
+msgid "Descubra nossos modelos impressos em 3D"
+msgstr "Ontdek onze 3D-geprinte modellen"
+
+msgid "Vitrine ainda não configurada"
+msgstr "Etalage nog niet ingesteld"
+
+msgid "Filtros"
+msgstr "Filters"
+
+msgid "Todos"
+msgstr "Alles"
+
+msgid "Ordenar"
+msgstr "Sorteren"
+
+msgid "Aplicar"
+msgstr "Toepassen"
+
+msgid "Mais recentes"
+msgstr "Nieuwste"
+
+msgid "Nome A-Z"
+msgstr "Naam A-Z"
+
+msgid "Nome Z-A"
+msgstr "Naam Z-A"
+
+msgid "Preço menor → maior"
+msgstr "Prijs laag naar hoog"
+
+msgid "Preço maior → menor"
+msgstr "Prijs hoog naar laag"
+
+msgid "Paginação"
+msgstr "Paginering"
+
+msgid "Anterior"
+msgstr "Vorige"
+
+msgid "Próximo"
+msgstr "Volgende"
+
+msgid "Nenhum produto por aqui ainda"
+msgstr "Nog geen producten hier"
+
+msgid "Experimente outra categoria ou volte em breve."
+msgstr "Probeer een andere categorie of kom later terug."
+
+msgid "Ver todos os modelos"
+msgstr "Alle modellen bekijken"
+
+msgid "Ver modelos"
+msgstr "Modellen bekijken"
+
+msgid "Adicionar ao carrinho"
+msgstr "In winkelwagen"
+
+msgid "Meu carrinho"
+msgstr "Mijn winkelwagen"
+
+msgid "Sua seleção"
+msgstr "Uw selectie"
+
+msgid "Seu carrinho está vazio"
+msgstr "Uw winkelwagen is leeg"
+
+msgid "Escolha um modelo e ele aparece aqui."
+msgstr "Kies een model en het verschijnt hier."
+
+msgid "Produtos no carrinho"
+msgstr "Producten in de winkelwagen"
+
+msgid "Produto"
+msgstr "Product"
+
+msgid "Quantidade"
+msgstr "Aantal"
+
+msgid "Preço"
+msgstr "Prijs"
+
+msgid "Remover"
+msgstr "Verwijderen"
+
+msgid "por unidade"
+msgstr "per stuk"
+
+msgid "Máximo em estoque"
+msgstr "Maximaal op voorraad"
+
+msgid "Quantidade máxima disponível"
+msgstr "Maximaal beschikbare hoeveelheid"
+
+msgid "Resumo"
+msgstr "Overzicht"
+
+msgid "Subtotal"
+msgstr "Subtotaal"
+
+msgid "Envio"
+msgstr "Verzending"
+
+msgid "calculado no checkout"
+msgstr "berekend bij afrekenen"
+
+msgid "Finalizar compra"
+msgstr "Afrekenen"
+
+msgid "Continuar comprando"
+msgstr "Verder winkelen"
+
+msgid "Finalização de compra"
+msgstr "Afrekenen"
+
+msgid "O pagamento e a entrega entram na próxima etapa da loja. Seu carrinho continua guardado."
+msgstr "Betaling en levering komen in de volgende fase. Uw winkelwagen blijft bewaard."
+
+msgid "Voltar ao carrinho"
+msgstr "Terug naar de winkelwagen"
+
+msgid "Meu carrinho — JD PRINT"
+msgstr "Mijn winkelwagen — JD PRINT"
+
+msgid "Produtos selecionados no seu carrinho."
+msgstr "Producten in uw winkelwagen."
+
+msgid "Finalizar compra — JD PRINT"
+msgstr "Afrekenen — JD PRINT"
+
+msgid "Produto adicionado ao carrinho."
+msgstr "Product toegevoegd aan de winkelwagen."
+
+msgid "Produto removido do carrinho."
+msgstr "Product verwijderd uit de winkelwagen."
+
+msgid "Carrinho atualizado."
+msgstr "Winkelwagen bijgewerkt."
+
+msgid "Produto esgotado no momento."
+msgstr "Product is momenteel uitverkocht."
+
+msgid "Este produto não está disponível."
+msgstr "Dit product is niet beschikbaar."
+
+msgid "Este produto não estava no carrinho."
+msgstr "Dit product zat niet in de winkelwagen."
+
+msgid "Produto esgotado: item removido."
+msgstr "Product uitverkocht: item verwijderd."
+
+msgid "Adicionamos o máximo disponível: %(count)s unidade(s)."
+msgstr "We hebben het maximum toegevoegd: %(count)s stuk(s)."
+
+msgid "Disponível apenas %(count)s unidade(s) deste produto."
+msgstr "Slechts %(count)s stuk(s) beschikbaar van dit product."
+
+msgid "Diminuir quantidade de %(name)s"
+msgstr "Aantal van %(name)s verlagen"
+
+msgid "Aumentar quantidade de %(name)s"
+msgstr "Aantal van %(name)s verhogen"
+
+msgid "Remover %(name)s do carrinho"
+msgstr "%(name)s uit de winkelwagen verwijderen"
+
+msgid "Página %(number)s"
+msgstr "Pagina %(number)s"
+
+msgid "Carrinho, %(total)s item"
+msgid_plural "Carrinho, %(total)s itens"
+msgstr[0] "Winkelwagen, %(total)s item"
+msgstr[1] "Winkelwagen, %(total)s items"
+
+msgid "%(total)s item no carrinho"
+msgid_plural "%(total)s itens no carrinho"
+msgstr[0] "%(total)s item in de winkelwagen"
+msgstr[1] "%(total)s items in de winkelwagen"
+
+msgid "Mostrar"
+msgstr "Tonen"
+
+msgid "Escolher opções"
+msgstr "Opties kiezen"
+
+msgid "Personalizar"
+msgstr "Personaliseren"
+
+msgid "Você está aqui"
+msgstr "U bevindt zich hier"
+
+msgid "Início"
+msgstr "Start"
+
+msgid "Fotos do produto"
+msgstr "Productfoto's"
+
+msgid "Opção"
+msgstr "Optie"
+
+msgid "Cor"
+msgstr "Kleur"
+
+msgid "Tamanho"
+msgstr "Maat"
+
+msgid "Material"
+msgstr "Materiaal"
+
+msgid "Marca"
+msgstr "Merk"
+
+msgid "Peso"
+msgstr "Gewicht"
+
+msgid "Dimensões"
+msgstr "Afmetingen"
+
+msgid "Tempo de impressão"
+msgstr "Printtijd"
+
+msgid "Referência"
+msgstr "Referentie"
+
+msgid "Descrição"
+msgstr "Beschrijving"
+
+msgid "Especificações"
+msgstr "Specificaties"
+
+msgid "Informações adicionais"
+msgstr "Aanvullende informatie"
+
+msgid "Em estoque"
+msgstr "Op voorraad"
+
+msgid "Últimas unidades"
+msgstr "Laatste stuks"
+
+msgid "Produzido sob encomenda"
+msgstr "Op bestelling gemaakt"
+
+msgid "esgotado"
+msgstr "uitverkocht"
+
+msgid "Aumentar quantidade"
+msgstr "Aantal verhogen"
+
+msgid "Diminuir quantidade"
+msgstr "Aantal verlagen"
+
+msgid "Escolha sua personalização"
+msgstr "Kies uw personalisatie"
+
+msgid "Como deseja personalizar?"
+msgstr "Hoe wilt u personaliseren?"
+
+msgid "Enviar uma foto"
+msgstr "Een foto uploaden"
+
+msgid "Informar um texto"
+msgstr "Een tekst invoeren"
+
+msgid "Enviar sua foto"
+msgstr "Uw foto uploaden"
+
+msgid "Texto que deseja personalizar"
+msgstr "Tekst om te personaliseren"
+
+msgid "Observações"
+msgstr "Opmerkingen"
+
+msgid "Observações (opcional)"
+msgstr "Opmerkingen (optioneel)"
+
+msgid "Ex.: quero o nome na parte inferior."
+msgstr "Bijv.: de naam onderaan."
+
+msgid "Texto"
+msgstr "Tekst"
+
+msgid "Com foto"
+msgstr "Met foto"
+
+msgid "Foto enviada"
+msgstr "Foto geüpload"
+
+msgid "Envie a foto da personalização."
+msgstr "Upload de personalisatiefoto."
+
+msgid "Informe o texto da personalização."
+msgstr "Voer de personalisatietekst in."
+
+msgid "Escolha entre enviar uma foto ou informar um texto."
+msgstr "Kies tussen een foto uploaden of een tekst invoeren."
+
+msgid "Envie uma imagem JPG, PNG ou WEBP."
+msgstr "Upload een JPG-, PNG- of WEBP-afbeelding."
+
+msgid "O arquivo enviado está vazio."
+msgstr "Het geüploade bestand is leeg."
+
+msgid "A imagem pode ter no máximo %(limit)s MB."
+msgstr "De afbeelding mag maximaal %(limit)s MB zijn."
+
+msgid "O texto pode ter no máximo %(limit)s caracteres."
+msgstr "De tekst mag maximaal %(limit)s tekens bevatten."
+
+msgid "As observações podem ter no máximo %(limit)s caracteres."
+msgstr "Opmerkingen mogen maximaal %(limit)s tekens bevatten."
+
+msgid "Escolha uma opção do produto."
+msgstr "Kies een productoptie."
+
+msgid "Esta opção não está disponível."
+msgstr "Deze optie is niet beschikbaar."
+
+msgid "Este item não estava no carrinho."
+msgstr "Dit item zat niet in de winkelwagen."
+
+msgid "Não foi possível adicionar o produto."
+msgstr "Het product kon niet worden toegevoegd."
+
+msgid "Seu carrinho"
+msgstr "Uw winkelwagen"
+
+msgid "Fechar carrinho"
+msgstr "Winkelwagen sluiten"
+
+msgid "Ver carrinho"
+msgstr "Winkelwagen bekijken"
+
+msgid "Envio calculado no checkout."
+msgstr "Verzending berekend bij afrekenen."
+
+msgid "Sua conta"
+msgstr "Uw account"
+
+msgid "Minha conta"
+msgstr "Mijn account"
+
+msgid "Meus pedidos"
+msgstr "Mijn bestellingen"
+
+msgid "Meus dados"
+msgstr "Mijn gegevens"
+
+msgid "Menu da conta"
+msgstr "Accountmenu"
+
+msgid "Sair"
+msgstr "Uitloggen"
+
+msgid "Entrar"
+msgstr "Inloggen"
+
+msgid "Criar conta"
+msgstr "Account aanmaken"
+
+msgid "Acesso"
+msgstr "Toegang"
+
+msgid "Usuário"
+msgstr "Gebruiker"
+
+msgid "Nome"
+msgstr "Voornaam"
+
+msgid "Telefone"
+msgstr "Telefoon"
+
+msgid "Empresa"
+msgstr "Bedrijf"
+
+msgid "Empresa (opcional)"
+msgstr "Bedrijf (optioneel)"
+
+msgid "E-mail"
+msgstr "E-mail"
+
+msgid "Senha"
+msgstr "Wachtwoord"
+
+msgid "Idioma preferido"
+msgstr "Voorkeurstaal"
+
+msgid "Cliente desde"
+msgstr "Klant sinds"
+
+msgid "Salvar"
+msgstr "Opslaan"
+
+msgid "Enviar"
+msgstr "Versturen"
+
+msgid "Usuário ou e-mail"
+msgstr "Gebruikersnaam of e-mail"
+
+msgid "Use seu nome de usuário ou o e-mail cadastrado."
+msgstr "Gebruik uw gebruikersnaam of het geregistreerde e-mailadres."
+
+msgid "Usuário, e-mail ou senha incorretos."
+msgstr "Onjuiste gebruikersnaam, e-mail of wachtwoord."
+
+msgid "Esqueci minha senha"
+msgstr "Wachtwoord vergeten"
+
+msgid "Ainda não tem conta?"
+msgstr "Nog geen account?"
+
+msgid "Já tem conta?"
+msgstr "Al een account?"
+
+msgid "Voltar para entrar"
+msgstr "Terug naar inloggen"
+
+msgid "Entrar — JD PRINT"
+msgstr "Inloggen — JD PRINT"
+
+msgid "Criar conta — JD PRINT"
+msgstr "Account aanmaken — JD PRINT"
+
+msgid "Três campos e pronto. Nome, telefone e dados de faturamento ficam para depois."
+msgstr "Drie velden en klaar. Naam, telefoon en factuurgegevens volgen later."
+
+msgid "Enviaremos um e-mail para confirmar seu endereço. Seu carrinho continua com você."
+msgstr "We sturen een e-mail om uw adres te bevestigen. Uw winkelwagen blijft behouden."
+
+msgid "Usado para confirmar a conta e para falar sobre seus pedidos."
+msgstr "Wordt gebruikt om uw account te bevestigen en over uw bestellingen te praten."
+
+msgid "Este nome de usuário não está disponível."
+msgstr "Deze gebruikersnaam is niet beschikbaar."
+
+msgid "Já existe uma conta com este e-mail."
+msgstr "Er bestaat al een account met dit e-mailadres."
+
+msgid "Já existe uma conta com este e-mail. Tente entrar."
+msgstr "Er bestaat al een account met dit e-mailadres. Probeer in te loggen."
+
+msgid "O nome de usuário não pode ser um endereço de e-mail."
+msgstr "De gebruikersnaam mag geen e-mailadres zijn."
+
+msgid "O nome de usuário precisa de pelo menos %(min)s caracteres."
+msgstr "De gebruikersnaam heeft minstens %(min)s tekens nodig."
+
+msgid "O nome de usuário pode ter no máximo %(max)s caracteres."
+msgstr "De gebruikersnaam mag maximaal %(max)s tekens bevatten."
+
+msgid "Use apenas letras sem acento, números, hífen e sublinhado, começando e terminando com letra ou número."
+msgstr "Gebruik alleen letters zonder accent, cijfers, koppelteken en liggend streepje, beginnend en eindigend met een letter of cijfer."
+
+msgid "Telefone inválido. Use números, espaços, +, ( ) ou hífen."
+msgstr "Ongeldig telefoonnummer. Gebruik cijfers, spaties, +, ( ) of koppelteken."
+
+msgid "Minha conta — JD PRINT"
+msgstr "Mijn account — JD PRINT"
+
+msgid "Meus dados — JD PRINT"
+msgstr "Mijn gegevens — JD PRINT"
+
+msgid "Confirme seu e-mail"
+msgstr "Bevestig uw e-mailadres"
+
+msgid "E-mail confirmado"
+msgstr "E-mail bevestigd"
+
+msgid "E-mail confirmado."
+msgstr "E-mail bevestigd."
+
+msgid "Enviar novo e-mail"
+msgstr "Nieuwe e-mail versturen"
+
+msgid "Trocar minha senha"
+msgstr "Mijn wachtwoord wijzigen"
+
+msgid "Completar meus dados"
+msgstr "Mijn gegevens aanvullen"
+
+msgid "Ainda não preenchido. Serão pedidos na hora de finalizar a compra."
+msgstr "Nog niet ingevuld. Deze worden bij het afrekenen gevraagd."
+
+msgid "Seu carrinho está vazio."
+msgstr "Uw winkelwagen is leeg."
+
+msgid "Dados atualizados."
+msgstr "Gegevens bijgewerkt."
+
+msgid "São os dados do cliente — usados em faturas e entregas. Usuário, e-mail e senha ficam em Minha conta."
+msgstr "Dit zijn de klantgegevens — gebruikt voor facturen en leveringen. Gebruikersnaam, e-mail en wachtwoord staan onder Mijn account."
+
+msgid "Confirmação de e-mail — JD PRINT"
+msgstr "E-mailbevestiging — JD PRINT"
+
+msgid "Confirme seu endereço de e-mail"
+msgstr "Bevestig uw e-mailadres"
+
+msgid "Confirme seu endereço de e-mail — JD PRINT"
+msgstr "Bevestig uw e-mailadres — JD PRINT"
+
+msgid "Confirme seu endereço de e-mail para concluir seu cadastro na JD PRINT."
+msgstr "Bevestig uw e-mailadres om uw registratie bij JD PRINT af te ronden."
+
+msgid "Clique no botão abaixo para confirmar seu endereço:"
+msgstr "Klik op de knop hieronder om uw adres te bevestigen:"
+
+msgid "Abra o endereço abaixo para confirmar seu e-mail:"
+msgstr "Open het onderstaande adres om uw e-mail te bevestigen:"
+
+msgid "CONFIRMAR MEU E-MAIL"
+msgstr "MIJN E-MAIL BEVESTIGEN"
+
+msgid "Se você não criou esta conta, ignore este e-mail."
+msgstr "Als u dit account niet hebt aangemaakt, negeer dan deze e-mail."
+
+msgid "Se o botão não funcionar, copie este endereço no navegador:"
+msgstr "Werkt de knop niet? Kopieer dit adres naar uw browser:"
+
+msgid "A JD PRINT nunca pede senha, dados bancários ou código por e-mail."
+msgstr "JD PRINT vraagt nooit om wachtwoorden, bankgegevens of codes per e-mail."
+
+msgid "Pronto! Seu endereço de e-mail está confirmado."
+msgstr "Klaar! Uw e-mailadres is bevestigd."
+
+msgid "Ir para minha conta"
+msgstr "Naar mijn account"
+
+msgid "Link expirado"
+msgstr "Link verlopen"
+
+msgid "Link inválido"
+msgstr "Ongeldige link"
+
+msgid "Link já utilizado"
+msgstr "Link al gebruikt"
+
+msgid "Este link de confirmação expirou."
+msgstr "Deze bevestigingslink is verlopen."
+
+msgid "Este link de confirmação já foi utilizado ou não é mais válido."
+msgstr "Deze bevestigingslink is al gebruikt of is niet meer geldig."
+
+msgid "Reenviar confirmação"
+msgstr "Bevestiging opnieuw versturen"
+
+msgid "Reenviar confirmação — JD PRINT"
+msgstr "Bevestiging opnieuw versturen — JD PRINT"
+
+msgid "Informe o e-mail usado no cadastro e enviaremos um novo link."
+msgstr "Geef het e-mailadres van uw registratie op en wij sturen een nieuwe link."
+
+msgid "Seu e-mail já está confirmado."
+msgstr "Uw e-mailadres is al bevestigd."
+
+msgid "Aguarde alguns instantes antes de pedir um novo e-mail."
+msgstr "Wacht even voordat u een nieuwe e-mail aanvraagt."
+
+msgid "E-mail de confirmação reenviado para %(email)s."
+msgstr "Bevestigingsmail opnieuw verstuurd naar %(email)s."
+
+msgid "Conta criada. Enviamos um e-mail para %(email)s — confirme para concluir."
+msgstr "Account aangemaakt. We stuurden een e-mail naar %(email)s — bevestig om af te ronden."
+
+msgid "Se existir uma conta associada a este e-mail, enviaremos as instruções em instantes."
+msgstr "Als er een account bij dit e-mailadres hoort, sturen we zo meteen de instructies."
+
+msgid "Recuperar senha"
+msgstr "Wachtwoord herstellen"
+
+msgid "Recuperar senha — JD PRINT"
+msgstr "Wachtwoord herstellen — JD PRINT"
+
+msgid "Informe o e-mail da sua conta e enviaremos um link para criar uma nova senha."
+msgstr "Geef het e-mailadres van uw account op en wij sturen een link om een nieuw wachtwoord te maken."
+
+msgid "Enviar instruções"
+msgstr "Instructies versturen"
+
+msgid "Verifique seu e-mail"
+msgstr "Controleer uw e-mail"
+
+msgid "Não recebeu? Confira a caixa de spam antes de tentar de novo."
+msgstr "Niets ontvangen? Controleer de spammap voordat u het opnieuw probeert."
+
+msgid "Redefinição de senha"
+msgstr "Wachtwoord opnieuw instellen"
+
+msgid "Redefinição de senha — JD PRINT"
+msgstr "Wachtwoord opnieuw instellen — JD PRINT"
+
+msgid "Recebemos um pedido para redefinir a senha da sua conta JD PRINT."
+msgstr "We ontvingen een verzoek om het wachtwoord van uw JD PRINT-account opnieuw in te stellen."
+
+msgid "Abra o endereço abaixo para criar uma nova senha:"
+msgstr "Open het onderstaande adres om een nieuw wachtwoord te maken:"
+
+msgid "CRIAR NOVA SENHA"
+msgstr "NIEUW WACHTWOORD MAKEN"
+
+msgid "Se não foi você quem pediu, ignore este e-mail: sua senha continua a mesma."
+msgstr "Hebt u dit niet aangevraagd? Negeer deze e-mail: uw wachtwoord blijft hetzelfde."
+
+msgid "Nova senha"
+msgstr "Nieuw wachtwoord"
+
+msgid "Nova senha — JD PRINT"
+msgstr "Nieuw wachtwoord — JD PRINT"
+
+msgid "Salvar nova senha"
+msgstr "Nieuw wachtwoord opslaan"
+
+msgid "Este link de redefinição já foi utilizado ou não é mais válido."
+msgstr "Deze herstellink is al gebruikt of is niet meer geldig."
+
+msgid "Pedir um novo link"
+msgstr "Een nieuwe link aanvragen"
+
+msgid "Senha alterada"
+msgstr "Wachtwoord gewijzigd"
+
+msgid "Sua senha foi alterada. Já pode entrar com ela."
+msgstr "Uw wachtwoord is gewijzigd. U kunt er nu mee inloggen."
+
+msgid "Não perca seu carrinho"
+msgstr "Verlies uw winkelwagen niet"
+
+msgid "Crie uma conta ou entre para mantê-lo disponível mesmo se trocar de dispositivo."
+msgstr "Maak een account of log in om hem te behouden, ook op een ander apparaat."
+
+msgid "Seu carrinho foi recuperado."
+msgstr "Uw winkelwagen is teruggezet."
+
+msgid "Enviamos um link para %(email)s. Ele vale por tempo limitado e só pode ser usado uma vez."
+msgstr "We stuurden een link naar %(email)s. Hij is beperkt geldig en kan maar één keer worden gebruikt."
+
+msgid "Olá, %(username)s. Você criou uma conta na JD PRINT."
+msgstr "Hallo %(username)s. U hebt een account aangemaakt bij JD PRINT."
+
+msgid "Olá, %(username)s. Recebemos um pedido para redefinir a senha da sua conta."
+msgstr "Hallo %(username)s. We ontvingen een verzoek om het wachtwoord van uw account opnieuw in te stellen."
+
+msgid "Seu carrinho foi recuperado. Ajustamos a quantidade de %(items)s ao estoque disponível."
+msgstr "Uw winkelwagen is terug. We pasten de hoeveelheid van %(items)s aan de voorraad aan."
+
+msgid "Aguarde %(seconds)s segundo."
+msgid_plural "Aguarde %(seconds)s segundos."
+msgstr[0] "Wacht %(seconds)s seconde."
+msgstr[1] "Wacht %(seconds)s seconden."
+
+msgid "%(total)s item guardado na sua conta."
+msgid_plural "%(total)s itens guardados na sua conta."
+msgstr[0] "%(total)s item bewaard in uw account."
+msgstr[1] "%(total)s items bewaard in uw account."
+
+msgid "Este link é válido por %(hours)s hora e só pode ser utilizado uma vez."
+msgid_plural "Este link é válido por %(hours)s horas e só pode ser utilizado uma vez."
+msgstr[0] "Deze link is %(hours)s uur geldig en kan maar één keer worden gebruikt."
+msgstr[1] "Deze link is %(hours)s uur geldig en kan maar één keer worden gebruikt."
+
+msgid "Visão geral"
+msgstr "Overzicht"
+
+msgid "Segurança"
+msgstr "Beveiliging"
+
+msgid "Endereços"
+msgstr "Adressen"
+
+msgid "Bem-vindo de volta à JD PRINT."
+msgstr "Welkom terug bij JD PRINT."
+
+msgid "Chegam com o checkout."
+msgstr "Ze komen met de afrekenstap."
+
+msgid "Nome, telefone, empresa"
+msgstr "Naam, telefoon, bedrijf"
+
+msgid "Nenhum cadastrado"
+msgstr "Geen opgeslagen"
+
+msgid "Senha e e-mail"
+msgstr "Wachtwoord en e-mail"
+
+msgid "Idioma dos e-mails"
+msgstr "Taal van de e-mails"
+
+msgid "Trocar senha ou e-mail"
+msgstr "Wachtwoord of e-mail wijzigen"
+
+msgid "Cancelar"
+msgstr "Annuleren"
+
+msgid "São os dados do cliente — usados em faturas e entregas. Usuário, e-mail e senha ficam em Segurança."
+msgstr "Dit zijn de klantgegevens — gebruikt voor facturen en leveringen. Gebruikersnaam, e-mail en wachtwoord staan onder Beveiliging."
+
+msgid "Senha, endereço de e-mail e confirmação da conta."
+msgstr "Wachtwoord, e-mailadres en accountbevestiging."
+
+msgid "Alterar senha"
+msgstr "Wachtwoord wijzigen"
+
+msgid "Pedimos a senha atual para garantir que é você."
+msgstr "We vragen uw huidige wachtwoord om zeker te weten dat u het bent."
+
+msgid "Alterar e-mail"
+msgstr "E-mail wijzigen"
+
+msgid "Hoje: %(email)s."
+msgstr "Nu: %(email)s."
+
+msgid "Ao trocar, o novo endereço precisa ser confirmado de novo."
+msgstr "Na de wijziging moet het nieuwe adres opnieuw worden bevestigd."
+
+msgid "Novo e-mail"
+msgstr "Nieuwe e-mail"
+
+msgid "Sua senha atual"
+msgstr "Uw huidige wachtwoord"
+
+msgid "Senha incorreta."
+msgstr "Onjuist wachtwoord."
+
+msgid "Este já é o seu e-mail atual."
+msgstr "Dat is al uw huidige e-mailadres."
+
+msgid "Senha alterada."
+msgstr "Wachtwoord gewijzigd."
+
+msgid "E-mail alterado para %(email)s. Enviamos um link de confirmação."
+msgstr "E-mail gewijzigd naar %(email)s. We hebben een bevestigingslink gestuurd."
+
+msgid "Segurança — JD PRINT"
+msgstr "Beveiliging — JD PRINT"
+
+msgid "Seu e-mail ainda não foi confirmado."
+msgstr "Uw e-mailadres is nog niet bevestigd."
+
+msgid "Enviamos um link para %(email)s — confirme para acompanhar seus pedidos."
+msgstr "We stuurden een link naar %(email)s — bevestig die om uw bestellingen te volgen."
+
+msgid "Usados na entrega e na fatura."
+msgstr "Gebruikt voor levering en facturatie."
+
+msgid "Nenhum endereço cadastrado"
+msgstr "Geen adres opgeslagen"
+
+msgid "O cadastro de endereços chega junto com a finalização de compra — é lá que ele passa a ser usado."
+msgstr "Adressen opslaan komt samen met het afrekenen — daar worden ze gebruikt."
+
+msgid "Endereços — JD PRINT"
+msgstr "Adressen — JD PRINT"
+
+msgid "O histórico das suas compras."
+msgstr "De geschiedenis van uw aankopen."
+
+msgid "Ainda não há pedidos"
+msgstr "Nog geen bestellingen"
+
+msgid "A finalização de compra ainda está sendo construída. Assim que ela existir, seus pedidos aparecem aqui."
+msgstr "Het afrekenen wordt nog gebouwd. Zodra het bestaat, verschijnen uw bestellingen hier."
+
+msgid "Meus pedidos — JD PRINT"
+msgstr "Mijn bestellingen — JD PRINT"
+
+msgid "Seleção"
+msgstr "Selectie"
+
+msgid "Como trabalhamos"
+msgstr "Hoe we werken"
+
+msgid "Produção própria"
+msgstr "Eigen productie"
+
+msgid "Impressão feita por nós, com controle de camada e acabamento."
+msgstr "Door ons geprint, met controle over lagen en afwerking."
+
+msgid "Personalização real"
+msgstr "Echte personalisatie"
+
+msgid "Foto ou texto aplicados na peça antes da impressão."
+msgstr "Foto of tekst op het stuk aangebracht vóór het printen."
+
+msgid "Cada peça sai na cor e no material que você escolher."
+msgstr "Elk stuk komt in de kleur en het materiaal dat u kiest."
+
+msgid "Área de imagem do banner"
+msgstr "Afbeeldingsgebied van de banner"
+
+msgid "Personalizável"
+msgstr "Aanpasbaar"
+
+msgid "Sem estoque"
+msgstr "Niet op voorraad"
+
+msgid "a partir de"
+msgstr "vanaf"
+
+msgid "Ref."
+msgstr "Ref."
+
+msgid "Remover filtro"
+msgstr "Filter verwijderen"
+
+msgid "%(formats)s até %(size)s MB."
+msgstr "%(formats)s tot %(size)s MB."
+
+msgid "Espaço reservado à logo oficial"
+msgstr "Ruimte gereserveerd voor het officiële logo"
+
+msgid "%(total)s item"
+msgid_plural "%(total)s itens"
+msgstr[0] "%(total)s artikel"
+msgstr[1] "%(total)s artikelen"
+
+msgid "Olá, %(name)s!"
+msgstr "Hallo %(name)s!"
+
+msgid "cliente desde %(since)s"
+msgstr "klant sinds %(since)s"
+
+msgid "Ver mídia %(number)s"
+msgstr "Media %(number)s bekijken"
+
+msgid "Crie a categoria \"%(expected_slug)s\" no painel administrativo para que os modelos apareçam aqui."
+msgstr "Maak de categorie \"%(expected_slug)s\" aan in de beheerder zodat de modellen hier verschijnen."
+
+msgid "Aguardando pagamento"
+msgstr "Wacht op betaling"
+
+msgid "Confirmado"
+msgstr "Bevestigd"
+
+msgid "Concluído"
+msgstr "Afgerond"
+
+msgid "Cancelado"
+msgstr "Geannuleerd"
+
+msgid "Reembolsado"
+msgstr "Terugbetaald"
+
+msgid "Pendente"
+msgstr "In afwachting"
+
+msgid "Pago"
+msgstr "Betaald"
+
+msgid "Recusado"
+msgstr "Geweigerd"
+
+msgid "Parcialmente reembolsado"
+msgstr "Gedeeltelijk terugbetaald"
+
+msgid "Não iniciado"
+msgstr "Niet gestart"
+
+msgid "Em produção"
+msgstr "In productie"
+
+msgid "Pronto"
+msgstr "Klaar"
+
+msgid "Pronto para envio"
+msgstr "Klaar voor verzending"
+
+msgid "Enviado"
+msgstr "Verzonden"
+
+msgid "Entregue"
+msgstr "Geleverd"
+
+msgid "Criado"
+msgstr "Aangemaakt"
+
+msgid "Processando"
+msgstr "Wordt verwerkt"
+
+msgid "Sem solicitação"
+msgstr "Geen verzoek"
+
+msgid "Do estoque"
+msgstr "Uit voorraad"
+
+msgid "Personalizado"
+msgstr "Gepersonaliseerd"
+
+msgid "Pagamento recusado"
+msgstr "Betaling geweigerd"
+
+msgid "Pedido criado"
+msgstr "Bestelling aangemaakt"
+
+msgid "Pedido criado."
+msgstr "Bestelling aangemaakt."
+
+msgid "Pagamento iniciado"
+msgstr "Betaling gestart"
+
+msgid "Pagamento iniciado."
+msgstr "Betaling gestart."
+
+msgid "Nova tentativa de pagamento."
+msgstr "Nieuwe betaalpoging."
+
+msgid "Pagamento confirmado"
+msgstr "Betaling bevestigd"
+
+msgid "Pagamento confirmado."
+msgstr "Betaling bevestigd."
+
+msgid "Pedido confirmado"
+msgstr "Bestelling bevestigd"
+
+msgid "Pedido confirmado."
+msgstr "Bestelling bevestigd."
+
+msgid "Pedido cancelado"
+msgstr "Bestelling geannuleerd"
+
+msgid "Pedido cancelado."
+msgstr "Bestelling geannuleerd."
+
+msgid "Cancelamento solicitado"
+msgstr "Annulering aangevraagd"
+
+msgid "Cancelamento aprovado"
+msgstr "Annulering goedgekeurd"
+
+msgid "Cancelamento recusado"
+msgstr "Annulering geweigerd"
+
+msgid "Estoque insuficiente"
+msgstr "Onvoldoende voorraad"
+
+msgid "Observação"
+msgstr "Opmerking"
+
+msgid "Checkout"
+msgstr "Afrekenen"
+
+msgid "Identificação"
+msgstr "Identificatie"
+
+msgid "Pagamento"
+msgstr "Betaling"
+
+msgid "Forma de entrega"
+msgstr "Verzendmethode"
+
+msgid "Endereço de entrega"
+msgstr "Bezorgadres"
+
+msgid "Endereço de faturamento"
+msgstr "Factuuradres"
+
+msgid "Faturamento"
+msgstr "Facturatie"
+
+msgid "Fatura"
+msgstr "Factuur"
+
+msgid "Entrega"
+msgstr "Levering"
+
+msgid "Itens"
+msgstr "Artikelen"
+
+msgid "Valores"
+msgstr "Bedragen"
+
+msgid "Total"
+msgstr "Totaal"
+
+msgid "Total pago"
+msgstr "Totaal betaald"
+
+msgid "Desconto"
+msgstr "Korting"
+
+msgid "Resumo do pedido"
+msgstr "Overzicht bestelling"
+
+msgid "Prazo estimado"
+msgstr "Geschatte levertijd"
+
+msgid "Presente"
+msgstr "Cadeau"
+
+msgid "Cliente"
+msgstr "Klant"
+
+msgid "Idioma"
+msgstr "Taal"
+
+msgid "Pedido"
+msgstr "Bestelling"
+
+msgid "Cartão"
+msgstr "Kaart"
+
+msgid "Código de rastreio"
+msgstr "Trackingnummer"
+
+msgid "Rastreio"
+msgstr "Tracking"
+
+msgid "Acompanhamento"
+msgstr "Volg uw bestelling"
+
+msgid "Observação do cliente"
+msgstr "Opmerking van de klant"
+
+msgid "Observação para a produção"
+msgstr "Opmerking voor de productie"
+
+msgid "Produção e entrega"
+msgstr "Productie en levering"
+
+msgid "confirmado"
+msgstr "bevestigd"
+
+msgid "pago"
+msgstr "betaald"
+
+msgid "escolha o endereço"
+msgstr "kies het adres"
+
+msgid "país indisponível"
+msgstr "land niet beschikbaar"
+
+msgid "Não há nada para finalizar"
+msgstr "Er valt niets af te rekenen"
+
+msgid "Para finalizar a compra é preciso ter conta: é onde o pedido fica guardado e onde você acompanha a entrega. Seu carrinho continua exatamente como está."
+msgstr "Afrekenen vereist een account: daar wordt de bestelling bewaard en volgt u de levering. Uw winkelwagen blijft precies zoals hij is."
+
+msgid "Comprando como <strong class=\"text-ink\">%(name)s</strong> · %(email)s"
+msgstr "Bestellen als <strong class=\"text-ink\">%(name)s</strong> · %(email)s"
+
+msgid "Alguns itens precisam da sua atenção"
+msgstr "Sommige artikelen vragen uw aandacht"
+
+msgid "Alguns itens precisam da sua atenção."
+msgstr "Sommige artikelen vragen uw aandacht."
+
+msgid "Ajustar o carrinho"
+msgstr "Winkelwagen aanpassen"
+
+msgid "O pagamento acontece na página segura da Stripe. Os dados do seu cartão não passam pelos nossos servidores."
+msgstr "De betaling gebeurt op de beveiligde pagina van Stripe. Uw kaartgegevens komen niet op onze servers."
+
+msgid "Algo que devemos saber antes de imprimir?"
+msgstr "Iets wat we moeten weten voor het printen?"
+
+msgid "Você será levado à Stripe para concluir"
+msgstr "U gaat verder bij Stripe"
+
+msgid "Pagar €&nbsp;%(total)s"
+msgstr "Betaal €&nbsp;%(total)s"
+
+msgid "Pagar"
+msgstr "Betalen"
+
+msgid "Pagar agora"
+msgstr "Nu betalen"
+
+msgid "Retomar pagamento"
+msgstr "Betaling hervatten"
+
+msgid "Escolha o endereço de entrega para ver as opções."
+msgstr "Kies het bezorgadres om de opties te zien."
+
+msgid "Usar outro endereço"
+msgstr "Ander adres gebruiken"
+
+msgid "Falta o endereço de entrega"
+msgstr "Het bezorgadres ontbreekt"
+
+msgid "Cadastre para onde devemos enviar. Leva menos de um minuto."
+msgstr "Geef aan waar we moeten leveren. Het duurt minder dan een minuut."
+
+msgid "A fatura vai para o mesmo endereço"
+msgstr "De factuur gaat naar hetzelfde adres"
+
+msgid "Enviar como presente"
+msgstr "Als cadeau versturen"
+
+msgid "Enviar como presente."
+msgstr "Als cadeau versturen."
+
+msgid "A entrega vai para outra pessoa; a fatura continua no seu nome."
+msgstr "De levering gaat naar iemand anders; de factuur blijft op uw naam."
+
+msgid "Ainda não temos tarifa cadastrada para %(country)s com o peso deste pedido. Fale conosco e resolvemos."
+msgstr "We hebben nog geen tarief voor %(country)s bij dit gewicht. Neem contact op en we lossen het op."
+
+msgid "Pedido confirmado!"
+msgstr "Bestelling bevestigd!"
+
+msgid "Obrigado pela sua compra. Enviamos um e-mail com todos os detalhes."
+msgstr "Bedankt voor uw aankoop. We hebben u een e-mail met alle details gestuurd."
+
+msgid "Estamos confirmando seu pagamento"
+msgstr "We bevestigen uw betaling"
+
+msgid "O banco ainda está respondendo. Assim que a confirmação chegar, enviamos o e-mail com todos os detalhes — normalmente em poucos segundos."
+msgstr "De bank antwoordt nog. Zodra de bevestiging binnen is, sturen we de e-mail met alle details — meestal binnen enkele seconden."
+
+msgid "Ver meu pedido"
+msgstr "Mijn bestelling bekijken"
+
+msgid "Ver pedido"
+msgstr "Bestelling bekijken"
+
+msgid "Pagamento não concluído"
+msgstr "Betaling niet voltooid"
+
+msgid "Pagamento não concluído — JD PRINT"
+msgstr "Betaling niet voltooid — JD PRINT"
+
+msgid "Seu pedido continua guardado. Você pode retomar o pagamento quando quiser — nada foi cobrado."
+msgstr "Uw bestelling blijft bewaard. U kunt de betaling hervatten wanneer u wilt — er is niets afgeschreven."
+
+msgid "Novo endereço"
+msgstr "Nieuw adres"
+
+msgid "Novo endereço — JD PRINT"
+msgstr "Nieuw adres — JD PRINT"
+
+msgid "Editar endereço"
+msgstr "Adres bewerken"
+
+msgid "Editar endereço — JD PRINT"
+msgstr "Adres bewerken — JD PRINT"
+
+msgid "Remover endereço"
+msgstr "Adres verwijderen"
+
+msgid "Remover endereço — JD PRINT"
+msgstr "Adres verwijderen — JD PRINT"
+
+msgid "Salvar endereço"
+msgstr "Adres opslaan"
+
+msgid "Cadastrar endereço"
+msgstr "Adres toevoegen"
+
+msgid "Editar"
+msgstr "Bewerken"
+
+msgid "Tornar padrão"
+msgstr "Als standaard instellen"
+
+msgid "Endereço salvo."
+msgstr "Adres opgeslagen."
+
+msgid "Endereço atualizado."
+msgstr "Adres bijgewerkt."
+
+msgid "Endereço removido."
+msgstr "Adres verwijderd."
+
+msgid "Endereço padrão atualizado."
+msgstr "Standaardadres bijgewerkt."
+
+msgid "Casa, Trabalho, Presente da Marie..."
+msgstr "Thuis, Werk, Cadeau voor Marie…"
+
+msgid "Quem recebe pode não ser quem compra — é o que torna o presente possível."
+msgstr "De ontvanger hoeft niet de koper te zijn — dat maakt een cadeau mogelijk."
+
+msgid "Cadastre para onde devemos enviar. Você pode ter quantos endereços quiser — casa, trabalho, presente."
+msgstr "Geef aan waar we moeten leveren. U kunt zoveel adressen bewaren als u wilt — thuis, werk, cadeau."
+
+msgid "Tem certeza de que quer remover este endereço?"
+msgstr "Weet u zeker dat u dit adres wilt verwijderen?"
+
+msgid "Seus pedidos anteriores não mudam: cada um guarda a própria cópia do endereço de entrega e de faturamento."
+msgstr "Uw eerdere bestellingen veranderen niet: elke bestelling bewaart een eigen kopie van het bezorg- en factuuradres."
+
+msgid "Ainda não entregamos neste país."
+msgstr "We leveren nog niet in dit land."
+
+msgid "Ainda não entregamos em %(country)s. Escolha outro endereço."
+msgstr "We leveren nog niet in %(country)s. Kies een ander adres."
+
+msgid "Pedido %(number)s — JD PRINT"
+msgstr "Bestelling %(number)s — JD PRINT"
+
+msgid "Quando você finalizar uma compra, ela aparece aqui com o histórico completo."
+msgstr "Zodra u een aankoop afrondt, verschijnt die hier met de volledige geschiedenis."
+
+msgid "Solicitar cancelamento"
+msgstr "Annulering aanvragen"
+
+msgid "Solicitar cancelamento — JD PRINT"
+msgstr "Annulering aanvragen — JD PRINT"
+
+msgid "Por que quer cancelar?"
+msgstr "Waarom wilt u annuleren?"
+
+msgid "Conte o que aconteceu — ajuda a resolver mais rápido."
+msgstr "Vertel wat er gebeurd is — dat helpt om het sneller op te lossen."
+
+msgid "Escreva o motivo do cancelamento."
+msgstr "Schrijf de reden voor de annulering."
+
+msgid "Enviar solicitação"
+msgstr "Verzoek versturen"
+
+msgid "Voltar ao pedido"
+msgstr "Terug naar de bestelling"
+
+msgid "O cancelamento não é automático: analisamos o pedido e respondemos. Se a produção já tiver começado, explicamos as opções."
+msgstr "Annuleren gaat niet automatisch: we bekijken de bestelling en laten het u weten. Is de productie al begonnen, dan leggen we de opties uit."
+
+msgid "Pedido de cancelamento enviado. Respondemos assim que analisarmos."
+msgstr "Annuleringsverzoek verstuurd. We antwoorden zodra we het bekeken hebben."
+
+msgid "Este pedido não pode mais ser cancelado por aqui."
+msgstr "Deze bestelling kan hier niet meer geannuleerd worden."
+
+msgid "Cancelamento em análise"
+msgstr "Annulering in behandeling"
+
+msgid "Recebemos seu pedido de cancelamento e respondemos em breve."
+msgstr "We hebben uw annuleringsverzoek ontvangen en antwoorden binnenkort."
+
+msgid "Escolha para onde enviar."
+msgstr "Kies waar we moeten leveren."
+
+msgid "Escolha o endereço de faturamento."
+msgstr "Kies het factuuradres."
+
+msgid "Escolha o endereço de entrega e o de faturamento."
+msgstr "Kies het bezorg- en het factuuradres."
+
+msgid "Escolha uma forma de entrega."
+msgstr "Kies een verzendmethode."
+
+msgid "Escolha uma forma de entrega válida para este endereço."
+msgstr "Kies een verzendmethode die dit adres bedient."
+
+msgid "%(name)s não está mais disponível."
+msgstr "%(name)s is niet meer beschikbaar."
+
+msgid "%(name)s está esgotado."
+msgstr "%(name)s is niet op voorraad."
+
+msgid "%(name)s está sem preço definido."
+msgstr "%(name)s heeft geen prijs."
+
+msgid "%(name)s precisa de personalização."
+msgstr "%(name)s vereist personalisatie."
+
+msgid "A opção escolhida de %(name)s saiu do catálogo."
+msgstr "De gekozen optie van %(name)s staat niet meer in de catalogus."
+
+msgid "Só temos %(count)s unidade(s) de %(name)s."
+msgstr "We hebben nog maar %(count)s stuk(s) van %(name)s."
+
+msgid "%(name)s: faltaram %(count)s unidade(s)."
+msgstr "%(name)s: %(count)s stuk(s) tekort."
+
+msgid "Estoque insuficiente na confirmação do pagamento:\n%(list)s"
+msgstr "Onvoldoende voorraad bij de betalingsbevestiging:\n%(list)s"
+
+msgid "O pagamento on-line está temporariamente indisponível. Tente novamente em instantes."
+msgstr "Online betalen is tijdelijk niet beschikbaar. Probeer het zo dadelijk opnieuw."
+
+msgid "Não foi possível iniciar o pagamento. Tente novamente em instantes."
+msgstr "De betaling kon niet gestart worden. Probeer het zo dadelijk opnieuw."
+
+msgid "O meio de pagamento não está instalado neste servidor."
+msgstr "De betaalprovider is niet geïnstalleerd op deze server."
+
+msgid "Personalização: %(text)s"
+msgstr "Personalisatie: %(text)s"
+
+msgid "Pedido %(number)s confirmado — JD PRINT"
+msgstr "Bestelling %(number)s bevestigd — JD PRINT"
+
+msgid "Pedido %(number)s confirmado"
+msgstr "Bestelling %(number)s bevestigd"
+
+msgid "Pedido %(number)s enviado — JD PRINT"
+msgstr "Bestelling %(number)s verzonden — JD PRINT"
+
+msgid "Pedido %(number)s enviado"
+msgstr "Bestelling %(number)s verzonden"
+
+msgid "Pedido confirmado — JD PRINT"
+msgstr "Bestelling bevestigd — JD PRINT"
+
+msgid "[JD PRINT] Novo pedido %(number)s — %(total)s %(currency)s"
+msgstr "[JD PRINT] Nieuwe bestelling %(number)s — %(total)s %(currency)s"
+
+msgid "Novo pedido %(number)s"
+msgstr "Nieuwe bestelling %(number)s"
+
+msgid "Novo pedido para produzir"
+msgstr "Nieuwe bestelling om te produceren"
+
+msgid "Recebemos seu pagamento — pedido %(number)s."
+msgstr "We hebben uw betaling ontvangen — bestelling %(number)s."
+
+msgid "Olá, %(name)s. Recebemos seu pagamento e já colocamos seu pedido na fila."
+msgstr "Hallo %(name)s. We hebben uw betaling ontvangen en uw bestelling staat in de wachtrij."
+
+msgid "Olá, %(name)s. Seu pedido saiu para entrega."
+msgstr "Hallo %(name)s. Uw bestelling is onderweg."
+
+msgid "Seu pedido foi enviado!"
+msgstr "Uw bestelling is verzonden!"
+
+msgid "Seu pedido saiu para entrega."
+msgstr "Uw bestelling is onderweg."
+
+msgid "Rastreio %(tracking)s"
+msgstr "Tracking %(tracking)s"
+
+msgid "Acompanhar meu pedido"
+msgstr "Mijn bestelling volgen"
+
+msgid "Acompanhar a entrega"
+msgstr "De levering volgen"
+
+msgid "Ver os detalhes do pedido"
+msgstr "Bekijk de bestelgegevens"
+
+msgid "Qualquer dúvida, é só responder a este e-mail."
+msgstr "Vragen? Beantwoord gewoon deze e-mail."
+
+msgid "Abrir no Admin"
+msgstr "Openen in de beheerder"
+
+msgid "O destinatário não é o titular da conta — confira o endereço de entrega."
+msgstr "De ontvanger is niet de accounthouder — controleer het bezorgadres."
+
+msgid "Produção: %(days)s dia(s) útil(eis)"
+msgstr "Productie: %(days)s werkdag(en)"
+
+msgid "produção %(days)s dia(s) útil(eis)"
+msgstr "productie %(days)s werkdag(en)"
+
+msgid "prazo total %(days)s dias úteis"
+msgstr "totaal %(days)s werkdagen"
+
+msgid "Peso do pedido: %(weight)s g"
+msgstr "Gewicht van de bestelling: %(weight)s g"
+
+msgid "Inclui %(production)s dia(s) útil(eis) de produção."
+msgstr "Inclusief %(production)s werkdag(en) productie."
+
+msgid "%(days)s dias úteis"
+msgstr "%(days)s werkdagen"
+
+msgid "Prazo estimado: %(days)s dias úteis"
+msgstr "Geschatte levertijd: %(days)s werkdagen"
+
+msgid "Produção %(production)s + transporte %(min)s–%(max)s"
+msgstr "Productie %(production)s + transport %(min)s–%(max)s"
+
+msgid "TVA %(rate)s% (incluída)"
+msgstr "Btw %(rate)s% (inbegrepen)"
+
+msgid "%(count)s pedido(s) marcado(s) como enviado(s)."
+msgstr "%(count)s bestelling(en) gemarkeerd als verzonden."
+
+msgid "%(count)s cancelamento(s) aprovado(s). O reembolso, se houver, é feito na Stripe."
+msgstr "%(count)s annulering(en) goedgekeurd. Een eventuele terugbetaling gebeurt in Stripe."
+
+msgid "%(count)s cancelamento(s) recusado(s)."
+msgstr "%(count)s annulering(en) geweigerd."
+
+msgid "sem tarifa para este destino"
+msgstr "geen tarief voor deze bestemming"
+
+msgid "Nenhum ainda"
+msgstr "Nog geen"
+
+msgid "%(total)s pedido"
+msgid_plural "%(total)s pedidos"
+msgstr[0] "%(total)s bestelling"
+msgstr[1] "%(total)s bestellingen"

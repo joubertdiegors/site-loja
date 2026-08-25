@@ -1,0 +1,25 @@
+{% load i18n jdprint %}
+{% comment %}
+Contador do carrinho no header.
+
+Mostra o total de UNIDADES (2 unidades de A + 3 de B = 5), não o número de
+linhas. O HTMX troca este bloco por "out of band" depois de cada alteração no
+carrinho — por isso o id fixo.
+
+`data-cart-count` é o contrato para testes e automação: a cor da etiqueta é
+decisão visual, o número não.
+{% endcomment %}
+{# Link real: sem JS vai para /carrinho/; com JS abre a gaveta (app.js). #}
+<a id="cart-link" href="{% url 'cart:detail' %}"
+   class="focus-ring relative inline-flex h-10 w-10 items-center justify-center rounded-control bg-brand-600 text-white transition-colors duration-150 hover:bg-brand-700"
+   data-cart-open aria-haspopup="dialog" aria-expanded="false"
+   {% if oob %}hx-swap-oob="true"{% endif %}
+   aria-label="{% blocktranslate count total=cart.total_quantity %}Carrinho, {{ total }} item{% plural %}Carrinho, {{ total }} itens{% endblocktranslate %}">
+  {% icon "cart" %}
+  {% if cart.total_quantity %}
+    <span data-cart-count="{{ cart.total_quantity }}"
+          class="absolute -end-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-magenta-500 px-1 font-mono text-[10.5px] font-medium text-white ring-2 ring-white">
+      {{ cart.total_quantity }}
+    </span>
+  {% endif %}
+</a>

@@ -1,0 +1,62 @@
+{% load static i18n jdprint %}<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}" class="scroll-smooth">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>{% block title %}{{ meta_title|default:site_name }}{% endblock %}</title>
+  <meta name="description" content="{% block meta_description %}{{ meta_description|default:'' }}{% endblock %}">
+  <link rel="canonical" href="{{ request.build_absolute_uri }}">
+
+  {# Open Graph mínimo: o suficiente para um compartilhamento não sair torto. #}
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="{{ site_name }}">
+  <meta property="og:title" content="{% block og_title %}{{ meta_title|default:site_name }}{% endblock %}">
+  <meta property="og:description" content="{{ meta_description|default:'' }}">
+  <meta property="og:locale" content="{{ LANGUAGE_CODE }}">
+  <meta name="theme-color" content="#6d2ce0">
+
+  {% comment %}
+    As fontes são servidas pelo próprio site (nada de CDN externo: RGPD e uma
+    requisição a menos). Pré-carregar o latin evita o texto piscar.
+  {% endcomment %}
+  <link rel="preload" href="{% static 'fonts/manrope-400-800-latin.woff2' %}" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="{% static 'fonts/space-grotesk-500-700-latin.woff2' %}" as="font" type="font/woff2" crossorigin>
+
+  <link rel="stylesheet" href="{% static 'css/tailwind.css' %}">
+  {% brand_favicon_url as favicon_url %}
+  {% if favicon_url %}<link rel="icon" href="{{ favicon_url }}">{% endif %}
+  {% block extra_head %}{% endblock %}
+</head>
+{# hx-headers: o CSRF vai em todo POST do HTMX, sem repetir em cada formulário. #}
+<body class="flex min-h-screen flex-col bg-surface font-sans text-ink antialiased selection:bg-brand-200"
+      hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+  <a class="skip-link" href="#conteudo">{% translate "Ir para o conteúdo" %}</a>
+
+  {% include "components/header.html" %}
+
+  <main id="conteudo" class="flex-1">
+    {% block content %}{% endblock %}
+  </main>
+
+  {% include "components/footer.html" %}
+
+  {% include "components/cart_drawer.html" %}
+
+  {% comment %}
+    Avisos curtos. Sem JavaScript chegam pelas mensagens do Django; com HTMX,
+    por troca "out of band" nesta mesma região.
+  {% endcomment %}
+  <div id="toast-region" class="toast-region">
+    {% if messages %}
+      {% for message in messages %}
+        {% include "components/toast.html" with toast_message=message toast_level=message.tags %}
+      {% endfor %}
+    {% endif %}
+  </div>
+
+  <script src="{% static 'vendor/htmx.min.js' %}" defer></script>
+  <script src="{% static 'js/app.js' %}" defer></script>
+  {% block extra_scripts %}{% endblock %}
+</body>
+</html>

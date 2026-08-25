@@ -1,0 +1,88 @@
+{% load i18n %}
+{% comment %}
+Tabela de itens do pedido, usada pelo e-mail do cliente e pelo administrativo.
+
+`show_sku` liga a coluna de referência — o cliente não precisa dela, a produção
+não vive sem. Tudo aqui vem do snapshot gravado na compra.
+{% endcomment %}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;">
+  {% for item in items %}
+    <tr>
+      <td style="padding:10px 0;border-bottom:1px solid #e6e0f5;vertical-align:top;">
+        <strong style="color:#1b1533;">{{ item.quantity }} × {{ item.product_name }}</strong>
+        {% if item.variant_label %}
+          <span style="display:block;color:#6b6486;font-size:13px;">{{ item.variant_label }}</span>
+        {% endif %}
+        {% if show_sku and item.sku %}
+          <span style="display:block;color:#6b6486;font-size:12px;font-family:monospace;">{{ item.sku }}</span>
+        {% endif %}
+
+        {% if item.has_personalization %}
+          <span style="display:block;margin-top:4px;padding:6px 8px;background-color:#fde7f1;border-radius:6px;font-size:13px;color:#a3175c;">
+            {% if item.personalization_type == "photo" %}
+              <strong>{% translate "Foto enviada" %}</strong>
+              {% if item.personalization_upload %}— {{ item.personalization_upload.original_name }}{% endif %}
+              {% if show_sku and item.personalization_upload %}
+                <span style="display:block;font-family:monospace;font-size:12px;">
+                  {{ site_url }}{{ item.personalization_upload.file.url }}
+                </span>
+              {% endif %}
+            {% else %}
+              <strong>{% translate "Texto" %}:</strong> {{ item.personalization_text }}
+            {% endif %}
+            {% if item.personalization_notes %}
+              <span style="display:block;">{{ item.personalization_notes }}</span>
+            {% endif %}
+          </span>
+        {% endif %}
+
+        {% if show_sku %}
+          <span style="display:block;margin-top:4px;color:#6b6486;font-size:12px;">
+            {{ item.get_fulfillment_type_display }}
+            {% if item.production_days %}
+              · {% blocktranslate with days=item.production_days %}produção {{ days }} dia(s) útil(eis){% endblocktranslate %}
+            {% endif %}
+          </span>
+        {% endif %}
+      </td>
+      <td style="padding:10px 0;border-bottom:1px solid #e6e0f5;text-align:right;vertical-align:top;white-space:nowrap;color:#1b1533;">
+        {{ order.currency_symbol }} {{ item.total|floatformat:2 }}
+      </td>
+    </tr>
+  {% endfor %}
+</table>
+
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:14px;font-size:14px;color:#4a4266;">
+  <tr>
+    <td style="padding:3px 0;">{% translate "Subtotal" %}</td>
+    <td style="padding:3px 0;text-align:right;">{{ order.currency_symbol }} {{ order.subtotal|floatformat:2 }}</td>
+  </tr>
+  {% if order.discount_total %}
+    <tr>
+      <td style="padding:3px 0;">{% translate "Desconto" %}</td>
+      <td style="padding:3px 0;text-align:right;">−{{ order.currency_symbol }} {{ order.discount_total|floatformat:2 }}</td>
+    </tr>
+  {% endif %}
+  <tr>
+    <td style="padding:3px 0;">{% translate "Entrega" %}{% if order.shipping_method_label %} ({{ order.shipping_method_label }}){% endif %}</td>
+    <td style="padding:3px 0;text-align:right;">{{ order.currency_symbol }} {{ order.shipping_total|floatformat:2 }}</td>
+  </tr>
+  {% if order.tax_total %}
+    <tr>
+      <td style="padding:3px 0;color:#6b6486;font-size:13px;">
+        {% blocktranslate with rate=order.tax_rate|floatformat:"-2" %}TVA {{ rate }}% (incluída){% endblocktranslate %}
+      </td>
+      <td style="padding:3px 0;text-align:right;color:#6b6486;font-size:13px;">
+        {{ order.currency_symbol }} {{ order.tax_total|floatformat:2 }}
+      </td>
+    </tr>
+  {% endif %}
+  <tr>
+    <td style="padding:10px 0 0 0;border-top:1px solid #e6e0f5;font-weight:bold;color:#1b1533;font-size:16px;">
+      {% translate "Total" %}
+    </td>
+    <td style="padding:10px 0 0 0;border-top:1px solid #e6e0f5;text-align:right;font-weight:bold;color:#6d2ce0;font-size:18px;">
+      {{ order.currency_symbol }} {{ order.total|floatformat:2 }}
+    </td>
+  </tr>
+</table>

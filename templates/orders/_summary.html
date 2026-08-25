@@ -1,0 +1,101 @@
+{% load i18n jdprint %}
+{% comment %}
+Resumo do pedido: os mesmos números que serão gravados.
+
+Espera `lines` (linhas do carrinho) e `draft` (OrderDraft, ver
+apps/orders/services.py). Nenhuma conta acontece aqui — o template só mostra o
+que o serviço calculou, para não existir uma segunda versão do total.
+
+A TVA aparece como "incluída": no varejo B2C da UE o preço anunciado já é o
+preço final, e somar imposto na última tela seria irregular além de deselegante.
+{% endcomment %}
+<div class="card p-5 sm:p-6">
+  <h2 class="font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-ink-muted">
+    {% translate "Resumo do pedido" %}
+  </h2>
+
+  <ul class="mt-4 divide-y divide-surface-line" role="list">
+    {% for line in lines %}
+      <li class="flex gap-3 py-3">
+        <span class="relative block h-14 w-14 shrink-0 overflow-hidden rounded-[10px] border border-surface-line">
+          {% include "components/product_media.html" with media=line.product.display_media name=line.display_name compact=True %}
+          <span class="absolute -end-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-ink px-1 font-mono text-[10px] font-medium text-white">
+            {{ line.quantity }}
+          </span>
+        </span>
+
+        <span class="min-w-0 flex-1">
+          <span class="block truncate text-sm font-bold text-ink">{{ line.display_name }}</span>
+          {% if line.variant_label %}
+            <span class="block font-mono text-[10.5px] uppercase tracking-[0.06em] text-ink-muted">
+              {{ line.variant_label }}
+            </span>
+          {% endif %}
+          {% if line.has_customization %}
+            <span class="mt-0.5 block font-mono text-[10.5px] text-magenta-700">
+              {% if line.customization_type == "photo" %}
+                {% translate "Com foto" %}{% if line.upload %} · {{ line.upload.original_name|truncatechars:18 }}{% endif %}
+              {% else %}
+                {% translate "Texto" %}: “{{ line.customization_text|truncatechars:22 }}”
+              {% endif %}
+            </span>
+          {% endif %}
+        </span>
+
+        <span class="font-display text-sm font-bold tabular-price text-ink">
+          €&nbsp;{{ line.total|floatformat:2 }}
+        </span>
+      </li>
+    {% endfor %}
+  </ul>
+
+  <dl class="mt-4 space-y-2 border-t border-surface-line pt-4 text-sm">
+    <div class="flex items-baseline justify-between gap-4">
+      <dt class="text-ink-soft">{% translate "Subtotal" %}</dt>
+      <dd class="tabular-price text-ink">€&nbsp;{{ draft.subtotal|floatformat:2 }}</dd>
+    </div>
+
+    <div class="flex items-baseline justify-between gap-4">
+      <dt class="text-ink-soft">{% translate "Entrega" %}</dt>
+      <dd class="tabular-price text-ink">
+        {% if draft.has_shipping %}
+          €&nbsp;{{ draft.shipping_total|floatformat:2 }}
+        {% elif draft.country %}
+          <span class="text-ink-muted">{% translate "sem tarifa para este destino" %}</span>
+        {% else %}
+          <span class="text-ink-muted">{% translate "escolha o endereço" %}</span>
+        {% endif %}
+      </dd>
+    </div>
+
+    {% if draft.tax and draft.tax.amount %}
+      <div class="flex items-baseline justify-between gap-4">
+        <dt class="text-ink-muted">
+          {% blocktranslate with rate=draft.tax.rate|floatformat:"-2" %}TVA {{ rate }}% (incluída){% endblocktranslate %}
+        </dt>
+        <dd class="tabular-price text-ink-muted">€&nbsp;{{ draft.tax.amount|floatformat:2 }}</dd>
+      </div>
+    {% endif %}
+  </dl>
+
+  <div class="mt-4 flex items-baseline justify-between gap-4 border-t border-surface-line pt-4">
+    <span class="text-sm font-bold text-ink">{% translate "Total" %}</span>
+    <span class="font-display text-2xl font-bold tabular-price text-brand-800">
+      €&nbsp;{{ draft.total|floatformat:2 }}
+    </span>
+  </div>
+
+  {% if draft.has_shipping %}
+    <p class="mt-3 flex items-start gap-2 rounded-control bg-surface-brand px-3 py-2.5 text-[13px] leading-relaxed text-ink-soft">
+      {% icon "clock" "mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-600" %}
+      <span>
+        {% blocktranslate with days=draft.days_display %}Prazo estimado: {{ days }} dias úteis{% endblocktranslate %}
+        {% if draft.production_days %}
+          <span class="block text-ink-muted">
+            {% blocktranslate with production=draft.production_days min=draft.shipping_option.transit_min_days max=draft.shipping_option.transit_max_days %}Produção {{ production }} + transporte {{ min }}–{{ max }}{% endblocktranslate %}
+          </span>
+        {% endif %}
+      </span>
+    </p>
+  {% endif %}
+</div>
