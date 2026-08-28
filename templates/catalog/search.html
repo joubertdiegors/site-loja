@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% load i18n jdprint %}
+
+{% comment %}
+Resultados da busca.
+
+A grade, o card, a ordenação e a paginação são os mesmos do Shop
+(`_shop_results.html`) — a busca é a vitrine recortada por texto, não uma tela
+nova. Só o que é da busca mora aqui: o campo grande, o título com o termo
+procurado e a lateral, que aqui só tem materiais (a busca atravessa a loja
+inteira, então uma lista de categorias não filtraria nada).
+
+O campo aparece de novo no meio da página, e não só no cabeçalho: quem chegou a
+uma página de resultados quase sempre quer corrigir a palavra, e mandar a
+pessoa de volta ao topo para isso é atrito à toa.
+{% endcomment %}
+
+{% block content %}
+  <section class="container-page py-6 sm:py-10">
+
+    <nav class="mb-5 font-mono text-[11px] uppercase tracking-[0.08em] text-ink-muted"
+         aria-label="{% translate 'Você está aqui' %}">
+      <ol class="flex flex-wrap items-center gap-1.5" role="list">
+        <li><a href="{% url 'home:index' %}" class="focus-ring rounded transition-colors hover:text-brand-700">{% translate "Início" %}</a></li>
+        <li aria-hidden="true">/</li>
+        <li class="text-brand-700">{% translate "Busca" %}</li>
+      </ol>
+    </nav>
+
+    <header class="max-w-2xl">
+      <p class="section-eyebrow">{% translate "Catálogo" %}</p>
+      <h1 class="section-title mt-2">{{ page_title }}</h1>
+      {% if has_query %}
+        <p class="section-subtitle" aria-live="polite">
+          {% blocktranslate count total=result_count %}{{ total }} produto encontrado{% plural %}{{ total }} produtos encontrados{% endblocktranslate %}
+        </p>
+      {% endif %}
+    </header>
+
+    {# Buscar de novo, sem voltar ao topo. #}
+    <form action="{% url 'catalog:search' %}" method="get" role="search"
+          class="mt-6 flex max-w-xl gap-2">
+      <div class="relative flex-1">
+        <span class="pointer-events-none absolute inset-y-0 start-0 flex items-center ps-3.5 text-ink-muted">
+          {% icon "search" "h-4 w-4" %}
+        </span>
+        <label class="sr-only" for="busca-pagina">{% translate "Buscar produtos" %}</label>
+        <input id="busca-pagina" type="search" name="q" value="{{ query }}"
+               class="field-input w-full ps-10"
+               placeholder="{% translate 'Buscar produtos' %}"
+               autocomplete="off">
+      </div>
+      <button type="submit" class="btn-primary">{% translate "Buscar" %}</button>
+    </form>
+
+    {% comment %}
+      A grade de duas colunas existe quando alguma coluna tem função.
+
+      Com cards, a lateral segura o alinhamento: é ela que faz o card da busca
+      medir exatamente o que mede no catálogo, e por isso continua sendo um
+      item da grade mesmo vazia (`hidden lg:block`, e não `hidden` — com
+      `display: none` ela sairia da grade e os resultados cairiam na coluna de
+      254 px). Ela também impede o card de mudar de tamanho entre uma busca e
+      outra, conforme o filtro de material aparece ou some.
+
+      Sem cards não há nada a alinhar, e a coluna vira 254 px de vão morto que
+      empurram a barra e o estado vazio para a direita — enquanto o título e o
+      campo ficam à esquerda. Aí a grade não se justifica.
+    {% endcomment %}
+    {% if products or material_nodes %}
+
+      <div class="shop-layout">
+        <div id="shop-materials" class="{% if not material_nodes %}hidden lg:block{% endif %}">
+          {% if material_nodes %}
+            <div class="card p-3 lg:sticky lg:top-28">
+              {% include "catalog/_material_filter.html" with standalone=True %}
+            </div>
+          {% endif %}
+        </div>
+
+        <div id="shop-results">
+          {% include "catalog/_shop_results.html" %}
+        </div>
+      </div>
+
+    {% else %}
+
+      {% comment %}
+        Uma coluna só, alinhada com o título. A largura é a do `<header>` acima
+        (`max-w-2xl`): título, subtítulo e resultado ficam na mesma coluna de
+        leitura, e o estado vazio deixa de ser uma faixa tracejada de 1216 px
+        em volta de quatro linhas de texto.
+
+        Sem `min-height` em lugar nenhum: empurrar o rodapé com altura
+        artificial esconderia o sintoma em vez de resolver. Página com pouco
+        conteúdo é curta.
+      {% endcomment %}
+      <div id="shop-results" class="mt-7 max-w-2xl">
+        {% include "catalog/_shop_results.html" %}
+      </div>
+
+    {% endif %}
+  </section>
+{% endblock %}

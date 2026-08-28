@@ -1,0 +1,21 @@
+{% extends "accounts/base_account.html" %}
+{% load i18n jdprint %}
+
+{% comment %}
+"Minha conta › Favoritos".
+
+Vive na área da conta porque é conteúdo de quem entrou — a mesma moldura de
+"Meus pedidos", com o mesmo menu lateral. A grade e o card vêm da loja.
+
+A URL, porém, é curta (`/favoritos/`): é para onde o coração do cabeçalho
+leva, e `/conta/favoritos/` seria um caminho a mais para digitar e lembrar.
+{% endcomment %}
+
+{% block account_title %}{% translate "Meus favoritos" %}{% endblock %}
+{% block account_subtitle %}
+  <p class="section-subtitle">{% translate "Os produtos que você guardou para depois." %}</p>
+{% endblock %}
+
+{% block account_body %}
+  {% include "accounts/_favorites_grid.html" %}
+{% endblock %}

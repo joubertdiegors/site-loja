@@ -94,6 +94,8 @@ class OrderEvent(models.TextChoices):
     CANCELLED = "cancelled", _("Pedido cancelado")
     REFUNDED = "refunded", _("Reembolsado")
     STOCK_SHORTAGE = "stock_shortage", _("Estoque insuficiente")
+    EMAIL_RESENT = "email_resent", _("E-mail reenviado")
+    STATUS_CHANGED = "status_changed", _("Situação alterada")
     NOTE = "note", _("Observação")
 
 
@@ -269,9 +271,14 @@ class Order(TimeStampedModel):
     shipped_at = models.DateTimeField("enviado em", null=True, blank=True)
     cancelled_at = models.DateTimeField("cancelado em", null=True, blank=True)
 
-    # Controle de envio de e-mail: o webhook pode chegar duas vezes.
+    # Controle de envio de e-mail: o webhook pode chegar duas vezes, e cada
+    # e-mail tem a sua própria marca. Sem a do administrativo, uma reentrega
+    # mandaria a mesma ordem de produção de novo — e alguém imprimiria duas.
     confirmation_email_sent_at = models.DateTimeField(
         "e-mail de confirmação enviado em", null=True, blank=True
+    )
+    admin_email_sent_at = models.DateTimeField(
+        "ordem de produção enviada em", null=True, blank=True
     )
     shipped_email_sent_at = models.DateTimeField(
         "e-mail de envio enviado em", null=True, blank=True

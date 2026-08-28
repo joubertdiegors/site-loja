@@ -13,7 +13,11 @@ HTMX = {"HTTP_HX_REQUEST": "true"}
 
 
 def quantity_in(session, product, variant=None, customization=None):
-    """Quantidade de uma linha na sessão, pela identidade produto+variante."""
+    """Quantidade de uma linha na sessão, pela identidade produto+variante.
+
+    Sem variante explícita, a padrão: toda linha tem uma.
+    """
+    variant = variant or product.default_variant
     key = line_key(product.pk, variant.pk if variant else None, customization)
     return session.get(CART_SESSION_KEY, {}).get(key, {}).get("quantity", 0)
 
@@ -123,7 +127,7 @@ class UpdateAndRemoveTests(LanguageResetMixin, TestCase):
 
     @property
     def line(self):
-        return line_key(self.product.pk, None, None)
+        return line_key(self.product.pk, self.product.default_variant.pk, None)
 
     def test_increment(self):
         self.client.post(reverse("cart:update"), {"line": self.line, "action": "increment"})

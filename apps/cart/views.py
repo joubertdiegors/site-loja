@@ -13,7 +13,7 @@ Isso mantém a loja utilizável sem JavaScript e rápida com ele.
 import json
 
 from django.contrib import messages
-from django.http import HttpResponseRedirect
+from django.http import Http404, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -43,12 +43,23 @@ def _safe_next(request) -> str:
 
 
 def _get_product(request) -> Product:
-    """Produto do POST. Só produtos ativos entram no carrinho."""
+    """Produto do POST. Só produtos ativos entram no carrinho.
+
+    O id vem do cliente, então pode não ser número: `pk="abc"` levanta
+    `ValueError` no ORM antes de qualquer consulta, e isso é um 500 para
+    quem só digitou besteira na requisição. Id inválido e id inexistente
+    são a mesma coisa aqui — não existe esse produto.
+    """
+    try:
+        product_id = int(request.POST.get("product_id") or 0)
+    except (TypeError, ValueError):
+        raise Http404("product_id inválido.")
+
     return get_object_or_404(
         Product.objects.select_related("category").prefetch_related(
             "translations", "variants", "media"
         ),
-        pk=request.POST.get("product_id"),
+        pk=product_id,
         status=ProductStatus.ACTIVE,
     )
 

@@ -3,8 +3,29 @@
 Rodapé.
 
 Fundo profundo com a listra de camada: fecha a página no mesmo tom em que a
-faixa do topo a abre. As categorias vêm do banco; as páginas institucionais
-ainda não existem e estão marcadas como tal, sem link falso.
+faixa do topo a abre.
+
+Tudo o que é texto vem de `storefront.FooterSettings` e `storefront.FooterColumn`
+(contexto `footer_settings` e `footer_columns`) — o administrador cadastra,
+traduz e reordena sem tocar aqui. A coluna de informações, com as quatro
+páginas da loja, é cadastrada pela migration de conteúdo da etapa 18.
+
+## O padrão continua existindo
+
+Cada bloco cai no texto de sempre quando não houver cadastro. Não é
+duplicação: é o rodapé que a loja já tinha, e é o que impede uma instalação
+recém-migrada de mostrar um rodapé vazio. Configurar passa a ser opcional, não
+obrigatório.
+
+## Nada de caixa vazia
+
+Campo em branco não vira bloco vazio: coluna sem link não aparece, link sem
+texto não aparece, contato sem e-mail nem telefone não aparece. É a diferença
+entre "ainda não configurei" e "está quebrado".
+
+As categorias continuam vindo do banco — só o título da coluna é cadastrado.
+Lista manual seria trocar algo que se atualiza sozinho por algo que alguém
+precisa lembrar de atualizar.
 {% endcomment %}
 <footer class="mt-16 bg-surface-deep layers-light text-brand-100">
   <div class="container-page py-14">
@@ -13,13 +34,42 @@ ainda não existem e estão marcadas como tal, sem link falso.
       <div class="lg:col-span-2">
         {% include "components/logo.html" with dark=True %}
         <p class="mt-5 max-w-sm text-sm leading-relaxed text-brand-200/85">
-          {% translate "Produtos criativos feitos com impressão 3D. Peças decorativas, acessórios e filamentos — com opção de personalização e produção sob encomenda." %}
+          {% if footer_settings.about_text %}
+            {{ footer_settings.about_text }}
+          {% else %}
+            {% translate "Produtos criativos feitos com impressão 3D. Peças decorativas, acessórios e filamentos — com opção de personalização e produção sob encomenda." %}
+          {% endif %}
         </p>
         <div class="marker-line mt-6 h-1 w-24 rounded-full"></div>
+
+        {% if footer_settings.has_contact %}
+          <div class="mt-6 space-y-1.5">
+            {% if footer_settings.contact_title %}
+              <h2 class="font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-white">
+                {{ footer_settings.contact_title }}
+              </h2>
+            {% endif %}
+            {% if footer_settings.contact_email %}
+              <p>
+                <a class="focus-ring rounded text-sm text-brand-200/85 transition-colors hover:text-white"
+                   href="mailto:{{ footer_settings.contact_email }}">{{ footer_settings.contact_email }}</a>
+              </p>
+            {% endif %}
+            {% if footer_settings.contact_phone %}
+              <p class="text-sm text-brand-200/85">{{ footer_settings.contact_phone }}</p>
+            {% endif %}
+          </div>
+        {% endif %}
       </div>
 
       <div>
-        <h2 class="font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-white">{% translate "Categorias" %}</h2>
+        <h2 class="font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-white">
+          {% if footer_settings.categories_title %}
+            {{ footer_settings.categories_title }}
+          {% else %}
+            {% translate "Categorias" %}
+          {% endif %}
+        </h2>
         <ul class="mt-4 space-y-2.5" role="list">
           {% for category in nav_categories %}
             <li>
@@ -32,28 +82,59 @@ ainda não existem e estão marcadas como tal, sem link falso.
         </ul>
       </div>
 
-      <div>
-        <h2 class="font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-white">{% translate "Ajuda" %}</h2>
-        <ul class="mt-4 space-y-2.5 text-sm text-brand-200/60" role="list">
-          {# Páginas institucionais entram nas próximas etapas. #}
-          <li>{% translate "Envios e prazos" %}</li>
-          <li>{% translate "Trocas e devoluções" %}</li>
-          <li>{% translate "Contato" %}</li>
-        </ul>
-        <p class="mt-3 font-mono text-[10.5px] uppercase tracking-[0.1em] text-brand-200/70">
-          {% translate "Páginas em construção." %}
-        </p>
-      </div>
+      {% comment %}
+        As colunas cadastradas. Link com destino vira `<a>`; sem destino, vira
+        texto — um link para uma página que dá 404 é pior que um texto sem
+        link.
+
+        `link.href` resolve as duas origens: a página da loja (que sabe o
+        idioma do visitante) ou o endereço digitado. Sem coluna cadastrada o
+        rodapé não desenha esta parte — e a migration de conteúdo da etapa 18
+        garante que exista uma desde a instalação.
+      {% endcomment %}
+      {% for column in footer_columns %}
+        {% with links=column.visible_links %}
+          {% if links %}
+            <div>
+              {% if column.title %}
+                <h2 class="font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-white">{{ column.title }}</h2>
+              {% endif %}
+              <ul class="mt-4 space-y-2.5 text-sm" role="list">
+                {% for link in links %}
+                  {% if link.label %}
+                    <li>
+                      {% if link.href %}
+                        <a class="focus-ring rounded text-brand-200/85 transition-colors hover:text-white"
+                           href="{{ link.href }}">{{ link.label }}</a>
+                      {% else %}
+                        <span class="text-brand-200/60">{{ link.label }}</span>
+                      {% endif %}
+                    </li>
+                  {% endif %}
+                {% endfor %}
+              </ul>
+            </div>
+          {% endif %}
+        {% endwith %}
+      {% endfor %}
     </div>
 
     <div class="mt-12 flex flex-col gap-3 border-t border-white/10 pt-6 sm:flex-row sm:items-center sm:justify-between">
       <p class="font-mono text-[11px] text-brand-200/60">
-        {% now "Y" as current_year %}
-        {% blocktranslate %}© {{ current_year }} {{ site_name }}. Todos os direitos reservados.{% endblocktranslate %}
+        {% if footer_settings.copyright_text %}
+          {{ footer_settings.copyright_text }}
+        {% else %}
+          {% now "Y" as current_year %}
+          {% blocktranslate %}© {{ current_year }} {{ site_name }}. Todos os direitos reservados.{% endblocktranslate %}
+        {% endif %}
       </p>
       <p class="flex items-center gap-2 font-mono text-[11px] text-brand-200/60">
         {% icon "shield" "h-4 w-4 text-brand-300" %}
-        {% translate "Compra segura" %}
+        {% if footer_settings.badge_text %}
+          {{ footer_settings.badge_text }}
+        {% else %}
+          {% translate "Compra segura" %}
+        {% endif %}
       </p>
     </div>
   </div>

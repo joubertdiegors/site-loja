@@ -84,9 +84,15 @@ def _send(subject: str, template: str, context: dict, recipients: list[str]) -> 
 # ---------------------------------------------------------------------------
 
 
-def send_order_confirmation_email(order) -> bool:
-    """Confirmação para o cliente. Enviada **uma vez** por pedido."""
-    if order.confirmation_email_sent_at is not None:
+def send_order_confirmation_email(order, *, force: bool = False) -> bool:
+    """Confirmação para o cliente. Enviada **uma vez** por pedido.
+
+    ``force=True`` é o reenvio pedido pelo administrador (ver
+    ``apps.orders.services.resend_email``): manda de novo mesmo com a marca
+    preenchida. Nenhum caminho automático usa isso — reenviar sozinho seria
+    mandar a mesma confirmação toda vez que o webhook fosse reentregue.
+    """
+    if order.confirmation_email_sent_at is not None and not force:
         return False
 
     with translation.override(order_language(order)):
@@ -103,9 +109,9 @@ def send_order_confirmation_email(order) -> bool:
     return sent
 
 
-def send_order_shipped_email(order) -> bool:
+def send_order_shipped_email(order, *, force: bool = False) -> bool:
     """Aviso de envio, com rastreio quando existe."""
-    if order.shipped_email_sent_at is not None:
+    if order.shipped_email_sent_at is not None and not force:
         return False
 
     with translation.override(order_language(order)):
@@ -130,17 +136,31 @@ def send_order_shipped_email(order) -> bool:
 
 
 def admin_recipients() -> list[str]:
-    return list(getattr(settings, "ORDER_ADMIN_EMAILS", []) or [])
+    """Quem recebe a ordem de producao.
+
+    Sai da mesma regra de prioridade do resto do e-mail (Admin -> .env), para
+    nao acontecer de o servidor vir do Admin e o destinatario do `.env`.
+    """
+    from apps.core.mailer import admin_recipients as configurados
+
+    return configurados()
 
 
-def send_admin_order_email(order) -> bool:
-    """Ordem de produção. Sempre em português — é a equipe que lê."""
+def send_admin_order_email(order, *, force: bool = False) -> bool:
+    """Ordem de produção. Sempre em português — é a equipe que lê.
+
+    Também é enviada **uma vez**: uma reentrega do webhook não pode fazer a
+    oficina receber a mesma ordem duas vezes e imprimir duas.
+    """
+    if order.admin_email_sent_at is not None and not force:
+        return False
+
     with translation.override(settings.LANGUAGE_CODE):
         context = order_context(order)
         context["admin_url"] = absolute_url(
             f"/admin/orders/order/{order.pk}/change/"
         )
-        return _send(
+        sent = _send(
             _("[JD PRINT] Novo pedido %(number)s — %(total)s %(currency)s")
             % {"number": order.number, "total": f"{order.total:.2f}", "currency": order.currency},
             "order_admin",
@@ -148,11 +168,25 @@ def send_admin_order_email(order) -> bool:
             admin_recipients(),
         )
 
+    if sent:
+        order.admin_email_sent_at = timezone.now()
+        order.save(update_fields=["admin_email_sent_at", "updated_at"])
+    return sent
 
-def send_order_emails(order) -> None:
+
+def send_order_emails(order) -> dict:
     """Os dois e-mails da confirmação, na ordem em que importam.
 
     O do cliente primeiro: se o segundo falhar, quem comprou já foi avisado.
+
+    Cada um decide sozinho se já foi enviado, pela marca que guarda no pedido.
+    Chamar esta função de novo — porque o webhook foi reentregue — só manda o
+    que ainda não saiu.
+
+    Devolve o que foi enviado **nesta** chamada, para quem chamou saber se
+    houve trabalho novo.
     """
-    send_order_confirmation_email(order)
-    send_admin_order_email(order)
+    return {
+        "confirmation": send_order_confirmation_email(order),
+        "admin": send_admin_order_email(order),
+    }

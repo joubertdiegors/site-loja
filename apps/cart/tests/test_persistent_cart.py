@@ -92,7 +92,7 @@ class AuthenticatedCartTests(PersistentCartTestCase):
 
     def test_updating_the_quantity_persists(self):
         self.add(self.product_a, 1)
-        key = line_key(self.product_a.pk, None, None)
+        key = line_key(self.product_a.pk, self.product_a.default_variant.pk, None)
 
         self.client.post(reverse("cart:update"), {"line": key, "quantity": 4})
 
@@ -100,7 +100,7 @@ class AuthenticatedCartTests(PersistentCartTestCase):
 
     def test_removing_a_line_deletes_the_row(self):
         self.add(self.product_a, 1)
-        key = line_key(self.product_a.pk, None, None)
+        key = line_key(self.product_a.pk, self.product_a.default_variant.pk, None)
 
         self.client.post(reverse("cart:remove"), {"line": key})
 
@@ -160,9 +160,11 @@ class AuthenticatedCartTests(PersistentCartTestCase):
         self.add(self.product_b, 1)
         self.add(self.product_c, 1)
 
-        # 1 carrinho + 1 itens + 1 produtos + 5 prefetches. É um número fixo:
+        # 1 carrinho + 1 itens + 1 produtos + 6 prefetches. Subiu um na etapa
+        # 19: as fotos das variantes, para a linha mostrar a peça que foi
+        # comprada e não a foto de abertura do produto. Continua **fixo** —
         # não cresce com a quantidade de linhas, que é o que importa.
-        with self.assertNumQueries(8):
+        with self.assertNumQueries(9):
             lines = self.fresh_cart().lines()
             [(line.display_name, line.unit_price) for line in lines]
 
@@ -357,7 +359,7 @@ class VisitorHintTests(PersistentCartTestCase):
 
         self.assertEqual(response.status_code, 302)
         self.assertEqual(
-            self.client.session[CART_SESSION_KEY][line_key(self.product_a.pk, None, None)][
+            self.client.session[CART_SESSION_KEY][line_key(self.product_a.pk, self.product_a.default_variant.pk, None)][
                 "quantity"
             ],
             2,

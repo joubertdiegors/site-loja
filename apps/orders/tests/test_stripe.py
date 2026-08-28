@@ -93,10 +93,11 @@ class StripeTestCase(LanguageResetMixin, TestCase):
         self.product = make_product(
             sku="P1", name="Vaso Espiral", price=Decimal("19.90"), stock_quantity=10
         )
+        self.variant = self.product.default_variant
 
         self.order = services.create_order(
             customer=self.user.customer,
-            lines=[CartLine(key="k", product=self.product, variant=None, quantity=2)],
+            lines=[CartLine(key="k", product=self.product, variant=self.variant, quantity=2)],
             shipping_address=self.address,
             billing_address=self.address,
             shipping_method=self.method,
@@ -328,8 +329,8 @@ class WebhookIdempotencyTests(StripeTestCase):
         self.post_event(event)
         self.post_event(event)
 
-        self.product.refresh_from_db()
-        self.assertEqual(self.product.stock_quantity, 8)
+        self.variant.refresh_from_db()
+        self.assertEqual(self.variant.stock_quantity, 8)
 
     def test_emails_are_sent_only_once(self):
         event = checkout_completed(self.order, event_id="evt_email")
@@ -351,8 +352,8 @@ class WebhookIdempotencyTests(StripeTestCase):
 
         order = Order.objects.get(pk=self.order.pk)
         self.assertEqual(order.paid_at, paid_at)
-        self.product.refresh_from_db()
-        self.assertEqual(self.product.stock_quantity, 8)
+        self.variant.refresh_from_db()
+        self.assertEqual(self.variant.stock_quantity, 8)
 
     def test_unfinished_session_does_not_confirm(self):
         event = checkout_completed(self.order, event_id="evt_unpaid", payment_status="unpaid")

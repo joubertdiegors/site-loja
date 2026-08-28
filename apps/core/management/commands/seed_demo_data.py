@@ -612,26 +612,14 @@ class Command(BaseCommand):
         }
 
     def create_products(self, categories, materials, colors):
+        """Produto genérico + as variantes, que é onde mora o comercial."""
         created = {}
         for data in PRODUCTS:
-            width, height, depth = data.get("dimensions", (None, None, None))
             product, was_created = Product.objects.get_or_create(
                 sku=data["sku"],
                 defaults={
                     "status": ProductStatus.ACTIVE,
                     "category": categories[data["category"]],
-                    "pricing_mode": PricingMode.PRICE,
-                    "sale_price": data["price"],
-                    "filament_cost": data["filament"],
-                    "energy_cost": data["energy"],
-                    "stock_quantity": data.get("stock", 0),
-                    "made_to_order": data.get("made_to_order", False),
-                    "production_lead_time_days": data.get("lead_time"),
-                    "print_time": data.get("print_time"),
-                    "weight_grams": data.get("weight"),
-                    "width": width,
-                    "height": height,
-                    "depth": depth,
                     "is_featured": data.get("featured", False),
                     "featured_order": data.get("featured_order", 0),
                     "personalization_type": data.get("personalization", "none"),
@@ -648,24 +636,61 @@ class Command(BaseCommand):
                 )
 
             if was_created:
-                product.materials.set([materials[name] for name in data.get("materials", [])])
-                product.colors.set([colors[name] for name in data.get("colors", [])])
                 # O slug foi gerado a partir do SKU antes de a tradução existir.
                 product.refresh_translations()
                 product.slug = ""
                 product.save()
-                self.create_variants(product, data, colors)
+                self.create_variants(product, data, colors, materials)
                 self.stdout.write(f"  produto: {product.sku}")
 
         return created
 
-    def create_variants(self, product, data, colors):
-        """Variantes do produto de demonstração, quando houver."""
-        for order, (suffix, color, size, price, stock) in enumerate(data.get("variants", []), 1):
+    def create_variants(self, product, data, colors, materials):
+        """As unidades vendáveis.
+
+        Produto sem lista de variantes ganha **uma**, com o SKU do produto: é
+        a mesma coisa que se vendia antes de a variante existir, só que agora
+        na tabela certa. Produto com lista ganha as dela.
+        """
+        width, height, depth = data.get("dimensions", (None, None, None))
+        material = next(
+            (materials[name] for name in data.get("materials", []) if name in materials), None
+        )
+        comuns = {
+            "product": product,
+            "pricing_mode": PricingMode.PRICE,
+            "filament_cost": data["filament"],
+            "energy_cost": data["energy"],
+            "made_to_order": data.get("made_to_order", False),
+            "production_lead_time_days": data.get("lead_time"),
+            "print_time": data.get("print_time"),
+            "weight_grams": data.get("weight"),
+            "width": width,
+            "height": height,
+            "depth": depth,
+            "material": material,
+        }
+
+        variantes = data.get("variants", [])
+        if not variantes:
+            cores = data.get("colors", [])
+            ProductVariant.objects.get_or_create(
+                sku=product.sku,
+                defaults={
+                    **comuns,
+                    "color": colors.get(cores[0]) if len(cores) == 1 else None,
+                    "sale_price": data["price"],
+                    "stock_quantity": data.get("stock", 0),
+                    "sort_order": 0,
+                },
+            )
+            return
+
+        for order, (suffix, color, size, price, stock) in enumerate(variantes, 1):
             ProductVariant.objects.get_or_create(
                 sku=f"{product.sku}-{suffix}",
                 defaults={
-                    "product": product,
+                    **comuns,
                     "color": colors.get(color),
                     "size": size,
                     "sale_price": price,

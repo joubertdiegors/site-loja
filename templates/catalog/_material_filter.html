@@ -1,0 +1,57 @@
+{% load i18n jdprint %}
+{% comment %}
+Filtro por material.
+
+Fica ao lado das categorias, no mesmo cartão da barra lateral, e some quando
+não há nada para escolher: uma lista com um item só não é um filtro, é ruído.
+
+Quem decide isso é `ShopView.available_materials()`, que devolve `[]` nesse
+caso. Aqui só se pergunta se a lista veio — dois lugares decidindo a mesma
+coisa foi o que desenhou um cartão vazio na busca.
+
+Os nomes vêm de `Material.display_name` — o nome que o cliente lê, no idioma
+dele. "PLA" e "PETG" ficam iguais em toda parte; "Resina" e "Madeira" não, e
+era isso que aparecia em português numa loja francesa.
+
+O `{% templatetag openblock %} querystring {% templatetag closeblock %}` preserva o
+resto da URL: escolher um material mantém a categoria, a busca e a ordenação, e
+só reinicia a paginação — a página 3 do filtro anterior quase nunca existe no
+novo.
+{% endcomment %}
+{% if material_nodes %}
+  {% comment %}
+    `standalone`: na busca ele e o unico bloco do cartao, e o separador de cima
+    nao separaria nada.
+  {% endcomment %}
+  <div class="{% if not standalone %}mt-3 border-t border-surface-line pt-3{% endif %}">
+    <h2 id="titulo-materiais-shop"
+        class="px-2.5 pb-2 pt-1.5 font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-ink-muted">
+      {% translate "Material" %}
+    </h2>
+
+    <ul class="space-y-0.5" role="list">
+      <li>
+        <a href="{% querystring material=None page=None %}"
+           hx-get="{% querystring material=None page=None %}"
+           hx-target="#shop-results" hx-push-url="true" hx-indicator="#shop-results"
+           class="{% if not selected_material %}shop-filter shop-filter-active{% else %}shop-filter{% endif %}"
+           {% if not selected_material %}aria-current="true"{% endif %}>
+          <span>{% translate "Todos" %}</span>
+        </a>
+      </li>
+
+      {% for node in material_nodes %}
+        <li>
+          <a href="{% querystring material=node.slug page=None %}"
+             hx-get="{% querystring material=node.slug page=None %}"
+             hx-target="#shop-results" hx-push-url="true" hx-indicator="#shop-results"
+             class="{% if node.is_selected %}shop-filter shop-filter-active{% else %}shop-filter{% endif %}"
+             {% if node.is_selected %}aria-current="true"{% endif %}>
+            <span>{{ node.name }}</span>
+            <span class="shop-filter-count">{{ node.count }}</span>
+          </a>
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
+{% endif %}

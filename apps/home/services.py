@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 
 from django.db.models import Count, Prefetch
 
-from apps.catalog.models import Product, ProductStatus
+from apps.catalog.models import Product, ProductStatus, ProductVariant
 from apps.categories.models import Category
 from apps.categories.tree import CategoryTree
 from apps.home.models import HomeBanner, HomeSection, HomeSectionProduct, HomeSectionType
@@ -28,17 +28,30 @@ from apps.home.models import HomeBanner, HomeSection, HomeSectionProduct, HomeSe
 def product_card_queryset():
     """Produtos prontos para virar card, sem N+1.
 
-    ``media`` e ``colors`` vêm por prefetch porque o card usa
-    ``display_media`` e as amostras de cor; ``translations`` porque o nome é
-    traduzido; ``category__translations`` porque o card mostra o nome da
-    categoria; ``variants`` porque a disponibilidade do card olha as variantes.
-    Sem qualquer um deles, cada card dispara uma consulta.
+    ``media`` vem por prefetch porque o card usa ``display_media``;
+    ``translations`` porque o nome é traduzido; ``category__translations``
+    porque o card mostra o nome da categoria; ``variants`` — com cor e material
+    — porque desde a etapa 8 é dela que saem preço, disponibilidade e as
+    amostras de cor. Sem qualquer um deles, cada card dispara uma consulta.
+
+    ``sellable()`` porque produto sem variante ativa não tem preço nem estoque:
+    não é um card, é um cadastro pela metade.
     """
     return (
-        Product.objects.filter(status=ProductStatus.ACTIVE)
+        Product.objects.sellable()
         .select_related("category")
         .prefetch_related(
-            "translations", "media", "colors", "category__translations", "variants"
+            "translations",
+            "media",
+            "category__translations",
+            Prefetch(
+                "variants",
+                queryset=ProductVariant.objects.select_related("color", "material")
+                .prefetch_related("color__translations", "material__translations")
+                .order_by(
+                    "sort_order", "id"
+                ),
+            ),
         )
     )
 
@@ -103,7 +116,9 @@ def _manual_products(section: HomeSection, tree: CategoryTree) -> list[Product]:
     products = []
     for item in section.items.all():
         product = item.product
-        if product.status == ProductStatus.ACTIVE:
+        # Escolhido a dedo, mas sem variante ativa não há o que vender: fica
+        # fora da vitrine em vez de virar um card sem preço.
+        if product.status == ProductStatus.ACTIVE and product.has_variants:
             products.append(product)
     return products[: section.product_limit]
 
@@ -164,9 +179,15 @@ def active_sections_queryset():
         .prefetch_related(
             "product__translations",
             "product__media",
-            "product__colors",
             "product__category__translations",
-            "product__variants",
+            Prefetch(
+                "product__variants",
+                queryset=ProductVariant.objects.select_related("color", "material")
+                .prefetch_related("color__translations", "material__translations")
+                .order_by(
+                    "sort_order", "id"
+                ),
+            ),
         )
         .order_by("sort_order", "id")
     )
@@ -260,11 +281,66 @@ def get_category_cards(tree: CategoryTree | None = None, limit: int = 8) -> list
     return cards[:limit]
 
 
+def get_home_cards():
+    """Os cards ativos, na ordem — e se **existe** cadastro.
+
+    Duas informações, porque são dois estados diferentes:
+
+    * sem cadastro nenhum -> o template usa os três cards padrão, e a loja
+      recém-migrada abre igual ao que era;
+    * cadastro existe, mas nada ativo -> a seção some. É uma decisão do
+      administrador, e ela tem de valer.
+
+    Com um `{% empty %}` simples os dois seriam o mesmo estado, e desativar o
+    único card faria os padrões voltarem — sem jeito de remover a seção.
+    """
+    from apps.home.models import HomeCard
+
+    # Uma consulta, e o filtro de "ativo" em memória: perguntar duas vezes à
+    # mesma tabela ("me dê os ativos" e depois "existe algum?") seriam duas
+    # idas ao banco em toda visita à Home. São punhados de registros.
+    todos = list(
+        HomeCard.objects.order_by("sort_order", "id").prefetch_related("translations")
+    )
+    return {
+        "home_cards": [card for card in todos if card.is_active],
+        "home_cards_configured": bool(todos),
+    }
+
+
+def get_home_callout():
+    """A chamada final, e se existe cadastro. Mesma regra dos cards.
+
+    A chamada só é entregue se tiver **algo** escrito: uma faixa escura vazia
+    no fim da Home é pior que faixa nenhuma.
+    """
+    from apps.home.models import HomeCallout
+
+    linha = (
+        HomeCallout.objects.filter(pk=1).prefetch_related("translations").first()
+    )
+
+    # "A linha existe" **não** prova que alguém configurou: o Admin a cria só
+    # para redirecionar para ela. Uma linha ativa e vazia é "ninguém escreveu
+    # nada ainda" — e a Home não pode perder a chamada final porque alguém
+    # abriu a tela.
+    escrita = linha is not None and linha.has_content
+    escondida = linha is not None and not linha.is_active
+
+    return {
+        "home_callout": linha if (escrita and not escondida) else None,
+        "home_callout_configured": escrita or escondida,
+    }
+
+
 def get_home_context() -> dict:
     """Tudo que a Home precisa, compartilhando uma única árvore de categorias."""
     tree = CategoryTree.load()
-    return {
+    contexto = {
         "banner": get_active_banner(),
         "sections": get_home_sections(tree),
         "category_cards": get_category_cards(tree),
     }
+    contexto.update(get_home_cards())
+    contexto.update(get_home_callout())
+    return contexto

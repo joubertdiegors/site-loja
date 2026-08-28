@@ -1,0 +1,80 @@
+{% load i18n jdprint %}
+{% comment %}
+O coração — usado no card da loja e na página de favoritos.
+
+Espera `product` e lê `favorite_ids` do contexto: uma consulta por requisição,
+não uma por card (ver `apps/accounts/context_processors.py`).
+
+## Visitante vê, mas não guarda
+
+Para quem não entrou é um **link** para o login, com `next` de volta para onde
+estava. Não é um botão que falha nem um registro anônimo que expira junto com a
+sessão: é o mesmo login de sempre, e depois dele o clique funciona.
+
+## Com conta é um `<form>` de verdade
+
+POST, com CSRF, e o servidor decide de quem é o favorito pelo usuário da
+requisição — o `product_id` do navegador diz *o que*, nunca *de quem*.
+
+Sem JavaScript o formulário envia normalmente e a página volta com a mensagem.
+Com HTMX, só o botão é trocado, e o contador do cabeçalho vem junto por troca
+*out of band* — o mesmo desenho do carrinho.
+
+`remove_card` muda o alvo: na página de favoritos, desfavoritar tem de tirar o
+card da lista, então a resposta reescreve a grade inteira. A grade é a lista de
+um cliente, não um catálogo: redesenhá-la é barato e sempre correto — inclusive
+quando ela fica vazia e precisa virar o estado vazio.
+
+## O clique não pode abrir o produto
+
+O card inteiro é clicável (link esticado no título). O botão fica acima dele
+(`z-10` no card, `pointer-events-auto` aqui) e o `onclick` para a propagação:
+clicar no coração guarda o produto, não abre a página dele.
+
+## Não depende só de cor
+
+Preenchido × contornado é a diferença visível; o `aria-label` diz a ação e o
+`aria-pressed` diz o estado. Quem usa leitor de tela ouve "Adicionar aos
+favoritos" ou "Remover dos favoritos", não uma cor.
+{% endcomment %}
+{% with favorito=favorite_ids|has:product.pk %}
+  {% if user.is_authenticated %}
+
+    <form action="{% url 'accounts:favorite_toggle' %}" method="post"
+          class="pointer-events-auto"
+          hx-post="{% url 'accounts:favorite_toggle' %}"
+          {% if remove_card %}hx-target="#favorites-grid"{% else %}hx-target="this"{% endif %}
+          hx-swap="outerHTML">
+      {% csrf_token %}
+      <input type="hidden" name="product_id" value="{{ product.pk }}">
+      <input type="hidden" name="next" value="{{ request.get_full_path }}">
+      {% if remove_card %}<input type="hidden" name="from_list" value="1">{% endif %}
+
+      <button type="submit"
+              data-favorite-button
+              data-favorite="{% if favorito %}1{% else %}0{% endif %}"
+              aria-pressed="{% if favorito %}true{% else %}false{% endif %}"
+              class="focus-ring inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/90 shadow-sm transition-colors duration-150 {% if favorito %}text-magenta-600{% else %}text-ink-muted opacity-0 group-hover:opacity-100 focus-visible:opacity-100{% endif %}"
+              onclick="event.stopPropagation()"
+              aria-label="{% if favorito %}{% blocktranslate with name=product.display_name %}Remover {{ name }} dos favoritos{% endblocktranslate %}{% else %}{% blocktranslate with name=product.display_name %}Adicionar {{ name }} aos favoritos{% endblocktranslate %}{% endif %}">
+        {% if favorito %}
+          {% icon "heart-filled" "h-4 w-4" %}
+        {% else %}
+          {% icon "heart" "h-4 w-4" %}
+        {% endif %}
+      </button>
+    </form>
+
+  {% else %}
+
+    <a href="{% url 'accounts:login' %}?next={{ request.get_full_path|urlencode }}"
+       class="focus-ring pointer-events-auto inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/90 text-ink-muted opacity-0 shadow-sm transition-colors duration-150 group-hover:opacity-100 focus-visible:opacity-100"
+       data-favorite-login
+       onclick="event.stopPropagation()"
+       aria-label="{% translate 'Entre para adicionar aos favoritos' %}"
+       title="{% translate 'Entre para adicionar aos favoritos' %}">
+      {% icon "heart" "h-4 w-4" %}
+    </a>
+
+  {% endif %}
+{% endwith %}

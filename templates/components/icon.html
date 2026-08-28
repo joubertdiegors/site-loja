@@ -7,6 +7,14 @@ Todos são decorativos: quem os usa fornece o rótulo acessível.
     <circle cx="11" cy="11" r="7" /><path d="m20 20-3.2-3.2" />
   {% elif name == "heart" %}
     <path d="M12 20s-7-4.4-7-9.2A3.8 3.8 0 0 1 12 8a3.8 3.8 0 0 1 7 2.8C19 15.6 12 20 12 20Z" />
+  {% elif name == "heart-filled" %}
+    {% comment %}
+      O mesmo traçado, preenchido: favoritado × não favoritado tem de ser
+      visível sem depender da cor. O `fill` no `<path>` vence o `fill="none"`
+      do `<svg>`.
+    {% endcomment %}
+    <path d="M12 20s-7-4.4-7-9.2A3.8 3.8 0 0 1 12 8a3.8 3.8 0 0 1 7 2.8C19 15.6 12 20 12 20Z"
+          fill="currentColor" />
   {% elif name == "user" %}
     <circle cx="12" cy="8.5" r="3.5" /><path d="M5 19.5a7 7 0 0 1 14 0" />
   {% elif name == "cart" %}

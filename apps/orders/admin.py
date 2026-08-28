@@ -16,6 +16,7 @@ from django.contrib import admin, messages
 from django.db.models import Count
 from django.urls import reverse
 from django.utils.html import format_html, format_html_join
+from django.utils.timezone import localtime
 from django.utils.translation import gettext_lazy as _
 
 from apps.orders import services
@@ -150,6 +151,7 @@ class OrderAdmin(admin.ModelAdmin):
         "payment_status",
         "fulfillment_status",
         "cancellation_flag",
+        "emails_flag",
         "gift_flag",
     )
     list_filter = (
@@ -170,7 +172,14 @@ class OrderAdmin(admin.ModelAdmin):
     )
     list_select_related = ("customer", "customer__user")
     inlines = (OrderItemInline, OrderAddressInline, PaymentInline, OrderHistoryInline, OrderNoteInline)
-    actions = ("action_mark_shipped", "action_approve_cancellation", "action_refuse_cancellation")
+    actions = (
+        "action_mark_shipped",
+        "action_resend_confirmation",
+        "action_resend_admin_email",
+        "action_resend_shipped_email",
+        "action_approve_cancellation",
+        "action_refuse_cancellation",
+    )
 
     # Documento contábil: o que aconteceu não se reescreve.
     readonly_fields = (
@@ -201,7 +210,9 @@ class OrderAdmin(admin.ModelAdmin):
         "cancelled_at",
         "stock_applied_at",
         "confirmation_email_sent_at",
+        "admin_email_sent_at",
         "shipped_email_sent_at",
+        "email_status",
         "cancellation_requested_at",
         "cancellation_reason",
         "cancellation_decided_at",
@@ -212,6 +223,18 @@ class OrderAdmin(admin.ModelAdmin):
         (
             "PEDIDO",
             {"fields": ("number", "customer", "created_at", "summary")},
+        ),
+        (
+            "AVISOS ENVIADOS",
+            {
+                "fields": ("email_status",),
+                "description": (
+                    "Quem já foi avisado desta compra. Se algum e-mail falhou, "
+                    "reenvie pela lista de pedidos (selecione o pedido e escolha "
+                    "a ação de reenvio) — reenviar <strong>não</strong> altera "
+                    "pagamento, estoque, situação nem valores."
+                ),
+            },
         ),
         (
             "SITUAÇÃO",
@@ -282,6 +305,7 @@ class OrderAdmin(admin.ModelAdmin):
                     "customer_note",
                     "stock_applied_at",
                     "confirmation_email_sent_at",
+                    "admin_email_sent_at",
                     "shipped_email_sent_at",
                     "updated_at",
                 ),
@@ -313,7 +337,10 @@ class OrderAdmin(admin.ModelAdmin):
     @admin.display(description="cancelamento")
     def cancellation_flag(self, obj):
         if obj.cancellation_status == CancellationStatus.REQUESTED:
-            return format_html('<strong style="color:#b45309">solicitado</strong>')
+            # `format_html` exige argumento: sem nenhum ele levanta TypeError, e
+            # a listagem inteira caia justamente quando havia um cancelamento
+            # para decidir -- a hora em que ela mais precisa abrir.
+            return format_html('<strong style="color:#b45309">{}</strong>', "solicitado")
         if obj.cancellation_status == CancellationStatus.APPROVED:
             return "aprovado"
         if obj.cancellation_status == CancellationStatus.REFUSED:
@@ -323,6 +350,70 @@ class OrderAdmin(admin.ModelAdmin):
     @admin.display(description="presente", boolean=True)
     def gift_flag(self, obj):
         return obj.is_gift
+
+    # -- situação dos e-mails ----------------------------------------------
+
+    def email_rows(self, obj):
+        """(rótulo, data de envio, se era esperado) de cada um dos três."""
+        return (
+            ("Confirmação ao cliente", obj.confirmation_email_sent_at, obj.is_paid),
+            ("Ordem de produção", obj.admin_email_sent_at, obj.is_paid),
+            (
+                "Aviso de envio",
+                obj.shipped_email_sent_at,
+                obj.fulfillment_status
+                in {FulfillmentStatus.SHIPPED, FulfillmentStatus.DELIVERED},
+            ),
+        )
+
+    @admin.display(description="avisos")
+    def email_status(self, obj):
+        """Os três e-mails do pedido, com data — sem precisar abrir log nenhum.
+
+        "Ainda não enviado" e "não enviado" são coisas diferentes: o aviso de
+        envio de um pedido que não saiu ainda está certo em não ter ido. O que
+        precisa de atenção é o e-mail que **já deveria** ter saído e não saiu —
+        e é só esse que aparece em vermelho.
+        """
+        linhas = []
+        for rotulo, quando, esperado in self.email_rows(obj):
+            if quando is not None:
+                linhas.append(
+                    ("#1a7f37", "✓", rotulo, f"enviado em {localtime(quando):%d/%m/%Y %H:%M}")
+                )
+            elif esperado:
+                linhas.append(("#b42318", "⚠", rotulo, "NÃO enviado — reenvie"))
+            else:
+                linhas.append(("#6b7280", "—", rotulo, "ainda não enviado"))
+
+        return format_html(
+            '<table style="border:0">{}</table>',
+            format_html_join(
+                "",
+                '<tr><td style="padding:2px 8px 2px 0;color:{}">{}</td>'
+                '<td style="padding:2px 12px 2px 0"><b>{}</b></td>'
+                '<td style="padding:2px 0;color:{}">{}</td></tr>',
+                (
+                    (cor, marca, rotulo, cor, texto)
+                    for cor, marca, rotulo, texto in linhas
+                ),
+            ),
+        )
+
+    @admin.display(description="avisos")
+    def emails_flag(self, obj):
+        """Na listagem, só o que está pendente e deveria ter saído."""
+        faltando = [
+            rotulo for rotulo, quando, esperado in self.email_rows(obj)
+            if quando is None and esperado
+        ]
+        if not faltando:
+            return format_html('<span style="color:#1a7f37">{}</span>', "✓")
+        return format_html(
+            '<span style="color:#b42318" title="{}">⚠ {}</span>',
+            ", ".join(faltando),
+            len(faltando),
+        )
 
     @admin.display(description="resumo")
     def summary(self, obj):
@@ -364,6 +455,46 @@ class OrderAdmin(admin.ModelAdmin):
             messages.SUCCESS if done else messages.WARNING,
         )
 
+    def _resend(self, request, queryset, kind, rotulo):
+        """Reenvia um e-mail para cada pedido selecionado, e conta o resultado."""
+        enviados = 0
+        falhas = 0
+        for order in queryset:
+            if services.resend_email(order, kind, user=request.user):
+                enviados += 1
+            else:
+                falhas += 1
+
+        if enviados:
+            self.message_user(
+                request,
+                _("%(count)s %(rotulo)s reenviado(s).")
+                % {"count": enviados, "rotulo": rotulo},
+                messages.SUCCESS,
+            )
+        if falhas:
+            self.message_user(
+                request,
+                _(
+                    "%(count)s falharam. O erro foi para o log do servidor — "
+                    "confira a configuração de e-mail."
+                )
+                % {"count": falhas},
+                messages.ERROR,
+            )
+
+    @admin.action(description="Reenviar confirmação ao cliente")
+    def action_resend_confirmation(self, request, queryset):
+        self._resend(request, queryset, "confirmation", "confirmação(ões)")
+
+    @admin.action(description="Reenviar ordem de produção (equipe)")
+    def action_resend_admin_email(self, request, queryset):
+        self._resend(request, queryset, "admin", "ordem(ns) de produção")
+
+    @admin.action(description="Reenviar aviso de envio ao cliente")
+    def action_resend_shipped_email(self, request, queryset):
+        self._resend(request, queryset, "shipped", "aviso(s) de envio")
+
     @admin.action(description="Aprovar cancelamento solicitado")
     def action_approve_cancellation(self, request, queryset):
         done = sum(1 for order in queryset if services.approve_cancellation(order, user=request.user))
@@ -393,16 +524,35 @@ class OrderAdmin(admin.ModelAdmin):
         formset.save_m2m()
 
     def save_model(self, request, obj, form, change):
-        """Marcar "enviado" pela tela dispara o mesmo caminho da ação."""
-        previous = Order.objects.filter(pk=obj.pk).values("fulfillment_status").first()
+        """Mudar a produção pela tela passa pelo mesmo controle da ação.
+
+        Antes, mexer no campo aqui gravava e pronto: o histórico não registrava
+        quem tinha mexido nem de onde para onde, e nada impedia "Entregue"
+        virar "Não iniciado" por um clique errado (AUD-04).
+        """
+        anterior = (
+            Order.objects.filter(pk=obj.pk).values("fulfillment_status").first()
+            if obj.pk
+            else None
+        )
+        antes = anterior["fulfillment_status"] if anterior else None
+        depois = obj.fulfillment_status
+
+        if antes is not None and antes != depois:
+            # O serviço precisa do objeto ainda no estado anterior: é de lá que
+            # ele tira o "de onde" do registro.
+            obj.fulfillment_status = antes
+            try:
+                services.change_fulfillment_status(obj, depois, user=request.user)
+            except services.StatusChangeRefused as erro:
+                self.message_user(request, str(erro), messages.ERROR)
+                depois = antes
+            obj.fulfillment_status = depois
+
         super().save_model(request, obj, form, change)
 
-        became_shipped = (
-            previous
-            and previous["fulfillment_status"] != FulfillmentStatus.SHIPPED
-            and obj.fulfillment_status == FulfillmentStatus.SHIPPED
-        )
-        if became_shipped:
+        became_shipped = antes != FulfillmentStatus.SHIPPED and depois == FulfillmentStatus.SHIPPED
+        if antes is not None and became_shipped:
             services.mark_shipped(obj, obj.tracking_number, request.user)
 
 

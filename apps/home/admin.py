@@ -9,11 +9,19 @@ from django.contrib import admin, messages
 from django.db.models import Count
 from django.utils.html import format_html
 
-from apps.core.admin_mixins import PartialSafeModelForm, RequiredDefaultLanguageInlineFormSet
+from apps.core.admin_mixins import (
+    PartialSafeModelForm,
+    RequiredDefaultLanguageInlineFormSet,
+    UniqueLanguageInlineFormSet,
+)
 from apps.core.constants import DEFAULT_LANGUAGE
 from apps.home.models import (
     HomeBanner,
     HomeBannerTranslation,
+    HomeCallout,
+    HomeCalloutTranslation,
+    HomeCard,
+    HomeCardTranslation,
     HomeSection,
     HomeSectionProduct,
     HomeSectionTranslation,
@@ -26,14 +34,19 @@ from apps.home.models import (
 
 
 class HomeBannerTranslationInline(admin.StackedInline):
+    """O conteúdo do banner, por idioma — e tudo opcional.
+
+    Sem `min_num`: um banner que é só arte não tem título em idioma nenhum, e
+    exigir uma linha de tradução vazia seria burocracia sem leitor. O
+    `UniqueLanguageInlineFormSet` continua impedindo dois francês.
+    """
+
     model = HomeBannerTranslation
-    formset = RequiredDefaultLanguageInlineFormSet
+    formset = UniqueLanguageInlineFormSet
     extra = 0
-    min_num = 1
-    validate_min = True
     fields = ("language", "title", "subtitle", "cta_label", "image_alt")
     verbose_name = "conteúdo por idioma"
-    verbose_name_plural = "CONTEÚDO — título e subtítulo por idioma"
+    verbose_name_plural = "CONTEÚDO — título, subtítulo e texto do botão por idioma (opcionais)"
 
 
 @admin.register(HomeBanner)
@@ -268,3 +281,119 @@ class HomeSectionAdmin(admin.ModelAdmin):
                 "o módulo de pedidos existir — nenhum critério falso de vendas é usado.",
                 messages.WARNING,
             )
+
+
+# ---------------------------------------------------------------------------
+# Cards "como trabalhamos"
+# ---------------------------------------------------------------------------
+
+
+class HomeCardTranslationInline(admin.StackedInline):
+    model = HomeCardTranslation
+    formset = RequiredDefaultLanguageInlineFormSet
+    extra = 0
+    min_num = 1
+    validate_min = True
+    fields = ("language", "title", "text")
+    verbose_name = "conteúdo por idioma"
+    verbose_name_plural = "CONTEÚDO — título e texto por idioma"
+
+
+@admin.register(HomeCard)
+class HomeCardAdmin(admin.ModelAdmin):
+    inlines = [HomeCardTranslationInline]
+    form = PartialSafeModelForm
+    list_display = ("internal_name", "title_pt", "icon", "accent", "is_active", "sort_order")
+    list_display_links = ("internal_name", "title_pt")
+    list_editable = ("is_active", "sort_order")
+    list_filter = ("is_active", "accent")
+    search_fields = ("internal_name", "translations__title")
+    ordering = ("sort_order", "id")
+    readonly_fields = ("created_at", "updated_at")
+    actions = ("action_activate", "action_deactivate")
+    fieldsets = (
+        (
+            "IDENTIFICAÇÃO",
+            {
+                "fields": ("internal_name", "is_active", "sort_order"),
+                "description": (
+                    "Os cards com ícone abaixo das faixas de produtos. "
+                    "A quantidade não é fixa: a grade tem três colunas, e um quarto "
+                    "card começa a segunda linha."
+                ),
+            },
+        ),
+        ("APARÊNCIA", {"fields": ("icon", "accent")}),
+        ("AUDITORIA", {"classes": ("collapse",), "fields": ("created_at", "updated_at")}),
+    )
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).prefetch_related("translations")
+
+    @admin.display(description="título (pt)")
+    def title_pt(self, obj):
+        return obj.tr("title", language=DEFAULT_LANGUAGE.value, default="—")
+
+    @admin.action(description="Ativar cards selecionados")
+    def action_activate(self, request, queryset):
+        total = queryset.update(is_active=True)
+        self.message_user(request, f"{total} card(s) ativado(s).", messages.SUCCESS)
+
+    @admin.action(description="Desativar cards selecionados")
+    def action_deactivate(self, request, queryset):
+        total = queryset.update(is_active=False)
+        self.message_user(request, f"{total} card(s) desativado(s).", messages.SUCCESS)
+
+
+# ---------------------------------------------------------------------------
+# Chamada final
+# ---------------------------------------------------------------------------
+
+
+class HomeCalloutTranslationInline(admin.StackedInline):
+    model = HomeCalloutTranslation
+    formset = UniqueLanguageInlineFormSet
+    extra = 0
+    fields = ("language", "eyebrow", "title", "text", "cta_label")
+    verbose_name = "conteúdo por idioma"
+    verbose_name_plural = "CONTEÚDO — sobretítulo, título, texto e botão por idioma"
+
+
+@admin.register(HomeCallout)
+class HomeCalloutAdmin(admin.ModelAdmin):
+    """Uma linha só — o Admin leva direto a ela."""
+
+    inlines = [HomeCalloutTranslationInline]
+    save_on_top = True
+    autocomplete_fields = ("cta_category", "cta_product")
+    readonly_fields = ("created_at", "updated_at")
+    fieldsets = (
+        (
+            "EXIBIÇÃO",
+            {
+                "fields": ("is_active",),
+                "description": (
+                    "A faixa escura no fim da Home. Sem título, sem texto e sem "
+                    "botão ela não é desenhada — nunca vira uma faixa vazia."
+                ),
+            },
+        ),
+        ("BOTÃO (CTA)", {"fields": ("cta_target", "cta_category", "cta_product", "cta_url")}),
+        ("AUDITORIA", {"classes": ("collapse",), "fields": ("created_at", "updated_at")}),
+    )
+
+    class Media:
+        js = ("admin/js/home_cta_admin.js",)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def changelist_view(self, request, extra_context=None):
+        from django.shortcuts import redirect
+        from django.urls import reverse
+
+        callout = HomeCallout.load()
+        return redirect(reverse("admin:home_homecallout_change", args=[callout.pk]))

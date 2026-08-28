@@ -257,52 +257,266 @@
     });
   }
 
-  /* ---- Galeria do produto ---------------------------------------------- */
+  /* ---- Galeria do produto ------------------------------------------------
+     Uma imagem principal, miniaturas e uma visualização ampliada.
+
+     A galeria expõe `window.jdGallery` porque o seletor de variantes também
+     precisa trocar a imagem principal (quando a variante tem foto vinculada).
+     Dois lugares escrevendo no mesmo `innerHTML` sem se falarem acabariam com
+     a foto de uma variante sobrevivendo à troca para outra.
+
+     `object-contain` e não `object-cover`: a foto do produto não pode ser
+     cortada. A área mantém proporção quadrada para a grade não pular de
+     altura, e a imagem se ajusta dentro dela. */
   function setupGallery() {
     var gallery = document.querySelector("[data-gallery]");
     if (!gallery) {
+      window.jdGallery = null;
       return;
     }
 
     var main = gallery.querySelector("[data-gallery-main]");
     var thumbs = gallery.querySelectorAll("[data-gallery-thumb]");
-    if (!main || !thumbs.length) {
+    if (!main) {
+      window.jdGallery = null;
       return;
+    }
+
+    /* A foto com que a página abriu. É para cá que se volta quando a variante
+       escolhida não tem foto própria. */
+    var padrao = {
+      url: main.getAttribute("data-default-url") || "",
+      alt: main.getAttribute("data-default-alt") || "",
+      type: main.getAttribute("data-default-type") || "IMAGE"
+    };
+
+    /* As mídias da galeria, na ordem — a navegação da lupa anda por elas. */
+    var itens = [];
+    thumbs.forEach(function (thumb) {
+      itens.push({
+        url: thumb.getAttribute("href"),
+        alt: thumb.getAttribute("data-alt") || "",
+        type: thumb.getAttribute("data-media-type") || "IMAGE"
+      });
+    });
+    if (!itens.length && padrao.url) {
+      itens.push(padrao);
+    }
+
+    function render(item) {
+      if (!item || !item.url) {
+        return;
+      }
+      if (item.type === "VIDEO") {
+        main.innerHTML =
+          '<video src="' + item.url + '" controls playsinline' +
+          ' class="h-full w-full object-contain"></video>';
+      } else {
+        main.innerHTML =
+          '<img src="' + item.url + '" alt="' + String(item.alt).replace(/"/g, "&quot;") +
+          '" class="h-full w-full object-contain">';
+      }
+      main.setAttribute("data-current-url", item.url);
+      main.setAttribute("data-current-type", item.type);
+      main.setAttribute("data-current-alt", item.alt || "");
+    }
+
+    function highlight(url) {
+      thumbs.forEach(function (other) {
+        var igual = other.getAttribute("href") === url;
+        other.classList.toggle("border-brand-600", igual);
+        other.classList.toggle("border-surface-line", !igual);
+      });
     }
 
     thumbs.forEach(function (thumb) {
       thumb.addEventListener("click", function (event) {
         event.preventDefault();
-        var url = thumb.getAttribute("href");
-        var type = thumb.getAttribute("data-media-type");
-        var alt = thumb.getAttribute("data-alt") || "";
-
-        if (type === "VIDEO") {
-          main.innerHTML =
-            '<video src="' + url + '" controls playsinline class="h-full w-full object-cover"></video>';
-        } else {
-          main.innerHTML =
-            '<img src="' + url + '" alt="' + alt.replace(/"/g, "&quot;") +
-            '" class="h-full w-full object-cover">';
-        }
-
-        thumbs.forEach(function (other) {
-          other.classList.toggle("border-brand-600", other === thumb);
-          other.classList.toggle("border-surface-line", other !== thumb);
+        render({
+          url: thumb.getAttribute("href"),
+          alt: thumb.getAttribute("data-alt") || "",
+          type: thumb.getAttribute("data-media-type") || "IMAGE"
         });
+        highlight(thumb.getAttribute("href"));
       });
     });
+
+    /* ---- lupa ------------------------------------------------------------
+       Abre a imagem inteira sobre a página. `max-w`/`max-h` na viewport, não
+       tamanho fixo: uma foto de 4000px não pode empurrar a tela, e uma de
+       300px não pode ser esticada. */
+    var lightbox = document.querySelector("[data-lightbox]");
+    var indice = 0;
+
+    function abrirLupa(url) {
+      if (!lightbox) {
+        return;
+      }
+      indice = Math.max(0, itens.findIndex(function (item) {
+        return item.url === url;
+      }));
+      mostrarNaLupa();
+      lightbox.hidden = false;
+      document.body.classList.add("jd-lightbox-lock");
+      var fechar = lightbox.querySelector("[data-lightbox-close]");
+      if (fechar) {
+        fechar.focus();
+      }
+    }
+
+    function fecharLupa() {
+      if (!lightbox) {
+        return;
+      }
+      lightbox.hidden = true;
+      document.body.classList.remove("jd-lightbox-lock");
+      var atual = main.querySelector("img, video");
+      if (atual) {
+        main.focus ? main.focus() : null;
+      }
+    }
+
+    function mostrarNaLupa() {
+      var alvo = lightbox.querySelector("[data-lightbox-media]");
+      var contador = lightbox.querySelector("[data-lightbox-counter]");
+      var item = itens[indice];
+      if (!alvo || !item) {
+        return;
+      }
+      if (item.type === "VIDEO") {
+        alvo.innerHTML =
+          '<video src="' + item.url + '" controls playsinline autoplay' +
+          ' class="jd-lightbox-media"></video>';
+      } else {
+        alvo.innerHTML =
+          '<img src="' + item.url + '" alt="' + String(item.alt).replace(/"/g, "&quot;") +
+          '" class="jd-lightbox-media">';
+      }
+      if (contador) {
+        contador.textContent = itens.length > 1 ? indice + 1 + " / " + itens.length : "";
+        contador.hidden = itens.length < 2;
+      }
+      lightbox.querySelectorAll("[data-lightbox-prev], [data-lightbox-next]").forEach(
+        function (botao) {
+          botao.hidden = itens.length < 2;
+        }
+      );
+    }
+
+    function andar(passo) {
+      if (itens.length < 2) {
+        return;
+      }
+      indice = (indice + passo + itens.length) % itens.length;
+      mostrarNaLupa();
+    }
+
+    if (lightbox) {
+      main.addEventListener("click", function () {
+        abrirLupa(main.getAttribute("data-current-url") || padrao.url);
+      });
+      main.addEventListener("keydown", function (event) {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          abrirLupa(main.getAttribute("data-current-url") || padrao.url);
+        }
+      });
+
+      lightbox.querySelectorAll("[data-lightbox-close], [data-lightbox-backdrop]").forEach(
+        function (node) {
+          node.addEventListener("click", fecharLupa);
+        }
+      );
+      var anterior = lightbox.querySelector("[data-lightbox-prev]");
+      var proximo = lightbox.querySelector("[data-lightbox-next]");
+      if (anterior) {
+        anterior.addEventListener("click", function () {
+          andar(-1);
+        });
+      }
+      if (proximo) {
+        proximo.addEventListener("click", function () {
+          andar(1);
+        });
+      }
+
+      document.addEventListener("keydown", function (event) {
+        if (lightbox.hidden) {
+          return;
+        }
+        if (event.key === "Escape") {
+          event.preventDefault();
+          fecharLupa();
+        } else if (event.key === "ArrowLeft") {
+          andar(-1);
+        } else if (event.key === "ArrowRight") {
+          andar(1);
+        }
+      });
+    }
+
+    /* O contrato com o seletor de variantes. */
+    window.jdGallery = {
+      /* Foto da variante escolhida; sem `url`, volta para a foto de abertura. */
+      showVariantMedia: function (url, alt) {
+        if (url) {
+          render({ url: url, alt: alt, type: "IMAGE" });
+          highlight(url);
+        } else {
+          render(padrao);
+          highlight(padrao.url);
+        }
+      }
+    };
+
+    render(padrao);
+    highlight(padrao.url);
   }
 
-  /* ---- Seletor de variantes -------------------------------------------- */
-  /* Os botões de cor/tamanho/material são a interface; quem guarda a escolha
-     continua sendo o <select>, que funciona sem JavaScript. */
+  /* ---- Seletor de variantes --------------------------------------------- */
+  /* Uma matriz de combinações, não três listas independentes.
+
+     ## A regra
+
+     O eixo em que o cliente **acabou de clicar tem prioridade**. O sistema
+     procura, entre as variantes que existem de verdade, a que melhor atende
+     essa escolha — preservando o que der dos outros eixos — e passa a seleção
+     inteira para ela.
+
+         Preto + 25 cm, clica em "30 cm"
+             -> só existe Branco + 30 cm
+             -> a seleção vira Branco + 30 cm
+
+     Uma opção incompatível com a seleção atual fica **riscada, e clicável**.
+     Riscada porque a combinação atual + ela não existe; clicável porque ela
+     existe no catálogo, só com outra cor — e é o clique que descobre qual.
+
+     Antes ela era `disabled`, e isso criava um beco: a partir de Preto+25 não
+     havia clique nenhum que levasse a Branco+30, porque 30 cm estava desligado
+     e um radio não se desmarca. A saída da vez foi um "eixo livre" que ficava
+     inteiro; a regra abaixo dispensa esse remendo, porque nada trava.
+
+     ## Nada de combinação inventada
+
+     A seleção nunca passa por um estado intermediário inválido: o clique não
+     "marca 30 cm e depois conserta", ele **calcula a variante final** e marca
+     todos os eixos de uma vez. Preto+30 não existe nem por um instante.
+
+     ## Genérico por construção
+
+     Nada aqui sabe o que é cor ou tamanho. Os eixos vêm do DOM e as
+     combinações, do catálogo — acrescentar "acabamento" não muda uma linha.
+
+     Nada disto é autoridade: o `<select>` é quem manda o `variant_id`, e o
+     servidor confere a combinação de novo (ver `AddToCartForm.clean`). */
   function setupVariants() {
     var form = document.querySelector("[data-add-to-cart]");
     if (!form) {
       return;
     }
 
+    /* Produto de opção única não tem seletor nem payload: a variante já vai
+       num campo oculto e não há nada para trocar na tela. */
     var select = form.querySelector("[data-variant-select]");
     var dataNode = document.getElementById("variant-data");
     if (!select || !dataNode) {
@@ -320,47 +534,153 @@
     }
 
     var wrapper = form.querySelector("[data-variant-select-wrapper]");
+    var groupsBox = form.querySelector("[data-variant-groups]");
     var groups = form.querySelectorAll("[data-variant-group]");
-    if (groups.length) {
+    var message = form.querySelector("[data-variant-message]");
+
+    /* Os botões só entram em cena aqui: sem JavaScript o <select> é a
+       interface inteira, e é ele que garante uma combinação existente. */
+    if (groups.length && groupsBox) {
+      groupsBox.hidden = false;
       wrapper.classList.add("sr-only");
     }
 
     var price = document.querySelector("[data-price]");
     var addButton = form.querySelector("[data-add-button]");
     var quantityInput = form.querySelector("[data-quantity-input]");
+    var stockState = document.querySelector("[data-stock-state]");
+
+    /* Mesmos selos que o template usa no primeiro desenho. */
+    var STOCK_BADGE = {
+      made_to_order: "badge-amber",
+      out: "badge-muted",
+      low: "badge-amber",
+      in: "badge-mint"
+    };
+
+    var axes = [];
+    groups.forEach(function (group) {
+      axes.push(group.getAttribute("data-variant-group"));
+    });
+
+    function inputsOf(axis) {
+      var group = form.querySelector('[data-variant-group="' + axis + '"]');
+      return group ? group.querySelectorAll("[data-variant-option]") : [];
+    }
 
     function selection() {
       var chosen = {};
-      groups.forEach(function (group) {
-        var key = group.getAttribute("data-variant-group");
-        var checked = group.querySelector("input:checked");
-        chosen[key] = checked ? checked.value : "";
+      axes.forEach(function (axis) {
+        var group = form.querySelector('[data-variant-group="' + axis + '"]');
+        var checked = group ? group.querySelector("input:checked") : null;
+        chosen[axis] = checked ? checked.value : "";
       });
       return chosen;
     }
 
-    function matches(variant, chosen) {
-      return Object.keys(chosen).every(function (key) {
-        return !chosen[key] || String(variant[key]) === chosen[key];
+    /* ---- a escolha -------------------------------------------------------
+
+       A variante que melhor atende "este eixo com este valor", dado o que já
+       estava escolhido nos outros.
+
+       Critério, nesta ordem:
+         1. tem que ter o valor clicado no eixo clicado — é a prioridade;
+         2. concorda com o maior número possível dos outros eixos;
+         3. no empate, a que dá para comprar;
+         4. persistindo o empate, a ordem do catálogo.
+
+       O peso `* 2` garante que concordar com um eixo a mais sempre vence estar
+       disponível: preservar a escolha do cliente importa mais do que oferecer
+       algo em estoque que ele não pediu. */
+    function bestVariant(priorityAxis, priorityValue, chosen) {
+      var melhor = null;
+      var melhorNota = -1;
+
+      variants.forEach(function (variant) {
+        if (String(variant[priorityAxis]) !== priorityValue) {
+          return;
+        }
+        var acordo = 0;
+        axes.forEach(function (axis) {
+          if (axis === priorityAxis) {
+            return;
+          }
+          if (chosen[axis] && String(variant[axis]) === chosen[axis]) {
+            acordo += 1;
+          }
+        });
+        var nota = acordo * 2 + (variant.available ? 1 : 0);
+        if (nota > melhorNota) {
+          melhorNota = nota;
+          melhor = variant;
+        }
+      });
+
+      return melhor;
+    }
+
+    /* Existe variante com este valor neste eixo **mais** o que está escolhido
+       nos outros? É isto que decide o risco. */
+    function fitsCurrent(axis, value, chosen) {
+      return variants.some(function (variant) {
+        if (String(variant[axis]) !== value) {
+          return false;
+        }
+        return axes.every(function (outro) {
+          if (outro === axis || !chosen[outro]) {
+            return true;
+          }
+          return String(variant[outro]) === chosen[outro];
+        });
       });
     }
 
-    function apply() {
-      var chosen = selection();
-      var candidates = variants.filter(function (variant) {
-        return matches(variant, chosen);
-      });
+    /* ---- a tela ---------------------------------------------------------- */
 
-      var complete = Object.keys(chosen).every(function (key) {
-        return chosen[key];
+    /* Risca o que não combina com a seleção atual — **sem desabilitar**.
+
+       Desabilitar diria "esta opção não existe"; o que é verdade é "esta
+       opção não existe *nesta cor*". Riscada e clicável diz isso, e o clique
+       resolve. */
+    function paintAvailability(chosen) {
+      axes.forEach(function (axis) {
+        inputsOf(axis).forEach(function (input) {
+          var combina = fitsCurrent(axis, input.value, chosen);
+          input.disabled = false;
+          input.setAttribute("aria-disabled", combina ? "false" : "true");
+          var label = input.closest(".variant-option");
+          if (label) {
+            label.classList.toggle("variant-option-unavailable", !combina);
+            label.title = combina
+              ? ""
+              : select.getAttribute("data-switch-label") || "";
+          }
+        });
       });
-      if (!complete || !candidates.length) {
+    }
+
+    function setMessage(texto) {
+      if (!message) {
         return;
       }
+      message.textContent = texto || "";
+      message.hidden = !texto;
+    }
 
-      var variant = candidates[0];
-      select.value = String(variant.id);
+    /* Marca nos botões a combinação desta variante. */
+    function mark(variant) {
+      axes.forEach(function (axis) {
+        var alvo = String(variant[axis]);
+        inputsOf(axis).forEach(function (input) {
+          input.checked = input.value === alvo;
+        });
+      });
+    }
 
+    /* Tudo o que é da variante muda junto: preço, disponibilidade, peso,
+       prazo e ficha técnica. Trocar de cor não pode deixar na tela o peso da
+       opção anterior. */
+    function show(variant) {
       if (price && variant.priceDisplay) {
         price.textContent = variant.priceDisplay;
       }
@@ -373,25 +693,106 @@
       if (addButton) {
         addButton.disabled = !variant.available;
       }
+      if (stockState) {
+        stockState.innerHTML = "";
+        var badge = document.createElement("span");
+        badge.className = STOCK_BADGE[variant.stockState] || "badge-mint";
+        badge.textContent = variant.stockLabel;
+        stockState.appendChild(badge);
+      }
+      /* A ficha inteira, e nao so metade dela: cor, tamanho e material sao
+         tao da variante quanto o peso. Ate a etapa 18 estas tres ficavam
+         com o valor da variante com que a pagina abriu. */
+      updateSpec("cor", variant.colorLabel);
+      updateSpec("tamanho", variant.sizeLabel);
+      updateSpec("material", variant.materialLabel);
+      updateSpec("peso", variant.weightGrams ? variant.weightGrams + " g" : "");
+      updateSpec("dimensoes", variant.dimensions);
+      updateSpec("impressao", variant.printTime);
+      updateSpec("referencia", variant.sku);
+
+      /* A foto da variante, quando alguem vinculou uma. Sem foto propria,
+         `mediaUrl` vem vazio e a galeria volta para a foto de abertura --
+         nao fica a foto da variante anterior na tela. */
+      if (window.jdGallery) {
+        window.jdGallery.showVariantMedia(variant.mediaUrl || "", variant.mediaAlt || "");
+      }
     }
 
-    /* Marca a combinação da primeira variante disponível. */
-    var initial = variants.find(function (variant) {
-      return variant.available;
-    }) || variants[0];
-    groups.forEach(function (group) {
-      var key = group.getAttribute("data-variant-group");
-      var input = group.querySelector('input[value="' + String(initial[key]).replace(/"/g, '\\"') + '"]');
-      if (input) {
-        input.checked = true;
+    /* A ficha técnica acompanha a variante; linha sem valor some. */
+    function updateSpec(key, value) {
+      var row = document.querySelector('[data-spec="' + key + '"]');
+      if (!row) {
+        return;
+      }
+      var target = row.querySelector("[data-spec-value]");
+      if (target) {
+        target.textContent = value;
+      }
+      row.hidden = !value;
+    }
+
+    /* Passa a seleção inteira para esta variante: botões, `<select>`, preço,
+       ficha e o risco dos outros eixos. Um lugar só, para não existir estado
+       em que metade da tela fala de uma variante e metade de outra. */
+    function selectVariant(variant) {
+      setMessage("");
+      mark(variant);
+      select.value = String(variant.id);
+      paintAvailability(selection());
+      show(variant);
+    }
+
+    /* ---- eventos ---------------------------------------------------------- */
+
+    form.querySelectorAll("[data-variant-option]").forEach(function (input) {
+      input.addEventListener("change", function () {
+        var group = input.closest("[data-variant-group]");
+        var axis = group ? group.getAttribute("data-variant-group") : null;
+        if (!axis) {
+          return;
+        }
+
+        /* A escolha anterior, ANTES de o radio ter mudado a marcação — é ela
+           que o cálculo tenta preservar nos outros eixos. */
+        var chosen = selection();
+        var variant = bestVariant(axis, input.value, chosen);
+
+        if (!variant) {
+          /* Defensivo. Toda opção desenhada vem de alguma variante ativa
+             (ver `ProductDetailView.variant_options`), então isto não deveria
+             acontecer — mas deixar a tela falando de uma variante que não
+             existe seria pior do que dizer que não deu. */
+          setMessage(select.getAttribute("data-unavailable-label") || "");
+          return;
+        }
+
+        selectVariant(variant);
+      });
+    });
+
+    /* O seletor nativo fica escondido (sr-only) quando há botões, mas continua
+       acessível por teclado e por leitor de tela — e é ele que manda o
+       `variant_id` no POST. Sem este ouvinte, quem escolhesse por ele levava
+       uma variante e via na tela o preço da anterior. */
+    select.addEventListener("change", function () {
+      var variant = variants.find(function (candidate) {
+        return String(candidate.id) === select.value;
+      });
+      if (variant) {
+        selectVariant(variant);
       }
     });
 
-    form.querySelectorAll("[data-variant-option]").forEach(function (input) {
-      input.addEventListener("change", apply);
-    });
+    /* A variante que abre selecionada: a do `<select>` (que o servidor já
+       escolheu), com as reservas de sempre. */
+    var initial = variants.find(function (variant) {
+      return String(variant.id) === select.value;
+    }) || variants.find(function (variant) {
+      return variant.available;
+    }) || variants[0];
 
-    apply();
+    selectVariant(initial);
   }
 
   /* ---- Personalização --------------------------------------------------- */
@@ -453,14 +854,32 @@
       if (!input) {
         return;
       }
+
+      /* Um limite so, para os botoes e para o que for digitado. Os valores
+         vem do proprio campo (`min`/`max`), que o servidor preencheu e que a
+         troca de variante atualiza -- nenhuma regra de estoque escrita aqui. */
+      function clamp(valor) {
+        var min = Number(input.min || 1);
+        var max = Number(input.max || 99);
+        var numero = Math.floor(Number(valor));
+        if (!isFinite(numero) || numero < min) {
+          numero = min;
+        }
+        input.value = String(Math.min(max, numero));
+      }
+
       widget.querySelectorAll("[data-quantity-step]").forEach(function (button) {
         button.addEventListener("click", function () {
           var step = Number(button.getAttribute("data-quantity-step"));
-          var min = Number(input.min || 1);
-          var max = Number(input.max || 99);
-          var value = Number(input.value || 1) + step;
-          input.value = String(Math.min(max, Math.max(min, value)));
+          clamp(Number(input.value || 1) + step);
         });
+      });
+
+      /* Digitar 99 num produto com 5 em estoque deixava o formulario invalido:
+         o HTMX nao mandava a requisicao e o cliente ficava sem resposta.
+         Corrigir o valor faz o pedido sair com o numero certo. */
+      input.addEventListener("change", function () {
+        clamp(input.value);
       });
     });
   }

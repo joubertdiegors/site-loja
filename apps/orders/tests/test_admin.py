@@ -48,7 +48,14 @@ class OrderAdminBase(LanguageResetMixin, TestCase):
         )
         self.order = services.create_order(
             customer=self.customer_user.customer,
-            lines=[CartLine(key="k", product=self.product, variant=None, quantity=1)],
+            lines=[
+                CartLine(
+                    key="k",
+                    product=self.product,
+                    variant=self.product.default_variant,
+                    quantity=1,
+                )
+            ],
             shipping_address=self.address,
             billing_address=self.address,
             shipping_method=self.method,

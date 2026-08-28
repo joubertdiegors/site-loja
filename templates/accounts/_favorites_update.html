@@ -1,0 +1,14 @@
+{% comment %}
+Resposta do HTMX ao clique no coração DENTRO da página de favoritos.
+
+Aqui o alvo é a grade inteira, e não o botão: desfavoritar tem de tirar o card
+da tela, e a grade precisa saber virar o estado vazio quando o último sai.
+Redesenhá-la é barato — é a lista de um cliente, não um catálogo.
+{% endcomment %}
+{% include "accounts/_favorites_grid.html" %}
+
+{% include "components/favorites_counter.html" with oob=True %}
+
+<div id="toast-region" class="toast-region" hx-swap-oob="true">
+  {% include "components/toast.html" %}
+</div>

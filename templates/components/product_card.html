@@ -12,8 +12,9 @@ ao carrinho em vez de abrir o produto.
 O botão nasce discreto (roxo claro) e ganha peso quando o cursor está no card:
 o protagonista é o produto, não o botão.
 
-Favoritos e compra rápida ainda não existem — o espaço está reservado e os
-controles ficam desabilitados, com rótulo honesto para leitores de tela.
+O coração é `components/favorite_button.html`: para quem entrou é um POST
+que guarda o produto; para o visitante, um link para o login. O estado sai de
+`favorite_ids`, carregado uma vez por requisição — nunca uma consulta por card.
 {% endcomment %}
 <article class="card card-hover group relative flex h-full flex-col">
 
@@ -36,12 +37,7 @@ controles ficam desabilitados, com rótulo honesto para leitores de tela.
         {% endif %}
       </div>
 
-      <button type="button" disabled
-              class="pointer-events-auto inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/90 text-ink-muted opacity-0 shadow-sm transition-opacity duration-150 group-hover:opacity-100 focus-visible:opacity-100 disabled:cursor-not-allowed"
-              aria-label="{% blocktranslate with name=product.display_name %}Adicionar {{ name }} aos favoritos (em breve){% endblocktranslate %}"
-              title="{% translate 'Favoritos em breve' %}">
-        {% icon "heart" "h-4 w-4" %}
-      </button>
+      {% include "components/favorite_button.html" %}
     </div>
   </div>
 
@@ -58,6 +54,10 @@ controles ficam desabilitados, com rótulo honesto para leitores de tela.
 
     <div class="mt-auto flex items-end justify-between gap-2 pt-1">
       <div class="min-w-0">
+        {% comment %}
+          O preço vem SEMPRE de uma variante: é ela que se vende. Com preços
+          diferentes entre as opções, o card mostra o menor com "a partir de".
+        {% endcomment %}
         {% if product.has_price_range %}
           {% with faixa=product.price_range %}
             <p class="font-display text-base font-bold tabular-price text-ink sm:text-lg">
@@ -65,22 +65,28 @@ controles ficam desabilitados, com rótulo honesto para leitores de tela.
               <span class="text-[11px] font-medium text-ink-muted">{% translate "a partir de" %}</span>
             </p>
           {% endwith %}
-        {% elif product.sale_price %}
+        {% elif product.display_price %}
           <p class="font-display text-base font-bold tabular-price text-ink sm:text-lg">
-            {{ product.currency_symbol }}&nbsp;{{ product.sale_price|floatformat:2 }}
+            {{ product.currency_symbol }}&nbsp;{{ product.display_price|floatformat:2 }}
           </p>
         {% else %}
           <p class="text-sm font-semibold text-ink-muted">{% translate "Sob consulta" %}</p>
         {% endif %}
 
+        {% comment %}
+          O prazo tambem e da variante em exibicao: cada opcao tem o seu, e o
+          card mostra o da que abriria selecionada na pagina do produto.
+        {% endcomment %}
         {% if product.stock_state == "made_to_order" %}
-          <p class="mt-0.5 text-[11.5px] font-semibold text-state-warning-dark">
-            {% if product.production_lead_time_days %}
-              {% blocktranslate count days=product.production_lead_time_days %}Pronto em {{ days }} dia{% plural %}Pronto em {{ days }} dias{% endblocktranslate %}
-            {% else %}
-              {% translate "Sob encomenda" %}
-            {% endif %}
-          </p>
+          {% with prazo=product.default_variant.production_lead_time_days %}
+            <p class="mt-0.5 text-[11.5px] font-semibold text-state-warning-dark">
+              {% if prazo %}
+                {% blocktranslate count days=prazo %}Pronto em {{ days }} dia{% plural %}Pronto em {{ days }} dias{% endblocktranslate %}
+              {% else %}
+                {% translate "Sob encomenda" %}
+              {% endif %}
+            </p>
+          {% endwith %}
         {% elif product.stock_state == "out" %}
           <p class="mt-0.5 text-[11.5px] font-semibold text-state-error">{% translate "Sem estoque" %}</p>
         {% elif product.stock_state == "low" %}
@@ -90,7 +96,7 @@ controles ficam desabilitados, com rótulo honesto para leitores de tela.
         {% endif %}
       </div>
 
-      {% with colors=product.colors.all %}
+      {% with colors=product.available_colors %}
         {% if colors %}
           <ul class="flex shrink-0 items-center gap-1" role="list"
               aria-label="{% translate 'Cores disponíveis' %}">
@@ -98,8 +104,8 @@ controles ficam desabilitados, com rótulo honesto para leitores de tela.
               <li>
                 <span class="block h-3.5 w-3.5 rounded-full border border-black/10"
                       style="background-color: {{ color.hex_code|default:'#d4d4d8' }}"
-                      title="{{ color.name }}"></span>
-                <span class="sr-only">{{ color.name }}</span>
+                      title="{{ color.display_name }}"></span>
+                <span class="sr-only">{{ color.display_name }}</span>
               </li>
             {% endfor %}
             {% if colors|length > 4 %}
@@ -123,16 +129,23 @@ controles ficam desabilitados, com rótulo honesto para leitores de tela.
           {% translate "Personalizar" %}
         </a>
 
-      {% elif product.has_variants %}
+      {% elif product.has_multiple_variants %}
+        {# Mais de uma opção: quem escolhe é o cliente, na página do produto. #}
         <a href="{{ product.get_absolute_url }}" class="btn-soft btn-sm w-full">
           {% translate "Escolher opções" %}
         </a>
 
       {% else %}
+        {% comment %}
+          Opção única: o card adiciona direto, mandando o id DA VARIANTE — o
+          carrinho não aceita linha sem variante.
+        {% endcomment %}
         <form method="post" action="{% url 'cart:add' %}"
-              hx-post="{% url 'cart:add' %}" hx-swap="none">
+              hx-post="{% url 'cart:add' %}" hx-swap="none"
+              hx-disabled-elt="find button[type=submit]">
           {% csrf_token %}
           <input type="hidden" name="product_id" value="{{ product.pk }}">
+          <input type="hidden" name="variant_id" value="{{ product.default_variant.pk }}">
           <input type="hidden" name="next" value="{{ request.get_full_path }}">
           {# Sem ícone: com o texto em português o botão caberia em duas linhas. #}
           <button type="submit" class="btn-soft btn-sm w-full">

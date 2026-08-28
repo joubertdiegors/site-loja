@@ -1,0 +1,61 @@
+{% extends "admin/change_form.html" %}
+{% comment %}
+  A ordem das secoes da tela do produto, e a AUDITORIA no fim.
+
+  O Django desenha *todos* os fieldsets e so depois *todos* os inlines. A ordem
+  pedida intercala os dois (CONTEUDO, que e inline, fica entre CLASSIFICACAO e
+  PERSONALIZACAO, que sao fieldsets), entao `ProductAdmin._page_layout` monta em
+  Python uma lista unica -- `product_layout` -- e aqui e so caminhar por ela.
+
+  A ordem propriamente dita mora em `SECTION_ORDER`, no admin. Este arquivo nao
+  sabe quais sao as secoes nem em que ordem elas vem: sem isso, mudar a ordem
+  exigiria editar dois arquivos e lembrar de manter os dois de acordo.
+{% endcomment %}
+
+{% block field_sets %}
+  {% if product_layout %}
+    {% for item in product_layout %}
+      {% if item.kind == "fieldset" %}
+        {% include "admin/includes/fieldset.html" with fieldset=item.fieldset heading_level=2 prefix="fieldset" id_prefix=0 id_suffix=item.index %}
+      {% else %}
+        {% include item.formset.opts.template with inline_admin_formset=item.formset %}
+      {% endif %}
+    {% endfor %}
+  {% else %}
+    {{ block.super }}
+  {% endif %}
+{% endblock %}
+
+{% comment %}
+  Os inlines ja sairam acima, na posicao certa. Repeti-los aqui desenharia cada
+  formset duas vezes -- e dois campos com o mesmo `name` no mesmo formulario.
+{% endcomment %}
+{% block inline_field_sets %}
+  {% if not product_layout %}{{ block.super }}{% endif %}
+{% endblock %}
+
+{% comment %}
+  A AUDITORIA e o ultimo bloco da pagina. `after_related_objects` e o ponto de
+  extensao do proprio Django para isto. So aparece na edicao: produto que ainda
+  nao foi criado nao tem historico.
+{% endcomment %}
+{% block after_related_objects %}
+  {{ block.super }}
+  {% if audit_rows %}
+    <fieldset class="module aligned collapse" aria-labelledby="auditoria-heading">
+      <details>
+        <summary>
+          <h2 id="auditoria-heading" class="fieldset-heading">AUDITORIA</h2>
+        </summary>
+        {% for rotulo, valor in audit_rows %}
+          <div class="form-row">
+            <div class="flex-container">
+              <label>{{ rotulo }}:</label>
+              <div class="readonly">{{ valor|default:"—" }}</div>
+            </div>
+          </div>
+        {% endfor %}
+      </details>
+    </fieldset>
+  {% endif %}
+{% endblock %}

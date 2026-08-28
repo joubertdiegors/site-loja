@@ -1,0 +1,14 @@
+{% comment %}
+Resposta do HTMX ao clique no coração, fora da página de favoritos.
+
+O botão novo vai no lugar do antigo (é o alvo do `hx-swap`); o contador do
+cabeçalho e o aviso vêm por troca "out of band" — o mesmo desenho que o
+carrinho já usa. A página não recarrega e o produto continua onde estava.
+{% endcomment %}
+{% include "components/favorite_button.html" %}
+
+{% include "components/favorites_counter.html" with oob=True %}
+
+<div id="toast-region" class="toast-region" hx-swap-oob="true">
+  {% include "components/toast.html" %}
+</div>

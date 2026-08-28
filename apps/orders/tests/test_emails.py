@@ -48,10 +48,14 @@ class OrderEmailBase(LanguageResetMixin, TestCase):
 
         self.address = make_address(self.customer, self.country)
         self.product = make_product(
-            sku="CHAVE-01", name="Chaveiro com Nome", price=Decimal("7.90"), stock_quantity=10
+            sku="CHAVE-01",
+            name="Chaveiro com Nome",
+            price=Decimal("7.90"),
+            stock_quantity=10,
+            production_lead_time_days=3,
         )
+        self.variant = self.product.default_variant
         self.product.personalization_type = "text"
-        self.product.production_lead_time_days = 3
         self.product.save()
 
         self.upload = CustomizationUpload.objects.create(
@@ -70,7 +74,7 @@ class OrderEmailBase(LanguageResetMixin, TestCase):
                 CartLine(
                     key="k",
                     product=self.product,
-                    variant=None,
+                    variant=self.variant,
                     quantity=2,
                     customization={"type": "text", "text": "Lucas", "notes": "fonte maior"},
                 )
@@ -205,7 +209,7 @@ class AdminEmailTests(OrderEmailBase):
                 CartLine(
                     key="k2",
                     product=self.product,
-                    variant=None,
+                    variant=self.variant,
                     quantity=1,
                     customization={"type": "photo", "upload_id": self.upload.pk},
                     upload=self.upload,

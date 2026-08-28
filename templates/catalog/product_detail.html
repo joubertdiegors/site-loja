@@ -38,15 +38,37 @@ sem sair da página.
         <section data-gallery aria-labelledby="galeria-titulo">
           <h2 id="galeria-titulo" class="sr-only">{% translate "Fotos do produto" %}</h2>
 
+          {% comment %}
+            `object-contain` e não `object-cover`: a foto do produto não pode
+            ser cortada. A área continua quadrada para a grade não pular de
+            altura, e a imagem se ajusta dentro dela — horizontal, vertical ou
+            quadrada, sem deformar.
+
+            Os `data-default-*` guardam a foto de abertura: é para ela que a
+            galeria volta quando a variante escolhida não tem foto própria.
+          {% endcomment %}
           <div class="layers overflow-hidden rounded-card border border-surface-line">
             {% with principal=gallery.0 %}
-              <div data-gallery-main class="aspect-square w-full">
+              <div data-gallery-main
+                   class="aspect-square w-full {% if principal %}cursor-zoom-in{% endif %}"
+                   {% if principal %}
+                     role="button" tabindex="0"
+                     aria-label="{% translate 'Ver a foto ampliada' %}"
+                     data-default-url="{{ principal.file.url }}"
+                     data-default-alt="{{ principal.alt_text|default:product.display_name }}"
+                     data-default-type="{{ principal.media_type }}"
+                   {% endif %}>
                 {% if principal and principal.media_type == "VIDEO" %}
                   <video src="{{ principal.file.url }}" controls playsinline
-                         class="h-full w-full object-cover"></video>
+                         class="h-full w-full object-contain"></video>
                 {% elif principal %}
+                  {% comment %}
+                    Sem `id`: a galeria reescreve esta `<img>` ao trocar de foto, e um
+                    `id` que some no primeiro clique seria pior que nenhum. Quem
+                    precisa da foto atual lê `data-current-url` no contêiner.
+                  {% endcomment %}
                   <img src="{{ principal.file.url }}" alt="{{ principal.alt_text|default:product.display_name }}"
-                       class="h-full w-full object-cover" id="galeria-principal">
+                       class="h-full w-full object-contain">
                 {% else %}
                   {% include "components/product_media.html" with media=None name=product.display_name %}
                 {% endif %}
@@ -69,12 +91,42 @@ sem sair da página.
                         {% icon "cube" "h-6 w-6" %}
                       </span>
                     {% else %}
-                      <img src="{{ item.file.url }}" alt="" loading="lazy" class="h-full w-full object-cover">
+                      <img src="{{ item.file.url }}" alt="" loading="lazy" class="h-full w-full object-contain">
                     {% endif %}
                   </a>
                 </li>
               {% endfor %}
             </ul>
+          {% endif %}
+
+          {% if gallery %}
+            {% comment %}
+              A lupa. Fica fora do fluxo (`position: fixed`) para não aumentar
+              a página, e a imagem é limitada à viewport — uma foto de 4000px
+              não pode empurrar a tela nem sair dela.
+
+              Fecha no X, no fundo e no ESC; as setas andam entre as fotos.
+            {% endcomment %}
+            <div class="jd-lightbox" data-lightbox hidden
+                 role="dialog" aria-modal="true"
+                 aria-label="{% translate 'Foto ampliada' %}">
+              <div class="jd-lightbox-backdrop" data-lightbox-backdrop aria-hidden="true"></div>
+
+              <div class="jd-lightbox-frame">
+                <button type="button" class="jd-lightbox-close" data-lightbox-close
+                        aria-label="{% translate 'Fechar' %}">&times;</button>
+
+                <button type="button" class="jd-lightbox-nav jd-lightbox-prev" data-lightbox-prev
+                        aria-label="{% translate 'Foto anterior' %}">&lsaquo;</button>
+
+                <div class="jd-lightbox-stage" data-lightbox-media></div>
+
+                <button type="button" class="jd-lightbox-nav jd-lightbox-next" data-lightbox-next
+                        aria-label="{% translate 'Próxima foto' %}">&rsaquo;</button>
+
+                <p class="jd-lightbox-counter" data-lightbox-counter aria-live="polite"></p>
+              </div>
+            </div>
           {% endif %}
         </section>
 
@@ -89,15 +141,15 @@ sem sair da página.
             {{ product.display_name }}
           </h1>
 
-          {# Preço: vem do sistema de preços, nunca recalculado no template. #}
+          {% comment %}
+            O preço é o da VARIANTE selecionada — nunca uma faixa e nunca o
+            produto. A página abre com uma variante escolhida (a primeira
+            disponível) e o JavaScript troca este número ao trocar de opção.
+          {% endcomment %}
           <p class="mt-4 flex items-baseline gap-2">
             <span data-price class="font-display text-3xl font-bold tabular-price tracking-[-0.02em] text-brand-800 sm:text-4xl">
-              {% if product.has_price_range %}
-                {% with faixa=product.price_range %}
-                  {{ product.currency_symbol }}&nbsp;{{ faixa.0|floatformat:2 }} – {{ faixa.1|floatformat:2 }}
-                {% endwith %}
-              {% elif product.sale_price %}
-                {{ product.currency_symbol }}&nbsp;{{ product.sale_price|floatformat:2 }}
+              {% if selected_variant.sale_price %}
+                {{ product.currency_symbol }}&nbsp;{{ selected_variant.sale_price|floatformat:2 }}
               {% else %}
                 {% translate "Sob consulta" %}
               {% endif %}
@@ -109,17 +161,20 @@ sem sair da página.
           {% endif %}
 
           {# Estoque #}
+          {# Disponibilidade: sempre a da variante selecionada. #}
           <p class="mt-4 flex flex-wrap items-center gap-2" data-stock-state>
-            {% if product.stock_state == "made_to_order" %}
+            {% if not selected_variant %}
+              <span class="badge-muted">{% translate "Indisponível" %}</span>
+            {% elif selected_variant.stock_state == "made_to_order" %}
               <span class="badge-amber">{% translate "Produzido sob encomenda" %}</span>
-              {% if product.production_lead_time_days %}
-                <span class="text-xs text-ink-muted">
-                  {% blocktranslate count days=product.production_lead_time_days %}Pronto em {{ days }} dia{% plural %}Pronto em {{ days }} dias{% endblocktranslate %}
+              {% if selected_variant.production_lead_time_days %}
+                <span class="text-xs text-ink-muted" data-stock-note>
+                  {% blocktranslate count days=selected_variant.production_lead_time_days %}Pronto em {{ days }} dia{% plural %}Pronto em {{ days }} dias{% endblocktranslate %}
                 </span>
               {% endif %}
-            {% elif product.stock_state == "out" %}
+            {% elif selected_variant.stock_state == "out" %}
               <span class="badge-muted">{% translate "Esgotado" %}</span>
-            {% elif product.stock_state == "low" %}
+            {% elif selected_variant.stock_state == "low" %}
               <span class="badge-amber">{% translate "Últimas unidades" %}</span>
             {% else %}
               <span class="badge-mint">{% translate "Em estoque" %}</span>
@@ -129,47 +184,94 @@ sem sair da página.
           <div class="my-5 h-px bg-surface-line"></div>
 
           {# ---- Formulário de compra ------------------------------------- #}
+          {% comment %}
+            `hx-disabled-elt` desliga o botão enquanto o POST está no ar: dois
+            cliques rápidos mandavam duas requisições, e o cliente terminava
+            com duas unidades sem ter pedido. É do próprio HTMX — nenhum
+            JavaScript novo, e sem JavaScript o navegador já bloqueia o
+            segundo envio do formulário.
+          {% endcomment %}
           <form method="post" action="{% url 'cart:add' %}" enctype="multipart/form-data"
                 hx-post="{% url 'cart:add' %}" hx-swap="none" hx-encoding="multipart/form-data"
+                hx-disabled-elt="find [data-add-button]"
                 data-add-to-cart>
             {% csrf_token %}
             <input type="hidden" name="product_id" value="{{ product.pk }}">
             <input type="hidden" name="next" value="{{ request.get_full_path }}">
 
-            {% if variants %}
-              {# Sem JS este select é a escolha; com JS os botões o mantêm em dia. #}
+            {% if product.has_multiple_variants %}
+              {% comment %}
+                O seletor lista TODAS as variantes cadastradas — nenhuma fica
+                escondida atrás de um "preço do produto". A que abre marcada é
+                a primeira disponível; as esgotadas aparecem desabilitadas,
+                para o cliente ver que existem.
+
+                **Sem JavaScript, este `<select>` é a interface inteira.** Cada
+                opção dele é uma variante que existe de verdade, então não há
+                como montar uma combinação inexistente. Com JavaScript ele passa
+                para `sr-only` e os botões abaixo tomam a frente — mas continua
+                sendo ele quem carrega o `variant_id` no POST.
+              {% endcomment %}
               <div class="mb-4" data-variant-select-wrapper>
                 <label for="variant_id" class="form-label">{% translate "Opção" %}</label>
-                <select id="variant_id" name="variant_id" data-variant-select required class="form-select mt-1.5">
+                <select id="variant_id" name="variant_id" data-variant-select required class="form-select mt-1.5"
+                        data-unavailable-label="{% translate 'Esta combinação não existe. Escolha outra.' %}"
+                        data-switch-label="{% translate 'Não existe com a opção atual — clique para trocar' %}">
                   {% for variant in variants %}
                     <option value="{{ variant.pk }}"
                             data-color="{{ variant.color_id|default_if_none:'' }}"
                             data-size="{{ variant.size }}"
                             data-material="{{ variant.material_id|default_if_none:'' }}"
+                            {% if selected_variant and variant.pk == selected_variant.pk %}selected{% endif %}
                             {% if not variant.is_available %}disabled{% endif %}>
-                      {{ variant.label }}{% if not variant.is_available %} — {% translate "esgotado" %}{% endif %}
+                      {{ variant.display_label }}{% if not variant.is_available %} — {% translate "esgotado" %}{% endif %}
                     </option>
                   {% endfor %}
                 </select>
               </div>
+            {% elif selected_variant %}
+              {# Opção única: nada a escolher, mas a variante vai no POST. #}
+              <input type="hidden" name="variant_id" value="{{ selected_variant.pk }}">
+            {% endif %}
 
-              {% for group in variant_options %}
-                <fieldset class="mb-4" data-variant-group="{{ group.key }}">
-                  <legend class="form-label">{{ group.label }}</legend>
-                  <div class="mt-2 flex flex-wrap gap-2">
-                    {% for option in group.options %}
-                      <label class="variant-option">
-                        <input type="radio" name="option_{{ group.key }}" value="{{ option.value }}"
-                               class="sr-only" data-variant-option>
-                        {% if option.hex %}
-                          <span class="h-4 w-4 rounded-full border border-black/10" style="background-color: {{ option.hex }}" aria-hidden="true"></span>
-                        {% endif %}
-                        <span>{{ option.label }}</span>
-                      </label>
-                    {% endfor %}
-                  </div>
-                </fieldset>
-              {% endfor %}
+            {% if product.has_multiple_variants %}
+              {% comment %}
+                Os botões nascem escondidos: sem JavaScript eles não teriam como
+                desabilitar as combinações impossíveis, e mostrar dois controles
+                para a mesma escolha só confunde. O JavaScript remove o `hidden`.
+
+                Cada opção continua visível quando não combina com a escolha
+                atual — riscada, mas **clicável**. Sumir com ela faria o cliente
+                achar que o tamanho não existe; desabilitar diria a mesma coisa.
+                O que é verdade é que ele não existe *nessa cor* — e clicar nele
+                troca a cor sozinho, para uma variante que existe de verdade.
+              {% endcomment %}
+              <div data-variant-groups hidden>
+                {% for group in variant_options %}
+                  <fieldset class="mb-4" data-variant-group="{{ group.key }}">
+                    <legend class="form-label">{{ group.label }}</legend>
+                    <div class="mt-2 flex flex-wrap gap-2">
+                      {% for option in group.options %}
+                        <label class="variant-option">
+                          <input type="radio" name="option_{{ group.key }}" value="{{ option.value }}"
+                                 class="sr-only" data-variant-option>
+                          {% if option.hex %}
+                            <span class="h-4 w-4 rounded-full border border-black/10" style="background-color: {{ option.hex }}" aria-hidden="true"></span>
+                          {% endif %}
+                          <span>{{ option.label }}</span>
+                        </label>
+                      {% endfor %}
+                    </div>
+                  </fieldset>
+                {% endfor %}
+
+                {% comment %}
+                  Preenchido pelo JavaScript quando a escolha está incompleta ou
+                  quando a combinação pedida não existe.
+                {% endcomment %}
+                <p class="mb-4 text-sm font-semibold text-state-warning-dark"
+                   data-variant-message role="status" hidden></p>
+              </div>
 
               {{ variant_payload|json_script:"variant-data" }}
             {% endif %}
@@ -268,20 +370,6 @@ sem sair da página.
             </div>
           </form>
 
-          {% if product.colors.all and not variants %}
-            <div class="mt-6">
-              <p class="form-label">{% translate "Cores disponíveis" %}</p>
-              <ul class="mt-2 flex flex-wrap items-center gap-2" role="list">
-                {% for color in product.colors.all %}
-                  <li class="chip border border-surface-line bg-white text-[13px] text-ink-soft">
-                    <span class="h-3.5 w-3.5 rounded-full border border-black/10"
-                          style="background-color: {{ color.hex_code|default:'#d4d4d8' }}" aria-hidden="true"></span>
-                    {{ color.name }}
-                  </li>
-                {% endfor %}
-              </ul>
-            </div>
-          {% endif %}
         </section>
       </div>
     </div>
@@ -327,16 +415,49 @@ sem sair da página.
               {% translate "Especificações" %}
             </h2>
             <dl class="mt-4 divide-y divide-surface-line">
-              {% for label, value in specifications %}
-                <div class="flex items-baseline justify-between gap-4 py-3">
+              {% comment %}
+                `data-spec` é o gancho do JavaScript: trocar de variante troca
+                peso, dimensões, tempo de impressão e referência sem recarregar
+                a página. Linha sem valor nasce escondida em vez de sumir do
+                HTML — assim ela reaparece quando a outra variante tiver o dado.
+              {% endcomment %}
+              {% for key, label, value in specifications %}
+                <div class="flex items-baseline justify-between gap-4 py-3"
+                     data-spec="{{ key }}" {% if not value %}hidden{% endif %}>
                   <dt class="text-sm text-ink-muted">{{ label }}</dt>
-                  <dd class="text-end font-mono text-[13px] font-medium text-ink">{{ value }}</dd>
+                  <dd class="text-end font-mono text-[13px] font-medium text-ink" data-spec-value>{{ value }}</dd>
                 </div>
               {% endfor %}
             </dl>
           </section>
         {% endif %}
       </div>
+    {% endif %}
+
+    {% if recommended %}
+      {% comment %}
+        Sugestões. Reaproveita o card do Shop inteiro — mesma grade, mesmo
+        preço "a partir de", mesmas amostras de cor. Um card próprio aqui seria
+        um segundo lugar para corrigir quando o card mudar.
+      {% endcomment %}
+      <section class="mt-10" aria-labelledby="recomendados-titulo">
+        <h2 id="recomendados-titulo"
+            class="font-display text-xl font-bold tracking-[-0.02em] text-ink sm:text-2xl">
+          {% translate "Você também pode gostar" %}
+        </h2>
+
+        <ul class="mt-5 grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-4" role="list">
+          {% comment %}
+            `with product=sugerido` e nao um `{% templatetag openblock %} for product {% templatetag closeblock %}`:
+            reusar o nome `product` dentro do laco sombrearia o produto da
+            pagina, e quem lesse isto depois teria de lembrar que o Django
+            restaura a variavel no fim.
+          {% endcomment %}
+          {% for sugerido in recommended %}
+            <li>{% include "components/product_card.html" with product=sugerido %}</li>
+          {% endfor %}
+        </ul>
+      </section>
     {% endif %}
   </article>
 {% endblock %}

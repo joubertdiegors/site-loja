@@ -11,7 +11,7 @@ from django.conf import settings
 from django.utils import translation
 
 from apps.accounts.models import Customer, User
-from apps.catalog.models import Product, ProductStatus, ProductTranslation
+from apps.catalog.models import Product, ProductStatus, ProductTranslation, ProductVariant
 from apps.categories.models import Category, CategoryTranslation
 from apps.home.models import (
     HomeBanner,
@@ -37,23 +37,91 @@ def translate_category(category, language, name):
     return category
 
 
+#: Campos que hoje são da variante. Um teste que passa ``price=`` ou
+#: ``stock_quantity=`` para ``make_product`` está falando da variante — o
+#: helper redireciona em vez de estourar, para os testes das etapas anteriores
+#: continuarem legíveis.
+VARIANT_FIELDS = (
+    "sale_price",
+    "stock_quantity",
+    "weight_grams",
+    "production_lead_time_days",
+    "made_to_order",
+    "allow_backorder",
+    "width",
+    "height",
+    "depth",
+    "dimension_unit",
+    "print_time",
+    "pricing_mode",
+    "profit_margin",
+    "filament_cost",
+    "energy_cost",
+    "color",
+    "material",
+    "size",
+)
+
+
 def make_product(
     sku="PROD-01",
     name="Produto de teste",
     category=None,
     price=Decimal("10.00"),
     status=ProductStatus.ACTIVE,
+    with_variant=True,
+    variant_sku=None,
     **kwargs,
 ):
-    product = Product.objects.create(
-        sku=sku, category=category, sale_price=price, status=status, **kwargs
-    )
+    """Produto **com** a variante padrão — que é o que se vende.
+
+    Desde a etapa 8 não existe produto vendável sem variante. O helper cria as
+    duas coisas: o produto genérico e uma variante carregando preço, estoque,
+    peso e prazo. Argumentos comerciais (``price``, ``stock_quantity``,
+    ``weight_grams``…) vão para a variante.
+
+    ``with_variant=False`` cria só o produto — serve para testar exatamente o
+    caso "produto sem variante não é vendável".
+    """
+    variant_kwargs = {
+        field: kwargs.pop(field) for field in VARIANT_FIELDS if field in kwargs
+    }
+
+    product = Product.objects.create(sku=sku, category=category, status=status, **kwargs)
     if name:
         ProductTranslation.objects.create(master=product, language="pt", name=name)
         product.refresh_translations()
         product.slug = ""
         product.save()
+
+    if with_variant:
+        variant_kwargs.setdefault("sale_price", price)
+        make_variant(product, sku=variant_sku or sku, **variant_kwargs)
+        product.refresh_from_db()
+
     return product
+
+
+def make_variant(product, sku=None, price=None, stock=None, **kwargs):
+    """Uma variante do produto: a unidade que se vende.
+
+    ``price`` e ``stock`` são atalhos para ``sale_price`` e ``stock_quantity``,
+    os dois valores que quase todo teste precisa dizer.
+    """
+    if price is not None:
+        kwargs.setdefault("sale_price", price)
+    if stock is not None:
+        kwargs.setdefault("stock_quantity", stock)
+    kwargs.setdefault("sale_price", Decimal("10.00"))
+
+    base = sku or f"{product.sku}-V{product.variants.count() + 1}"
+    candidate = base
+    counter = 2
+    while ProductVariant.objects.filter(sku=candidate).exists():
+        candidate = f"{base}-{counter}"
+        counter += 1
+
+    return ProductVariant.objects.create(product=product, sku=candidate, **kwargs)
 
 
 def translate_product(product, language, name, short_description=""):

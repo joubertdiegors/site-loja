@@ -2,7 +2,9 @@ from django.conf import settings
 from django.conf.urls.i18n import i18n_patterns
 from django.conf.urls.static import static
 from django.contrib import admin
+from django.templatetags.static import static as static_url
 from django.urls import include, path
+from django.views.generic import RedirectView
 
 from apps.core.views import set_language
 from apps.orders.views import StripeWebhookView
@@ -17,6 +19,14 @@ from apps.orders.views import StripeWebhookView
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("i18n/setlang/", set_language, name="set_language"),
+    # O navegador pede /favicon.ico sozinho, em toda visita, mesmo com o <link>
+    # do <head> apontando para outro arquivo. Sem esta rota é um 404 por
+    # visitante no log — ruído que esconde os 404 que importam.
+    path(
+        "favicon.ico",
+        RedirectView.as_view(url=static_url("images/logo/favicon.svg"), permanent=True),
+        name="favicon",
+    ),
     # O webhook da Stripe não é um navegador: não tem idioma, não tem sessão e
     # não pode ganhar prefixo /fr/. Ele se autentica pela assinatura do corpo
     # (ver apps/orders/views.py::StripeWebhookView).
@@ -35,6 +45,7 @@ urlpatterns += i18n_patterns(
     path("", include("apps.catalog.urls")),
     path("", include("apps.cart.urls")),
     path("", include("apps.orders.urls")),
+    path("", include("apps.storefront.urls")),
     prefix_default_language=False,
 )
 

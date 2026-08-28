@@ -179,6 +179,16 @@ class HomeBanner(TranslatableMixin, CtaMixin, TimeStampedModel):
     def image_alt(self) -> str:
         return self.tr("image_alt", default=self.tr("title"))
 
+    @property
+    def has_text(self) -> bool:
+        """Há algo a escrever sobre a imagem?
+
+        Sem isto o hero desenhava a faixa de gradiente e um `<h1>` vazio por
+        cima de um banner que era só arte — cobrindo justamente a parte da
+        imagem que o cliente deveria ver.
+        """
+        return bool(self.title or self.subtitle or self.has_cta)
+
     def clean(self):
         super().clean()
         errors = self.clean_cta()
@@ -190,7 +200,15 @@ class HomeBannerTranslation(TranslationBase):
     master = models.ForeignKey(
         HomeBanner, verbose_name="banner", related_name="translations", on_delete=models.CASCADE
     )
-    title = models.CharField("título", max_length=200)
+    title = models.CharField(
+        "título",
+        max_length=200,
+        blank=True,
+        help_text=(
+            "Opcional. Em branco, a imagem aparece sozinha — sem faixa escura "
+            "nem título vazio por cima dela."
+        ),
+    )
     subtitle = models.CharField("subtítulo", max_length=300, blank=True)
     cta_label = models.CharField("texto do botão", max_length=80, blank=True)
     image_alt = models.CharField(
@@ -207,9 +225,6 @@ class HomeBannerTranslation(TranslationBase):
         constraints = [
             models.UniqueConstraint(
                 fields=["master", "language"], name="home_banner_translation_unique_language"
-            ),
-            models.CheckConstraint(
-                condition=~models.Q(title=""), name="home_banner_translation_title_not_empty"
             ),
         ]
 
@@ -425,3 +440,195 @@ class HomeSectionProduct(models.Model):
 
     def __str__(self) -> str:
         return f"{self.sort_order}. {self.product}"
+
+
+# ---------------------------------------------------------------------------
+# 4. Cards "como trabalhamos"
+# ---------------------------------------------------------------------------
+
+
+#: Os ícones que o `icon.html` já sabe desenhar. Uma lista fechada, e não um
+#: campo de texto livre: nome errado renderizaria um espaço em branco, e o
+#: administrador não teria como descobrir por quê.
+CARD_ICONS = (
+    ("cube", "Cubo (produção)"),
+    ("palette", "Paleta (cores e materiais)"),
+    ("sparkles", "Brilho (personalização)"),
+    ("truck", "Caminhão (envio)"),
+    ("shield", "Escudo (segurança)"),
+    ("clock", "Relógio (prazo)"),
+    ("package", "Caixa (embalagem)"),
+    ("heart", "Coração"),
+    ("check", "Confirmação"),
+    ("globe", "Globo"),
+)
+
+#: As três cores que os cards já usavam. Um seletor de cor livre deixaria a
+#: Home sair do padrão da marca no primeiro cadastro distraído.
+CARD_ACCENTS = (
+    ("brand", "Roxo"),
+    ("cyan", "Ciano"),
+    ("magenta", "Magenta"),
+)
+
+
+class HomeCardQuerySet(models.QuerySet):
+    def for_display(self):
+        return (
+            self.filter(is_active=True)
+            .order_by("sort_order", "id")
+            .prefetch_related("translations")
+        )
+
+
+class HomeCard(TranslatableMixin, TimeStampedModel):
+    """Um dos cards com ícone abaixo das faixas de produtos.
+
+    Eram três, escritos no HTML. Nada no template fixa a quantidade: a grade é
+    `sm:grid-cols-3`, e cadastrar quatro dá duas linhas — o que é decisão do
+    administrador, não um erro.
+    """
+
+    translatable_fields = ("title", "text")
+
+    internal_name = models.CharField(
+        "nome interno",
+        max_length=120,
+        help_text="Identificação administrativa. Não aparece para o cliente.",
+    )
+    icon = models.CharField("ícone", max_length=20, choices=CARD_ICONS, default="cube")
+    accent = models.CharField("cor do ícone", max_length=10, choices=CARD_ACCENTS, default="brand")
+    is_active = models.BooleanField("ativo", default=True)
+    sort_order = models.PositiveIntegerField("ordem", default=0)
+
+    objects = HomeCardQuerySet.as_manager()
+
+    class Meta:
+        verbose_name = "card da Home"
+        verbose_name_plural = "CARDS — como trabalhamos"
+        ordering = ("sort_order", "id")
+        indexes = [
+            models.Index(fields=["is_active", "sort_order"], name="home_card_active_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return self.internal_name
+
+    @property
+    def title(self) -> str:
+        return self.tr("title")
+
+    @property
+    def text(self) -> str:
+        return self.tr("text")
+
+
+class HomeCardTranslation(TranslationBase):
+    master = models.ForeignKey(
+        HomeCard, verbose_name="card", related_name="translations", on_delete=models.CASCADE
+    )
+    title = models.CharField("título", max_length=120)
+    text = models.CharField("texto", max_length=300, blank=True)
+
+    class Meta:
+        verbose_name = "tradução do card"
+        verbose_name_plural = "traduções do card"
+        ordering = ("language",)
+        constraints = [
+            models.UniqueConstraint(
+                fields=["master", "language"], name="home_card_translation_unique_language"
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.title} ({self.get_language_display()})"
+
+
+# ---------------------------------------------------------------------------
+# 5. Chamada final
+# ---------------------------------------------------------------------------
+
+
+class HomeCallout(TranslatableMixin, CtaMixin, TimeStampedModel):
+    """A faixa escura no fim da Home — sobretítulo, título, texto e botão.
+
+    **Uma linha só** (`pk=1`): é *a* chamada final, não uma lista delas. O
+    botão reaproveita o `CtaMixin`, o mesmo do banner e das seções, então pode
+    apontar para uma categoria ou um produto e continuar válido se o slug
+    mudar.
+
+    Tudo é opcional. Sem título, sem texto e sem botão o bloco inteiro some da
+    Home em vez de virar uma faixa escura vazia.
+    """
+
+    translatable_fields = ("eyebrow", "title", "text", "cta_label")
+
+    is_active = models.BooleanField("exibir na Home", default=True)
+
+    class Meta:
+        verbose_name = "chamada final da Home"
+        verbose_name_plural = "CHAMADA FINAL — faixa do fim da Home"
+
+    def __str__(self) -> str:
+        return "Chamada final da Home"
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def load(cls) -> "HomeCallout":
+        obj, _criado = cls.objects.get_or_create(pk=1)
+        return obj
+
+    @classmethod
+    def current(cls) -> "HomeCallout | None":
+        """A chamada em uso, ou `None` para o template usar o texto padrão."""
+        return cls.objects.filter(pk=1, is_active=True).prefetch_related("translations").first()
+
+    @property
+    def eyebrow(self) -> str:
+        return self.tr("eyebrow")
+
+    @property
+    def title(self) -> str:
+        return self.tr("title")
+
+    @property
+    def text(self) -> str:
+        return self.tr("text")
+
+    @property
+    def cta_label(self) -> str:
+        return self.tr("cta_label")
+
+    @property
+    def has_content(self) -> bool:
+        """Há algo para mostrar? Sem isto o bloco viraria uma faixa vazia."""
+        return bool(self.eyebrow or self.title or self.text or self.has_cta)
+
+    def clean(self):
+        super().clean()
+        errors = self.clean_cta()
+        if errors:
+            raise ValidationError(errors)
+
+
+class HomeCalloutTranslation(TranslationBase):
+    master = models.ForeignKey(
+        HomeCallout, verbose_name="chamada", related_name="translations", on_delete=models.CASCADE
+    )
+    eyebrow = models.CharField("sobretítulo", max_length=80, blank=True)
+    title = models.CharField("título", max_length=200, blank=True)
+    text = models.TextField("texto", blank=True)
+    cta_label = models.CharField("texto do botão", max_length=80, blank=True)
+
+    class Meta:
+        verbose_name = "tradução da chamada"
+        verbose_name_plural = "traduções da chamada"
+        ordering = ("language",)
+        constraints = [
+            models.UniqueConstraint(
+                fields=["master", "language"], name="home_callout_translation_unique_language"
+            ),
+        ]

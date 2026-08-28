@@ -21,6 +21,15 @@ controles que não filtram nada seria pior do que uma coluna curta.
          aria-label="{% translate 'Você está aqui' %}">
       <ol class="flex flex-wrap items-center gap-1.5" role="list">
         <li><a href="{% url 'home:index' %}" class="focus-ring rounded transition-colors hover:text-brand-700">{% translate "Início" %}</a></li>
+        {% comment %}
+          Numa pagina de categoria a trilha sobe ate a raiz: sem isso,
+          "Inicio / Gatos" nao diz que Gatos fica dentro de Modelos > Animais.
+          No Shop `breadcrumb` nao existe e o laco nao roda.
+        {% endcomment %}
+        {% for ancestor in breadcrumb %}
+          <li aria-hidden="true">/</li>
+          <li><a href="{{ ancestor.get_absolute_url }}" class="focus-ring rounded transition-colors hover:text-brand-700">{{ ancestor.name }}</a></li>
+        {% endfor %}
         <li aria-hidden="true">/</li>
         <li class="{% if selected_category %}transition-colors hover:text-brand-700{% else %}text-brand-700{% endif %}">
           {% if selected_category %}
@@ -54,7 +63,7 @@ controles que não filtram nada seria pior do que uma coluna curta.
 
     {% else %}
 
-      <div class="mt-7 grid gap-6 lg:grid-cols-[254px_1fr] lg:gap-7">
+      <div class="shop-layout">
 
         {# Barra lateral: <details> abre/fecha no celular e fica sempre aberta no desktop. #}
         <details class="group" data-shop-filters open>

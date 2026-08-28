@@ -71,6 +71,32 @@ class RequiredDefaultLanguageInlineFormSet(forms.BaseInlineFormSet):
             raise ValidationError("A tradução em português é obrigatória.")
 
 
+class UniqueLanguageInlineFormSet(forms.BaseInlineFormSet):
+    """Proíbe idiomas repetidos, mas **não** exige o português.
+
+    Para conteúdo que pode legitimamente não existir: um banner que é só arte
+    não tem título em idioma nenhum, e obrigá-lo a uma linha de tradução vazia
+    seria burocracia sem leitor.
+
+    A unicidade o banco já garante; aqui a mensagem chega antes, no formulário,
+    em vez de virar um erro de constraint.
+    """
+
+    def clean(self):
+        super().clean()
+        if any(self.errors):
+            return
+
+        languages = []
+        for form in self.forms:
+            if not form.cleaned_data or form.cleaned_data.get("DELETE"):
+                continue
+            languages.append(form.cleaned_data.get("language"))
+
+        if len(set(languages)) != len(languages):
+            raise ValidationError("Há mais de uma tradução para o mesmo idioma.")
+
+
 class PartialSafeModelForm(forms.ModelForm):
     """ModelForm tolerante a erros de ``clean()`` em campos ausentes do form.
 

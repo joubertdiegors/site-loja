@@ -29,7 +29,12 @@ def make_order(user, country, method, product, **overrides):
     options = {
         "customer": user.customer,
         "lines": [
-            CartLine(key=f"{product.pk}:0:-", product=product, variant=None, quantity=1)
+            CartLine(
+                key=f"{product.pk}:0:-",
+                product=product,
+                variant=product.default_variant,
+                quantity=1,
+            )
         ],
         "shipping_address": address,
         "billing_address": address,

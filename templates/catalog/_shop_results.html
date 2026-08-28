@@ -19,9 +19,17 @@ funcionam igual sem JavaScript.
   <form method="get" class="flex flex-wrap items-center gap-x-3 gap-y-2"
         hx-get="{{ results_url }}" hx-target="#shop-results" hx-push-url="true"
         hx-trigger="change from:#ordenar, change from:#por-pagina" hx-indicator="#shop-results">
-    {# Mantém o filtro de categoria ao trocar ordenação ou quantidade. #}
+    {% comment %}
+      Os links usam `querystring`, que preserva a URL sozinho; um `<form>` GET,
+      nao: ele envia so os proprios campos. Sem estes tres, trocar a ordenacao
+      perderia a busca, a categoria e o material de uma vez.
+    {% endcomment %}
+    {% if query %}<input type="hidden" name="q" value="{{ query }}">{% endif %}
     {% if selected_category %}
       <input type="hidden" name="categoria" value="{{ selected_category.slug }}">
+    {% endif %}
+    {% if selected_material %}
+      <input type="hidden" name="material" value="{{ selected_material.slug }}">
     {% endif %}
 
     <span class="flex items-center gap-2">
@@ -51,16 +59,28 @@ funcionam igual sem JavaScript.
   </form>
 </div>
 
-{% if selected_category %}
+{% if selected_category or selected_material %}
   <div class="mt-4 flex flex-wrap items-center gap-2">
-    <a href="{% querystring categoria=None page=None %}"
-       hx-get="{% querystring categoria=None page=None %}"
-       hx-target="#shop-results" hx-push-url="true" hx-indicator="#shop-results"
-       class="chip focus-ring bg-brand-100 text-[13px] text-brand-800 transition-colors hover:bg-brand-200">
-      {{ selected_category.name }}
-      <span aria-hidden="true" class="text-brand-600">×</span>
-      <span class="sr-only">{% translate "Remover filtro" %}</span>
-    </a>
+    {% if selected_category %}
+      <a href="{% querystring categoria=None page=None %}"
+         hx-get="{% querystring categoria=None page=None %}"
+         hx-target="#shop-results" hx-push-url="true" hx-indicator="#shop-results"
+         class="chip focus-ring bg-brand-100 text-[13px] text-brand-800 transition-colors hover:bg-brand-200">
+        {{ selected_category.name }}
+        <span aria-hidden="true" class="text-brand-600">×</span>
+        <span class="sr-only">{% translate "Remover filtro" %}</span>
+      </a>
+    {% endif %}
+    {% if selected_material %}
+      <a href="{% querystring material=None page=None %}"
+         hx-get="{% querystring material=None page=None %}"
+         hx-target="#shop-results" hx-push-url="true" hx-indicator="#shop-results"
+         class="chip focus-ring bg-brand-100 text-[13px] text-brand-800 transition-colors hover:bg-brand-200">
+        {{ selected_material.display_name }}
+        <span aria-hidden="true" class="text-brand-600">×</span>
+        <span class="sr-only">{% translate "Remover filtro" %}</span>
+      </a>
+    {% endif %}
   </div>
 {% endif %}
 
@@ -124,16 +144,49 @@ funcionam igual sem JavaScript.
 
   <div class="empty-state mt-5">
     <span class="empty-state-icon" aria-hidden="true">{% icon "search" "h-6 w-6" %}</span>
-    <p class="font-display text-lg font-bold text-ink">{% translate "Nenhum produto por aqui ainda" %}</p>
-    <p class="max-w-md text-sm text-ink-soft">
-      {% translate "Experimente outra categoria ou volte em breve." %}
-    </p>
-    {% if selected_category %}
-      <a href="{% querystring categoria=None page=None %}"
-         hx-get="{% querystring categoria=None page=None %}"
-         hx-target="#shop-results" hx-push-url="true"
-         class="btn-secondary btn-sm mt-1">{% translate "Ver todos os modelos" %}</a>
+
+    {% if is_search and has_query %}
+      <p class="font-display text-lg font-bold text-ink">
+        {% blocktranslate with termo=query %}Nenhum produto encontrado para “{{ termo }}”.{% endblocktranslate %}
+      </p>
+      <p class="max-w-md text-sm text-ink-soft">
+        {% translate "Tente outra palavra, verifique a grafia ou navegue pelas categorias." %}
+      </p>
+    {% elif is_search %}
+      <p class="font-display text-lg font-bold text-ink">{% translate "O que você procura?" %}</p>
+      <p class="max-w-md text-sm text-ink-soft">
+        {% translate "Digite o nome de um produto, uma categoria ou um material." %}
+      </p>
+    {% else %}
+      <p class="font-display text-lg font-bold text-ink">{% translate "Nenhum produto por aqui ainda" %}</p>
+      <p class="max-w-md text-sm text-ink-soft">
+        {% if selected_material %}
+          {% translate "Nenhum produto disponível com este material no momento." %}
+        {% else %}
+          {% translate "Nenhum produto disponível nesta categoria no momento." %}
+        {% endif %}
+      </p>
     {% endif %}
+
+    <div class="mt-1 flex flex-wrap justify-center gap-2">
+      {% if selected_material %}
+        <a href="{% querystring material=None page=None %}"
+           hx-get="{% querystring material=None page=None %}"
+           hx-target="#shop-results" hx-push-url="true"
+           class="btn-secondary btn-sm">{% translate "Remover o filtro de material" %}</a>
+      {% endif %}
+      {% if selected_category %}
+        <a href="{% querystring categoria=None page=None %}"
+           hx-get="{% querystring categoria=None page=None %}"
+           hx-target="#shop-results" hx-push-url="true"
+           class="btn-secondary btn-sm">{% translate "Ver todos os produtos" %}</a>
+      {% endif %}
+      {% if is_search %}
+        <a href="{% url 'catalog:models_shop' %}" class="btn-secondary btn-sm">
+          {% translate "Ver o catálogo" %}
+        </a>
+      {% endif %}
+    </div>
   </div>
 
 {% endif %}
@@ -142,6 +195,11 @@ funcionam igual sem JavaScript.
 Resposta parcial: a barra de categorias volta junto, fora do alvo da
 troca, para a categoria ativa não ficar congelada.
 {% endcomment %}
-{% if is_partial %}
+{% if is_partial and root_category %}
   {% include "catalog/_shop_sidebar.html" with oob=True %}
+{% elif is_partial and material_nodes %}
+  {# A busca nao tem categorias, mas tem materiais: a lateral dela e so isso. #}
+  <div id="shop-materials" hx-swap-oob="true">
+    {% include "catalog/_material_filter.html" with standalone=True %}
+  </div>
 {% endif %}

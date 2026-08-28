@@ -22,7 +22,7 @@ from django.urls import reverse
 from django.utils.html import format_html
 
 from apps.accounts.emails import send_verification_email
-from apps.accounts.models import Customer, CustomerAddress, User
+from apps.accounts.models import Customer, CustomerAddress, Favorite, User
 
 
 class AdminUserCreationForm(DjangoAdminUserCreationForm):
@@ -252,3 +252,45 @@ class CustomerAddressAdmin(admin.ModelAdmin):
         ),
         ("PADRÕES", {"fields": ("is_default_shipping", "is_default_billing")}),
     )
+
+
+# ---------------------------------------------------------------------------
+# Favoritos
+# ---------------------------------------------------------------------------
+
+
+@admin.register(Favorite)
+class FavoriteAdmin(admin.ModelAdmin):
+    """Consulta, não edição.
+
+    Favorito é um gesto do cliente: quem decide o que está guardado é ele. A
+    tela existe para responder "quais produtos as pessoas mais guardam?" — que
+    é informação de vitrine, não algo para corrigir a mão.
+
+    Por isso não há "adicionar" nem "alterar": criar um favorito por outra
+    pessoa seria mexer na conta dela. Apagar continua possível, para o caso de
+    uma conta pedir a remoção dos próprios dados.
+    """
+
+    list_display = ("product", "user", "created_at")
+    list_filter = ("created_at",)
+    search_fields = (
+        "user__username",
+        "user__email",
+        "product__sku",
+        "product__translations__name",
+    )
+    ordering = ("-created_at",)
+    date_hierarchy = "created_at"
+    list_select_related = ("user", "product")
+    readonly_fields = ("user", "product", "created_at", "updated_at")
+    list_per_page = 50
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).prefetch_related("product__translations")
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False

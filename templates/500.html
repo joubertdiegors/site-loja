@@ -1,0 +1,71 @@
+{% load i18n %}<!DOCTYPE html>
+{% comment %}
+Erro no servidor.
+
+**Não estende `base.html` de propósito.** O 500 é renderizado quando algo já
+deu errado, e o `base.html` deste projeto consulta o banco (categorias do menu,
+idiomas da loja, contador do carrinho). Se o que quebrou foi justamente o
+banco, herdar do base faria a página de erro estourar dentro do tratamento do
+erro — e o visitante veria a página de erro crua do Django em vez desta.
+
+Por isso o HTML é autossuficiente e o CSS é o mesmo arquivo compilado do site
+(`tailwind.css`), que é estático e não depende de nada. A marca aparece pelo
+nome, sem `{% templatetag openblock %} load {% templatetag closeblock %}` de
+tags que tocam o banco.
+
+Nenhum detalhe interno: sem stack trace, sem nome de exceção, sem caminho de
+arquivo. Com `DEBUG=False` é isto que o mundo vê.
+{% endcomment %}
+<html lang="{{ LANGUAGE_CODE|default:'pt-br' }}" dir="ltr" class="scroll-smooth">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% translate "Erro no servidor" %} — JD PRINT</title>
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="/static/images/logo/favicon.svg">
+  <link rel="stylesheet" href="/static/css/tailwind.css">
+</head>
+<body class="flex min-h-screen flex-col bg-surface font-sans text-ink antialiased">
+
+  <header class="border-b border-surface-line bg-white">
+    <div class="container-page flex h-16 items-center">
+      <a href="/" class="focus-ring font-display text-lg font-bold tracking-[-0.02em] text-brand-700">
+        JD PRINT
+      </a>
+    </div>
+  </header>
+
+  <main class="flex-1">
+    <section class="container-page py-16 sm:py-24">
+      <div class="empty-state mx-auto max-w-xl">
+        <span class="empty-state-icon" aria-hidden="true">
+          <span class="font-display text-xl font-bold">500</span>
+        </span>
+
+        <h1 class="font-display text-2xl font-bold tracking-[-0.02em] text-ink sm:text-3xl">
+          {% translate "Alguma coisa falhou do nosso lado" %}
+        </h1>
+
+        <p class="max-w-md text-sm text-ink-soft">
+          {% translate "O erro foi registrado e a equipe será avisada. Não foi nada que você fez — tente de novo em alguns minutos." %}
+        </p>
+
+        <p class="max-w-md text-sm text-ink-soft">
+          {% translate "Se você estava finalizando uma compra, nada foi cobrado sem confirmação. Verifique seus pedidos antes de tentar novamente." %}
+        </p>
+
+        <div class="mt-2 flex flex-wrap items-center justify-center gap-3">
+          <a href="/" class="btn-primary btn-sm">{% translate "Ir para a página inicial" %}</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="border-t border-surface-line bg-white py-6">
+    <div class="container-page text-center text-xs text-ink-muted">
+      JD PRINT
+    </div>
+  </footer>
+
+</body>
+</html>

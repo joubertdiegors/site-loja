@@ -36,6 +36,12 @@ from apps.orders.models import (
 
 
 def line_for(product, quantity=1, variant=None, customization=None, upload=None):
+    """Uma linha de carrinho pronta para o checkout.
+
+    Sem variante explícita usa a padrão do produto: desde a etapa 8 não existe
+    linha comercial sem variante — preço, peso e prazo saem dela.
+    """
+    variant = variant or product.default_variant
     return CartLine(
         key=f"{product.pk}:{variant.pk if variant else 0}:-",
         product=product,
@@ -91,11 +97,14 @@ class CreateOrderTests(TestCase):
         self.address = make_address(self.customer, self.country)
 
         self.product = make_product(
-            sku="GATO-01", name="Gato Pompom", price=Decimal("20.00"), stock_quantity=10
+            sku="GATO-01",
+            name="Gato Pompom",
+            price=Decimal("20.00"),
+            stock_quantity=10,
+            weight_grams=Decimal("250"),
+            production_lead_time_days=3,
         )
-        self.product.weight_grams = Decimal("250")
-        self.product.production_lead_time_days = 3
-        self.product.save()
+        self.variant = self.product.default_variant
 
     def create(self, lines=None, **overrides):
         options = {
@@ -167,8 +176,8 @@ class CreateOrderTests(TestCase):
         """Carrinho não é compromisso; pedido pendente também não reserva."""
         self.create()
 
-        self.product.refresh_from_db()
-        self.assertEqual(self.product.stock_quantity, 10)
+        self.variant.refresh_from_db()
+        self.assertEqual(self.variant.stock_quantity, 10)
         self.assertIsNone(Order.objects.get().stock_applied_at)
 
     def test_language_is_kept_for_the_emails(self):
@@ -218,8 +227,8 @@ class OrderItemSnapshotTests(TestCase):
         self.assertEqual(item.total, Decimal("29.90"))
 
     def test_item_copies_the_production_lead_time(self):
-        self.product.production_lead_time_days = 4
-        self.product.save()
+        self.variant.production_lead_time_days = 4
+        self.variant.save()
 
         item = self.create().items.get()
         self.assertEqual(item.production_days, 4)
@@ -231,7 +240,6 @@ class OrderItemSnapshotTests(TestCase):
         # O catálogo muda de todas as formas possíveis...
         self.product.sku = "OUTRO-SKU"
         self.product.status = ProductStatus.INACTIVE
-        self.product.sale_price = Decimal("99.00")
         self.product.save()
         translation = self.product.translations.get(language="pt")
         translation.name = "Nome completamente diferente"
@@ -252,8 +260,8 @@ class OrderItemSnapshotTests(TestCase):
         self.assertEqual(self.create().items.get().fulfillment_type, FulfillmentType.STOCK)
 
     def test_made_to_order_is_recorded(self):
-        self.product.made_to_order = True
-        self.product.save()
+        self.variant.made_to_order = True
+        self.variant.save()
 
         self.assertEqual(self.create().items.get().fulfillment_type, FulfillmentType.MADE_TO_ORDER)
 
@@ -392,6 +400,7 @@ class ValidationTests(TestCase):
         self.user = make_user(username="diego3d")
         self.address = make_address(self.user.customer, self.country)
         self.product = make_product(sku="P1", name="Vaso", price=Decimal("10.00"), stock_quantity=2)
+        self.variant = self.product.default_variant
 
     def create(self, lines=None, **overrides):
         options = {
@@ -422,8 +431,8 @@ class ValidationTests(TestCase):
             self.create()
 
     def test_product_without_price_is_refused(self):
-        self.product.sale_price = None
-        self.product.save()
+        self.variant.sale_price = None
+        self.variant.save()
 
         with self.assertRaises(services.CheckoutError):
             self.create()
@@ -465,6 +474,7 @@ class StockTests(TestCase):
         self.user = make_user(username="diego3d")
         self.address = make_address(self.user.customer, self.country)
         self.product = make_product(sku="P1", name="Vaso", price=Decimal("10.00"), stock_quantity=10)
+        self.variant = self.product.default_variant
 
     def create(self, quantity=3):
         return services.create_order(
@@ -477,13 +487,13 @@ class StockTests(TestCase):
 
     def test_stock_falls_only_when_the_payment_is_confirmed(self):
         order = self.create()
-        self.product.refresh_from_db()
-        self.assertEqual(self.product.stock_quantity, 10)
+        self.variant.refresh_from_db()
+        self.assertEqual(self.variant.stock_quantity, 10)
 
         services.apply_stock(order)
 
-        self.product.refresh_from_db()
-        self.assertEqual(self.product.stock_quantity, 7)
+        self.variant.refresh_from_db()
+        self.assertEqual(self.variant.stock_quantity, 7)
 
     def test_applying_twice_does_not_subtract_twice(self):
         """O webhook da Stripe reenvia eventos."""
@@ -491,12 +501,17 @@ class StockTests(TestCase):
         services.apply_stock(order)
         services.apply_stock(order)
 
-        self.product.refresh_from_db()
-        self.assertEqual(self.product.stock_quantity, 7)
+        self.variant.refresh_from_db()
+        self.assertEqual(self.variant.stock_quantity, 7)
 
     def test_variant_stock_is_the_one_that_falls(self):
+        """Cada variante tem o seu estoque; a irmã não é tocada."""
         variant = ProductVariant.objects.create(
-            product=self.product, sku="P1-A", size="P", stock_quantity=4
+            product=self.product,
+            sku="P1-A",
+            size="P",
+            sale_price=Decimal("10.00"),
+            stock_quantity=4,
         )
         order = services.create_order(
             customer=self.user.customer,
@@ -509,36 +524,36 @@ class StockTests(TestCase):
         services.apply_stock(order)
 
         variant.refresh_from_db()
-        self.product.refresh_from_db()
+        self.variant.refresh_from_db()
         self.assertEqual(variant.stock_quantity, 2)
-        self.assertEqual(self.product.stock_quantity, 10)
+        self.assertEqual(self.variant.stock_quantity, 10)
 
     def test_made_to_order_does_not_consume_stock(self):
-        self.product.made_to_order = True
-        self.product.save()
+        self.variant.made_to_order = True
+        self.variant.save()
         order = self.create()
 
         services.apply_stock(order)
 
-        self.product.refresh_from_db()
-        self.assertEqual(self.product.stock_quantity, 10)
+        self.variant.refresh_from_db()
+        self.assertEqual(self.variant.stock_quantity, 10)
 
     def test_shortage_never_makes_the_stock_negative(self):
         order = self.create(quantity=3)
-        self.product.stock_quantity = 1
-        self.product.save()
+        self.variant.stock_quantity = 1
+        self.variant.save()
 
         shortages = services.apply_stock(order)
 
-        self.product.refresh_from_db()
-        self.assertEqual(self.product.stock_quantity, 0)
+        self.variant.refresh_from_db()
+        self.assertEqual(self.variant.stock_quantity, 0)
         self.assertEqual(len(shortages), 1)
 
     def test_shortage_is_recorded_for_the_team(self):
         """O dinheiro já entrou: recusar seria pior. Avisar é o certo."""
         order = self.create(quantity=3)
-        self.product.stock_quantity = 0
-        self.product.save()
+        self.variant.stock_quantity = 0
+        self.variant.save()
 
         services.apply_stock(order)
 
@@ -547,8 +562,8 @@ class StockTests(TestCase):
 
     def test_shortage_note_is_internal(self):
         order = self.create(quantity=3)
-        self.product.stock_quantity = 0
-        self.product.save()
+        self.variant.stock_quantity = 0
+        self.variant.save()
 
         services.apply_stock(order)
 

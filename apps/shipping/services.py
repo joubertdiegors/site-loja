@@ -1,7 +1,7 @@
 """Cálculo do frete: peso do pedido e opções disponíveis.
 
-Nada aqui sabe o que é um produto 3D. O peso vem do catálogo (variante quando
-existe, produto quando não) e o preço vem da tabela cadastrada. É o mesmo
+Nada aqui sabe o que é um produto 3D. O peso e o prazo vêm da **variante** — a
+unidade que sai na caixa — e o preço vem da tabela cadastrada. É o mesmo
 cálculo para uma peça impressa, um rolo de filamento ou uma impressora.
 """
 
@@ -12,17 +12,18 @@ from apps.shipping.models import ShippingMethod, ShippingRate
 
 
 def line_weight_grams(product, variant=None) -> int:
-    """Peso unitário da linha, em gramas.
+    """Peso unitário da linha, em gramas — **sempre da variante**.
 
-    A variante manda quando tem peso próprio (um vaso de 25 cm não pesa o
-    mesmo que o de 10 cm). Produto sem peso cadastrado conta zero — e é isso
-    que o administrador vê quando esquece de preencher, em vez de um frete
-    inventado.
+    Um vaso de 25 cm não pesa o mesmo que o de 10 cm, e é o peso do que sai na
+    caixa que a transportadora cobra. O produto não tem peso: peso é
+    característica da unidade vendável.
+
+    Variante sem peso cadastrado conta zero — e é isso que o administrador vê
+    quando esquece de preencher, em vez de um frete inventado.
     """
-    if variant is not None:
-        weight = variant.effective_weight
-    else:
-        weight = product.weight_grams
+    if variant is None:
+        return 0
+    weight = variant.weight_grams
     if not weight:
         return 0
     return int(Decimal(weight).quantize(Decimal("1")))
@@ -38,11 +39,21 @@ def production_days(lines) -> int:
 
     A oficina imprime em paralelo. Somar daria um prazo que nunca acontece na
     prática e que só serviria para assustar o cliente.
+
+    O prazo de cada linha é o da **variante**: a mesma peça em 25 cm demora
+    mais que em 10 cm, e é isso que o cliente precisa saber.
     """
     return max(
-        (line.product.production_lead_time_days or 0 for line in lines),
+        (variant_production_days(line.variant) for line in lines),
         default=0,
     )
+
+
+def variant_production_days(variant) -> int:
+    """Prazo de produção de uma variante, em dias úteis."""
+    if variant is None:
+        return 0
+    return variant.production_lead_time_days or 0
 
 
 @dataclass(frozen=True)

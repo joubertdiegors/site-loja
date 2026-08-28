@@ -413,7 +413,7 @@ class ShopQueryTests(ShopBase):
 
 
 class CategoryRoutingTests(ShopBase):
-    """Categorias de Modelos levam à vitrine; as outras, à página provisória."""
+    """Categorias de Modelos levam à vitrine; as outras, à página delas."""
 
     def test_models_category_url_points_to_the_shop(self):
         self.assertEqual(self.models.get_absolute_url(), SHOP)
@@ -421,7 +421,8 @@ class CategoryRoutingTests(ShopBase):
     def test_subcategory_url_points_to_the_filtered_shop(self):
         self.assertEqual(self.cats.get_absolute_url(), f"{SHOP}?categoria=gatos")
 
-    def test_other_root_keeps_the_placeholder_page(self):
+    def test_other_root_has_its_own_page(self):
+        """A URL não mudou; o que mudou é que agora ela mostra produtos."""
         self.assertEqual(self.filaments.get_absolute_url(), "/categorias/filamentos/")
 
     def test_old_category_url_redirects_to_the_shop(self):
@@ -430,11 +431,14 @@ class CategoryRoutingTests(ShopBase):
         self.assertEqual(response.status_code, 301)
         self.assertEqual(response.url, f"{SHOP}?categoria=gatos")
 
-    def test_placeholder_page_still_works_for_other_trees(self):
+    def test_other_trees_now_get_a_real_shop(self):
+        """Era uma página "em construção" com produtos cadastrados atrás dela."""
         response = self.client.get("/categorias/filamentos/")
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Em construção")
+        self.assertTemplateUsed(response, "catalog/shop.html")
+        self.assertNotContains(response, "Em construção")
+        self.assertNotContains(response, "próxima etapa da loja")
 
     def test_old_product_list_url_redirects_to_the_shop(self):
         response = self.client.get("/produtos/")

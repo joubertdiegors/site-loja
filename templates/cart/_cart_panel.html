@@ -40,7 +40,7 @@ os mesmos formulários funcionam por POST + redirecionamento.
               <td class="px-4 py-4 max-sm:block max-sm:px-0 max-sm:pb-3 max-sm:pe-10 max-sm:pt-0">
                 <div class="flex items-center gap-3">
                   <a href="{{ line.product.get_absolute_url }}" class="focus-ring block h-16 w-16 shrink-0 overflow-hidden rounded-[12px] border border-surface-line">
-                    {% include "components/product_media.html" with media=line.product.display_media name=line.display_name compact=True %}
+                    {% include "components/product_media.html" with media=line.display_media name=line.display_name compact=True %}
                   </a>
                   <div>
                     <a href="{{ line.product.get_absolute_url }}"
@@ -74,7 +74,8 @@ os mesmos formulários funcionam por POST + redirecionamento.
                       </div>
                     {% endif %}
 
-                    {% if line.product.made_to_order %}
+                    {# Sob encomenda e o teto de estoque sao da VARIANTE desta linha. #}
+                    {% if line.variant.made_to_order %}
                       <p class="mt-1"><span class="badge-amber">{% translate "Sob encomenda" %}</span></p>
                     {% endif %}
                   </div>
@@ -103,7 +104,7 @@ os mesmos formulários funcionam por POST + redirecionamento.
                             aria-label="{% blocktranslate with name=line.product.display_name %}Aumentar quantidade de {{ name }}{% endblocktranslate %}">+</button>
                   </form>
                 </div>
-                {% if line.at_maximum and not line.product.made_to_order and not line.product.allow_backorder %}
+                {% if line.at_maximum and not line.variant.made_to_order and not line.variant.allow_backorder %}
                   <p class="mt-1 font-mono text-[10.5px] text-ink-muted">{% translate "Máximo em estoque" %}</p>
                 {% endif %}
               </td>

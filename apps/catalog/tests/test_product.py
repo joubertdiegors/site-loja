@@ -1,6 +1,11 @@
-"""Testes do modelo de produto: criação, unicidade, cálculos e validações."""
+"""Testes do modelo de produto — a **definição genérica**.
 
-from datetime import timedelta
+Desde a etapa 8 o Product não tem preço, estoque, peso, prazo nem dimensões:
+tudo isso é da ``ProductVariant`` e está em ``test_variants.py``. O que sobra
+aqui é a identidade do produto (SKU, slug, tradução, categoria, marca), as
+regras de ativação e as propriedades que ele **deriva** das variantes.
+"""
+
 from decimal import Decimal
 
 from django.core.exceptions import ValidationError
@@ -12,10 +17,10 @@ from apps.catalog.models import (
     Brand,
     Color,
     Material,
-    PricingMode,
     Product,
     ProductStatus,
     ProductTranslation,
+    ProductVariant,
 )
 from apps.categories.models import Category, CategoryTranslation
 
@@ -27,11 +32,17 @@ def make_category(slug="modelos", name="Modelos", parent=None):
 
 
 def make_product(sku="GATO-01", name="Gato Pompom", **kwargs):
+    """Produto puro, **sem** variante — para testar o que é do produto."""
     product = Product.objects.create(sku=sku, **kwargs)
     if name:
         ProductTranslation.objects.create(master=product, language="pt", name=name)
         product.refresh_translations()
     return product
+
+
+def make_variant(product, sku="VAR-1", price=Decimal("10.00"), **kwargs):
+    kwargs.setdefault("sale_price", price)
+    return ProductVariant.objects.create(product=product, sku=sku, **kwargs)
 
 
 class ProductCreationTests(TestCase):
@@ -53,11 +64,72 @@ class ProductCreationTests(TestCase):
 
     def test_defaults(self):
         product = make_product()
-        self.assertEqual(product.total_cost, Decimal("0.00"))
-        self.assertEqual(product.stock_quantity, 0)
         self.assertFalse(product.is_featured)
-        self.assertFalse(product.made_to_order)
         self.assertEqual(product.currency, "EUR")
+        self.assertEqual(product.personalization_text_limit, 200)
+
+
+class GenericProductHasNoCommercialFieldsTests(TestCase):
+    """A trave da etapa 8.
+
+    Se alguém devolver preço, estoque, peso ou prazo para o Product, estes
+    testes caem — e é para caírem: seriam duas fontes da verdade para o mesmo
+    número, e a de baixo (a variante) é a que o cliente paga e recebe.
+    """
+
+    #: Campos comerciais que **não** podem voltar a existir em Product.
+    PROIBIDOS = (
+        "sale_price",
+        "stock_quantity",
+        "weight_grams",
+        "width",
+        "height",
+        "depth",
+        "dimension_unit",
+        "print_time",
+        "allow_backorder",
+        "filament_cost",
+        "energy_cost",
+        "total_cost",
+        "pricing_mode",
+        "profit_margin",
+    )
+
+    def field_names(self):
+        return {field.name for field in Product._meta.get_fields()}
+
+    def test_product_has_no_commercial_columns(self):
+        presentes = sorted(self.field_names() & set(self.PROIBIDOS))
+        self.assertEqual(presentes, [], f"campos comerciais em Product: {presentes}")
+
+    def test_price_cannot_be_written_on_the_product(self):
+        with self.assertRaises(TypeError):
+            Product.objects.create(sku="X-PRICE", sale_price=Decimal("10.00"))
+
+    def test_stock_cannot_be_written_on_the_product(self):
+        with self.assertRaises(TypeError):
+            Product.objects.create(sku="X-STOCK", stock_quantity=5)
+
+    def test_weight_cannot_be_written_on_the_product(self):
+        with self.assertRaises(TypeError):
+            Product.objects.create(sku="X-WEIGHT", weight_grams=Decimal("100"))
+
+    def test_lead_time_is_read_only_on_the_product(self):
+        """Ele ainda se lê — derivado da variante — mas não se escreve."""
+        product = make_product(sku="X-LEAD")
+        with self.assertRaises(AttributeError):
+            product.production_lead_time_days = 5
+
+    def test_made_to_order_is_read_only_on_the_product(self):
+        product = make_product(sku="X-MTO")
+        with self.assertRaises(AttributeError):
+            product.made_to_order = True
+
+    def test_product_has_no_colors_or_materials_of_its_own(self):
+        """Cor e material são eixos da variante, não etiquetas do produto."""
+        nomes = self.field_names()
+        self.assertNotIn("colors", nomes)
+        self.assertNotIn("materials", nomes)
 
 
 class UniquenessTests(TestCase):
@@ -86,199 +158,203 @@ class UniquenessTests(TestCase):
         self.assertNotEqual(second.slug, first.slug)
 
 
-class CostTests(TestCase):
-    def test_total_cost_is_calculated_on_save(self):
-        product = make_product(filament_cost=Decimal("3.20"), energy_cost=Decimal("1.80"))
-        self.assertEqual(product.total_cost, Decimal("5.00"))
+class DerivedFromVariantsTests(TestCase):
+    """Tudo o que o produto sabe de comercial, ele pergunta às variantes."""
 
-    def test_total_cost_is_recalculated_when_a_cost_changes(self):
-        product = make_product(filament_cost=Decimal("3.20"), energy_cost=Decimal("1.80"))
-        product.energy_cost = Decimal("2.80")
-        product.save()
-        product.refresh_from_db()
-        self.assertEqual(product.total_cost, Decimal("6.00"))
+    def setUp(self):
+        self.product = make_product(sku="CANECA", name="Caneca")
+        self.black = Color.objects.create(name="Preto", hex_code="#000000")
+        self.white = Color.objects.create(name="Branco", hex_code="#FFFFFF")
+        self.pla = Material.objects.create(name="PLA")
 
-    def test_cost_components_are_extensible(self):
-        product = make_product(filament_cost=Decimal("1.00"), energy_cost=Decimal("2.00"))
-        self.assertEqual(set(product.cost_components()), {"filament", "energy"})
+    def test_product_without_variants_is_not_sellable(self):
+        self.product.status = ProductStatus.ACTIVE
+        self.product.save()
 
+        self.assertFalse(self.product.has_variants)
+        self.assertFalse(self.product.is_sellable)
+        self.assertIsNone(self.product.default_variant)
 
-class PricingTests(TestCase):
-    def test_margin_is_calculated_from_price(self):
-        product = make_product(
-            filament_cost=Decimal("3.00"),
-            energy_cost=Decimal("2.00"),
-            pricing_mode=PricingMode.PRICE,
-            sale_price=Decimal("10.00"),
+    def test_product_without_variants_has_no_price(self):
+        self.assertEqual(self.product.price_range, (None, None))
+        self.assertIsNone(self.product.display_price)
+        self.assertFalse(self.product.has_price_range)
+
+    def test_product_without_variants_has_no_stock(self):
+        self.assertEqual(self.product.available_stock, 0)
+        self.assertFalse(self.product.is_available)
+        self.assertEqual(self.product.stock_state, "out")
+
+    def test_one_variant_makes_it_sellable(self):
+        self.product.status = ProductStatus.ACTIVE
+        self.product.save()
+        make_variant(self.product, sku="V-1", price=Decimal("15.00"), stock_quantity=3)
+
+        product = Product.objects.prefetch_related("variants").get(pk=self.product.pk)
+        self.assertTrue(product.is_sellable)
+        self.assertFalse(product.has_multiple_variants)
+
+    def test_display_price_is_the_default_variant_price(self):
+        make_variant(self.product, sku="V-1", price=Decimal("15.00"), stock_quantity=3)
+
+        product = Product.objects.prefetch_related("variants").get(pk=self.product.pk)
+        self.assertEqual(product.display_price, Decimal("15.00"))
+
+    def test_price_range_spans_the_variants(self):
+        make_variant(self.product, sku="V-1", size="P", price=Decimal("15.00"), stock_quantity=1)
+        make_variant(self.product, sku="V-2", size="G", price=Decimal("22.00"), stock_quantity=1)
+
+        product = Product.objects.prefetch_related("variants").get(pk=self.product.pk)
+        self.assertEqual(product.price_range, (Decimal("15.00"), Decimal("22.00")))
+        self.assertTrue(product.has_price_range)
+        self.assertTrue(product.has_multiple_variants)
+
+    def test_stock_is_the_sum_of_the_variants(self):
+        make_variant(self.product, sku="V-1", color=self.black, stock_quantity=10)
+        make_variant(self.product, sku="V-2", color=self.white, stock_quantity=5)
+
+        product = Product.objects.prefetch_related("variants").get(pk=self.product.pk)
+        self.assertEqual(product.available_stock, 15)
+
+    def test_available_when_any_variant_is(self):
+        make_variant(self.product, sku="V-1", color=self.black, stock_quantity=0)
+        make_variant(self.product, sku="V-2", color=self.white, stock_quantity=3)
+
+        product = Product.objects.prefetch_related("variants").get(pk=self.product.pk)
+        self.assertTrue(product.is_available)
+
+    def test_unavailable_when_no_variant_is(self):
+        make_variant(self.product, sku="V-1", color=self.black, stock_quantity=0)
+        make_variant(self.product, sku="V-2", color=self.white, stock_quantity=0)
+
+        product = Product.objects.prefetch_related("variants").get(pk=self.product.pk)
+        self.assertFalse(product.is_available)
+        self.assertEqual(product.stock_state, "out")
+
+    def test_inactive_variant_does_not_count(self):
+        make_variant(self.product, sku="V-1", color=self.black, stock_quantity=5, is_active=False)
+
+        product = Product.objects.prefetch_related("variants").get(pk=self.product.pk)
+        self.assertFalse(product.has_variants)
+        self.assertEqual(product.available_stock, 0)
+
+    def test_default_variant_is_the_first_available_one(self):
+        make_variant(self.product, sku="V-1", size="P", stock_quantity=0, sort_order=1)
+        disponivel = make_variant(self.product, sku="V-2", size="G", stock_quantity=4, sort_order=2)
+
+        product = Product.objects.prefetch_related("variants").get(pk=self.product.pk)
+        self.assertEqual(product.default_variant, disponivel)
+
+    def test_default_variant_falls_back_to_the_first_when_all_are_out(self):
+        primeira = make_variant(self.product, sku="V-1", size="P", stock_quantity=0, sort_order=1)
+        make_variant(self.product, sku="V-2", size="G", stock_quantity=0, sort_order=2)
+
+        product = Product.objects.prefetch_related("variants").get(pk=self.product.pk)
+        self.assertEqual(product.default_variant, primeira)
+
+    def test_lead_time_comes_from_the_displayed_variant(self):
+        make_variant(
+            self.product, sku="V-1", made_to_order=True, production_lead_time_days=7
         )
-        self.assertEqual(product.total_cost, Decimal("5.00"))
-        self.assertEqual(product.profit_margin, Decimal("50.00"))
 
-    def test_price_is_calculated_from_margin(self):
-        product = make_product(
-            filament_cost=Decimal("3.00"),
-            energy_cost=Decimal("2.00"),
-            pricing_mode=PricingMode.MARGIN,
-            profit_margin=Decimal("50.00"),
-        )
-        self.assertEqual(product.sale_price, Decimal("10.00"))
+        product = Product.objects.prefetch_related("variants").get(pk=self.product.pk)
+        self.assertTrue(product.made_to_order)
+        self.assertEqual(product.production_lead_time_days, 7)
+        self.assertEqual(product.stock_state, "made_to_order")
 
-    def test_saving_repeatedly_does_not_drift(self):
-        """Nenhum loop preço -> margem -> preço: o modo define a fonte de verdade."""
-        product = make_product(
-            filament_cost=Decimal("3.33"),
-            energy_cost=Decimal("0.00"),
-            pricing_mode=PricingMode.MARGIN,
-            profit_margin=Decimal("33.33"),
-        )
-        first_price = product.sale_price
-        for _ in range(5):
-            product.save()
-        self.assertEqual(product.sale_price, first_price)
-        self.assertEqual(product.profit_margin, Decimal("33.33"))
+    def test_colors_are_derived_from_the_variants(self):
+        make_variant(self.product, sku="V-1", color=self.black, stock_quantity=1)
+        make_variant(self.product, sku="V-2", color=self.white, stock_quantity=1)
+        make_variant(self.product, sku="V-3", color=self.black, size="G", stock_quantity=1)
 
-    def test_switching_mode_recalculates_the_other_side(self):
-        product = make_product(
-            filament_cost=Decimal("5.00"),
-            pricing_mode=PricingMode.PRICE,
-            sale_price=Decimal("10.00"),
-        )
-        self.assertEqual(product.profit_margin, Decimal("50.00"))
+        product = Product.objects.prefetch_related("variants__color").get(pk=self.product.pk)
+        self.assertEqual(product.available_colors, [self.black, self.white])
 
-        product.pricing_mode = PricingMode.MARGIN
-        product.profit_margin = Decimal("75.00")
-        product.save()
-        self.assertEqual(product.sale_price, Decimal("20.00"))
+    def test_materials_are_derived_from_the_variants(self):
+        make_variant(self.product, sku="V-1", material=self.pla, stock_quantity=1)
 
-    def test_effective_margin_reflects_the_stored_price(self):
-        product = make_product(
-            filament_cost=Decimal("3.33"),
-            pricing_mode=PricingMode.MARGIN,
-            profit_margin=Decimal("33.33"),
-        )
-        self.assertIsNotNone(product.effective_margin)
-        self.assertLess(abs(product.effective_margin - Decimal("33.33")), Decimal("0.10"))
-
-    def test_zero_cost_yields_one_hundred_percent_margin(self):
-        product = make_product(sku="P-100", sale_price=Decimal("10.00"))
-        self.assertEqual(product.total_cost, Decimal("0.00"))
-        self.assertEqual(product.profit_margin, Decimal("100.00"))
-
-    def test_selling_below_cost_yields_negative_margin(self):
-        product = make_product(
-            sku="P-NEG", filament_cost=Decimal("10.00"), sale_price=Decimal("8.00")
-        )
-        self.assertEqual(product.profit_margin, Decimal("-25.00"))
-
-    def test_margin_is_cleared_when_price_is_removed(self):
-        product = make_product(sku="P-CLR", sale_price=Decimal("10.00"))
-        self.assertIsNotNone(product.profit_margin)
-        product.sale_price = None
-        product.save()
-        self.assertIsNone(product.profit_margin)
-
-    def test_profit_per_unit(self):
-        product = make_product(
-            filament_cost=Decimal("4.00"),
-            pricing_mode=PricingMode.PRICE,
-            sale_price=Decimal("11.00"),
-        )
-        self.assertEqual(product.profit, Decimal("7.00"))
+        product = Product.objects.prefetch_related("variants__material").get(pk=self.product.pk)
+        self.assertEqual(product.available_materials, [self.pla])
 
 
 class ValidationTests(TestCase):
-    def test_negative_cost_is_rejected_by_validation(self):
-        product = Product(sku="X-1", filament_cost=Decimal("-1.00"))
-        with self.assertRaises(ValidationError) as context:
-            product.full_clean()
-        self.assertIn("filament_cost", context.exception.message_dict)
-
-    def test_negative_cost_is_rejected_by_the_database(self):
-        with self.assertRaises(IntegrityError), transaction.atomic():
-            Product.objects.create(sku="X-1", filament_cost=Decimal("-1.00"))
-
-    def test_negative_price_is_rejected(self):
-        product = Product(sku="X-2", sale_price=Decimal("-5.00"))
-        with self.assertRaises(ValidationError) as context:
-            product.full_clean()
-        self.assertIn("sale_price", context.exception.message_dict)
-
-    def test_negative_weight_and_dimensions_are_rejected(self):
-        product = Product(sku="X-3", weight_grams=Decimal("-1"), width=Decimal("-2"))
-        with self.assertRaises(ValidationError) as context:
-            product.full_clean()
-        self.assertIn("weight_grams", context.exception.message_dict)
-        self.assertIn("width", context.exception.message_dict)
-
-    def test_margin_input_out_of_bounds_is_rejected(self):
-        product = Product(
-            sku="X-4", pricing_mode=PricingMode.MARGIN, profit_margin=Decimal("100.00")
-        )
-        with self.assertRaises(ValidationError) as context:
-            product.full_clean()
-        self.assertIn("profit_margin", context.exception.message_dict)
-
-    def test_negative_print_time_is_rejected(self):
-        product = Product(sku="X-5", print_time=timedelta(hours=-1))
-        with self.assertRaises(ValidationError) as context:
-            product.full_clean()
-        self.assertIn("print_time", context.exception.message_dict)
-
-    def test_margin_mode_requires_a_margin(self):
-        product = Product(sku="X-6", pricing_mode=PricingMode.MARGIN)
-        with self.assertRaises(ValidationError) as context:
-            product.full_clean()
-        self.assertIn("profit_margin", context.exception.message_dict)
-
-    def test_active_product_requires_category_price_and_name(self):
+    def test_active_product_requires_category_and_name(self):
         product = make_product(sku="X-7", name=None)
         product.status = ProductStatus.ACTIVE
         with self.assertRaises(ValidationError) as context:
             product.full_clean()
         errors = context.exception.message_dict
         self.assertIn("category", errors)
-        self.assertIn("sale_price", errors)
         self.assertIn("status", errors)
+
+    def test_active_product_no_longer_validates_a_price_of_its_own(self):
+        """Preço é da variante — o produto não tem o que validar aqui."""
+        product = make_product(sku="X-7B", name=None)
+        product.status = ProductStatus.ACTIVE
+        with self.assertRaises(ValidationError) as context:
+            product.full_clean()
+        self.assertNotIn("sale_price", context.exception.message_dict)
 
     def test_active_product_with_minimum_information_is_valid(self):
         category = make_category()
-        product = make_product(
-            sku="X-8",
-            name="Gato Pompom",
-            category=category,
-            filament_cost=Decimal("2.00"),
-            sale_price=Decimal("9.90"),
-        )
+        product = make_product(sku="X-8", name="Gato Pompom", category=category)
         product.status = ProductStatus.ACTIVE
         product.full_clean()
         product.save()
         self.assertEqual(product.status, ProductStatus.ACTIVE)
 
-
-class MadeToOrderTests(TestCase):
-    def test_lead_time_is_required(self):
-        product = Product(sku="ENC-1", made_to_order=True)
+    def test_sku_is_required(self):
+        product = Product(sku="")
         with self.assertRaises(ValidationError) as context:
             product.full_clean()
-        self.assertIn("production_lead_time_days", context.exception.message_dict)
+        self.assertIn("sku", context.exception.message_dict)
 
-    def test_made_to_order_product_is_available_without_stock(self):
+
+class SellableQuerysetTests(TestCase):
+    """``sellable()`` é o filtro que a loja usa: ativo e com o que vender."""
+
+    def setUp(self):
+        self.category = make_category()
+
+    def make_active(self, sku, com_variante=True, **kwargs):
         product = make_product(
-            sku="ENC-2", made_to_order=True, production_lead_time_days=5, stock_quantity=0
+            sku=sku, name=f"Produto {sku}", category=self.category,
+            status=ProductStatus.ACTIVE, **kwargs
         )
-        self.assertTrue(product.is_available)
+        if com_variante:
+            make_variant(product, sku=f"{sku}-V", stock_quantity=2)
+        return product
 
-    def test_regular_product_without_stock_is_unavailable(self):
-        product = make_product(sku="ENC-3", stock_quantity=0)
-        self.assertFalse(product.is_available)
+    def test_product_without_variant_is_not_sellable(self):
+        self.make_active("S-1")
+        self.make_active("S-2", com_variante=False)
 
-    def test_backorder_makes_product_available(self):
-        product = make_product(sku="ENC-4", stock_quantity=0, allow_backorder=True)
-        self.assertTrue(product.is_available)
+        self.assertEqual([p.sku for p in Product.objects.sellable()], ["S-1"])
 
-    def test_negative_stock_is_impossible(self):
-        with self.assertRaises((IntegrityError, ValueError)), transaction.atomic():
-            Product.objects.create(sku="ENC-5", stock_quantity=-1)
+    def test_product_with_only_inactive_variants_is_not_sellable(self):
+        product = self.make_active("S-3", com_variante=False)
+        make_variant(product, sku="S-3-V", stock_quantity=2, is_active=False)
+
+        self.assertFalse(Product.objects.sellable().filter(pk=product.pk).exists())
+
+    def test_draft_product_is_not_sellable(self):
+        product = make_product(sku="S-4", name="Rascunho", category=self.category)
+        make_variant(product, sku="S-4-V", stock_quantity=2)
+
+        self.assertFalse(Product.objects.sellable().filter(pk=product.pk).exists())
+
+    def test_sellable_does_not_duplicate_a_product_with_many_variants(self):
+        product = self.make_active("S-5")
+        make_variant(product, sku="S-5-B", size="G", stock_quantity=1)
+        make_variant(product, sku="S-5-C", size="GG", stock_quantity=1)
+
+        self.assertEqual(Product.objects.sellable().filter(pk=product.pk).count(), 1)
+
+    def test_featured_only_lists_sellable_products(self):
+        com = self.make_active("F-1", is_featured=True, featured_order=1)
+        self.make_active("F-2", com_variante=False, is_featured=True, featured_order=2)
+
+        self.assertEqual(list(Product.objects.featured()), [com])
 
 
 class RelationTests(TestCase):
@@ -297,24 +373,6 @@ class RelationTests(TestCase):
         with self.assertRaises(ProtectedError):
             category.delete()
 
-    def test_product_with_multiple_materials(self):
-        pla = Material.objects.create(name="PLA")
-        wood = Material.objects.create(name="Madeira")
-        product = make_product()
-        product.materials.set([pla, wood])
-
-        self.assertEqual(product.materials.count(), 2)
-        self.assertIn(product, pla.products.all())
-
-    def test_product_with_multiple_colors(self):
-        black = Color.objects.create(name="Preto", hex_code="#000000")
-        white = Color.objects.create(name="Branco", hex_code="#FFFFFF")
-        product = make_product()
-        product.colors.set([black, white])
-
-        self.assertEqual(product.colors.count(), 2)
-        self.assertEqual(black.rgb, (0, 0, 0))
-
     def test_brand_is_optional(self):
         product = make_product()
         self.assertIsNone(product.brand)
@@ -324,44 +382,28 @@ class RelationTests(TestCase):
         product.save()
         self.assertEqual(Product.objects.get(pk=product.pk).brand, brand)
 
-
-class PhysicalInformationTests(TestCase):
-    def test_dimensions_are_stored_separately(self):
-        product = make_product(
-            width=Decimal("50"), height=Decimal("20"), depth=Decimal("5"), dimension_unit="mm"
-        )
-        self.assertEqual(product.width, Decimal("50"))
-        self.assertIn("mm", product.dimensions_display())
-
-    def test_dimensions_are_convertible_to_mm(self):
-        product = make_product(width=Decimal("5"), height=Decimal("2"), dimension_unit="cm")
-        width_mm, height_mm, depth_mm = product.dimensions_in_mm()
-        self.assertEqual(width_mm, Decimal("50"))
-        self.assertEqual(height_mm, Decimal("20"))
-        self.assertIsNone(depth_mm)
-
-    def test_weight_is_stored_in_grams(self):
-        product = make_product(weight_grams=Decimal("35"))
-        self.assertEqual(product.weight_kg, Decimal("0.035"))
-
-    def test_print_time_is_a_duration(self):
-        product = make_product(print_time=timedelta(hours=2, minutes=35))
-        product.refresh_from_db()
-        self.assertEqual(product.print_time, timedelta(hours=2, minutes=35))
-        self.assertEqual(product.print_time_display(), "2h 35min")
+    def test_variants_die_with_the_product(self):
+        product = make_product()
+        make_variant(product, sku="V-1")
+        product.delete()
+        self.assertEqual(ProductVariant.objects.count(), 0)
 
 
 class FeaturedTests(TestCase):
     def test_featured_queryset_respects_order_and_status(self):
         category = make_category()
-        common = {
-            "category": category,
-            "sale_price": Decimal("10.00"),
-            "status": ProductStatus.ACTIVE,
-        }
-        second = make_product(sku="F-2", is_featured=True, featured_order=2, **common)
-        first = make_product(sku="F-1", is_featured=True, featured_order=1, **common)
-        make_product(sku="F-3", is_featured=False, **common)
-        make_product(sku="F-4", is_featured=True, featured_order=0, status=ProductStatus.DRAFT)
+
+        def destaque(sku, order, status=ProductStatus.ACTIVE, is_featured=True):
+            product = make_product(
+                sku=sku, name=sku, category=category, status=status,
+                is_featured=is_featured, featured_order=order,
+            )
+            make_variant(product, sku=f"{sku}-V", stock_quantity=1)
+            return product
+
+        second = destaque("F-2", 2)
+        first = destaque("F-1", 1)
+        destaque("F-3", 0, is_featured=False)
+        destaque("F-4", 0, status=ProductStatus.DRAFT)
 
         self.assertEqual(list(Product.objects.featured()), [first, second])

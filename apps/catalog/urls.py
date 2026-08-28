@@ -15,6 +15,10 @@ urlpatterns = [
         RedirectView.as_view(pattern_name="catalog:models_shop", permanent=False),
         name="product_list",
     ),
+    # Busca. Sem raiz de categoria: varre a loja inteira.
+    path("buscar/", views.SearchView.as_view(), name="search"),
     path("produtos/<slug:slug>/", views.ProductDetailView.as_view(), name="product_detail"),
+    # A pagina de uma categoria. A URL nao mudou -- o que mudou e que agora ela
+    # mostra os produtos em vez de um aviso de "em construcao".
     path("categorias/<slug:slug>/", views.CategoryDetailView.as_view(), name="category_detail"),
 ]

@@ -29,7 +29,7 @@ somar, diminuir e remover trocam só este bloco.
           <a href="{{ line.product.get_absolute_url }}"
              class="focus-ring block h-16 w-16 shrink-0 overflow-hidden rounded-[12px] border border-surface-line"
              data-cart-close>
-            {% include "components/product_media.html" with media=line.product.display_media name=line.display_name compact=True %}
+            {% include "components/product_media.html" with media=line.display_media name=line.display_name compact=True %}
           </a>
 
           <div class="min-w-0 flex-1">

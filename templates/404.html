@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% comment %}
+Página não encontrada.
+
+Herda de `base.html`, então vem com logo, navegação, seletor de idioma e
+rodapé — o visitante que caiu num link velho continua dentro da loja em vez de
+ficar numa tela branca.
+
+**Não diz o que não sabe.** Nada de "o produto foi removido" ou "o link
+expirou": pode ser um endereço digitado errado, um link antigo de e-mail ou uma
+página que nunca existiu. O texto assume só o que é certo — o endereço não
+existe — e oferece as saídas.
+
+Nenhuma informação interna: nem caminho, nem exceção, nem nome de view. Com
+`DEBUG=False` é esta página que aparece, e o que ela mostra é o que o mundo vê.
+{% endcomment %}
+
+{% block title %}{% translate "Página não encontrada" %} — {{ site_name }}{% endblock %}
+{% block meta_description %}{% translate "O endereço que você abriu não existe nesta loja." %}{% endblock %}
+
+{% block content %}
+  <section class="container-page py-16 sm:py-24">
+    <div class="empty-state mx-auto max-w-xl">
+      <span class="empty-state-icon" aria-hidden="true">
+        <span class="font-display text-xl font-bold">404</span>
+      </span>
+
+      <h1 class="font-display text-2xl font-bold tracking-[-0.02em] text-ink sm:text-3xl">
+        {% translate "Esta página não existe" %}
+      </h1>
+
+      <p class="max-w-md text-sm text-ink-soft">
+        {% translate "O endereço que você abriu não corresponde a nenhuma página da loja. Pode ter sido digitado com um caractere a mais, ou vir de um link antigo." %}
+      </p>
+
+      <div class="mt-2 flex flex-wrap items-center justify-center gap-3">
+        <a href="{% url 'home:index' %}" class="btn-primary btn-sm">
+          {% translate "Ir para a página inicial" %}
+        </a>
+        <a href="{% url 'catalog:models_shop' %}" class="btn-secondary btn-sm">
+          {% translate "Ver os modelos" %}
+        </a>
+      </div>
+    </div>
+  </section>
+{% endblock %}

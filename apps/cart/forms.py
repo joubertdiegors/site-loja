@@ -37,6 +37,13 @@ class AddToCartForm(forms.Form):
     """Um formulário por produto: os campos exigidos dependem dele."""
 
     variant_id = forms.IntegerField(required=False)
+    # Os eixos escolhidos nos botões da página. Existem para serem
+    # **conferidos** contra `variant_id`, não para substituí-lo: um POST que
+    # diga "variante 7" e "cor azul" quando a 7 é preta está mentindo em algum
+    # dos dois campos, e nenhum dos dois merece o benefício da dúvida.
+    option_color = forms.CharField(required=False)
+    option_size = forms.CharField(required=False)
+    option_material = forms.CharField(required=False)
     # Texto, não inteiro: quantidade estranha na requisição vira 1 em vez de
     # derrubar o pedido inteiro (ver clean_quantity).
     quantity = forms.CharField(required=False)
@@ -126,12 +133,95 @@ class AddToCartForm(forms.Form):
         if self.product is None:
             return cleaned
 
-        # Produto com variantes exige escolher uma delas.
-        if self.product.has_variants and self.variant is None:
-            self.add_error("variant_id", _("Escolha uma opção do produto."))
-
+        self._resolve_variant(cleaned)
         self._validate_personalization(cleaned)
         return cleaned
+
+    # -- a variante ---------------------------------------------------------
+
+    def axes_from(self, cleaned) -> dict:
+        """Eixos que vieram no POST, só os preenchidos.
+
+        Cor e material chegam como PK em texto; tamanho é o próprio texto do
+        catálogo. Eixo ausente não restringe nada — a página só desenha botões
+        para o eixo que varia.
+        """
+        enviados = {
+            "color": (cleaned.get("option_color") or "").strip(),
+            "size": (cleaned.get("option_size") or "").strip(),
+            "material": (cleaned.get("option_material") or "").strip(),
+        }
+        return {eixo: valor for eixo, valor in enviados.items() if valor}
+
+    def variant_axes(self, variant) -> dict:
+        """Os eixos desta variante, no mesmo formato do POST."""
+        return {
+            "color": str(variant.color_id) if variant.color_id else "",
+            "size": variant.size or "",
+            "material": str(variant.material_id) if variant.material_id else "",
+        }
+
+    def _resolve_variant(self, cleaned):
+        """Decide qual variante está sendo comprada — ou recusa a compra.
+
+        Três caminhos, nesta ordem:
+
+        1. veio ``variant_id`` — a variante é essa, e os eixos que também
+           tenham vindo têm que bater com ela;
+        2. vieram só os eixos (JavaScript reescrito, cliente curioso, script) —
+           a combinação é resolvida aqui e precisa apontar para **exatamente
+           uma** variante;
+        3. não veio nada — só é aceitável quando não há o que escolher.
+        """
+        eixos = self.axes_from(cleaned)
+
+        if self.variant is not None:
+            divergentes = {
+                eixo: valor
+                for eixo, valor in eixos.items()
+                if self.variant_axes(self.variant).get(eixo, "") != valor
+            }
+            if divergentes:
+                # A combinação pedida não é a da variante enviada. Vender a
+                # variante do `variant_id` entregaria uma cor que o cliente não
+                # escolheu; vender a dos eixos ignoraria o campo que a página
+                # de fato usa. Não há escolha honesta: recusa.
+                self.add_error(
+                    "variant_id", _("Esta combinação não está disponível.")
+                )
+            return
+
+        if eixos:
+            candidatas = [
+                variante
+                for variante in self.product.active_variants()
+                if all(
+                    self.variant_axes(variante).get(eixo, "") == valor
+                    for eixo, valor in eixos.items()
+                )
+            ]
+            if len(candidatas) == 1:
+                self.variant = candidatas[0]
+            elif not candidatas:
+                self.add_error(
+                    "variant_id", _("Esta combinação não está disponível.")
+                )
+            else:
+                # Mais de uma variante casa: falta escolher algum eixo.
+                self.add_error("variant_id", _("Escolha uma opção do produto."))
+            return
+
+        # Nenhum sinal de escolha. Com mais de uma opção, adivinhar a cor pelo
+        # cliente seria pior do que recusar. Com uma opção só não há nada a
+        # escolher — a página manda a variante num campo oculto, e se o POST
+        # vier sem ela, é essa mesma.
+        if self.product.has_multiple_variants:
+            self.add_error("variant_id", _("Escolha uma opção do produto."))
+            return
+
+        self.variant = self.product.default_variant
+        if self.variant is None:
+            self.add_error("variant_id", _("Este produto não está disponível."))
 
     def _validate_personalization(self, cleaned):
         kind = self.product.personalization_type

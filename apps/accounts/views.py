@@ -19,6 +19,8 @@ from django.contrib.auth.forms import SetPasswordForm
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.cache import cache
+from django.http import Http404
+from django.db.models import Prefetch
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -543,3 +545,155 @@ class PasswordResetConfirmView(auth_views.PasswordResetConfirmView):
 
 class PasswordResetCompleteView(auth_views.PasswordResetCompleteView):
     template_name = "accounts/password_reset_complete.html"
+
+
+# ---------------------------------------------------------------------------
+# Favoritos
+# ---------------------------------------------------------------------------
+
+
+@login_required
+@require_POST
+def favorite_toggle(request):
+    """Liga e desliga o favorito. Sempre POST, sempre do usuário da requisição.
+
+    ## De quem é o favorito
+
+    De `request.user`, e de mais ninguém. O navegador manda `product_id` — diz
+    **o que**, nunca **de quem**. Não existe caminho para um `user_id` vindo de
+    fora, então não existe o que forjar.
+
+    ## Idempotente dos dois lados
+
+    `get_or_create` e `delete()` sobre a chave única `(user, product)`: dois
+    cliques rápidos, um duplo-clique ou um "reenviar" do navegador chegam ao
+    mesmo estado final. A `UniqueConstraint` é a rede — mesmo numa corrida, o
+    banco recusa a segunda linha.
+
+    ## Só produto que o cliente poderia comprar
+
+    `sellable()`: favoritar um rascunho seria guardar algo que ele não pode
+    ver. Produto inexistente ou fora do ar dá 404, não uma linha inútil.
+    """
+    from apps.accounts.models import Favorite
+    from apps.catalog.models import Product
+
+    # `get_object_or_404(pk="abc")` levanta `ValueError`, não devolve 404: sem
+    # esta conversão, um POST com lixo no `product_id` derruba a view com 500.
+    try:
+        product_id = int(request.POST.get("product_id", ""))
+    except (TypeError, ValueError):
+        raise Http404("Produto inválido.")
+
+    product = get_object_or_404(Product.objects.sellable(), pk=product_id)
+
+    favorito, criado = Favorite.objects.get_or_create(user=request.user, product=product)
+    if not criado:
+        favorito.delete()
+
+    esta_favoritado = criado
+    mensagem = (
+        _("Adicionado aos favoritos.") if esta_favoritado else _("Removido dos favoritos.")
+    )
+
+    if request.headers.get("HX-Request") == "true":
+        return _favorite_htmx_response(request, product, esta_favoritado, mensagem)
+
+    messages.success(request, mensagem)
+    return redirect(_favorite_safe_next(request))
+
+
+def _favorite_safe_next(request) -> str:
+    """Para onde voltar sem JavaScript, recusando host de fora."""
+    destino = request.POST.get("next") or request.META.get("HTTP_REFERER") or ""
+    if destino and url_has_allowed_host_and_scheme(
+        url=destino,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return destino
+    return reverse("accounts:favorites")
+
+
+def _favorite_htmx_response(request, product, esta_favoritado, mensagem):
+    """Só os pedaços que mudaram — o mesmo desenho do carrinho.
+
+    Da lista de favoritos a resposta reescreve a **grade inteira**, e não só o
+    botão: desfavoritar ali tem de tirar o card da tela, e a grade precisa
+    saber virar o estado vazio quando o último sai. É a lista de um cliente,
+    não um catálogo — redesenhá-la é barato e sempre correto.
+    """
+    from apps.accounts.models import Favorite
+
+    contexto = {
+        "product": product,
+        "toast_message": mensagem,
+        "toast_level": "success",
+        # O conjunto do contexto foi montado ANTES da gravação: refazê-lo aqui
+        # é o que faz o coração já sair com o estado novo.
+        "favorite_ids": frozenset(
+            Favorite.objects.for_user(request.user).visible().values_list("product_id", flat=True)
+        ),
+    }
+    if request.POST.get("from_list"):
+        contexto["favorites"] = _favorite_products(request.user)
+        return render(request, "accounts/_favorites_update.html", contexto)
+
+    return render(request, "accounts/_favorite_update.html", contexto)
+
+
+def _favorite_products(user):
+    """Os produtos favoritos, prontos para o card e na ordem do cadastro.
+
+    `sellable()` porque a página é pública ao cliente: produto desativado sai
+    da **lista**, não da conta. Se voltar ao ar, reaparece com o favorito
+    intacto.
+
+    O `prefetch` é o mesmo da vitrine: sem ele, cada card custaria consultas de
+    tradução, mídia e variantes.
+    """
+    from apps.accounts.models import Favorite
+    from apps.catalog.models import Product, ProductVariant
+
+    ordem = {
+        favorito.product_id: indice
+        for indice, favorito in enumerate(
+            Favorite.objects.for_user(user).only("product_id", "created_at", "id")
+        )
+    }
+    if not ordem:
+        return []
+
+    produtos = (
+        Product.objects.sellable()
+        .filter(pk__in=ordem)
+        .select_related("category")
+        .prefetch_related(
+            "translations",
+            "media",
+            "category__translations",
+            Prefetch(
+                "variants",
+                queryset=ProductVariant.objects.filter(is_active=True)
+                .select_related("color", "material")
+                .prefetch_related("color__translations", "material__translations")
+                .order_by("sort_order", "id"),
+            ),
+        )
+    )
+    # A ordem é a dos favoritos (mais recente primeiro), não a do catálogo.
+    return sorted(produtos, key=lambda produto: ordem[produto.pk])
+
+
+class FavoritesView(LoginRequiredMixin, TemplateView):
+    """"Minha conta › Favoritos" — a mesma grade e o mesmo card da loja."""
+
+    template_name = "accounts/favorites.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["account_page"] = "favorites"
+        context["favorites"] = _favorite_products(self.request.user)
+        context["meta_title"] = _("Meus favoritos — JD PRINT")
+        context["meta_description"] = _("Os produtos que você guardou na JD PRINT.")
+        return context

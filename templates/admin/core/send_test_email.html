@@ -1,0 +1,43 @@
+{% extends "admin/base_site.html" %}
+{% comment %}
+  Teste de envio de e-mail.
+
+  Mostra de qual fonte a configuracao esta vindo (Admin ou .env) porque um
+  teste que passa com uma configuracao nao prova nada sobre a outra.
+
+  A pagina nunca imprime senha, usuario nem string de conexao: so o servidor,
+  que ja aparece na tela de configuracao.
+{% endcomment %}
+{% block content %}
+  <div id="content-main">
+    <p>
+      Envia uma mensagem usando <strong>a mesma conexao</strong> dos e-mails de
+      pedido. Se este teste chega, o e-mail do cliente chega.
+    </p>
+
+    <p>
+      Fonte da configuracao:
+      <strong>{% if source == "admin" %}configuracao do Admin{% else %}variaveis do .env{% endif %}</strong>
+      {% if host %}&mdash; servidor <code>{{ host }}</code>{% else %}&mdash; backend local (o e-mail aparece no console do servidor){% endif %}
+    </p>
+
+    <form method="post">
+      {% csrf_token %}
+      <fieldset class="module aligned">
+        {% for field in form %}
+          <div class="form-row">
+            {{ field.errors }}
+            {{ field.label_tag }}
+            {{ field }}
+            {% if field.help_text %}<p class="help">{{ field.help_text }}</p>{% endif %}
+          </div>
+        {% endfor %}
+      </fieldset>
+
+      <div class="submit-row">
+        <input type="submit" value="Enviar teste" class="default">
+        <a href="{% url 'admin:core_emailsettings_changelist' %}" class="button cancel-link">Voltar</a>
+      </div>
+    </form>
+  </div>
+{% endblock %}

@@ -63,6 +63,7 @@ LOCAL_APPS = [
     "apps.shipping",
     "apps.orders",
     "apps.home",
+    "apps.storefront",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + LOCAL_APPS
@@ -95,7 +96,9 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "apps.core.context_processors.site",
+                "apps.storefront.context_processors.storefront",
                 "apps.cart.context_processors.cart",
+                "apps.accounts.context_processors.favorites",
             ],
         },
     },
@@ -202,6 +205,12 @@ if not DEBUG:
 
     SECURE_HSTS_SECONDS = int(env("SECURE_HSTS_SECONDS", str(60 * 60 * 24 * 30)))
     SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool("SECURE_HSTS_INCLUDE_SUBDOMAINS", True)
+    # Padrao False de proposito, e o `check --deploy` avisa sobre isso (W021).
+    # Entrar na lista de preload dos navegadores e uma decisao praticamente
+    # IRREVERSIVEL: sair leva meses, e enquanto isso o dominio inteiro (e os
+    # subdominios) so abre em HTTPS. So ligue quando o dominio definitivo
+    # estiver com HTTPS estavel -- nao no dominio de teste do PythonAnywhere.
+    SECURE_HSTS_PRELOAD = env_bool("SECURE_HSTS_PRELOAD", False)
     # No PythonAnywhere da para deixar False e ligar o "Force HTTPS" na aba Web
     # (o proxy redireciona antes de a requisicao chegar no Python). Manter True
     # tambem funciona, desde que o SECURE_PROXY_SSL_HEADER acima esteja ativo.
@@ -283,11 +292,32 @@ PRODUCT_MEDIA_MAX_UPLOAD_SIZE = int(env("PRODUCT_MEDIA_MAX_UPLOAD_SIZE", str(50 
 # E-mail e confirmacao de conta
 # ---------------------------------------------------------------------------
 
-MAILERS = {
-    "default": {
-        "BACKEND": env("DJANGO_EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend"),
-    },
-}
+# Todo envio passa por este backend, que decide na hora qual configuracao usar:
+#
+#     EmailSettings (Admin), ativa e com servidor  ->  se nao houver  ->  .env
+#
+# Ver apps/core/mailer.py. Trocar a configuracao no Admin vale no proximo
+# e-mail, sem reiniciar nada.
+EMAIL_BACKEND = "apps.core.mailer.ConfiguredEmailBackend"
+
+# O backend usado quando NAO ha configuracao no Admin. Em desenvolvimento o
+# console basta (o e-mail aparece no terminal); em producao, smtp.
+EMAIL_FALLBACK_BACKEND = env(
+    "DJANGO_EMAIL_BACKEND",
+    "django.core.mail.backends.console.EmailBackend"
+    if DEBUG
+    else "django.core.mail.backends.smtp.EmailBackend",
+)
+
+# Credenciais SMTP do .env. Sao o padrao enquanto ninguem cadastrar a
+# configuracao no Admin. A senha NUNCA fica no codigo.
+EMAIL_HOST = env("EMAIL_HOST", "")
+EMAIL_PORT = int(env("EMAIL_PORT", "587"))
+EMAIL_HOST_USER = env("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", True)
+EMAIL_USE_SSL = env_bool("EMAIL_USE_SSL", False)
+EMAIL_TIMEOUT = int(env("EMAIL_TIMEOUT", "10"))
 
 DEFAULT_FROM_EMAIL = env("DJANGO_DEFAULT_FROM_EMAIL", "JD PRINT <nao-responda@jd-print.com>")
 SERVER_EMAIL = env("DJANGO_SERVER_EMAIL", DEFAULT_FROM_EMAIL)
@@ -312,6 +342,60 @@ ACCOUNT_EMAIL_IP_LIMIT = int(env("ACCOUNT_EMAIL_IP_LIMIT", "5"))
 # Validade do link de redefinicao de senha (segundos). O padrao do Django e de
 # tres dias; 24 horas e mais adequado para uma loja.
 PASSWORD_RESET_TIMEOUT = int(env("PASSWORD_RESET_TIMEOUT", str(24 * 60 * 60)))
+
+# ---------------------------------------------------------------------------
+# Log
+#
+# Em desenvolvimento o Django ja loga no console e nao precisamos de mais nada.
+# Com DEBUG=False nao existe pagina de erro: sem log, uma falha de e-mail, de
+# webhook ou de pagamento simplesmente desaparece. Por isso os logs da loja vao
+# para arquivo, e o arquivo fica fora do Git (.gitignore).
+# ---------------------------------------------------------------------------
+
+LOG_DIR = Path(env("DJANGO_LOG_DIR", str(BASE_DIR / "logs")))
+LOG_LEVEL = env("DJANGO_LOG_LEVEL", "INFO").upper()
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "{asctime} {levelname} {name} {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+    },
+    "root": {"handlers": ["console"], "level": "WARNING"},
+    "loggers": {
+        # Os apps da loja: e aqui que aparecem falha de e-mail, webhook
+        # recusado e pagamento que nao fechou.
+        "apps": {"handlers": ["console"], "level": LOG_LEVEL, "propagate": False},
+        "django.request": {"handlers": ["console"], "level": "ERROR", "propagate": False},
+    },
+}
+
+if not DEBUG:
+    # `delay=True`: o arquivo so e aberto no primeiro registro. Sem isso, um
+    # diretorio sem permissao de escrita derrubaria a inicializacao inteira do
+    # Django em vez de so falhar ao logar.
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
+    LOGGING["handlers"]["file"] = {
+        "class": "logging.handlers.RotatingFileHandler",
+        "filename": str(LOG_DIR / "jdprint.log"),
+        "maxBytes": 5 * 1024 * 1024,
+        "backupCount": 5,
+        "formatter": "verbose",
+        "delay": True,
+    }
+    for nome in ("apps", "django.request"):
+        LOGGING["loggers"][nome]["handlers"] = ["console", "file"]
+    LOGGING["root"]["handlers"] = ["console", "file"]
+
 
 # ---------------------------------------------------------------------------
 # Pedidos, frete e impostos

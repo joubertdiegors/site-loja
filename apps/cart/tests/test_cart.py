@@ -184,8 +184,8 @@ class CartStockTests(TestCase):
             sku="L-2", name="Encomenda", made_to_order=True, production_lead_time_days=2
         )
 
-        self.assertEqual(max_quantity_for(limited), 2)
-        self.assertGreater(max_quantity_for(made_to_order), 2)
+        self.assertEqual(max_quantity_for(limited, limited.default_variant), 2)
+        self.assertGreater(max_quantity_for(made_to_order, made_to_order.default_variant), 2)
 
     def test_set_quantity_above_stock_is_capped(self):
         product = make_product(sku="P-3", name="Três", stock_quantity=3)

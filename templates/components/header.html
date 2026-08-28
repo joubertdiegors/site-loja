@@ -5,24 +5,41 @@ Header.
 A navegação usa as categorias raiz ativas do banco (context processor
 apps.core.context_processors.site) — nenhuma categoria escrita no template.
 
-A faixa escura do topo repete as três promessas que a loja já faz no hero;
-não há promoção inventada aqui. Busca e favoritos continuam presentes com a
-estrutura visual pronta, desabilitados e marcados como indisponíveis para
-leitores de tela em vez de fingirem funcionar.
+A faixa escura do topo vem de `storefront.TopBarItem` (contexto
+`top_bar_items`): o administrador cadastra, traduz, reordena e desativa sem
+tocar aqui. Sem item cadastrado, a faixa inteira desaparece — e não é perda: a
+página abre direto no cabeçalho, como qualquer loja sem promessa a fazer.
+
+Busca e favoritos continuam presentes com a estrutura visual pronta,
+desabilitados e marcados como indisponíveis para leitores de tela em vez de
+fingirem funcionar.
 {% endcomment %}
 
-{# Faixa de camadas: a assinatura gráfica da marca abre a página. #}
-<div class="bg-surface-deep layers-light">
-  <div class="container-page">
-    <ul class="flex items-center justify-center gap-x-6 gap-y-1 overflow-hidden py-2.5 font-mono text-[10.5px] uppercase tracking-[0.1em] text-brand-200 sm:text-[11px]" role="list">
-      <li class="whitespace-nowrap">{% translate "Produção sob encomenda" %}</li>
-      <li class="hidden whitespace-nowrap sm:list-item" aria-hidden="true">·</li>
-      <li class="hidden whitespace-nowrap sm:list-item">{% translate "Cores e materiais à escolha" %}</li>
-      <li class="hidden whitespace-nowrap lg:list-item" aria-hidden="true">·</li>
-      <li class="hidden whitespace-nowrap lg:list-item">{% translate "Envio para toda a Europa" %}</li>
-    </ul>
+{% if top_bar_items %}
+  {# Faixa de camadas: a assinatura gráfica da marca abre a página. #}
+  <div class="bg-surface-deep layers-light" data-top-bar>
+    <div class="container-page">
+      <ul class="flex items-center justify-center gap-x-6 gap-y-1 overflow-hidden py-2.5 font-mono text-[10.5px] uppercase tracking-[0.1em] text-brand-200 sm:text-[11px]" role="list">
+        {% comment %}
+          Do segundo item em diante a faixa vai escondendo nas telas estreitas,
+          como já fazia: em 390 px não cabem três frases lado a lado. Quem
+          cadastrar seis vê três no celular — é o comportamento de antes, agora
+          com a lista vindo do banco.
+
+          O ponto separador é `aria-hidden`: é desenho, não conteúdo.
+        {% endcomment %}
+        {% for item in top_bar_items %}
+          {% if item.text %}
+            {% if not forloop.first %}
+              <li class="hidden whitespace-nowrap {% if forloop.counter == 2 %}sm:list-item{% else %}lg:list-item{% endif %}" aria-hidden="true">·</li>
+            {% endif %}
+            <li class="{% if not forloop.first %}hidden {% if forloop.counter == 2 %}sm:list-item{% else %}lg:list-item{% endif %} {% endif %}whitespace-nowrap">{{ item.text }}</li>
+          {% endif %}
+        {% endfor %}
+      </ul>
+    </div>
   </div>
-</div>
+{% endif %}
 
 <header class="sticky top-0 z-30 border-b border-surface-line bg-white/95 backdrop-blur">
   <div class="container-page">
@@ -50,23 +67,28 @@ leitores de tela em vez de fingirem funcionar.
       </div>
 
       <div class="flex items-center gap-1 sm:gap-2">
-        {# Busca: campo visual; a página de resultados chega na etapa da busca. #}
-        <div class="relative hidden md:block">
+        {% comment %}
+          Busca. Um `<form method="get">` de verdade: funciona sem JavaScript,
+          o Enter envia, e o navegador guarda o histórico da pessoa. O valor
+          volta preenchido na página de resultados para corrigir a palavra sem
+          digitar tudo de novo.
+        {% endcomment %}
+        <form action="{% url 'catalog:search' %}" method="get" role="search"
+              class="relative hidden md:block">
           <span class="pointer-events-none absolute inset-y-0 start-0 flex items-center ps-3.5 text-ink-muted">
             {% icon "search" "h-4 w-4" %}
           </span>
           <label class="sr-only" for="busca">{% translate "Buscar produtos" %}</label>
-          <input id="busca" type="search" class="field-input w-44 lg:w-60" disabled
-                 title="{% translate 'Em breve' %}"
-                 placeholder="{% translate 'Buscar produtos' %}">
-        </div>
+          <input id="busca" type="search" name="q" value="{{ query|default:"" }}"
+                 class="field-input w-44 ps-10 lg:w-60"
+                 placeholder="{% translate 'Buscar produtos' %}"
+                 autocomplete="off">
+          <button type="submit" class="sr-only">{% translate "Buscar" %}</button>
+        </form>
 
         {% include "components/language_selector.html" %}
 
-        <button type="button" class="icon-button hidden sm:inline-flex" disabled
-                aria-label="{% translate 'Favoritos (em breve)' %}" title="{% translate 'Em breve' %}">
-          {% icon "heart" %}
-        </button>
+        {% include "components/favorites_counter.html" %}
 
         {% include "components/account_menu.html" %}
         {% include "components/cart_counter.html" %}
@@ -84,15 +106,18 @@ leitores de tela em vez de fingirem funcionar.
   {# Menu mobile #}
   <div id="menu-mobile" class="hidden border-t border-surface-line bg-white lg:hidden" data-menu-panel>
     <nav class="container-page py-4" aria-label="{% translate 'Navegação principal (celular)' %}">
-      <div class="relative mb-4 md:hidden">
+      <form action="{% url 'catalog:search' %}" method="get" role="search"
+            class="relative mb-4 md:hidden">
         <span class="pointer-events-none absolute inset-y-0 start-0 flex items-center ps-3.5 text-ink-muted">
           {% icon "search" "h-4 w-4" %}
         </span>
         <label class="sr-only" for="busca-mobile">{% translate "Buscar produtos" %}</label>
-        <input id="busca-mobile" type="search" class="field-input" disabled
-               title="{% translate 'Em breve' %}"
-               placeholder="{% translate 'Buscar produtos' %}">
-      </div>
+        <input id="busca-mobile" type="search" name="q" value="{{ query|default:"" }}"
+               class="field-input w-full ps-10"
+               placeholder="{% translate 'Buscar produtos' %}"
+               autocomplete="off">
+        <button type="submit" class="sr-only">{% translate "Buscar" %}</button>
+      </form>
 
       <ul class="space-y-1" role="list">
         {% for category in nav_categories %}

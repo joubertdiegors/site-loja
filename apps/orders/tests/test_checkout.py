@@ -57,13 +57,24 @@ class CheckoutBase(LanguageResetMixin, TestCase):
         self.address = make_address(self.customer, self.country)
 
         self.product = make_product(
-            sku="P1", name="Vaso Espiral", price=Decimal("19.90"), stock_quantity=10
+            sku="P1",
+            name="Vaso Espiral",
+            price=Decimal("19.90"),
+            stock_quantity=10,
+            weight_grams=Decimal("300"),
         )
-        self.product.weight_grams = Decimal("300")
-        self.product.save()
+        self.variant = self.product.default_variant
 
     def add_to_cart(self, quantity=1):
-        self.client.post(reverse("cart:add"), {"product_id": self.product.pk, "quantity": quantity})
+        """O POST leva a variante: não existe linha comercial sem ela."""
+        self.client.post(
+            reverse("cart:add"),
+            {
+                "product_id": self.product.pk,
+                "variant_id": self.variant.pk,
+                "quantity": quantity,
+            },
+        )
 
     def payload(self, **overrides):
         data = {
@@ -145,8 +156,8 @@ class CustomerCheckoutTests(CheckoutBase):
         self.assertContains(response, "5,90")
 
     def test_summary_shows_the_estimate(self):
-        self.product.production_lead_time_days = 3
-        self.product.save()
+        self.variant.production_lead_time_days = 3
+        self.variant.save()
         self.add_to_cart()
 
         response = self.client.get(CHECKOUT)
@@ -280,8 +291,8 @@ class ForgedInputTests(CheckoutBase):
 
     def test_stock_is_revalidated_at_the_last_moment(self):
         """O carrinho pode estar aberto há três dias."""
-        self.product.stock_quantity = 0
-        self.product.save()
+        self.variant.stock_quantity = 0
+        self.variant.save()
 
         response = self.client.post(CHECKOUT, self.payload())
 

@@ -66,6 +66,13 @@ modal. O item ativo é marcado por `account_page`, definido em cada view.
               {% icon "cart" "h-4 w-4" %}<span class="whitespace-nowrap">{% translate "Meus pedidos" %}</span>
             </a>
           </li>
+          <li>
+            <a class="account-link {% if account_page == 'favorites' %}account-link-active{% endif %}"
+               href="{% url 'accounts:favorites' %}"
+               {% if account_page == 'favorites' %}aria-current="page"{% endif %}>
+              {% icon "heart" "h-4 w-4" %}<span class="whitespace-nowrap">{% translate "Meus favoritos" %}</span>
+            </a>
+          </li>
         </ul>
 
         <div class="my-2 h-px bg-surface-line"></div>

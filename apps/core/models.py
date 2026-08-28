@@ -361,3 +361,208 @@ class DeliveryCountryTranslation(TranslationBase):
 
     def __str__(self) -> str:
         return self.name
+
+
+# ---------------------------------------------------------------------------
+# Configuração de e-mail
+# ---------------------------------------------------------------------------
+
+
+class EmailSettings(TimeStampedModel):
+    """Como a loja envia e-mail — configurável sem mexer no servidor.
+
+    **Uma linha só.** Não é uma lista de servidores: é *a* configuração. O
+    ``clean()`` e o Admin garantem isso; ter duas ativas seria ter duas
+    respostas para "de onde sai o e-mail".
+
+    **Prioridade** (documentada em ``docs/OPERACAO.md``)::
+
+        EmailSettings ativa e com servidor preenchido
+            ↓  se não houver
+        variáveis do .env / settings
+
+    Ou seja: o ``.env`` continua funcionando exatamente como antes, e o Admin
+    só entra em cena quando alguém de fato cadastrar a configuração e marcar
+    "ativa". Nunca as duas ao mesmo tempo, nunca metade de cada.
+
+    **A senha** é cifrada antes de entrar no banco (``apps.core.secrets``) e
+    nunca volta para a tela: o formulário do Admin mostra um campo vazio, e
+    deixá-lo vazio conserva o que já estava gravado.
+    """
+
+    is_active = models.BooleanField(
+        "usar esta configuração",
+        default=False,
+        help_text=(
+            "Desmarcada, a loja volta a usar as variáveis do .env. "
+            "Marque só depois de testar o envio."
+        ),
+    )
+
+    host = models.CharField("servidor SMTP", max_length=255, blank=True)
+    port = models.PositiveIntegerField("porta", default=587)
+    username = models.CharField("usuário", max_length=255, blank=True)
+    #: Cifrada. Nunca leia este campo direto — use a propriedade ``password``.
+    password_encrypted = models.TextField("senha (cifrada)", blank=True, editable=False)
+
+    use_tls = models.BooleanField(
+        "usar TLS (STARTTLS)",
+        default=True,
+        help_text="O normal na porta 587. Não marque junto com SSL.",
+    )
+    use_ssl = models.BooleanField(
+        "usar SSL",
+        default=False,
+        help_text="O normal na porta 465. Não marque junto com TLS.",
+    )
+    timeout = models.PositiveIntegerField(
+        "tempo limite (s)",
+        default=10,
+        help_text="Quanto esperar pelo servidor antes de desistir de um envio.",
+    )
+
+    from_email = models.EmailField("e-mail remetente", blank=True)
+    from_name = models.CharField("nome do remetente", max_length=120, blank=True)
+    reply_to = models.EmailField(
+        "e-mail de resposta",
+        blank=True,
+        help_text="Para onde vai a resposta do cliente. Vazio: o próprio remetente.",
+    )
+    admin_recipients = models.TextField(
+        "e-mails que recebem os pedidos",
+        blank=True,
+        help_text=(
+            "Um por linha, ou separados por vírgula. É para cá que vai a ordem "
+            "de produção de cada pedido novo."
+        ),
+    )
+
+    contact_recipients = models.TextField(
+        "e-mails que recebem os contatos",
+        blank=True,
+        help_text=(
+            "Um por linha, ou separados por vírgula. Recebem as mensagens do "
+            "formulário de contato e os pedidos de revenda. "
+            "Em branco, vão para quem recebe os pedidos."
+        ),
+    )
+
+    last_test_at = models.DateTimeField("último teste em", null=True, blank=True)
+    last_test_ok = models.BooleanField("último teste funcionou", default=False)
+    last_test_message = models.CharField(
+        "resultado do último teste", max_length=300, blank=True
+    )
+
+    class Meta:
+        verbose_name = "configuração de e-mail"
+        verbose_name_plural = "configuração de e-mail"
+
+    def __str__(self) -> str:
+        if not self.host:
+            return "configuração de e-mail (sem servidor)"
+        estado = "ativa" if self.is_active else "inativa"
+        return f"{self.host}:{self.port} ({estado})"
+
+    # -- a senha -----------------------------------------------------------
+
+    @property
+    def password(self) -> str:
+        """A senha em texto puro. Só para montar a conexão SMTP."""
+        from apps.core.secrets import decrypt
+
+        return decrypt(self.password_encrypted)
+
+    @password.setter
+    def password(self, value: str) -> None:
+        from apps.core.secrets import encrypt
+
+        self.password_encrypted = encrypt(value or "")
+
+    @property
+    def has_password(self) -> bool:
+        return bool(self.password_encrypted)
+
+    # -- leitura -----------------------------------------------------------
+
+    @property
+    def sender(self) -> str:
+        """"Nome <e-mail>", ou só o e-mail quando não há nome."""
+        if not self.from_email:
+            return ""
+        if self.from_name:
+            return f"{self.from_name} <{self.from_email}>"
+        return self.from_email
+    @staticmethod
+    def _split(bruto: str) -> list[str]:
+        """Uma lista de e-mails aceitando vírgula ou uma por linha."""
+        return [
+            linha.strip()
+            for linha in (bruto or "").replace(",", "\n").splitlines()
+            if linha.strip()
+        ]
+
+    def recipient_list(self) -> list[str]:
+        """Os e-mails da equipe que recebem a ordem de produção."""
+        return self._split(self.admin_recipients)
+
+    def contact_recipient_list(self) -> list[str]:
+        """Quem esta linha diz que recebe contato e revenda.
+
+        Só o que está escrito aqui. Quem resolve o "em branco cai em quem
+        recebe os pedidos" é `apps.core.mailer.contact_recipients()`, para a
+        cadeia de prioridade viver num lugar só.
+        """
+        return self._split(self.contact_recipients)
+
+    @property
+    def is_usable(self) -> bool:
+        """Dá para enviar por aqui? Sem servidor, não dá."""
+        return bool(self.is_active and self.host)
+
+    # -- validação ---------------------------------------------------------
+
+    def clean(self):
+        super().clean()
+        errors = {}
+
+        if self.use_tls and self.use_ssl:
+            # Os dois juntos fazem o smtplib abrir SSL e depois pedir STARTTLS
+            # numa conexão que já é cifrada: o servidor recusa e o erro que
+            # chega ao administrador não diz nada sobre a causa.
+            errors["use_tls"] = "Escolha TLS **ou** SSL, não os dois."
+            errors["use_ssl"] = "Escolha TLS **ou** SSL, não os dois."
+
+        if self.is_active and not self.host:
+            errors["host"] = (
+                "Informe o servidor SMTP antes de ativar — sem ele não há para "
+                "onde enviar, e a loja pararia de mandar e-mail."
+            )
+
+        if self.is_active and not self.from_email:
+            errors["from_email"] = "Informe o e-mail remetente antes de ativar."
+
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        """Uma linha só: qualquer gravação assume o mesmo PK.
+
+        Quem tentar um segundo ``objects.create()`` recebe um erro de chave
+        primária do banco — e é o que se quer. A garantia de "uma configuração
+        só" fica onde ela é mais forte, na tabela, e não numa convenção que
+        alguém pode contornar. Para editar, use ``load()`` ou o Admin.
+        """
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def load(cls) -> "EmailSettings":
+        """A configuração atual — criando a linha vazia se ainda não existir."""
+        obj, _criado = cls.objects.get_or_create(pk=1)
+        return obj
+
+    @classmethod
+    def active(cls) -> "EmailSettings | None":
+        """A configuração utilizável, ou ``None`` para cair no ``.env``."""
+        obj = cls.objects.filter(pk=1, is_active=True).first()
+        return obj if (obj is not None and obj.is_usable) else None

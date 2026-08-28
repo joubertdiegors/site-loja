@@ -1,0 +1,168 @@
+{% comment %}
+  CONTEÚDO: tabela por idioma + MODAL de edição.
+
+  Mesmo desenho das VARIANTES, e de propósito: um administrador que aprendeu a
+  editar uma variante já sabe editar um idioma. A casca do modal
+  (`jd_modal.js`) e o CSS (`.jd-modal*`) são literalmente os mesmos.
+
+  Antes, os cinco campos de cada idioma ficavam abertos na página — com quatro
+  idiomas, vinte campos empilhados antes de chegar às variantes.
+
+  ## Onde o "Salvar" grava
+
+  Na tela de EDIÇÃO o modal grava o idioma sozinho, por
+  `admin:catalog_product_content_save`. Na tela de CADASTRO o produto ainda não
+  tem PK: lá o modal alimenta o formset e a gravação acontece junto com o
+  produto — a mesma regra das variantes, dita na tela.
+
+  As `<td>` do resumo são preenchidas pelo JavaScript a partir dos próprios
+  campos do modal: duplicar os valores aqui criaria duas fontes para o mesmo
+  texto.
+{% endcomment %}
+{% comment %}
+    Sem `js-inline-admin-formset` nem `data-inline-formset`: sao as marcas
+    por onde o `inlines.js` do Django entra e desenha o proprio "Adicionar
+    outro(a)...". Aqui quem acrescenta e o "+ Adicionar idioma", que abre o
+    modal -- dois botoes de adicionar, um deles ignorando o modal, e pior
+    que nenhum.
+
+    `inline-group` fica: e so a moldura, e vem do CSS do Admin.
+  {% endcomment %}
+  <div class="inline-group jd-content"
+     id="{{ inline_admin_formset.formset.prefix }}-group"
+     data-content-inline
+     {% if original %}data-content-save-url="{% url 'admin:catalog_product_content_save' original.pk %}"
+     data-content-delete-url="{% url 'admin:catalog_product_content_delete' original.pk 0 %}"{% endif %}>
+  <div class="tabular inline-related">
+    {{ inline_admin_formset.formset.management_form }}
+
+    <fieldset class="module {{ inline_admin_formset.classes }}"
+              aria-labelledby="{{ inline_admin_formset.formset.prefix }}-heading">
+      {# `<details open>`: recolhível, mas aberta — quem edita quer ver. #}
+      {% if inline_admin_formset.is_collapsible %}<details open><summary>{% endif %}
+      <h2 id="{{ inline_admin_formset.formset.prefix }}-heading" class="inline-heading">
+        {{ inline_admin_formset.opts.verbose_name_plural|capfirst }}
+      </h2>
+      {% if inline_admin_formset.is_collapsible %}</summary>{% endif %}
+
+      {{ inline_admin_formset.formset.non_form_errors }}
+
+      {% if not original %}
+        <p class="jd-variant-help jd-variant-hint">
+          Este produto ainda não foi criado. O conteúdo cadastrado aqui é
+          gravado junto com ele, ao salvar o produto.
+        </p>
+      {% endif %}
+
+      <p class="jd-variant-flash" data-content-flash role="status" hidden></p>
+
+      <div class="jd-variant-scroll">
+        <table class="jd-content-table">
+          <thead>
+            <tr>
+              <th scope="col">Idioma</th>
+              <th scope="col">Nome</th>
+              <th scope="col">Descrição curta</th>
+              <th scope="col">Descrição</th>
+              <th scope="col"><span class="jd-sr">Ações</span></th>
+            </tr>
+          </thead>
+          <tbody data-content-rows></tbody>
+        </table>
+      </div>
+
+      <p class="jd-variant-note" data-content-empty hidden>
+        Nenhum conteúdo cadastrado. Um produto ativo precisa pelo menos do
+        português — é dele que a loja tira o nome quando falta tradução.
+      </p>
+
+      <p class="jd-variant-actions">
+        <button type="button" class="jd-variant-add" data-content-add>
+          + Adicionar idioma
+        </button>
+      </p>
+
+      {% comment %}
+        Os formulários. O último é o `empty_form` do Django (prefixo
+        `__prefix__`): molde para "Adicionar idioma", nunca enviado, porque o
+        índice dele não entra em TOTAL_FORMS.
+      {% endcomment %}
+      <div class="jd-content-modals">
+        {% for inline_admin_form in inline_admin_formset %}
+          <div class="jd-modal"
+               data-content-modal
+               {% if forloop.last and inline_admin_formset.has_add_permission %}data-content-template{% endif %}
+               hidden>
+            {# Sem gancho proprio: quem cuida deste no e `jd_modal.js`, e ele nao fecha. #}
+            <div class="jd-modal-backdrop" aria-hidden="true"></div>
+
+            <div class="jd-modal-dialog"
+                 role="dialog"
+                 aria-modal="true"
+                 aria-labelledby="{{ inline_admin_formset.formset.prefix }}-{{ forloop.counter0 }}-titulo">
+              <header class="jd-modal-head">
+                <h3 class="jd-modal-title"
+                    id="{{ inline_admin_formset.formset.prefix }}-{{ forloop.counter0 }}-titulo"
+                    data-content-modal-title>Editar conteúdo</h3>
+                <button type="button" class="jd-modal-x" data-content-cancel
+                        aria-label="Fechar sem salvar">&times;</button>
+              </header>
+
+              <div class="jd-modal-body">
+                {{ inline_admin_form.form.non_field_errors }}
+                <p class="errornote" data-modal-error hidden></p>
+
+                {% if inline_admin_form.needs_explicit_pk_field %}{{ inline_admin_form.pk_field.field }}{% endif %}
+                {% if inline_admin_form.fk_field %}{{ inline_admin_form.fk_field.field }}{% endif %}
+
+                {% for fieldset in inline_admin_form %}
+                  {% for line in fieldset %}
+                    {% for field in line %}
+                      <div class="jd-modal-field jd-content-field {% if field.field.name %}field-{{ field.field.name }}{% endif %}{% if field.field.is_hidden %} jd-hidden{% endif %}">
+                        {% if field.is_readonly %}
+                          <label>{{ field.field.label }}</label>
+                          <p class="jd-variant-readonly">{{ field.contents }}</p>
+                        {% else %}
+                          {{ field.field.label_tag }}
+                          {{ field.field.errors }}
+                          {{ field.field }}
+                          {% if field.field.help_text %}
+                            <p class="jd-variant-help">{{ field.field.help_text|safe }}</p>
+                          {% endif %}
+                        {% endif %}
+                      </div>
+                    {% endfor %}
+                  {% endfor %}
+                {% endfor %}
+
+                {% if inline_admin_formset.formset.can_delete and inline_admin_formset.has_delete_permission %}
+                  {# Sem JavaScript, esta caixa continua sendo o jeito de remover. #}
+                  <p class="jd-variant-delete">
+                    {{ inline_admin_form.deletion_field.field }}
+                    <label for="{{ inline_admin_form.deletion_field.field.id_for_label }}">
+                      Remover este idioma ao salvar o produto
+                    </label>
+                  </p>
+                {% endif %}
+              </div>
+
+              <footer class="jd-modal-foot">
+                <button type="button" class="jd-modal-danger" data-content-remove hidden>
+                  Remover idioma
+                </button>
+                <span class="jd-modal-spacer"></span>
+                <button type="button" class="jd-modal-cancel" data-content-cancel>
+                  Cancelar
+                </button>
+                <button type="button" class="jd-modal-save" data-content-save>
+                  Salvar
+                </button>
+              </footer>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+      {% if inline_admin_formset.is_collapsible %}</details>{% endif %}
+    </fieldset>
+  </div>
+</div>

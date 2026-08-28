@@ -87,6 +87,66 @@ msgstr "Uitgelicht"
 msgid "Sob encomenda"
 msgstr "Op bestelling"
 
+msgid "Esta combinação não está disponível."
+msgstr "Deze combinatie is niet beschikbaar."
+
+msgid "Esta combinação não existe. Escolha outra."
+msgstr "Deze combinatie bestaat niet. Kies een andere."
+
+msgid "Página não encontrada"
+msgstr "Pagina niet gevonden"
+
+msgid "O endereço que você abriu não existe nesta loja."
+msgstr "Het adres dat u opende bestaat niet in deze winkel."
+
+msgid "Esta página não existe"
+msgstr "Deze pagina bestaat niet"
+
+msgid "O endereço que você abriu não corresponde a nenhuma página da loja. Pode ter sido digitado com um caractere a mais, ou vir de um link antigo."
+msgstr "Het adres dat u opende komt met geen enkele pagina van de winkel overeen. Misschien is er een teken te veel getypt, of komt het uit een oude link."
+
+msgid "Ir para a página inicial"
+msgstr "Naar de startpagina"
+
+msgid "Ver os modelos"
+msgstr "Bekijk de modellen"
+
+msgid "Erro no servidor"
+msgstr "Serverfout"
+
+msgid "Alguma coisa falhou do nosso lado"
+msgstr "Er ging iets mis aan onze kant"
+
+msgid "O erro foi registrado e a equipe será avisada. Não foi nada que você fez — tente de novo em alguns minutos."
+msgstr "De fout is geregistreerd en het team wordt op de hoogte gebracht. Het lag niet aan u — probeer het over enkele minuten opnieuw."
+
+msgid "Se você estava finalizando uma compra, nada foi cobrado sem confirmação. Verifique seus pedidos antes de tentar novamente."
+msgstr "Als u een aankoop aan het afronden was, is er niets afgeschreven zonder bevestiging. Controleer uw bestellingen voordat u het opnieuw probeert."
+
+msgid "E-mail reenviado"
+msgstr "E-mail opnieuw verzonden"
+
+msgid "Situação alterada"
+msgstr "Status gewijzigd"
+
+msgid "Reenviado: %(label)s."
+msgstr "Opnieuw verzonden: %(label)s."
+
+msgid "Falha ao reenviar: %(label)s."
+msgstr "Opnieuw verzenden mislukt: %(label)s."
+
+msgid "Produção: %(de)s → %(para)s"
+msgstr "Productie: %(de)s → %(para)s"
+
+msgid "%(count)s %(rotulo)s reenviado(s)."
+msgstr "%(count)s %(rotulo)s opnieuw verzonden."
+
+msgid "Não existe com a opção atual — clique para trocar"
+msgstr "Bestaat niet met de huidige optie — klik om te wisselen"
+
+msgid "Indisponível"
+msgstr "Niet beschikbaar"
+
 msgid "Esgotado"
 msgstr "Uitverkocht"
 
@@ -1580,3 +1640,208 @@ msgid "%(total)s pedido"
 msgid_plural "%(total)s pedidos"
 msgstr[0] "%(total)s bestelling"
 msgstr[1] "%(total)s bestellingen"
+
+#: etapa 13 — lupa da galeria e sugestões da página do produto
+
+msgid "Ver a foto ampliada"
+msgstr "Bekijk de foto vergroot"
+
+msgid "Foto ampliada"
+msgstr "Vergrote foto"
+
+msgid "Fechar"
+msgstr "Sluiten"
+
+msgid "Foto anterior"
+msgstr "Vorige foto"
+
+msgid "Próxima foto"
+msgstr "Volgende foto"
+
+msgid "Você também pode gostar"
+msgstr "Dit vind je misschien ook leuk"
+
+#: etapa 15 — busca e páginas de categoria
+
+msgid "Busca"
+msgstr "Zoeken"
+
+msgid "Buscar"
+msgstr "Zoeken"
+
+msgid "Resultados para “%(query)s”"
+msgstr "Resultaten voor “%(query)s”"
+
+msgid "Resultados da busca na loja JD PRINT."
+msgstr "Zoekresultaten in de JD PRINT-winkel."
+
+msgid "Nenhum produto encontrado para “%(termo)s”."
+msgstr "Geen producten gevonden voor “%(termo)s”."
+
+msgid "Tente outra palavra, verifique a grafia ou navegue pelas categorias."
+msgstr "Probeer een ander woord, controleer de spelling of blader door de categorieën."
+
+msgid "O que você procura?"
+msgstr "Waar bent u naar op zoek?"
+
+msgid "Digite o nome de um produto, uma categoria ou um material."
+msgstr "Typ de naam van een product, categorie of materiaal."
+
+msgid "Nenhum produto disponível nesta categoria no momento."
+msgstr "Op dit moment geen producten beschikbaar in deze categorie."
+
+msgid "Nenhum produto disponível com este material no momento."
+msgstr "Op dit moment geen producten beschikbaar in dit materiaal."
+
+msgid "Remover o filtro de material"
+msgstr "Materiaalfilter verwijderen"
+
+msgid "Ver todos os produtos"
+msgstr "Alle producten bekijken"
+
+msgid "Ver o catálogo"
+msgstr "Bekijk de catalogus"
+
+msgid "Produtos da categoria %(name)s."
+msgstr "Producten uit de categorie %(name)s."
+
+msgid "%(total)s produto encontrado"
+msgid_plural "%(total)s produtos encontrados"
+msgstr[0] "%(total)s product gevonden"
+msgstr[1] "%(total)s producten gevonden"
+
+#: etapa 17 — favoritos
+
+msgid "Meus favoritos"
+msgstr "Mijn favorieten"
+
+msgid "Meus favoritos — JD PRINT"
+msgstr "Mijn favorieten — JD PRINT"
+
+msgid "Os produtos que você guardou para depois."
+msgstr "De producten die u voor later hebt bewaard."
+
+msgid "Os produtos que você guardou na JD PRINT."
+msgstr "De producten die u op JD PRINT hebt bewaard."
+
+msgid "Você ainda não guardou nenhum produto"
+msgstr "U hebt nog geen producten bewaard"
+
+msgid "Toque no coração de um produto para guardá-lo aqui e encontrá-lo depois."
+msgstr "Tik op het hartje van een product om het hier te bewaren en later terug te vinden."
+
+msgid "Explorar produtos"
+msgstr "Producten ontdekken"
+
+msgid "Adicionado aos favoritos."
+msgstr "Toegevoegd aan favorieten."
+
+msgid "Removido dos favoritos."
+msgstr "Verwijderd uit favorieten."
+
+msgid "Adicionar %(name)s aos favoritos"
+msgstr "%(name)s aan favorieten toevoegen"
+
+msgid "Remover %(name)s dos favoritos"
+msgstr "%(name)s uit favorieten verwijderen"
+
+msgid "Entre para adicionar aos favoritos"
+msgstr "Log in om aan favorieten toe te voegen"
+
+msgid "Entre para ver seus favoritos"
+msgstr "Log in om uw favorieten te zien"
+
+msgid "%(total)s produto guardado"
+msgid_plural "%(total)s produtos guardados"
+msgstr[0] "%(total)s product bewaard"
+msgstr[1] "%(total)s producten bewaard"
+
+msgid "Favoritos, %(total)s produto"
+msgid_plural "Favoritos, %(total)s produtos"
+msgstr[0] "Favorieten, %(total)s product"
+msgstr[1] "Favorieten, %(total)s producten"
+
+#: etapa 18 — páginas institucionais, contato e revenda
+
+msgid "Seja um revendedor"
+msgstr "Word wederverkoper"
+
+msgid "Informações"
+msgstr "Informatie"
+
+msgid "Conteúdo em preparação"
+msgstr "Inhoud in voorbereiding"
+
+msgid "Esta informação está sendo escrita. Se precisar dela agora, fale com a gente."
+msgstr "Deze informatie wordt nog geschreven. Hebt u die nu nodig, neem dan contact met ons op."
+
+msgid "Falar com a gente"
+msgstr "Contact opnemen"
+
+msgid "Assunto"
+msgstr "Onderwerp"
+
+msgid "Mensagem"
+msgstr "Bericht"
+
+msgid "País"
+msgstr "Land"
+
+msgid "Cidade"
+msgstr "Stad"
+
+msgid "Tipo de negócio"
+msgstr "Soort onderneming"
+
+msgid "Loja física, loja online, ateliê, distribuidor…"
+msgstr "Winkel, webshop, atelier, distributeur…"
+
+msgid "Opcional. Conte o que pretende revender e em que volume."
+msgstr "Optioneel. Vertel wat u wilt verkopen en in welk volume."
+
+msgid "Informe o seu nome."
+msgstr "Vul uw naam in."
+
+msgid "Informe o seu e-mail."
+msgstr "Vul uw e-mailadres in."
+
+msgid "Informe um e-mail válido."
+msgstr "Vul een geldig e-mailadres in."
+
+msgid "Informe o assunto."
+msgstr "Vul het onderwerp in."
+
+msgid "Escreva a sua mensagem."
+msgstr "Schrijf uw bericht."
+
+msgid "Escreva um pouco mais para podermos ajudar."
+msgstr "Schrijf wat meer zodat we u kunnen helpen."
+
+msgid "Informe o nome da empresa."
+msgstr "Vul de bedrijfsnaam in."
+
+msgid "Informe um telefone para contato."
+msgstr "Vul een telefoonnummer in."
+
+msgid "Informe o país."
+msgstr "Vul het land in."
+
+msgid "Informe a cidade."
+msgstr "Vul de stad in."
+
+msgid "Conte que tipo de negócio você tem."
+msgstr "Vertel wat voor onderneming u hebt."
+
+msgid "Não foi possível enviar. Tente novamente."
+msgstr "Verzenden is niet gelukt. Probeer opnieuw."
+
+msgid "Mensagem enviada. Respondemos assim que possível."
+msgstr "Bericht verzonden. We antwoorden zo snel mogelijk."
+
+msgid "Pedido enviado. Entraremos em contato para conversar sobre a parceria."
+msgstr "Aanvraag verzonden. We nemen contact op over de samenwerking."
+
+#: etapa 18 — contato: canais ja cadastrados
+
+msgid "Ou fale direto"
+msgstr "Of neem rechtstreeks contact op"

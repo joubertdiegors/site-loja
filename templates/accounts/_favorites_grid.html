@@ -1,0 +1,44 @@
+{% load i18n jdprint %}
+{% comment %}
+A grade dos favoritos — e o estado vazio quando não há nenhum.
+
+Bloco próprio porque é o alvo do HTMX: desfavoritar aqui reescreve a grade
+inteira, e assim o último card removido vira o estado vazio sem recarregar a
+página.
+
+Mesma `.product-grid` e mesmo `product_card.html` da vitrine: uma segunda
+grade seria um segundo lugar para corrigir quando o card mudar.
+
+`remove_card=True` só muda o alvo do botão — o coração em si é o mesmo.
+{% endcomment %}
+<div id="favorites-grid">
+  {% if favorites %}
+
+    <p class="text-sm text-ink-soft" aria-live="polite">
+      {% blocktranslate count total=favorites|length %}{{ total }} produto guardado{% plural %}{{ total }} produtos guardados{% endblocktranslate %}
+    </p>
+
+    <ul class="product-grid mt-5" role="list">
+      {% for product in favorites %}
+        <li>{% include "components/product_card.html" with remove_card=True %}</li>
+      {% endfor %}
+    </ul>
+
+  {% else %}
+
+    <div class="empty-state">
+      <span class="empty-state-icon" aria-hidden="true">{% icon "heart" "h-6 w-6" %}</span>
+      <p class="font-display text-lg font-bold text-ink">
+        {% translate "Você ainda não guardou nenhum produto" %}
+      </p>
+      <p class="max-w-md text-sm text-ink-soft">
+        {% translate "Toque no coração de um produto para guardá-lo aqui e encontrá-lo depois." %}
+      </p>
+      <a href="{% url 'catalog:models_shop' %}" class="btn-primary mt-1">
+        {% translate "Explorar produtos" %}
+        {% icon "arrow-right" "h-4 w-4 rtl:rotate-180" %}
+      </a>
+    </div>
+
+  {% endif %}
+</div>

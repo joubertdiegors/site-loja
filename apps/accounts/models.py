@@ -471,3 +471,81 @@ class CustomerAddress(TimeStampedModel):
         for field in fields:
             self._clear_other_defaults(field)
         self.save(update_fields=[*fields, "updated_at"])
+
+
+class FavoriteQuerySet(models.QuerySet):
+    def for_user(self, user):
+        return self.filter(user=user)
+
+    def visible(self):
+        """Só o que o cliente poderia comprar hoje.
+
+        O favorito **não** é apagado quando o produto sai do ar: se ele voltar,
+        o cliente reencontra o que tinha guardado. O que muda é só o que a
+        página mostra.
+        """
+        from apps.catalog.models import ProductStatus
+
+        return self.filter(
+            product__status=ProductStatus.ACTIVE, product__variants__is_active=True
+        ).distinct()
+
+
+class Favorite(TimeStampedModel):
+    """Um produto que o cliente guardou.
+
+    ## Do produto, nunca da variante
+
+    O cliente favorita "o vaso", não "o vaso preto de 25 cm em PLA". Guardar a
+    variante criaria três favoritos do mesmo produto e uma lista que se repete
+    — e obrigaria a decidir o que fazer quando aquela variante saísse de linha.
+
+    ## Do usuário, nunca da sessão
+
+    Sem conta não há favorito: um "favorito anônimo" viveria numa sessão que
+    expira, e o cliente perderia a lista sem entender por quê. O coração do
+    visitante leva ao login, que é o mesmo login de sempre.
+
+    ## Nunca apagado por indisponibilidade
+
+    Produto desativado sai da **listagem** (`visible()`), não da tabela. Se ele
+    voltar, o favorito continua lá. Apagar seria decidir pelo cliente que ele
+    perdeu o interesse.
+
+    `CASCADE` nos dois lados: sem a conta ou sem o produto, a linha não
+    significa mais nada — e um favorito órfão apontando para um produto que não
+    existe seria um erro esperando a próxima listagem.
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="cliente",
+        related_name="favorites",
+        on_delete=models.CASCADE,
+    )
+    product = models.ForeignKey(
+        "catalog.Product",
+        verbose_name="produto",
+        related_name="favorited_by",
+        on_delete=models.CASCADE,
+    )
+
+    objects = FavoriteQuerySet.as_manager()
+
+    class Meta:
+        verbose_name = "favorito"
+        verbose_name_plural = "favoritos"
+        # Mais recente primeiro: é a ordem em que o cliente pensa na própria
+        # lista. Ordem alfabética esconderia o que ele acabou de guardar.
+        ordering = ("-created_at", "-id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "product"], name="favorite_unique_user_product"
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["user", "-created_at"], name="favorite_user_recent_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.user} ♥ {self.product}"

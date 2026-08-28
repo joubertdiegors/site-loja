@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% load i18n jdprint %}
+
+{% comment %}
+As quatro páginas institucionais, num template só.
+
+O que muda entre elas é o conteúdo cadastrado e, em uma, o formulário — não o
+layout. Quatro templates iguais seriam quatro lugares para corrigir.
+
+## Nenhum texto institucional aqui
+
+Título, introdução e corpo vêm de `storefront.InstitutionalPage`. O que resta
+escrito é interface: o rótulo do botão, os erros do formulário e o aviso de
+"conteúdo em preparação" — e esses passam pelo i18n, não pelo banco.
+
+## A página nunca abre quebrada
+
+Sem cadastro, o título é o nome da rota e o corpo vira um aviso curto. Um 404
+seria pior: quebraria o link que o rodapé mostra, em vez de dizer que ainda
+não há o que ler. A página de contato funciona mesmo sem texto nenhum — ali o
+formulário é o conteúdo.
+
+## A revenda termina no contato
+
+Quem decide isso é `PAGE_CTA`, no model, e não este template: a chamada
+aparece na página que declarar um destino. O endereço da loja continua vindo
+de `FooterSettings` — o mesmo cadastro do rodapé, não uma segunda cópia.
+{% endcomment %}
+
+{% block content %}
+  <section class="container-page py-8 sm:py-12">
+
+    <nav class="mb-5 font-mono text-[11px] uppercase tracking-[0.08em] text-ink-muted"
+         aria-label="{% translate 'Você está aqui' %}">
+      <ol class="flex flex-wrap items-center gap-1.5" role="list">
+        <li><a href="{% url 'home:index' %}" class="focus-ring rounded transition-colors hover:text-brand-700">{% translate "Início" %}</a></li>
+        <li aria-hidden="true">/</li>
+        <li class="text-brand-700">{{ page_title }}</li>
+      </ol>
+    </nav>
+
+    <div class="mx-auto max-w-3xl">
+      <header>
+        <p class="section-eyebrow">{% translate "Informações" %}</p>
+        <h1 class="section-title mt-2">{{ page_title }}</h1>
+        {% if page.intro %}
+          <p class="section-subtitle">{{ page.intro }}</p>
+        {% endif %}
+      </header>
+
+      {% if page.body %}
+        <div class="prose-jd mt-8">{% rich_text page.body %}</div>
+
+        {% if page_cta_url %}
+          <a href="{{ page_cta_url }}" class="btn-primary mt-8 w-full sm:w-auto">
+            {% translate "Falar com a gente" %}
+            {% icon "arrow-right" "h-4 w-4 rtl:rotate-180" %}
+          </a>
+        {% endif %}
+      {% elif not form %}
+        <div class="empty-state mt-8">
+          <span class="empty-state-icon" aria-hidden="true">{% icon "clock" "h-6 w-6" %}</span>
+          <p class="font-display text-lg font-bold text-ink">{% translate "Conteúdo em preparação" %}</p>
+          <p class="max-w-md text-sm text-ink-soft">
+            {% translate "Esta informação está sendo escrita. Se precisar dela agora, fale com a gente." %}
+          </p>
+          <a href="{% url 'storefront:page_contact' %}" class="btn-secondary btn-sm mt-1">
+            {% translate "Falar com a gente" %}
+          </a>
+        </div>
+      {% endif %}
+
+      {% if form %}
+        {% include "storefront/_page_form.html" %}
+
+        {% comment %}
+          As formas de contato que a loja já tem cadastradas, no mesmo lugar em
+          que o rodapé as lê. Nada aparece se ninguém preencheu — campo em
+          branco não vira bloco vazio.
+        {% endcomment %}
+        {% if footer_settings.has_contact %}
+          <div class="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-ink-soft">
+            <span class="font-mono text-[11px] uppercase tracking-[0.14em] text-ink-muted">
+              {% translate "Ou fale direto" %}
+            </span>
+            {% if footer_settings.contact_email %}
+              <a class="focus-ring rounded transition-colors hover:text-brand-700"
+                 href="mailto:{{ footer_settings.contact_email }}">{{ footer_settings.contact_email }}</a>
+            {% endif %}
+            {% if footer_settings.contact_phone %}
+              <a class="focus-ring rounded transition-colors hover:text-brand-700"
+                 href="tel:{{ footer_settings.contact_phone }}">{{ footer_settings.contact_phone }}</a>
+            {% endif %}
+          </div>
+        {% endif %}
+      {% endif %}
+    </div>
+  </section>
+{% endblock %}

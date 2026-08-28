@@ -127,6 +127,7 @@ class ProductCardTests(TestCase):
             is_featured=True,
             stock_quantity=3,
         )
+        self.variant = self.product.default_variant
         make_section(internal_name="Destaques", title="Destaques")
 
     def test_card_shows_name_price_and_link(self):
@@ -140,16 +141,17 @@ class ProductCardTests(TestCase):
         self.assertContains(response, "Animais")
 
     def test_made_to_order_badge(self):
-        self.product.made_to_order = True
-        self.product.production_lead_time_days = 5
-        self.product.save()
+        self.variant.made_to_order = True
+        self.variant.production_lead_time_days = 5
+        self.variant.save()
         response = self.client.get(HOME_PT)
         self.assertContains(response, "Sob encomenda")
 
     def test_out_of_stock_badge(self):
         self.product.is_featured = True
-        self.product.stock_quantity = 0
         self.product.save()
+        self.variant.stock_quantity = 0
+        self.variant.save()
         response = self.client.get(HOME_PT)
         self.assertContains(response, "Esgotado")
 
@@ -369,10 +371,71 @@ class HomeQueryTests(TestCase):
         )
 
         # Orçamento fixo. Nenhuma consulta por produto: o número depende só da
-        # quantidade de seções (cada uma traz produtos, traduções, mídia, cores
-        # e variantes) mais os idiomas da loja. Se alguém introduzir um N+1,
-        # este teste quebra.
-        with self.assertNumQueries(27):
+        # quantidade de seções (cada uma traz produtos, traduções, mídia e
+        # variantes com cor e material) mais os idiomas da loja. Se alguém
+        # introduzir um N+1, este teste quebra.
+        #
+        # Caiu de 27 para 24 na etapa 8: as cores do card saem das variantes,
+        # que já vinham no prefetch — as três consultas de ``Product.colors``
+        # deixaram de existir.
+        #
+        # Subiu de 24 para 29 na etapa 16, e as cinco são o preço de o conteúdo
+        # ser cadastrado em vez de escrito no HTML: faixa do topo, rodapé,
+        # colunas do rodapé, cards e chamada final. Cinco consultas indexadas,
+        # e **fixas** — `test_query_count_does_not_grow_with_more_content`
+        # prova que cadastrar vinte itens não acrescenta nenhuma.
+        #
+        # E de 29 para 33 na etapa 18. O rodapé deixou de mostrar três textos
+        # sem link e passou a mostrar uma coluna cadastrada que aponta para as
+        # páginas da loja — o que custa os links, os rótulos deles e os títulos
+        # das páginas. A página vem no mesmo SELECT dos links
+        # (`select_related`), então são cinco consultas para o rodapé inteiro.
+        #
+        # Fixas: `test_query_count_does_not_grow_with_more_content` continua
+        # provando que cadastrar mais conteúdo não acrescenta nenhuma.
+        with self.assertNumQueries(33):
+            self.client.get(HOME_PT)
+
+    def test_query_count_does_not_grow_with_more_content(self):
+        """O conteúdo administrável não pode custar uma consulta por item.
+
+        É o que separa "cinco consultas a mais" de um N+1 que só aparece
+        quando a loja estiver cheia.
+        """
+        from apps.home.models import HomeCard, HomeCardTranslation
+        from apps.storefront.models import (
+            FooterColumn,
+            FooterColumnTranslation,
+            FooterLink,
+            FooterLinkTranslation,
+            TopBarItem,
+            TopBarItemTranslation,
+        )
+
+        category = make_category(slug="modelos", name="Modelos")
+        for index in range(4):
+            make_product(sku=f"P{index}", name=f"Produto {index}", category=category, is_featured=True)
+        make_section(internal_name="Destaques", title="Destaques", product_limit=4)
+
+        def povoar(quantidade):
+            for index in range(quantidade):
+                item = TopBarItem.objects.create(internal_name=f"Topo {index}", sort_order=index)
+                TopBarItemTranslation.objects.create(master=item, language="pt", text=f"T{index}")
+
+                card = HomeCard.objects.create(internal_name=f"Card {index}", sort_order=index)
+                HomeCardTranslation.objects.create(master=card, language="pt", title=f"C{index}")
+
+                coluna = FooterColumn.objects.create(internal_name=f"Col {index}", sort_order=index)
+                FooterColumnTranslation.objects.create(master=coluna, language="pt", title=f"Col {index}")
+                link = FooterLink.objects.create(column=coluna, sort_order=index)
+                FooterLinkTranslation.objects.create(master=link, language="pt", label=f"L{index}")
+
+        povoar(2)
+        base = self.count_queries()
+
+        povoar(18)
+
+        with self.assertNumQueries(base):
             self.client.get(HOME_PT)
 
     def test_query_count_is_the_same_with_many_more_products(self):

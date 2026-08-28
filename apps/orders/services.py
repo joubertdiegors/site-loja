@@ -71,7 +71,15 @@ def validate_lines(lines) -> list[CartProblem]:
             problems.append(CartProblem(line.key, _("%(name)s não está mais disponível.") % {"name": name}))
             continue
 
-        if line.variant is not None and not line.variant.is_active:
+        # Toda linha comercial tem variante: é dela que vêm preço, estoque,
+        # peso e prazo. Uma linha sem variante é uma linha sem o que vender.
+        if line.variant is None:
+            problems.append(
+                CartProblem(line.key, _("A opção escolhida de %(name)s saiu do catálogo.") % {"name": name})
+            )
+            continue
+
+        if not line.variant.is_active:
             problems.append(
                 CartProblem(line.key, _("A opção escolhida de %(name)s saiu do catálogo.") % {"name": name})
             )
@@ -194,9 +202,10 @@ class CheckoutError(Exception):
 
 
 def _fulfillment_type(line) -> str:
+    """Como esta linha é atendida — decidido pela variante comprada."""
     if line.has_customization:
         return FulfillmentType.PERSONALIZED
-    if line.product.made_to_order:
+    if line.variant is not None and line.variant.made_to_order:
         return FulfillmentType.MADE_TO_ORDER
     return FulfillmentType.STOCK
 
@@ -217,15 +226,23 @@ def _item_from_line(order: Order, line) -> OrderItem:
         product_name=product.display_name,
         sku=(variant.sku if variant is not None else product.sku) or "",
         variant_label=variant.label if variant is not None else "",
-        color_name=(variant.color.name if variant is not None and variant.color_id else ""),
+        # No idioma do cliente, como o nome do produto logo acima: o pedido
+        # guarda o que ele leu, não o nome interno do Admin.
+        color_name=(
+            variant.color.display_name if variant is not None and variant.color_id else ""
+        ),
         size_name=(variant.size if variant is not None else ""),
-        material_name=(variant.material.name if variant is not None and variant.material_id else ""),
+        material_name=(
+            variant.material.display_name
+            if variant is not None and variant.material_id
+            else ""
+        ),
         quantity=line.quantity,
         unit_price=taxes.money(line.unit_price),
         total=taxes.money(line.total),
         unit_weight_grams=shipping_services.line_weight_grams(product, variant),
         fulfillment_type=_fulfillment_type(line),
-        production_days=product.production_lead_time_days or 0,
+        production_days=shipping_services.variant_production_days(variant),
         personalization_type=customization.get("type", "") or "",
         personalization_text=customization.get("text", "") or "",
         personalization_notes=customization.get("notes", "") or "",
@@ -330,7 +347,7 @@ def apply_stock(order: Order) -> list[str]:
 
     Devolve a lista de faltas encontradas — vazia quando correu tudo bem.
     """
-    from apps.catalog.models import Product, ProductVariant
+    from apps.catalog.models import ProductVariant
 
     if order.stock_applied_at is not None:
         return []
@@ -346,10 +363,10 @@ def apply_stock(order: Order) -> list[str]:
             if item.fulfillment_type == FulfillmentType.MADE_TO_ORDER:
                 continue  # sob encomenda não consome saldo: é produzido
 
+            # O estoque é da variante. Item antigo sem variante (nenhum
+            # existe, mas o campo é nulável) simplesmente não move saldo.
             if item.variant_id:
                 target = ProductVariant.objects.select_for_update().filter(pk=item.variant_id).first()
-            elif item.product_id:
-                target = Product.objects.select_for_update().filter(pk=item.product_id).first()
             else:
                 target = None
 
@@ -397,49 +414,85 @@ def apply_stock(order: Order) -> list[str]:
 
 
 def confirm_payment(order: Order, payment=None, *, method_label: str = "") -> bool:
-    """Marca o pedido como pago e confirmado. Idempotente.
+    """Confirma o pagamento e leva o pedido até o fim. Idempotente **por etapa**.
 
-    É chamada pelo webhook — nunca pela página de retorno do cliente. Se o
-    pedido já estava pago, não faz nada e devolve ``False``: é exatamente o
-    caso de a Stripe reenviar o mesmo evento.
+    São três etapas em sequência, e cada uma se protege sozinha:
+
+    ::
+
+        pagamento          -> payment_status / paid_at
+            estoque        -> stock_applied_at
+                e-mails    -> confirmation_email_sent_at, admin_email_sent_at
+
+    Chamar esta função de novo é seguro: cada etapa já feita é pulada. E é
+    justamente por isso que ela **não** volta cedo quando o pedido já está
+    pago.
+
+    O curto-circuito antigo (``if already_paid: return False``) protegia o
+    pedido, não as etapas. Bastava a gravação do pagamento passar e a baixa de
+    estoque estourar logo depois: a reentrega do webhook via o pedido pago,
+    voltava na hora, e estoque e e-mails nunca aconteciam. O pedido ficava
+    pago, sem baixa e sem ninguém avisado — e nada tentaria de novo.
+
+    Devolve ``True`` se **alguma** etapa foi executada nesta chamada.
+
+    É chamada pelo webhook, nunca pela página de retorno do cliente.
     """
     from apps.orders.emails import send_order_emails
 
+    novidade = _mark_paid(order, payment, method_label=method_label)
+    order.refresh_from_db()
+
+    # As duas etapas seguintes rodam sempre. Se já foram feitas, elas mesmas
+    # percebem; se ficaram pendentes de uma tentativa anterior, é aqui que
+    # finalmente acontecem.
+    estoque_pendente = order.stock_applied_at is None
+    apply_stock(order)
+    order.refresh_from_db()
+
+    enviados = send_order_emails(order)
+
+    return bool(novidade or estoque_pendente or any(enviados.values()))
+
+
+def _mark_paid(order: Order, payment=None, *, method_label: str = "") -> bool:
+    """Etapa 1: o pagamento. Devolve ``True`` se foi agora que ele entrou.
+
+    O ``select_for_update`` é o que impede duas entregas simultâneas do webhook
+    de marcarem o pedido como pago duas vezes e escreverem dois eventos no
+    histórico.
+    """
     with transaction.atomic():
         locked = Order.objects.select_for_update().get(pk=order.pk)
-        already_paid = locked.payment_status == PaymentStatus.PAID
-        if not already_paid:
-            now = timezone.now()
-            locked.payment_status = PaymentStatus.PAID
-            locked.paid_at = now
-            if locked.status == OrderStatus.PENDING:
-                locked.status = OrderStatus.CONFIRMED
-                locked.confirmed_at = now
-            if locked.fulfillment_status == FulfillmentStatus.NOT_STARTED:
-                locked.fulfillment_status = FulfillmentStatus.IN_PRODUCTION
-            locked.save(
-                update_fields=[
-                    "payment_status", "paid_at", "status", "confirmed_at",
-                    "fulfillment_status", "updated_at",
-                ]
-            )
+        if locked.payment_status == PaymentStatus.PAID:
+            return False
 
-    order.refresh_from_db()
-    if already_paid:
-        return False
+        now = timezone.now()
+        locked.payment_status = PaymentStatus.PAID
+        locked.paid_at = now
+        if locked.status == OrderStatus.PENDING:
+            locked.status = OrderStatus.CONFIRMED
+            locked.confirmed_at = now
+        if locked.fulfillment_status == FulfillmentStatus.NOT_STARTED:
+            locked.fulfillment_status = FulfillmentStatus.IN_PRODUCTION
+        locked.save(
+            update_fields=[
+                "payment_status", "paid_at", "status", "confirmed_at",
+                "fulfillment_status", "updated_at",
+            ]
+        )
+        paid_at = locked.paid_at
 
     if payment is not None:
         payment.status = PaymentState.SUCCEEDED
-        payment.paid_at = order.paid_at
+        payment.paid_at = paid_at
         if method_label:
             payment.method_label = method_label
         payment.save(update_fields=["status", "paid_at", "method_label", "updated_at"])
 
+    order.refresh_from_db()
     order.log(OrderEvent.PAID, _("Pagamento confirmado."))
     order.log(OrderEvent.CONFIRMED, _("Pedido confirmado."))
-
-    apply_stock(order)
-    send_order_emails(order)
     return True
 
 
@@ -483,6 +536,143 @@ def mark_shipped(order: Order, tracking_number: str = "", user=None) -> bool:
 
     order.log(OrderEvent.SHIPPED, order.tracking_number, user=user)
     send_order_shipped_email(order)
+    return True
+
+
+# ---------------------------------------------------------------------------
+# Reenvio de e-mail (AUD-02)
+# ---------------------------------------------------------------------------
+
+
+#: Os três e-mails do pedido e como reenviar cada um.
+#:
+#: A chave é o que o Admin manda; o valor é (rótulo, função, campo da marca).
+#: Ter isto num mapa e não em três `if` é o que faz o Admin, o histórico e o
+#: painel de situação falarem dos mesmos três e-mails.
+RESENDABLE_EMAILS = {
+    "confirmation": ("confirmação ao cliente", "confirmation_email_sent_at"),
+    "admin": ("ordem de produção", "admin_email_sent_at"),
+    "shipped": ("aviso de envio", "shipped_email_sent_at"),
+}
+
+
+def resend_email(order: Order, kind: str, user=None) -> bool:
+    """Reenvia um dos e-mails do pedido, a pedido do administrador.
+
+    Existe porque o envio pode falhar sem derrubar nada: o provedor está fora
+    do ar, o pagamento é confirmado assim mesmo (é o certo), e o pedido fica
+    pago com ``confirmation_email_sent_at`` vazio. Sem esta ação, a única saída
+    seria mexer no banco à mão.
+
+    **Só envia quando alguém pede.** Nenhum caminho automático chama isto — um
+    reenvio automático mandaria a mesma confirmação a cada reentrega do
+    webhook. Por isso ``force=True``: quando o administrador clica, ele quer
+    que vá de novo mesmo com a marca preenchida.
+
+    **Não toca** em pagamento, estoque, situação, valores ou snapshot. Reenviar
+    um e-mail é reenviar um e-mail.
+    """
+    from apps.orders import emails as order_emails
+
+    if kind not in RESENDABLE_EMAILS:
+        raise ValueError(f"E-mail desconhecido: {kind}")
+
+    senders = {
+        "confirmation": order_emails.send_order_confirmation_email,
+        "admin": order_emails.send_admin_order_email,
+        "shipped": order_emails.send_order_shipped_email,
+    }
+    label, _campo = RESENDABLE_EMAILS[kind]
+
+    order.refresh_from_db()
+    sent = senders[kind](order, force=True)
+
+    order.log(
+        OrderEvent.EMAIL_RESENT,
+        (
+            _("Reenviado: %(label)s.") % {"label": label}
+            if sent
+            else _("Falha ao reenviar: %(label)s.") % {"label": label}
+        ),
+        user=user,
+        visible=False,
+    )
+    return sent
+
+
+# ---------------------------------------------------------------------------
+# Situação da produção (AUD-04)
+# ---------------------------------------------------------------------------
+
+
+#: A produção anda nesta ordem. O índice é o que permite dizer "voltou".
+FULFILLMENT_ORDER = (
+    FulfillmentStatus.NOT_STARTED,
+    FulfillmentStatus.IN_PRODUCTION,
+    FulfillmentStatus.READY,
+    FulfillmentStatus.SHIPPED,
+    FulfillmentStatus.DELIVERED,
+)
+
+
+class StatusChangeRefused(Exception):
+    """Regressão grande demais para ser um acerto de digitação."""
+
+
+def fulfillment_step(status: str) -> int:
+    try:
+        return FULFILLMENT_ORDER.index(status)
+    except ValueError:
+        return 0
+
+
+def change_fulfillment_status(order: Order, new_status: str, user=None) -> bool:
+    """Muda a situação da produção, com registro de quem, de onde e para onde.
+
+    Duas coisas que faltavam (AUD-04):
+
+    1. **registro.** Mexer no campo pela tela do Admin gravava e pronto: o
+       histórico não sabia que a produção tinha andado, nem quem tinha mexido.
+       Agora toda mudança vira um evento com autor, estado anterior e novo;
+
+    2. **freio para o absurdo.** Voltar um passo é acerto legítimo — marquei
+       "enviado" cedo demais. Voltar de "Entregue" para "Não iniciado" não é
+       correção nenhuma: é a lista de opções clicada errado. Regressões de mais
+       de um passo são recusadas.
+
+    Devolve ``True`` se algo mudou. Levanta ``StatusChangeRefused`` quando a
+    regressão é grande demais — quem chama decide como avisar.
+    """
+    anterior = order.fulfillment_status
+    if anterior == new_status:
+        return False
+
+    de = fulfillment_step(anterior)
+    para = fulfillment_step(new_status)
+    if de - para > 1:
+        raise StatusChangeRefused(
+            _(
+                "Voltar de “%(de)s” para “%(para)s” é um salto grande demais "
+                "para ser uma correção. Volte um passo de cada vez."
+            )
+            % {
+                "de": FulfillmentStatus(anterior).label,
+                "para": FulfillmentStatus(new_status).label,
+            }
+        )
+
+    order.fulfillment_status = new_status
+    order.save(update_fields=["fulfillment_status", "updated_at"])
+    order.log(
+        OrderEvent.STATUS_CHANGED,
+        _("Produção: %(de)s → %(para)s")
+        % {
+            "de": FulfillmentStatus(anterior).label,
+            "para": FulfillmentStatus(new_status).label,
+        },
+        user=user,
+        visible=False,
+    )
     return True
 
 

@@ -1,0 +1,34 @@
+{% load i18n jdprint %}
+{% comment %}
+O formulário de contato ou de revenda.
+
+Os campos vêm do form do Django e são desenhados por `accounts/_field.html` — o
+mesmo parcial das telas de conta, para o erro aparecer sempre no mesmo lugar e
+o rótulo estar sempre ligado ao campo.
+
+O honeypot (`website`) é escondido por CSS e marcado `aria-hidden`: quem usa
+leitor de tela não o encontra, e o robô que o preencher recebe um erro
+genérico.
+{% endcomment %}
+<form method="post" class="card mt-8 space-y-5 p-6 sm:p-7" novalidate>
+  {% csrf_token %}
+
+  {% if form.non_field_errors %}
+    <div class="alert-error" role="alert">
+      {% for erro in form.non_field_errors %}<p>{{ erro }}</p>{% endfor %}
+    </div>
+  {% endif %}
+
+  {% for field in form %}
+    {% if field.name == "website" %}
+      <div class="jd-hp-wrap" aria-hidden="true">{{ field }}</div>
+    {% else %}
+      {% include "accounts/_field.html" %}
+    {% endif %}
+  {% endfor %}
+
+  <button type="submit" class="btn-primary w-full sm:w-auto">
+    {% translate "Enviar" %}
+    {% icon "arrow-right" "h-4 w-4 rtl:rotate-180" %}
+  </button>
+</form>

@@ -2,5 +2,10 @@
 # O Django 6.1 aceita 3.12/3.13/3.14; quem limita e a hospedagem, nao o Django.
 Django==6.1
 psycopg[binary]==3.3.4
+# Cifra a senha do SMTP antes de ela ir para o banco (apps/core/secrets.py).
+# Sem isso, todo dump do banco carregaria a credencial em texto puro -- e o
+# procedimento de backup (docs/OPERACAO.md) manda copiar o dump para fora do
+# servidor.
+cryptography==50.0.1
 python-dotenv==1.2.3
 stripe==15.5.1

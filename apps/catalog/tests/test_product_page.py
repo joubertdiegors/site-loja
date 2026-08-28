@@ -35,6 +35,9 @@ class ProductPageBase(LanguageResetMixin, TestCase):
             price=Decimal("8.90"),
             stock_quantity=8,
         )
+        # A variante padrão do produto: é dela que saem preço, estoque, peso,
+        # prazo e ficha técnica desta página.
+        self.variant = self.product.default_variant
 
     def get(self, product=None):
         return self.client.get((product or self.product).get_absolute_url())
@@ -87,19 +90,31 @@ class ProductPageTests(ProductPageBase):
         response = self.get()
         self.assertEqual(response.context["max_quantity"], 8)
 
-    def test_specifications_only_list_what_exists(self):
-        Material.objects.create(name="PLA")
-        self.product.materials.add(Material.objects.get(name="PLA"))
-        self.product.print_time = timedelta(hours=2, minutes=30)
-        self.product.weight_grams = Decimal("35")
-        self.product.save()
+    def test_specifications_come_from_the_selected_variant(self):
+        """A ficha é da variante — e cada linha carrega a chave que o JS usa.
 
-        labels = [str(label) for label, _value in self.get().context["specifications"]]
+        Peso, dimensões, tempo de impressão e referência sempre existem como
+        linha (escondidas quando vazias) porque o JavaScript as preenche ao
+        trocar de opção. As demais só aparecem quando há o que mostrar.
+        """
+        self.variant.material = Material.objects.create(name="PLA")
+        self.variant.print_time = timedelta(hours=2, minutes=30)
+        self.variant.weight_grams = Decimal("35")
+        self.variant.save()
 
-        self.assertIn("Material", labels)
-        self.assertIn("Peso", labels)
-        self.assertIn("Tempo de impressão", labels)
-        self.assertNotIn("Dimensões", labels)  # produto sem dimensões
+        rows = {key: value for key, _label, value in self.get().context["specifications"]}
+
+        self.assertEqual(rows["material"], "PLA")
+        self.assertEqual(rows["peso"], "35 g")
+        self.assertEqual(rows["impressao"], "2h 30min")
+        self.assertEqual(rows["referencia"], self.variant.sku)
+        self.assertEqual(rows["dimensoes"], "")  # variante sem dimensões
+
+    def test_empty_specification_rows_are_hidden(self):
+        response = self.get()
+
+        self.assertContains(response, 'data-spec="dimensoes"')
+        self.assertContains(response, "hidden")
 
 
 class ProductStockStateTests(ProductPageBase):
@@ -108,24 +123,27 @@ class ProductStockStateTests(ProductPageBase):
         self.assertContains(self.get(), "Em estoque")
 
     def test_low_stock(self):
-        self.product.stock_quantity = 2
-        self.product.save()
+        self.variant.stock_quantity = 2
+        self.variant.save()
+        self.product.refresh_from_db()
 
         self.assertEqual(self.product.stock_state, "low")
         self.assertContains(self.get(), "Últimas unidades")
 
     def test_out_of_stock(self):
-        self.product.stock_quantity = 0
-        self.product.save()
+        self.variant.stock_quantity = 0
+        self.variant.save()
+        self.product.refresh_from_db()
 
         self.assertEqual(self.product.stock_state, "out")
         self.assertContains(self.get(), "Esgotado")
 
     def test_made_to_order(self):
-        self.product.made_to_order = True
-        self.product.production_lead_time_days = 5
-        self.product.stock_quantity = 0
-        self.product.save()
+        self.variant.made_to_order = True
+        self.variant.production_lead_time_days = 5
+        self.variant.stock_quantity = 0
+        self.variant.save()
+        self.product.refresh_from_db()
 
         self.assertEqual(self.product.stock_state, "made_to_order")
         response = self.get()
@@ -201,6 +219,9 @@ class ProductTranslationPageTests(ProductPageBase):
 class ProductVariantPageTests(ProductPageBase):
     def setUp(self):
         super().setUp()
+        # Este produto tem duas opções de verdade; a variante padrão criada
+        # pelo helper sai de cena para não virar uma terceira.
+        self.variant.delete()
         self.black = Color.objects.create(name="Preto", hex_code="#000000")
         self.white = Color.objects.create(name="Branco", hex_code="#FFFFFF")
         self.small = ProductVariant.objects.create(

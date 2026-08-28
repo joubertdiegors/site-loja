@@ -5,6 +5,15 @@
 @source "../../templates";
 @source "../../apps";
 
+/* As cores do ícone dos cards da Home são montadas no template a partir do
+   campo `HomeCard.accent` (`bg-{{ card.accent }}-100`). O Tailwind lê o
+   HTML como texto e não enxerga classe montada em tempo de execução — sem
+   esta declaração, escolher "Ciano" no Admin daria um ícone sem fundo.
+
+   A lista é fechada de propósito: são as três cores que `CARD_ACCENTS`
+   oferece, e não um seletor de cor livre. */
+@source inline("{bg,text}-{brand,cyan,magenta}-{100,700}");
+
 /* ===========================================================================
    JD PRINT — Design System
 
@@ -109,6 +118,19 @@
 --------------------------------------------------------------------------- */
 @utility focus-ring {
   @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white;
+}
+
+/* A grade "lateral + resultados" da vitrine, da categoria e da busca.
+
+   Um lugar só, e não uma cópia por template: enquanto eram duas, a busca
+   divergiu do catálogo sem ninguém notar — e o card saía com 49 px em vez de
+   219 px.
+
+   Cuidado com a coluna lateral: `display: none` tira o item da grade, e os
+   resultados caem na coluna de 254 px. Uma lateral vazia no desktop tem que
+   continuar sendo um item (ver `hidden lg:block` em `search.html`). */
+@utility shop-layout {
+  @apply mt-7 grid gap-6 lg:grid-cols-[254px_1fr] lg:gap-7;
 }
 
 @utility btn {
@@ -416,8 +438,61 @@
     @apply ring-2 ring-brand-500 ring-offset-2;
   }
 
-  .variant-option:has(input:disabled) {
-    @apply cursor-not-allowed opacity-40;
+  /* Nao combina com a selecao atual: riscada, mais fraca -- e CLICAVEL.
+     Desabilitar diria "esta opcao nao existe"; o que e verdade e "nao existe
+     nesta cor". Clicar nela troca a cor sozinho (ver `bestVariant` em
+     app.js), entao o cursor continua sendo o de quem pode clicar.
+     A opacidade nao desce mais que isto para o texto seguir legivel. */
+  .variant-option-unavailable {
+    @apply line-through opacity-55;
+  }
+
+  .variant-option-unavailable:hover {
+    @apply border-brand-300 opacity-80;
+  }
+
+  /* Trava a rolagem do fundo enquanto a lupa esta aberta. */
+  .jd-lightbox-lock {
+    @apply overflow-hidden;
+  }
+
+  /* ---- Foto ampliada (lupa) --------------------------------------------
+     `position: fixed` para nao aumentar a pagina, e a imagem limitada a
+     viewport: uma foto de 4000px nao pode empurrar a tela nem sair dela. */
+  .jd-lightbox {
+    @apply fixed inset-0 z-[80] flex items-center justify-center p-4 sm:p-8;
+  }
+
+  .jd-lightbox[hidden] {
+    display: none;
+  }
+
+  .jd-lightbox-backdrop {
+    @apply absolute inset-0 bg-ink/85;
+  }
+
+  .jd-lightbox-frame {
+    @apply relative flex max-h-full w-full max-w-5xl items-center justify-center;
+  }
+
+  .jd-lightbox-stage {
+    @apply flex max-h-[85vh] w-full items-center justify-center;
+  }
+
+  .jd-lightbox-media {
+    @apply max-h-[85vh] max-w-full object-contain;
+  }
+
+  .jd-lightbox-close {
+    @apply focus-ring absolute -top-2 end-0 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-2xl leading-none text-ink shadow-lg sm:-top-4;
+  }
+
+  .jd-lightbox-nav {
+    @apply focus-ring z-10 flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/90 text-3xl leading-none text-ink shadow-lg;
+  }
+
+  .jd-lightbox-counter {
+    @apply absolute -bottom-7 start-1/2 -translate-x-1/2 font-mono text-xs text-white/90;
   }
 
   /* ---- Área do cliente ------------------------------------------------- */
@@ -518,5 +593,39 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Páginas institucionais (etapa 18)
+--------------------------------------------------------------------------- */
+
+/* O corpo das páginas de informação. O texto vem do Admin com uma marcação
+   mínima (`# ` para subtítulo, `- ` para lista) e sai escapado — ver a tag
+   `rich_text`. Aqui só se define o ritmo de leitura: medida confortável,
+   espaço entre parágrafos e a hierarquia dos subtítulos. */
+@layer components {
+  .prose-jd {
+    @apply text-[15px] leading-relaxed text-ink-soft;
+  }
+
+  .prose-jd > * + * {
+    @apply mt-4;
+  }
+
+  .prose-jd h2 {
+    @apply mt-8 font-display text-lg font-bold tracking-[-0.01em] text-ink sm:text-xl;
+  }
+
+  .prose-jd ul {
+    @apply ms-5 list-disc space-y-1.5;
+  }
+
+  /* O campo que só um robô preenche. Fora da tela em vez de `display:none`:
+     alguns robôs ignoram o que está escondido, e este precisa parecer real
+     para eles e não existir para quem usa leitor de tela (`aria-hidden` no
+     HTML) nem para o teclado (`tabindex="-1"`). */
+  .jd-hp-wrap {
+    @apply absolute -left-[9999px] h-px w-px overflow-hidden;
   }
 }

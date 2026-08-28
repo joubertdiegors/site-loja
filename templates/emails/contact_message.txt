@@ -1,0 +1,15 @@
+{% load i18n %}Nova mensagem pelo formulário de contato do site.
+
+Nome:     {{ registro.name }}
+E-mail:   {{ registro.email }}
+Assunto:  {{ registro.subject }}
+Idioma:   {{ registro.language|default:"—" }}
+Recebida: {{ registro.created_at|date:"d/m/Y H:i" }}
+
+Mensagem
+--------
+{{ registro.message }}
+
+--
+Responder a este e-mail já responde a quem escreveu.
+{{ site_name }}

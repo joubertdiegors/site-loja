@@ -2,10 +2,15 @@
 {% comment %}
 Área de destaque do topo (hero).
 
-Três situações, todas previstas:
-  1. banner com imagem  -> imagem grande (desktop/mobile) + texto sobreposto;
-  2. banner sem imagem  -> destaque tipográfico sobre a malha da mesa;
-  3. nenhum banner      -> mesmo destaque, com o texto institucional.
+Quatro situações, todas previstas:
+  1. imagem + texto  -> imagem grande (desktop/mobile) com o texto sobreposto;
+  2. imagem sozinha  -> só a arte: sem gradiente, sem `<h1>` vazio, sem tarja;
+  3. sem imagem      -> destaque tipográfico sobre a malha da mesa;
+  4. sem banner      -> mesmo destaque, com o texto institucional.
+
+O caso 2 é o que motivou a etapa 16: um banner pode ser só arte, e cobrir o pé
+dela com uma faixa escura para exibir um título vazio era estragar o único
+conteúdo que existia.
 
 Nenhuma imagem inventada, nenhum espaço quebrado: nos três casos o bloco tem a
 mesma altura e o mesmo peso, então cadastrar um banner depois não muda o
@@ -24,25 +29,43 @@ layout. A moldura tracejada deixa claro onde a arte entra.
                class="h-[26rem] w-full object-cover sm:h-[22rem] lg:h-[30rem]" fetchpriority="high">
         </picture>
 
-        <div class="absolute inset-0 bg-gradient-to-t from-brand-950/90 via-brand-950/40 to-transparent"></div>
+        {% comment %}
+          Gradiente e texto só quando há texto. Sem isto, um banner que é só
+          arte ganhava uma tarja escura cobrindo o pé da imagem para exibir um
+          `<h1>` vazio.
+        {% endcomment %}
+        {% if banner.has_text %}
+          <div class="absolute inset-0 bg-gradient-to-t from-brand-950/90 via-brand-950/40 to-transparent"></div>
 
-        <div class="absolute inset-x-0 bottom-0 p-6 sm:p-10 lg:p-14">
-          <div class="max-w-xl">
-            <h1 id="hero-titulo" class="font-display text-3xl font-bold tracking-[-0.025em] text-white sm:text-4xl lg:text-5xl">
-              {{ banner.title }}
-            </h1>
-            {% if banner.subtitle %}
-              <p class="mt-3 text-base leading-relaxed text-brand-100 sm:text-lg">{{ banner.subtitle }}</p>
-            {% endif %}
-            {% if banner.has_cta %}
-              <a href="{{ banner.cta_link }}" class="btn-primary btn-lg mt-6">
-                {{ banner.cta_label|default:_("Ver produtos") }}
-                {% icon "arrow-right" "h-4 w-4 rtl:rotate-180" %}
-              </a>
-            {% endif %}
+          <div class="absolute inset-x-0 bottom-0 p-6 sm:p-10 lg:p-14">
+            <div class="max-w-xl">
+              {% if banner.title %}
+                <h1 id="hero-titulo" class="font-display text-3xl font-bold tracking-[-0.025em] text-white sm:text-4xl lg:text-5xl">
+                  {{ banner.title }}
+                </h1>
+              {% endif %}
+              {% if banner.subtitle %}
+                <p class="mt-3 text-base leading-relaxed text-brand-100 sm:text-lg">{{ banner.subtitle }}</p>
+              {% endif %}
+              {% if banner.has_cta and banner.cta_label %}
+                <a href="{{ banner.cta_link }}" class="btn-primary btn-lg mt-6">
+                  {{ banner.cta_label }}
+                  {% icon "arrow-right" "h-4 w-4 rtl:rotate-180" %}
+                </a>
+              {% endif %}
+            </div>
           </div>
-        </div>
+        {% endif %}
       </div>
+
+      {% comment %}
+        Toda página precisa de um `<h1>`. Quando o banner não tem título, ele
+        vem aqui, invisível: o leitor de tela e o buscador continuam sabendo do
+        que a página trata, e a arte continua inteira.
+      {% endcomment %}
+      {% if not banner.title %}
+        <h1 id="hero-titulo" class="sr-only">{{ meta_title|default:site_name }}</h1>
+      {% endif %}
     </div>
 
   {% else %}
@@ -56,7 +79,7 @@ layout. A moldura tracejada deixa claro onde a arte entra.
           </p>
 
           <h1 id="hero-titulo" class="mt-5 font-display text-3xl font-bold leading-[1.05] tracking-[-0.025em] text-white sm:text-4xl lg:text-5xl">
-            {% if banner %}{{ banner.title }}{% else %}{% translate "Peças únicas, impressas sob medida" %}{% endif %}
+            {% if banner.title %}{{ banner.title }}{% else %}{% translate "Peças únicas, impressas sob medida" %}{% endif %}
           </h1>
 
           <p class="mt-5 max-w-lg text-base leading-relaxed text-brand-100/90 sm:text-lg">
@@ -68,9 +91,9 @@ layout. A moldura tracejada deixa claro onde a arte entra.
           </p>
 
           <div class="mt-8 flex flex-wrap items-center gap-3">
-            {% if banner and banner.has_cta %}
+            {% if banner.has_cta and banner.cta_label %}
               <a href="{{ banner.cta_link }}" class="btn-primary btn-lg">
-                {{ banner.cta_label|default:_("Ver produtos") }}
+                {{ banner.cta_label }}
                 {% icon "arrow-right" "h-4 w-4 rtl:rotate-180" %}
               </a>
             {% else %}
@@ -81,10 +104,27 @@ layout. A moldura tracejada deixa claro onde a arte entra.
             {% endif %}
           </div>
 
+          {% comment %}
+            As mesmas promessas da faixa do topo (`storefront.TopBarItem`), e
+            não uma segunda lista escrita aqui: com duas cópias, mudar uma no
+            Admin deixava a outra dizendo o texto velho.
+
+            O ícone é o do item, quando houver. Sem itens cadastrados, o texto
+            de sempre — a Home não abre sem promessa nenhuma.
+          {% endcomment %}
           <ul class="mt-9 flex flex-wrap items-center gap-x-6 gap-y-3 text-sm text-brand-100/85" role="list">
-            <li class="flex items-center gap-2">{% icon "palette" "h-4 w-4 text-brand-300" %}{% translate "Cores e materiais à escolha" %}</li>
-            <li class="flex items-center gap-2">{% icon "cube" "h-4 w-4 text-brand-300" %}{% translate "Produção sob encomenda" %}</li>
-            <li class="flex items-center gap-2">{% icon "truck" "h-4 w-4 text-brand-300" %}{% translate "Envio para toda a Europa" %}</li>
+            {% for item in top_bar_items %}
+              {% if item.text %}
+                <li class="flex items-center gap-2">
+                  {% if item.icon %}{% icon item.icon "h-4 w-4 text-brand-300" %}{% endif %}
+                  {{ item.text }}
+                </li>
+              {% endif %}
+            {% empty %}
+              <li class="flex items-center gap-2">{% icon "palette" "h-4 w-4 text-brand-300" %}{% translate "Cores e materiais à escolha" %}</li>
+              <li class="flex items-center gap-2">{% icon "cube" "h-4 w-4 text-brand-300" %}{% translate "Produção sob encomenda" %}</li>
+              <li class="flex items-center gap-2">{% icon "truck" "h-4 w-4 text-brand-300" %}{% translate "Envio para toda a Europa" %}</li>
+            {% endfor %}
           </ul>
         </div>
 

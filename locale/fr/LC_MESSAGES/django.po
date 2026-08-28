@@ -87,6 +87,66 @@ msgstr "À la une"
 msgid "Sob encomenda"
 msgstr "Sur commande"
 
+msgid "Esta combinação não está disponível."
+msgstr "Cette combinaison n'est pas disponible."
+
+msgid "Esta combinação não existe. Escolha outra."
+msgstr "Cette combinaison n'existe pas. Choisissez-en une autre."
+
+msgid "Página não encontrada"
+msgstr "Page introuvable"
+
+msgid "O endereço que você abriu não existe nesta loja."
+msgstr "L'adresse que vous avez ouverte n'existe pas dans cette boutique."
+
+msgid "Esta página não existe"
+msgstr "Cette page n'existe pas"
+
+msgid "O endereço que você abriu não corresponde a nenhuma página da loja. Pode ter sido digitado com um caractere a mais, ou vir de um link antigo."
+msgstr "L'adresse que vous avez ouverte ne correspond à aucune page de la boutique. Elle a peut-être été saisie avec un caractère en trop, ou provient d'un ancien lien."
+
+msgid "Ir para a página inicial"
+msgstr "Aller à la page d'accueil"
+
+msgid "Ver os modelos"
+msgstr "Voir les modèles"
+
+msgid "Erro no servidor"
+msgstr "Erreur du serveur"
+
+msgid "Alguma coisa falhou do nosso lado"
+msgstr "Quelque chose a échoué de notre côté"
+
+msgid "O erro foi registrado e a equipe será avisada. Não foi nada que você fez — tente de novo em alguns minutos."
+msgstr "L'erreur a été enregistrée et l'équipe sera prévenue. Vous n'y êtes pour rien — réessayez dans quelques minutes."
+
+msgid "Se você estava finalizando uma compra, nada foi cobrado sem confirmação. Verifique seus pedidos antes de tentar novamente."
+msgstr "Si vous étiez en train de finaliser un achat, rien n'a été débité sans confirmation. Vérifiez vos commandes avant de réessayer."
+
+msgid "E-mail reenviado"
+msgstr "E-mail renvoyé"
+
+msgid "Situação alterada"
+msgstr "Statut modifié"
+
+msgid "Reenviado: %(label)s."
+msgstr "Renvoyé : %(label)s."
+
+msgid "Falha ao reenviar: %(label)s."
+msgstr "Échec du renvoi : %(label)s."
+
+msgid "Produção: %(de)s → %(para)s"
+msgstr "Production : %(de)s → %(para)s"
+
+msgid "%(count)s %(rotulo)s reenviado(s)."
+msgstr "%(count)s %(rotulo)s renvoyé(s)."
+
+msgid "Não existe com a opção atual — clique para trocar"
+msgstr "N'existe pas avec l'option actuelle — cliquez pour changer"
+
+msgid "Indisponível"
+msgstr "Indisponible"
+
 msgid "Esgotado"
 msgstr "Épuisé"
 
@@ -1580,3 +1640,208 @@ msgid "%(total)s pedido"
 msgid_plural "%(total)s pedidos"
 msgstr[0] "%(total)s commande"
 msgstr[1] "%(total)s commandes"
+
+#: etapa 13 — lupa da galeria e sugestões da página do produto
+
+msgid "Ver a foto ampliada"
+msgstr "Voir la photo en grand"
+
+msgid "Foto ampliada"
+msgstr "Photo agrandie"
+
+msgid "Fechar"
+msgstr "Fermer"
+
+msgid "Foto anterior"
+msgstr "Photo précédente"
+
+msgid "Próxima foto"
+msgstr "Photo suivante"
+
+msgid "Você também pode gostar"
+msgstr "Vous aimerez aussi"
+
+#: etapa 15 — busca e páginas de categoria
+
+msgid "Busca"
+msgstr "Recherche"
+
+msgid "Buscar"
+msgstr "Rechercher"
+
+msgid "Resultados para “%(query)s”"
+msgstr "Résultats pour « %(query)s »"
+
+msgid "Resultados da busca na loja JD PRINT."
+msgstr "Résultats de recherche dans la boutique JD PRINT."
+
+msgid "Nenhum produto encontrado para “%(termo)s”."
+msgstr "Aucun produit trouvé pour « %(termo)s »."
+
+msgid "Tente outra palavra, verifique a grafia ou navegue pelas categorias."
+msgstr "Essayez un autre mot, vérifiez l'orthographe ou parcourez les catégories."
+
+msgid "O que você procura?"
+msgstr "Que cherchez-vous ?"
+
+msgid "Digite o nome de um produto, uma categoria ou um material."
+msgstr "Saisissez le nom d'un produit, d'une catégorie ou d'une matière."
+
+msgid "Nenhum produto disponível nesta categoria no momento."
+msgstr "Aucun produit disponible dans cette catégorie pour le moment."
+
+msgid "Nenhum produto disponível com este material no momento."
+msgstr "Aucun produit disponible dans cette matière pour le moment."
+
+msgid "Remover o filtro de material"
+msgstr "Retirer le filtre de matière"
+
+msgid "Ver todos os produtos"
+msgstr "Voir tous les produits"
+
+msgid "Ver o catálogo"
+msgstr "Voir le catalogue"
+
+msgid "Produtos da categoria %(name)s."
+msgstr "Produits de la catégorie %(name)s."
+
+msgid "%(total)s produto encontrado"
+msgid_plural "%(total)s produtos encontrados"
+msgstr[0] "%(total)s produit trouvé"
+msgstr[1] "%(total)s produits trouvés"
+
+#: etapa 17 — favoritos
+
+msgid "Meus favoritos"
+msgstr "Mes favoris"
+
+msgid "Meus favoritos — JD PRINT"
+msgstr "Mes favoris — JD PRINT"
+
+msgid "Os produtos que você guardou para depois."
+msgstr "Les produits que vous avez gardés pour plus tard."
+
+msgid "Os produtos que você guardou na JD PRINT."
+msgstr "Les produits que vous avez gardés sur JD PRINT."
+
+msgid "Você ainda não guardou nenhum produto"
+msgstr "Vous n'avez encore gardé aucun produit"
+
+msgid "Toque no coração de um produto para guardá-lo aqui e encontrá-lo depois."
+msgstr "Touchez le cœur d'un produit pour le garder ici et le retrouver plus tard."
+
+msgid "Explorar produtos"
+msgstr "Découvrir les produits"
+
+msgid "Adicionado aos favoritos."
+msgstr "Ajouté aux favoris."
+
+msgid "Removido dos favoritos."
+msgstr "Retiré des favoris."
+
+msgid "Adicionar %(name)s aos favoritos"
+msgstr "Ajouter %(name)s aux favoris"
+
+msgid "Remover %(name)s dos favoritos"
+msgstr "Retirer %(name)s des favoris"
+
+msgid "Entre para adicionar aos favoritos"
+msgstr "Connectez-vous pour ajouter aux favoris"
+
+msgid "Entre para ver seus favoritos"
+msgstr "Connectez-vous pour voir vos favoris"
+
+msgid "%(total)s produto guardado"
+msgid_plural "%(total)s produtos guardados"
+msgstr[0] "%(total)s produit gardé"
+msgstr[1] "%(total)s produits gardés"
+
+msgid "Favoritos, %(total)s produto"
+msgid_plural "Favoritos, %(total)s produtos"
+msgstr[0] "Favoris, %(total)s produit"
+msgstr[1] "Favoris, %(total)s produits"
+
+#: etapa 18 — páginas institucionais, contato e revenda
+
+msgid "Seja um revendedor"
+msgstr "Devenez revendeur"
+
+msgid "Informações"
+msgstr "Informations"
+
+msgid "Conteúdo em preparação"
+msgstr "Contenu en préparation"
+
+msgid "Esta informação está sendo escrita. Se precisar dela agora, fale com a gente."
+msgstr "Cette information est en cours de rédaction. Si vous en avez besoin maintenant, écrivez-nous."
+
+msgid "Falar com a gente"
+msgstr "Nous contacter"
+
+msgid "Assunto"
+msgstr "Objet"
+
+msgid "Mensagem"
+msgstr "Message"
+
+msgid "País"
+msgstr "Pays"
+
+msgid "Cidade"
+msgstr "Ville"
+
+msgid "Tipo de negócio"
+msgstr "Type d'activité"
+
+msgid "Loja física, loja online, ateliê, distribuidor…"
+msgstr "Boutique, boutique en ligne, atelier, distributeur…"
+
+msgid "Opcional. Conte o que pretende revender e em que volume."
+msgstr "Facultatif. Dites-nous ce que vous souhaitez revendre et en quel volume."
+
+msgid "Informe o seu nome."
+msgstr "Indiquez votre nom."
+
+msgid "Informe o seu e-mail."
+msgstr "Indiquez votre e-mail."
+
+msgid "Informe um e-mail válido."
+msgstr "Indiquez un e-mail valide."
+
+msgid "Informe o assunto."
+msgstr "Indiquez l'objet."
+
+msgid "Escreva a sua mensagem."
+msgstr "Écrivez votre message."
+
+msgid "Escreva um pouco mais para podermos ajudar."
+msgstr "Écrivez un peu plus pour que nous puissions vous aider."
+
+msgid "Informe o nome da empresa."
+msgstr "Indiquez le nom de l'entreprise."
+
+msgid "Informe um telefone para contato."
+msgstr "Indiquez un téléphone de contact."
+
+msgid "Informe o país."
+msgstr "Indiquez le pays."
+
+msgid "Informe a cidade."
+msgstr "Indiquez la ville."
+
+msgid "Conte que tipo de negócio você tem."
+msgstr "Dites-nous quel type d'activité vous exercez."
+
+msgid "Não foi possível enviar. Tente novamente."
+msgstr "L'envoi a échoué. Réessayez."
+
+msgid "Mensagem enviada. Respondemos assim que possível."
+msgstr "Message envoyé. Nous répondons dès que possible."
+
+msgid "Pedido enviado. Entraremos em contato para conversar sobre a parceria."
+msgstr "Demande envoyée. Nous vous contacterons pour parler du partenariat."
+
+#: etapa 18 — contato: canais ja cadastrados
+
+msgid "Ou fale direto"
+msgstr "Ou écrivez-nous directement"

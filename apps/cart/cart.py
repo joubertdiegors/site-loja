@@ -27,6 +27,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 
 from django.conf import settings
+from django.db.models import Prefetch
 from django.utils.translation import gettext as _
 
 from apps.cart.keys import customization_fingerprint, line_key
@@ -51,8 +52,9 @@ __all__ = [
 def load_products(items: dict) -> dict:
     """Produtos ativos das linhas, com tudo que o card e o carrinho precisam.
 
-    ``variants`` está no prefetch porque ``is_available`` passou a consultá-las
-    na etapa 4: sem ele, cada linha do carrinho custaria uma consulta extra.
+    ``variants`` está no prefetch — com cor e material — porque desde a etapa 8
+    é a variante que carrega preço, estoque e amostras de cor. Sem ele, cada
+    linha do carrinho custaria uma consulta extra.
     """
     ids = {item.get("product_id") for item in items.values() if item.get("product_id")}
     if not ids:
@@ -60,7 +62,19 @@ def load_products(items: dict) -> dict:
     queryset = (
         Product.objects.filter(pk__in=ids, status=ProductStatus.ACTIVE)
         .select_related("category")
-        .prefetch_related("translations", "media", "colors", "category__translations", "variants")
+        .prefetch_related(
+            "translations",
+            "media",
+            "category__translations",
+            Prefetch(
+                "variants",
+                queryset=ProductVariant.objects.select_related("color", "material")
+                .prefetch_related("color__translations", "material__translations")
+                .order_by(
+                    "sort_order", "id"
+                ),
+            ),
+        )
     )
     return {product.pk: product for product in queryset}
 
@@ -69,8 +83,12 @@ def load_variants(items: dict) -> dict:
     ids = {item.get("variant_id") for item in items.values() if item.get("variant_id")}
     if not ids:
         return {}
-    queryset = ProductVariant.objects.filter(pk__in=ids, is_active=True).select_related(
-        "color", "material", "product"
+    queryset = (
+        ProductVariant.objects.filter(pk__in=ids, is_active=True)
+        .select_related("color", "material", "product")
+        # A foto vinculada à variante (etapa 13). Sem isto, `display_media`
+        # custaria uma consulta por linha do carrinho.
+        .prefetch_related("media")
     )
     return {variant.pk: variant for variant in queryset}
 
@@ -89,19 +107,19 @@ def load_uploads(items: dict) -> dict:
 def max_quantity_for(product: Product, variant: ProductVariant | None = None) -> int:
     """Quantas unidades desta linha podem ir para o carrinho.
 
-    Sob encomenda e venda sem estoque não dependem do saldo; o resto é limitado
-    ao estoque — o **da variante**, quando existir, porque é justamente esse o
-    número que não pode ser compartilhado entre cor e tamanho.
+    O número vem **da variante** e só dela: é ela que tem estoque, e é ela que
+    diz se é sob encomenda ou se aceita venda sem saldo. Sem variante não há
+    quantidade possível — não existe o que vender.
 
     Sem pedidos não há reserva: a validação é sobre o estoque de agora e terá
     que ser refeita no checkout.
     """
     ceiling = getattr(settings, "CART_MAX_QUANTITY_PER_LINE", 99)
-    if product.made_to_order or product.allow_backorder:
+    if variant is None:
+        return 0
+    if variant.made_to_order or variant.allow_backorder:
         return ceiling
-    if variant is not None:
-        return min(variant.stock_quantity, ceiling)
-    return min(product.stock_quantity, ceiling)
+    return min(variant.stock_quantity, ceiling)
 
 
 @dataclass(frozen=True)
@@ -115,9 +133,10 @@ class CartLine:
 
     @property
     def unit_price(self) -> Decimal:
-        if self.variant is not None:
-            return self.variant.effective_price or Decimal("0.00")
-        return self.product.sale_price or Decimal("0.00")
+        """Sempre o preço da variante. O produto não tem preço."""
+        if self.variant is None:
+            return Decimal("0.00")
+        return self.variant.sale_price or Decimal("0.00")
 
     @property
     def total(self) -> Decimal:
@@ -132,12 +151,42 @@ class CartLine:
         return self.quantity >= self.max_quantity
 
     @property
+    def display_media(self):
+        """A foto da linha: a da variante comprada, quando existe.
+
+        Desde a etapa 13 uma foto pode estar vinculada a uma variante. Quem
+        comprou o vaso preto tem de ver o vaso preto no carrinho — mostrar a
+        foto de abertura do produto seria mostrar outra peça.
+
+        Sem foto própria, a do produto: é o caso comum, não falta de dado.
+        """
+        if self.variant is not None:
+            propria = self.variant.display_media
+            if propria is not None:
+                return propria
+        return self.product.display_media
+
+    @property
     def display_name(self) -> str:
         return self.product.display_name
 
     @property
     def variant_label(self) -> str:
         return self.variant.label if self.variant is not None else ""
+
+    @property
+    def unit_weight_grams(self) -> int:
+        """Peso unitário desta linha — da variante, para o frete."""
+        if self.variant is None or self.variant.weight_grams is None:
+            return 0
+        return int(self.variant.weight_grams)
+
+    @property
+    def production_days(self) -> int:
+        """Prazo de produção desta linha — da variante."""
+        if self.variant is None:
+            return 0
+        return self.variant.production_lead_time_days or 0
 
     # -- personalização ----------------------------------------------------
 
@@ -311,19 +360,27 @@ class Cart:
         if variant is not None and (not variant.is_active or variant.product_id != product.pk):
             return CartResult(False, _("Esta opção não está disponível."), "error")
 
+        # Sem variante escolhida, a padrão do produto — que é o que a página de
+        # opção única já manda num campo oculto. O que não existe é linha sem
+        # variante nenhuma: preço, peso, prazo e estoque moram nela.
+        if variant is None:
+            variant = product.default_variant
+        if variant is None:
+            return CartResult(False, _("Este produto não está disponível."), "error")
+
         quantity = max(1, int(quantity))
         allowed = max_quantity_for(product, variant)
         if allowed <= 0:
             return CartResult(False, _("Produto esgotado no momento."), "error")
 
-        key = line_key(product.pk, variant.pk if variant else None, customization)
+        key = line_key(product.pk, variant.pk, customization)
         wanted = self.quantity_of(key) + quantity
         final = min(wanted, allowed)
 
         items = dict(self._items)
         items[key] = {
             "product_id": product.pk,
-            "variant_id": variant.pk if variant else None,
+            "variant_id": variant.pk,
             "quantity": final,
             "customization": customization,
         }

@@ -10,8 +10,16 @@ Backend e vitrine do e-commerce da JD PRINT.
 | 4 | Página de produto + variantes + personalização + carrinho lateral + idiomas administráveis | concluída |
 | 5 | Contas, clientes, confirmação de e-mail e carrinho persistente | concluída |
 | 6 | Design System e redesenho do frontend (tokens, tipografia, Minha Conta, produto, shop, gaveta, Home, responsividade) | concluída |
-| 7 | **Endereços, países, frete, pedidos, checkout, Stripe, cancelamento e e-mails do pedido** | concluída |
-| 8+ | Cupons, devoluções, faturas em PDF, painel de produção | não iniciada |
+| 7 | Endereços, países, frete, pedidos, checkout, Stripe, cancelamento e e-mails do pedido | concluída |
+| 8 | Reestruturação do catálogo: `Product` genérico, `ProductVariant` como unidade vendável | concluída |
+| 9 | Matriz de combinações, cadastro de variantes em tabela, custo→margem/preço e cores traduzidas | concluída |
+| 10 | **Preparação operacional: material traduzível, recuperação do webhook, reenvio de e-mail, configuração de e-mail no Admin, 404/500, hardening** | concluída |
+| 11+ | Cupons, devoluções, faturas em PDF, painel de produção | não iniciada |
+
+Documentação de apoio:
+[`docs/ARQUITETURA.md`](docs/ARQUITETURA.md) (decisões),
+[`docs/OPERACAO.md`](docs/OPERACAO.md) (e-mail, backup, restore, log),
+[`docs/DEPLOY_PYTHONANYWHERE.md`](docs/DEPLOY_PYTHONANYWHERE.md).
 
 Stack: **Python 3.13 · Django 6.1 · PostgreSQL · Django Templates · Tailwind CSS 4 · Django Admin**.
 Sem React, Vue, Angular ou qualquer SPA: a página é renderizada no servidor.
@@ -153,12 +161,36 @@ do produto e o nome colidiria com `MEDIA_ROOT` do Django.
 
 ### `catalog`
 
-`Brand`, `Material`, `Color`, `Product`, `ProductTranslation`, `ProductMedia`
-e **`ProductVariant`** (etapa 4 — a linha vendável: SKU, cor, tamanho, material,
-preço, estoque e peso próprios, herdando do produto o que ficar vazio).
-`Product` ganhou `personalization_type` e `personalization_text_limit`.
-Detalhes na etapa 1 (campos de identificação, classificação, físico, produção,
-custos, preço, estoque, destaque, auditoria).
+`Brand`, `Material`, `Color`, `ColorTranslation`, `Product`,
+`ProductTranslation`, `ProductMedia` e `ProductVariant`.
+
+`Color` e `Material` são traduzíveis pelo mesmo mecanismo de `Product` e
+`Category`: uma linha por idioma em `ColorTranslation` / `MaterialTranslation`.
+O campo `name` é o nome **interno** (Admin, busca, slug); `display_name` é o que
+o cliente lê, com o fallback da casa (idioma pedido → português → qualquer uma →
+nome interno). A variante continua sendo um registro só: quem tem tradução é o
+atributo, não a variante.
+
+No snapshot do pedido, cor e material são copiados **no idioma do cliente**,
+como já era o nome do produto — o pedido guarda o que ele leu.
+
+**A divisão, desde a etapa 8:**
+
+| | `Product` | `ProductVariant` |
+|---|---|---|
+| o que é | a **definição genérica** — o conceito | a **unidade comercial vendável** — a coisa |
+| exemplo | "Vaso Facetado" | "Vaso Facetado, preto, 25 cm, PLA" |
+| tem | SKU, slug, categoria, marca, moeda, textos traduzidos, mídia, personalização, destaque | SKU, cor, tamanho, material, **preço, custo, margem, estoque, peso, dimensões, tempo de impressão, prazo de produção** |
+| não tem | preço, estoque, peso, dimensões, prazo | tradução, mídia, categoria |
+
+**Todo produto precisa de pelo menos uma variante ativa para ser vendido.** Sem
+ela não há preço, peso nem estoque em lugar nenhum: o produto fica fora da
+vitrine, não entra no carrinho e o Admin recusa ativá-lo.
+
+Não existe "variante implícita" feita a partir dos dados do produto. O que o
+`Product` ainda responde sobre preço e estoque (`display_price`, `price_range`,
+`available_stock`, `is_available`, `stock_state`, `made_to_order`) é **derivado**
+das variantes — resumo para o card, nunca fonte.
 
 ### `accounts` — novo na etapa 5
 
@@ -505,35 +537,83 @@ geraria redirecionamento. É uma linha para mudar, se preferir.
 * **galeria** de `ProductMedia` — imagem principal primeiro, miniaturas abaixo,
   vídeo suportado. Sem foto, o mesmo espaço reservado dos cards;
 * **nome e descrição** traduzidos, com fallback para português;
-* **preço** do sistema de preços (faixa "€ 19,90 – 27,90" quando há variantes);
-* **estado de estoque**: Em estoque / Últimas unidades / Esgotado / Produzido
-  sob encomenda (com o prazo);
-* **ficha técnica** — só o que existe: campo vazio não vira linha.
+* **preço da variante selecionada** — nunca uma faixa: a página sempre tem
+  uma opção escolhida, e o preço é o dela;
+* **estado de estoque da variante**: Em estoque / Últimas unidades / Esgotado /
+  Produzido sob encomenda (com o prazo);
+* **ficha técnica da variante** — peso, dimensões e tempo de impressão são da
+  unidade que o cliente vai receber, não do conceito.
+
+Trocar de opção atualiza a página inteira sem recarregar: preço,
+disponibilidade, teto de quantidade, foto (quando a variante tem uma) e a
+**ficha técnica completa** — cor, tamanho, material, peso, dimensões, tempo de
+impressão e referência. Até a etapa 18 as três primeiras ficavam com o valor da
+variante com que a página tinha aberto; a etapa 19 corrigiu.
+
+A quantidade começa em 1 e para no teto da variante, tanto nos botões −/+
+quanto no valor digitado. O número final é sempre do servidor: pedir mais que
+o estoque traz o máximo disponível e avisa.
 
 ### Variantes
 
-`ProductVariant` é a linha vendável: SKU próprio, cor, tamanho e material, com
-preço, estoque, peso e dimensões **opcionais — nulo herda do produto**.
+`ProductVariant` é a unidade vendável: SKU próprio, cor, tamanho, material,
+**preço, estoque, peso, dimensões e prazo de produção**. Nada é herdado do
+produto — o valor da variante *é* o valor.
 
 ```text
-Vaso Facetado
-├── Preto  / 15 cm → € 19,90 → estoque 6
-├── Branco / 15 cm → € 19,90 → estoque 3
-├── Roxo   / 15 cm → € 21,90 → estoque 0   (aparece esgotada)
-├── Preto  / 25 cm → € 27,90 → estoque 4
-└── Branco / 25 cm → € 27,90 → estoque 2
+Vaso Facetado                      ← Product: o conceito, sem preço
+├── Preto  / 15 cm → € 19,90 → 6 un. → 120 g → 2 dias
+├── Branco / 15 cm → € 19,90 → 3 un. → 120 g → 2 dias
+├── Roxo   / 15 cm → € 21,90 → 0 un. → 120 g → 2 dias  (aparece esgotada)
+├── Preto  / 25 cm → € 27,90 → 4 un. → 300 g → 3 dias
+└── Branco / 25 cm → € 27,90 → 2 un. → 300 g → 3 dias
 ```
 
-**Produto sem variantes continua funcionando exatamente como antes** — elas são
-aditivas. Só aparece o eixo que varia: um produto que muda só de tamanho não
-mostra seletor de cor com uma opção.
+**A página sempre abre com uma variante selecionada:** a primeira disponível.
+Se todas estiverem esgotadas, a primeira — para a página ainda ter preço e
+ficha ao anunciar que acabou. Nenhuma variante fica escondida: as esgotadas
+aparecem no seletor, desabilitadas, para o cliente ver que existem.
 
-Escolher uma opção atualiza preço, limite de quantidade e o botão (desabilitado
-quando a combinação está esgotada) sem recarregar. Sem JavaScript, a escolha é
-um `<select>` normal.
+### A matriz de combinações
 
-No Shop, o card de um produto com variantes mostra **Escolher opções** e leva à
-página — adicionar "um vaso" sem saber a cor seria adicionar algo indefinido.
+Os eixos (cor, tamanho, material) **não** são três listas independentes. Nem
+toda combinação existe: no exemplo acima, `Branco + 15 cm` não é uma variante
+cadastrada, e portanto não é uma compra possível.
+
+A cada clique, as opções dos **outros** eixos são recalculadas contra as
+variantes que existem de verdade. As que não combinam com a escolha atual ficam
+**riscadas — e clicáveis**. Desabilitá-las diria "esta opção não existe"; o que
+é verdade é "não existe *nesta cor*".
+
+O eixo em que o cliente acabou de clicar **tem prioridade**: o sistema procura a
+variante real que melhor o atende, preservando o que der dos outros eixos, e
+passa a seleção inteira para ela. Por isso funciona nos dois sentidos:
+
+```text
+Preto + 25 cm, clica em "30 cm"   →  vira Branco + 30 cm
+Branco + 30 cm, clica em "Preto"  →  vira Preto + 25 cm
+```
+
+A seleção nunca passa por um estado inválido, nem por um instante: o clique
+calcula a variante final e marca todos os eixos de uma vez.
+
+**O JavaScript é conforto, não autoridade.** O formulário do carrinho recebe os
+eixos escolhidos e os confere contra o `variant_id`; um POST que peça uma
+combinação inexistente é recusado no servidor, com a mesma resposta para um
+navegador sem JavaScript, um script ou um cliente curioso. Nunca se vende "a
+variante mais próxima".
+
+Escolher uma opção atualiza **tudo o que é da variante** — preço, selo de
+estoque, limite de quantidade, botão, peso, dimensões, tempo de impressão e a
+referência — sem recarregar. Sem JavaScript, a escolha é um `<select>` normal;
+com JavaScript, o `<select>` continua funcionando (é ele que manda o
+`variant_id` no POST, e quem navega por teclado escolhe por ele).
+
+Produto de opção única não mostra seletor: a variante vai num campo oculto.
+
+No Shop, o card de um produto com mais de uma opção mostra **Escolher opções** e
+leva à página — adicionar "um vaso" sem saber a cor seria adicionar algo
+indefinido. Com preços diferentes, o card mostra o menor com "a partir de".
 
 ---
 
@@ -1002,6 +1082,83 @@ pagamento — ela vai para o log.
 
 ---
 
+## F13. Páginas institucionais
+
+Quatro páginas, um model e um template. As rotas ficam na raiz de cada idioma:
+
+| Página | Endereço | O que tem |
+|---|---|---|
+| Envios e prazos | `/envios-e-prazos/` | só texto |
+| Trocas e devoluções | `/trocas-e-devolucoes/` | só texto |
+| Contato | `/contato/` | texto + formulário |
+| Seja um revendedor | `/revenda/` | texto + chamada para o contato |
+
+### O conteúdo é cadastrado, e já vem escrito
+
+`storefront.InstitutionalPage` guarda `slug`, se está publicada, se aparece no
+rodapé e a ordem; `InstitutionalPageTranslation` guarda título, chamada, corpo
+e a meta description em **pt / fr / nl / en** — o mesmo par
+`TranslationBase` + `TranslatableMixin` do resto do projeto, com o mesmo
+fallback por campo (idioma atual → pt → qualquer → padrão).
+
+O slug vem de uma lista fechada (`PageSlug`), não de texto livre: cada página
+tem uma rota própria, e um slug inventado no Admin criaria conteúdo escrito que
+ninguém consegue abrir.
+
+O texto inicial das quatro páginas, nos quatro idiomas, é cadastrado pela
+migration `storefront/0005_seed_institutional_content`. Não é conteúdo fixo: é
+ponto de partida, e o Admin reescreve por cima sem tocar em código. O que a
+migration **não** escreve é prazo em dias, prazo legal de desistência ou
+percentual de revenda — nada disso está definido no projeto, e número em página
+institucional é compromisso que a loja não assumiu.
+
+Despublicar (`is_active=False`) devolve 404 e tira o link do rodapé.
+Desmarcar "mostrar no rodapé" tira só o link.
+
+O corpo aceita uma marcação mínima — `# ` vira subtítulo, `- ` vira item de
+lista, linha em branco separa parágrafos — resolvida na hora de exibir pela tag
+`{% rich_text %}`, que **escapa tudo**: HTML colado no Admin aparece como
+texto, nunca é executado.
+
+### Um formulário, não dois
+
+O contato pergunta nome, e-mail, assunto e mensagem, grava em
+`storefront.ContactMessage` **antes** de o e-mail sair e aparece no Admin como
+caixa de entrada em modo leitura, com marcação de "tratado". Provedor de e-mail
+fora do ar atrasa o aviso da equipe; não apaga o pedido do cliente.
+
+A revenda é **informativa**: apresenta o programa e termina numa chamada para o
+contato. Um formulário próprio, com empresa/país/tipo de negócio e caixa de
+entrada separada, já seria um sistema de revendedores — fora do escopo desta
+etapa. Quem decide que a revenda chama o contato é `PAGE_CTA`, no model, não o
+template.
+
+O aviso vai para `EmailSettings.contact_recipients` quando preenchido, e para
+quem já recebe os pedidos quando não — e o `Reply-To` é o e-mail de quem
+escreveu, então responder é apertar "responder".
+
+O formulário tem um campo-armadilha (`website`) escondido por CSS, fora da
+ordem de tabulação e `aria-hidden`: robô preenche, cliente e leitor de tela não
+veem. Não é captcha — é higiene, e sem atrito para quem é de verdade.
+
+### O rodapé aponta para a página, não para um endereço
+
+`FooterLink` ganhou `page`: uma referência à página da loja, no lugar de uma
+string. Com `i18n_patterns`, a mesma página mora em `/contato/` e em
+`/fr/contato/` — um endereço digitado à mão mandaria o visitante francês para a
+página portuguesa. O `url` continua existindo, para o que é de fora.
+
+Sem rótulo próprio, o texto do link é o **título da página**: o nome é escrito
+num lugar só, e traduzir a página traduz o rodapé junto. Um link cuja página
+está despublicada ou fora do rodapé simplesmente não aparece — senão o rodapé
+levaria a um 404.
+
+A coluna "Informações", com as quatro páginas, é cadastrada pela mesma
+migration de conteúdo. Vale a regra da etapa 16 sem exceção: o rodapé é o que o
+Admin cadastrou, e apagar a coluna a faz sumir.
+
+---
+
 ## G. Design System e identidade visual
 
 O conceito é **"Layered Craft"**: a peça impressa nasce camada por camada, e a
@@ -1295,7 +1452,7 @@ python manage.py test               # tudo
 python manage.py test apps.home     # só a Home
 ```
 
-**939 testes**, todos passando.
+**1784 testes**, todos passando.
 
 | Área | Arquivo | Testes |
 |---|---|---|
@@ -1344,6 +1501,19 @@ python manage.py test apps.home     # só a Home
 | **Stripe** (sessão, assinatura, idempotência do webhook) | `orders/tests/test_stripe.py` | 32 |
 | **e-mails do pedido** (conteúdo, idioma, envio único) | `orders/tests/test_emails.py` | 23 |
 | **admin dos pedidos** (proteções, ações, notas internas) | `orders/tests/test_admin.py` | 16 |
+| **busca** (campos, matriz de 4 idiomas, vazio, duplicidade, layout) | `catalog/tests/test_search.py` | 63 |
+| **páginas de categoria e filtro por material** | `catalog/tests/test_category_pages.py` | 40 |
+| **faixa do topo e rodapé administráveis** | `storefront/tests/test_storefront.py` | 42 |
+| **blocos da Home e nome público da vitrine** | `home/tests/test_content_blocks.py` | 41 |
+| **favoritos** (model, visitante, alternar, segurança, listagem, cards, HTMX, N+1) | `accounts/tests/test_favorites.py` | 71 |
+| **modal de variantes** (tabela, gravação, cancelar, erros, teclado) | `catalog/tests/test_variant_modal.py` | 61 |
+| **foto vinculada à variante** (opcional, produto certo, troca na loja) | `catalog/tests/test_media_variant.py` | 21 |
+| **galeria e lupa** (sem corte, abrir/fechar/navegar, viewport) | `catalog/tests/test_gallery.py` | 12 |
+| **sugestões** (regra, exclusões, limite, card reaproveitado) | `catalog/tests/test_recommendations.py` | 14 |
+| **CONTEÚDO: tabela + modal** (gravar, validar, idioma repetido, cadastro, clicar fora) | `catalog/tests/test_content_modal.py` | 43 |
+| **seções do produto no Admin** (ordem pedida, recolher, AUDITORIA por último) | `catalog/tests/test_admin_sections.py` | 18 |
+| **páginas institucionais** (texto, 4 idiomas, contato, e-mail, rodapé, conteúdo de fábrica, rotas) | `storefront/tests/test_pages.py` | 72 |
+| **fluxo de compra** (ficha por variante, foto da linha, ids e quantidades do cliente, preço) | `cart/tests/test_purchase_flow.py` | 41 |
 
 Cobrem, entre outros: Home responde 200; seções ativas aparecem, inativas e
 vazias não; ordem respeitada e alterável; limite respeitado; produto correto,
@@ -1362,7 +1532,7 @@ inválido / expirado / reutilizado / adulterado / de outro usuário, recuperaç�
 de senha ponta a ponta e resposta genérica, carrinho preservado no cadastro e
 no login, merge somando só linhas idênticas (variante e personalização
 diferentes não se misturam), estoque respeitado e isolamento entre usuários**;
-e orçamentos fixos de consultas para impedir N+1. **Etapa 7: um pedido não muda quando o produto é renomeado, desativado ou reprecificado; o imposto é a parcela contida no total e sai da alíquota do país de destino; o método de entrega que veio do formulário é revalidado contra país e peso; o endereço de outro cliente é 404 em todas as telas; um POST no webhook sem assinatura válida não confirma nada; e o mesmo evento entregue duas vezes não baixa estoque nem envia e-mail duas vezes.**
+e orçamentos fixos de consultas para impedir N+1. **Etapa 13: a foto do produto nunca é cortada (`object-contain`) e a lupa respeita a viewport; a foto vinculada a uma variante troca a imagem principal ao escolher aquela opção, e a variante sem foto própria volta para a foto de abertura em vez de herdar a da anterior; a foto de outro produto não pode ser vinculada, nem pelo widget nem por um POST montado à mão; as sugestões nunca incluem o produto da página nem um produto sem variante ativa; o CONTEÚDO é tabela + modal com a mesma casca das variantes, e o idioma repetido é recusado pelo servidor com o modal aberto; e as oito seções do produto aparecem na ordem pedida, todas recolhíveis, com a AUDITORIA por último.** **Etapa 7: um pedido não muda quando o produto é renomeado, desativado ou reprecificado; o imposto é a parcela contida no total e sai da alíquota do país de destino; o método de entrega que veio do formulário é revalidado contra país e peso; o endereço de outro cliente é 404 em todas as telas; um POST no webhook sem assinatura válida não confirma nada; e o mesmo evento entregue duas vezes não baixa estoque nem envia e-mail duas vezes.**
 
 ---
 
@@ -1371,25 +1541,29 @@ e orçamentos fixos de consultas para impedir N+1. **Etapa 7: um pedido não mud
 | Item | Situação | Depende de |
 |---|---|---|
 | **Mais vendidos** | tipo de seção existe, mas resolve vazio — não há dado de vendas e nenhum critério falso foi inventado | módulo de pedidos |
-| **Busca** | campo presente e desabilitado no header | página de busca |
 | **Reembolso** | aprovar um cancelamento cancela o pedido; a devolução do dinheiro é feita no painel da Stripe | integração de refund |
 | **Cupons e descontos** | `Order.discount_total` existe e é somado; não há cadastro de cupom | etapa própria |
 | **Fatura em PDF** | os dados fiscais estão todos no pedido; falta o documento | etapa própria |
 | **APIs de transportadora** | as tarifas são a grade cadastrada no admin, não uma cotação em tempo real | quando o volume justificar |
 | **Mensagem de presente** | `Order.gift_message` existe; ainda não é pedida no checkout | quando fizer falta |
 | **Vitrines de Filamentos / Impressoras / Acessórios** | a `ShopView` já é genérica; falta a rota apontando para cada raiz | quando houver produtos |
-| **Categorias fora de Modelos** | continuam na página provisória `/categorias/<slug>/` | vitrine própria |
-| **Busca e favoritos** | presentes no header com a estrutura visual pronta, desabilitados e rotulados como "em breve" | etapas seguintes |
+| **Busca por similaridade** | `icontains` no ORM, sem tolerância a erro de grafia nem ranking por relevância | `pg_trgm` / `SearchVector`, quando o catálogo justificar |
 | **HTMX** | em uso no Shop (filtros, ordenação, paginação) e no carrinho (adicionar, quantidade, contador). A Home continua 100% renderizada no servidor | — |
-| **Devoluções** | fora do escopo desta etapa | política comercial |
+| **Devoluções** | a página descreve o processo e é administrável; prazo legal, quem paga o retorno e regras de reembolso ficaram de fora — não estão definidos no projeto | política comercial |
 | **Painel de produção** | a ordem de produção chega por e-mail e o Admin do pedido é operacional; não há fila dedicada | quando o volume justificar |
 | **Login social e 2FA** | fora do escopo desta etapa | decisão comercial |
 | **Atributos de variante** | três eixos fixos (cor, tamanho, material); um sistema genérico entra por cima quando fizer falta | demanda real |
 | **Limpeza de uploads órfãos** | arquivos de personalização de carrinhos abandonados ficam no storage | rotina de limpeza |
 | **Lembrete de carrinho abandonado** | os dados já estão persistidos (dono, itens, datas); o envio automático é etapa própria | agendamento |
-| **Páginas institucionais** | "Envios e prazos", "Trocas e devoluções" e "Contato" aparecem no rodapé sem link, marcadas como em construção | conteúdo do proprietário |
+| **Editor de texto rico** | o corpo das páginas aceita `# ` para subtítulo e `- ` para lista; não há WYSIWYG, negrito nem imagem no meio do texto | quando o conteúdo justificar |
+| **Anexo no contato** | o cliente escreve, mas não anexa arquivo; para orçamento com modelo 3D, ainda é por e-mail | quando fizer falta |
+| **Programa de revenda** | a página apresenta e manda falar com a equipe; não há cadastro de revendedor, tabela de preço nem área logada | decisão comercial |
+| **Anti-spam** | campo-armadilha escondido, sem captcha nem limite por IP | se o lixo aparecer |
+| **Redes sociais no rodapé** | não existem hoje; não foi criada tabela para conteúdo que não existe | quando houver perfis |
 | **Página 404/500 própria** | ainda usa a padrão do Django | etapa própria |
 | **Imagens de produto** | nenhuma cadastrada; os cards mostram espaço reservado | fotos reais |
+| **Alt text da foto por idioma** | `ProductMedia.alt_text` é único, no idioma padrão | tela dedicada (o Admin não faz inline aninhado) |
+| **Sugestões do produto** | regra determinística (categoria → destaque → recentes); não há "quem viu isto viu aquilo" | dados de navegação |
 | **Idiomas da interface** | francês, inglês e holandês traduzidos; alemão, espanhol, italiano, turco e árabe caem no português | tradução dos `.po` |
 | **PostgreSQL** | configurado, mas a suíte roda hoje em SQLite | instalação do PostgreSQL |
 

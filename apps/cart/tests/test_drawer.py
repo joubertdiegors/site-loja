@@ -88,7 +88,7 @@ class DrawerUpdateTests(LanguageResetMixin, TestCase):
 
     @property
     def line(self):
-        return line_key(self.product.pk, None, None)
+        return line_key(self.product.pk, self.product.default_variant.pk, None)
 
     def add(self, product=None, **extra):
         return self.client.post(

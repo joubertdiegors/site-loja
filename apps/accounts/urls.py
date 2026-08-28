@@ -24,6 +24,11 @@ urlpatterns = [
     path("conta/enderecos/<int:pk>/remover/", views.AddressDeleteView.as_view(), name="address_delete"),
     path("conta/enderecos/<int:pk>/padrao/", views.set_default_address, name="address_default"),
     path("conta/pedidos/", views.OrdersView.as_view(), name="orders"),
+    # Favoritos. `/favoritos/` é curto porque é para onde o coração do
+    # cabeçalho leva; a tela em si é da área da conta, e o menu lateral a
+    # mostra ao lado de "Meus pedidos".
+    path("favoritos/", views.FavoritesView.as_view(), name="favorites"),
+    path("favoritos/alternar/", views.favorite_toggle, name="favorite_toggle"),
     # Confirmação de e-mail
     path(
         "conta/confirmar/<uidb64>/<token>/",
