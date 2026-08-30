@@ -17,7 +17,6 @@ from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
-from django.db.models import Prefetch
 from django.test import TestCase
 from django.test.utils import CaptureQueriesContext
 from django.db import connection

@@ -339,6 +339,12 @@ EMAIL_VERIFICATION_IP_INTERVAL = int(env("EMAIL_VERIFICATION_IP_INTERVAL", "60")
 # (e nao "um so"), porque um escritorio inteiro divide o mesmo IP.
 ACCOUNT_EMAIL_IP_LIMIT = int(env("ACCOUNT_EMAIL_IP_LIMIT", "5"))
 
+# Freio de força bruta no login: quantas senhas erradas o mesmo IP pode
+# tentar, e por quantos segundos ele fica de fora depois disso. Só a falha
+# conta — quem acerta a senha nunca é barrado.
+LOGIN_FAILURE_LIMIT = int(env("LOGIN_FAILURE_LIMIT", "10"))
+LOGIN_FAILURE_WINDOW = int(env("LOGIN_FAILURE_WINDOW", "900"))
+
 # Validade do link de redefinicao de senha (segundos). O padrao do Django e de
 # tres dias; 24 horas e mais adequado para uma loja.
 PASSWORD_RESET_TIMEOUT = int(env("PASSWORD_RESET_TIMEOUT", str(24 * 60 * 60)))
@@ -431,6 +437,8 @@ ORDER_ADMIN_EMAILS = env_list("ORDER_ADMIN_EMAILS", DEFAULT_FROM_EMAIL)
 # tanto uma chave de teste esquecida em producao quanto um checkout que finge
 # funcionar sem gateway.
 
+# Qual meio de pagamento a loja usa. "transfer" (transferencia bancaria,
+# provisoria) ou "stripe". Ver apps/orders/payments/__init__.py.
 PAYMENT_PROVIDER = env("PAYMENT_PROVIDER", "stripe")
 
 STRIPE_SECRET_KEY = env("STRIPE_SECRET_KEY", "")

@@ -194,7 +194,19 @@ mkdir -p ~/site-loja/media
 
 | URL | Directory |
 |---|---|
-| `/media/` | `/home/SUAUSUARIO/site-loja/media` |
+| `/media/products/` | `/home/SUAUSUARIO/site-loja/media/products` |
+| `/media/banners/` | `/home/SUAUSUARIO/site-loja/media/banners` |
+
+> **Duas linhas, e nao `/media/` inteiro.** Dentro de `media/` ha uma terceira
+> pasta, `customizations/`, com as fotos que os clientes enviam para
+> personalizar as pecas. Elas **nao** podem ser servidas como arquivo publico:
+> quem entrega e a rota `/personalizacao/<id>/`, que confere se quem pede e o
+> dono do pedido ou alguem da equipe.
+>
+> Se voce mapear `/media/` em bloco, o proxy serve a pasta inteira e essa
+> protecao deixa de existir -- qualquer pessoa com o link abre a foto de
+> qualquer cliente. Sao as duas unicas pastas publicas do projeto; as outras
+> `upload_to` nao existem.
 
 Esta pasta **não vem do Git e nunca volta para ele**. É onde ficam as fotos que
 os clientes enviam. Ela precisa de backup próprio: um `git pull` não a restaura.

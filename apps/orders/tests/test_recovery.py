@@ -21,7 +21,6 @@ from django.test import TestCase
 from django.urls import reverse
 
 from apps.cart.cart import CartLine
-from apps.catalog.models import ProductVariant
 from apps.core.testing import (
     LanguageResetMixin,
     make_address,

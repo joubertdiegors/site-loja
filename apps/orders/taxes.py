@@ -25,7 +25,6 @@ alíquotas diferentes no mesmo pedido.
 from dataclasses import dataclass
 from decimal import Decimal, ROUND_HALF_UP
 
-from django.conf import settings
 
 CENTS = Decimal("0.01")
 ZERO = Decimal("0.00")
@@ -82,9 +81,3 @@ def breakdown(*, country, subtotal, shipping=ZERO, discount=ZERO) -> TaxBreakdow
     )
 
 
-def store_country():
-    """País da sede — usado como fallback quando não há endereço escolhido."""
-    from apps.core.models import DeliveryCountry
-
-    code = getattr(settings, "STORE_COUNTRY", "BE")
-    return DeliveryCountry.objects.filter(iso_code=code).first()

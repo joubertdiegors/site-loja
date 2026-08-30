@@ -1,6 +1,5 @@
 """Testes da personalização (foto, texto ou escolha entre os dois)."""
 
-import io
 from decimal import Decimal
 
 from django.core.files.uploadedfile import SimpleUploadedFile

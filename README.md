@@ -983,6 +983,17 @@ feita no painel da Stripe.
 
 ## F11. Pagamento com Stripe
 
+> **Hoje a loja cobra por transferência bancária** (`PAYMENT_PROVIDER=transfer`),
+> uma solução **provisória** até o gateway entrar. O pedido é registrado como
+> pendente, a loja recebe um aviso e envia os dados bancários à mão; quem marca
+> o pedido como pago é uma pessoa, no Admin. A conta que recebe é cadastrada em
+> *Admin › Pedidos › dados para transferência*.
+>
+> Os dois meios convivem no mesmo registro (`apps/orders/payments/`) e a troca
+> é uma linha no `.env`. Nenhum pedido antigo muda: cada `Payment` guarda o
+> provedor que o criou. O que a seção abaixo descreve continua valendo para
+> quando `PAYMENT_PROVIDER=stripe`.
+
 ### Stripe Checkout hospedado
 
 O cliente digita o cartão **no domínio da Stripe**. Nenhum dado de cartão passa

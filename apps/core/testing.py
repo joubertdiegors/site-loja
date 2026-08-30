@@ -206,12 +206,23 @@ class LanguageResetMixin:
     isso entre testes: sem este reset, a ordem em que os testes rodam mudaria o
     resultado dos que dependem do idioma. Não é um problema de produção — cada
     requisição HTTP ativa o seu próprio idioma —, é isolamento de teste.
+
+    Pelo mesmo motivo esvazia o cache: as travas por IP (login, cadastro,
+    reenvio de e-mail) contam lá, e a contagem sobrevive ao rollback.
     """
 
     def setUp(self):
         super().setUp()
         translation.activate(settings.LANGUAGE_CODE)
         self.addCleanup(translation.activate, settings.LANGUAGE_CODE)
+
+        # O cache vive no processo, nao no banco: o rollback do `TestCase` nao
+        # o esvazia. Sem isto, as travas por IP (login, cadastro, reenvio de
+        # e-mail) atravessam de um teste para o outro e o resultado passa a
+        # depender da ordem em que a suite roda.
+        from django.core.cache import cache
+
+        cache.clear()
 
 
 # ---------------------------------------------------------------------------
@@ -289,11 +300,3 @@ def make_address(customer, country=None, **kwargs):
     }
     defaults.update(kwargs)
     return CustomerAddress.objects.create(customer=customer, **defaults)
-
-
-def make_shipping_setup(country=None, price="5.90"):
-    """Transportadora + método + tarifa: o mínimo para um checkout funcionar."""
-    country = country or make_country()
-    method = make_method()
-    make_rate(method=method, country=country, min_weight=0, max_weight=2000, price=price)
-    return country, method

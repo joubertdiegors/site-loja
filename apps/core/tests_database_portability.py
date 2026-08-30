@@ -16,7 +16,6 @@ servidor Postgres e é feito no ambiente hospedado.
 """
 
 import re
-import subprocess
 from pathlib import Path
 
 from django.conf import settings

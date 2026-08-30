@@ -37,12 +37,12 @@ class ActivateActionsMixin(admin.ModelAdmin):
 
     actions = ("action_activate", "action_deactivate")
 
-    @admin.action(description="Ativar selecionados")
+    @admin.action(permissions=["change"], description="Ativar selecionados")
     def action_activate(self, request, queryset):
         total = queryset.update(is_active=True)
         self.message_user(request, f"{total} item(ns) ativado(s).", messages.SUCCESS)
 
-    @admin.action(description="Desativar selecionados")
+    @admin.action(permissions=["change"], description="Desativar selecionados")
     def action_deactivate(self, request, queryset):
         total = queryset.update(is_active=False)
         self.message_user(request, f"{total} item(ns) desativado(s).", messages.SUCCESS)
@@ -379,12 +379,12 @@ class ReceivedMessageAdmin(admin.ModelAdmin):
     def has_add_permission(self, request):
         return False
 
-    @admin.action(description="Marcar como respondida")
+    @admin.action(permissions=["change"], description="Marcar como respondida")
     def action_mark_handled(self, request, queryset):
         total = queryset.update(is_handled=True)
         self.message_user(request, f"{total} marcada(s) como respondida(s).", messages.SUCCESS)
 
-    @admin.action(description="Marcar como pendente")
+    @admin.action(permissions=["change"], description="Marcar como pendente")
     def action_mark_pending(self, request, queryset):
         total = queryset.update(is_handled=False)
         self.message_user(request, f"{total} marcada(s) como pendente(s).", messages.SUCCESS)

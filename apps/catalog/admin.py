@@ -949,7 +949,7 @@ class ProductAdmin(TranslatedSlugAdminMixin, AuditUserAdminMixin):
 
     # -- ações -------------------------------------------------------------
 
-    @admin.action(description="Ativar produtos selecionados")
+    @admin.action(permissions=["change"], description="Ativar produtos selecionados")
     def action_activate(self, request, queryset):
         activated = 0
         for product in queryset:
@@ -968,17 +968,17 @@ class ProductAdmin(TranslatedSlugAdminMixin, AuditUserAdminMixin):
         if activated:
             self.message_user(request, f"{activated} produto(s) ativado(s).", messages.SUCCESS)
 
-    @admin.action(description="Desativar produtos selecionados")
+    @admin.action(permissions=["change"], description="Desativar produtos selecionados")
     def action_deactivate(self, request, queryset):
         updated = queryset.update(status=ProductStatus.INACTIVE)
         self.message_user(request, f"{updated} produto(s) desativado(s).", messages.SUCCESS)
 
-    @admin.action(description="Marcar como destaque")
+    @admin.action(permissions=["change"], description="Marcar como destaque")
     def action_feature(self, request, queryset):
         updated = queryset.update(is_featured=True)
         self.message_user(request, f"{updated} produto(s) em destaque.", messages.SUCCESS)
 
-    @admin.action(description="Remover do destaque")
+    @admin.action(permissions=["change"], description="Remover do destaque")
     def action_unfeature(self, request, queryset):
         updated = queryset.update(is_featured=False)
         self.message_user(request, f"{updated} produto(s) fora do destaque.", messages.SUCCESS)

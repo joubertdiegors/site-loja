@@ -174,6 +174,48 @@ def send_admin_order_email(order, *, force: bool = False) -> bool:
     return sent
 
 
+def send_transfer_pending_email(order) -> bool:
+    """Avisa a loja que um pedido está esperando transferência.
+
+    Não é a ordem de produção (`send_admin_order_email`): esse continua saindo
+    quando o pagamento for confirmado, para a oficina não imprimir antes de o
+    dinheiro entrar. Aqui o assunto é só um — alguém precisa mandar os dados
+    bancários ao cliente.
+
+    Sempre em português, como todo e-mail interno, e para os mesmos
+    destinatários dos pedidos.
+
+    Sem marca de "já enviado" de propósito: quem chama é o `TransferProvider`,
+    uma vez por tentativa de pagamento. Se o cliente voltar e pedir para pagar
+    de novo, a loja é avisada de novo — que é o comportamento certo.
+    """
+    with translation.override(settings.LANGUAGE_CODE):
+        context = order_context(order)
+        context["admin_url"] = absolute_url(f"/admin/orders/order/{order.pk}/change/")
+        context["bank"] = _bank_details()
+        return _send(
+            _("[JD PRINT] Pedido %(number)s aguardando transferência — %(total)s %(currency)s")
+            % {
+                "number": order.number,
+                "total": f"{order.total:.2f}",
+                "currency": order.currency,
+            },
+            "order_transfer_pending",
+            context,
+            admin_recipients(),
+        )
+
+
+def _bank_details():
+    """Os dados bancários cadastrados, ou ``None``.
+
+    Vão no e-mail para a equipe não precisar procurar o IBAN em outro lugar.
+    """
+    from apps.orders.models import BankTransferSettings
+
+    return BankTransferSettings.current()
+
+
 def send_order_emails(order) -> dict:
     """Os dois e-mails da confirmação, na ordem em que importam.
 

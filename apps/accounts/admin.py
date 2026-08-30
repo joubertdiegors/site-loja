@@ -86,6 +86,25 @@ class UserAdmin(DjangoUserAdmin):
     readonly_fields = ("date_joined", "last_login", "email_verified_at", "verification_sent_at")
     actions = ("action_send_verification", "action_mark_verified")
 
+    #: Campos que decidem quem manda na loja. Só superusuário mexe.
+    PERMISSION_FIELDS = ("is_staff", "is_superuser", "groups", "user_permissions")
+
+    def get_readonly_fields(self, request, obj=None):
+        """Ninguém se promove além do próprio nível.
+
+        O Django não restringe isto sozinho: sem esta trava, qualquer conta com
+        `accounts.change_user` — o funcionário que corrige um e-mail de cliente
+        — marcava a caixa "superusuário" e passava a mandar em preço, estoque,
+        pedidos e na configuração de e-mail da loja.
+
+        Os campos continuam **visíveis** (é informação útil: dá para ver quem é
+        staff), só não são editáveis por quem não é superusuário.
+        """
+        readonly = tuple(super().get_readonly_fields(request, obj))
+        if not request.user.is_superuser:
+            readonly += self.PERMISSION_FIELDS
+        return readonly
+
     fieldsets = (
         ("ACESSO", {"fields": ("username", "password")}),
         (
@@ -119,12 +138,12 @@ class UserAdmin(DjangoUserAdmin):
         ),
     )
 
-    @admin.action(description="Enviar e-mail de confirmação")
+    @admin.action(permissions=["change"], description="Enviar e-mail de confirmação")
     def action_send_verification(self, request, queryset):
         sent = sum(1 for user in queryset if send_verification_email(user))
         self.message_user(request, f"{sent} e-mail(s) enviado(s).", messages.SUCCESS)
 
-    @admin.action(description="Marcar e-mail como confirmado")
+    @admin.action(permissions=["change"], description="Marcar e-mail como confirmado")
     def action_mark_verified(self, request, queryset):
         count = 0
         for user in queryset.filter(email_verified=False):

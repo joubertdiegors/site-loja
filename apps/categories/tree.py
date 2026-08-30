@@ -40,9 +40,6 @@ class CategoryTree:
     def roots(self) -> list[Category]:
         return list(self.children.get(None, []))
 
-    def children_of(self, category_id: int) -> list[Category]:
-        return list(self.children.get(category_id, []))
-
     def subtree_ids(self, category_id: int) -> list[int]:
         """IDs da categoria e de todos os seus descendentes."""
         collected = [category_id]

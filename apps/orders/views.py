@@ -32,6 +32,7 @@ from django.views.generic import DetailView, TemplateView
 
 from apps.accounts.models import Customer
 from apps.cart.cart import Cart
+from apps.core.security import ip_is_throttled
 from apps.orders import services
 from apps.orders.forms import CancellationRequestForm, CheckoutForm
 from apps.orders.models import Order, OrderEvent, WebhookEvent
@@ -118,7 +119,18 @@ class CheckoutView(TemplateView):
         if submitted_method:
             from apps.shipping.models import ShippingMethod
 
-            method = ShippingMethod.objects.filter(pk=submitted_method).first()
+            # O id vem do cliente (GET ou POST), então pode não ser número:
+            # `filter(pk="abc")` levanta `ValueError` no ORM antes de qualquer
+            # consulta, e isso seria um 500 anônimo na página de finalizar
+            # compra. Método inválido e método inexistente são a mesma coisa
+            # aqui — os dois caem em `None`, e `build_draft` escolhe a opção
+            # mais barata, que é o comportamento de "ainda não escolheu".
+            try:
+                method_id = int(submitted_method)
+            except (TypeError, ValueError):
+                method_id = None
+            if method_id is not None:
+                method = ShippingMethod.objects.filter(pk=method_id).first()
 
         draft = self.draft_for(address, method)
 
@@ -126,7 +138,11 @@ class CheckoutView(TemplateView):
         context["selected_address"] = address
         context["draft"] = draft
         context["problems"] = services.validate_lines(self.lines) if self.lines else []
-        context["payment_available"] = get_provider().is_configured
+        provider = get_provider()
+        context["payment_available"] = provider.is_configured
+        # O nome do provedor, para a tela não falar de um meio de pagamento
+        # que não é o que está cobrando. Quem escolhe é o servidor.
+        context["payment_provider"] = provider.name
         context.setdefault("form", None)
         return context
 
@@ -234,6 +250,11 @@ class ConfirmationView(OrderAccessMixin, DetailView):
         context = super().get_context_data(**kwargs)
         context["meta_title"] = _("Pedido confirmado — JD PRINT")
         context["awaiting_payment"] = not self.object.is_paid
+        # Como o cliente escolheu pagar. Vem do `Payment` gravado no
+        # checkout, nunca de um parâmetro da URL: esta página é pública
+        # para quem tem o link e não decide nada.
+        ultimo = self.object.payments.first()
+        context["payment_provider"] = ultimo.provider if ultimo else ""
         return context
 
 
@@ -256,6 +277,16 @@ class OrderRetryPaymentView(OrderAccessMixin, View):
         order = self.get_object()
 
         if order.is_paid or order.is_cancelled:
+            return redirect("orders:detail", number=order.number)
+
+        # Cada tentativa grava um `Payment` e, no fluxo de transferência,
+        # manda um e-mail para a loja. Sem freio, um laço de POST queima a
+        # cota diária de envio da hospedagem — e o e-mail é o canal pelo qual
+        # a equipe fica sabendo que há pedido esperando pagamento.
+        if ip_is_throttled(request, "order-retry"):
+            messages.error(
+                request, _("Aguarde alguns instantes antes de tentar pagar de novo.")
+            )
             return redirect("orders:detail", number=order.number)
 
         try:

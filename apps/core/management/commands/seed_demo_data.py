@@ -26,6 +26,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
 from apps.catalog.models import (
+    Brand,
     Color,
     Material,
     PricingMode,
@@ -35,18 +36,176 @@ from apps.catalog.models import (
     ProductVariant,
 )
 from apps.categories.models import Category, CategoryTranslation
+from apps.core.models import DeliveryCountry, SiteLanguage
 from apps.home.models import (
     CtaTarget,
     HomeBanner,
     HomeBannerTranslation,
+    HomeCallout,
+    HomeCalloutTranslation,
+    HomeCard,
+    HomeCardTranslation,
     HomeSection,
     HomeSectionLayout,
     HomeSectionProduct,
     HomeSectionTranslation,
     HomeSectionType,
 )
+from apps.shipping.models import ShippingCarrier, ShippingMethod, ShippingRate
+from apps.storefront.models import (
+    FooterColumn,
+    FooterColumnTranslation,
+    FooterLink,
+    FooterLinkTranslation,
+    FooterSettings,
+    FooterSettingsTranslation,
+    TopBarItem,
+    TopBarItemTranslation,
+)
 
 DEMO_PREFIX = "DEMO-"
+
+#: Os idiomas que a loja oferece hoje. Já existem na migration de dados do
+#: `core`; aqui só garantimos que estão lá e ativos numa instalação nova.
+#: `defaults` só age na criação — idioma que o administrador desativou fica
+#: desativado.
+LANGUAGES = [("pt-br", 0), ("fr", 1), ("nl", 2), ("en", 3)]
+
+#: País de entrega mínimo para a loja funcionar (a sede).
+COUNTRIES = [("BE", "Bélgica", "21.00")]
+
+#: Marcas de filamento. Só o nome: o resto é o administrador quem preenche.
+BRANDS = ["Prusament", "Polymaker", "Sunlu", "Eryone"]
+
+#: Transportadoras usadas na Bélgica.
+CARRIERS = [
+    ("bpost", "BPost", 0, "https://track.bpost.be/btr/web/#/search?itemCode={code}"),
+    ("dpd", "DPD", 1, "https://tracking.dpd.de/status/pt_PT/parcel/{code}"),
+]
+
+#: Métodos de entrega: (código, transportadora, nome, descrição, min, max, ordem).
+SHIPPING_METHODS = [
+    ("bpost-padrao", "bpost", "Correio padrão", "Entrega em casa, sem hora marcada.", 2, 4, 0),
+    ("bpost-ponto", "bpost", "Ponto de retirada", "Você retira num ponto BPost perto de casa.", 2, 5, 1),
+    ("dpd-expresso", "dpd", "Expresso DPD", "Entrega rápida, com rastreio.", 1, 2, 2),
+]
+
+#: Tarifas por faixa de peso, em gramas: (método, país, min, max, preço).
+SHIPPING_RATES = [
+    ("bpost-padrao", "BE", 0, 2000, "4.90"),
+    ("bpost-padrao", "BE", 2001, 10000, "7.90"),
+    ("bpost-ponto", "BE", 0, 2000, "3.90"),
+    ("bpost-ponto", "BE", 2001, 10000, "6.50"),
+    ("dpd-expresso", "BE", 0, 2000, "9.90"),
+    ("dpd-expresso", "BE", 2001, 10000, "13.90"),
+]
+
+#: Os três cards abaixo do banner: (nome interno, ícone, cor, ordem, textos).
+HOME_CARDS = [
+    (
+        "producao-propria", "cube", "brand", 0,
+        {
+            "pt": ("Produção própria", "Impressão feita por nós, com controle de camada e acabamento."),
+            "fr": ("Production maison", "Impression réalisée par nos soins, du calibrage à la finition."),
+            "nl": ("Eigen productie", "Wij printen zelf, met controle over laag en afwerking."),
+            "en": ("Made in-house", "We print it ourselves, from layer height to finish."),
+        },
+    ),
+    (
+        "cores-materiais", "palette", "cyan", 1,
+        {
+            "pt": ("Cores e materiais à escolha", "Cada peça sai na cor e no material que você escolher."),
+            "fr": ("Couleurs et matériaux au choix", "Chaque pièce sort dans la couleur et la matière que vous choisissez."),
+            "nl": ("Kleur en materiaal naar keuze", "Elk stuk komt in de kleur en het materiaal dat u kiest."),
+            "en": ("Your colour, your material", "Every piece comes in the colour and material you pick."),
+        },
+    ),
+    (
+        "personalizacao", "sparkles", "magenta", 2,
+        {
+            "pt": ("Personalização real", "Foto ou texto aplicados na peça antes da impressão."),
+            "fr": ("Personnalisation réelle", "Photo ou texte appliqués sur la pièce avant l'impression."),
+            "nl": ("Echte personalisatie", "Foto of tekst wordt vóór het printen op het stuk aangebracht."),
+            "en": ("Real customisation", "Photo or text applied to the piece before printing."),
+        },
+    ),
+]
+
+#: A chamada final da Home, nos quatro idiomas.
+HOME_CALLOUT = {
+    "pt": ("Personalização", "Tem uma ideia? A gente imprime.",
+           "Cores, tamanhos e materiais à sua escolha — e projetos sob encomenda para o que não existe na loja.",
+           "Ver produtos"),
+    "fr": ("Personnalisation", "Une idée ? Nous l'imprimons.",
+           "Couleurs, tailles et matériaux au choix — et des projets sur mesure pour ce qui n'existe pas en boutique.",
+           "Voir les produits"),
+    "nl": ("Personalisatie", "Hebt u een idee? Wij printen het.",
+           "Kleuren, maten en materialen naar keuze — en maatwerk voor wat niet in de winkel staat.",
+           "Bekijk de producten"),
+    "en": ("Customisation", "Got an idea? We print it.",
+           "Colours, sizes and materials of your choice — and made-to-order projects for what the shop doesn't carry.",
+           "See the products"),
+}
+
+#: A faixa do topo: (nome interno, ícone, ordem, textos).
+TOP_BAR = [
+    ("producao", "cube", 0, {
+        "pt": "Produção própria na Bélgica",
+        "fr": "Production maison en Belgique",
+        "nl": "Eigen productie in België",
+        "en": "Made in-house in Belgium",
+    }),
+    ("personalizacao", "sparkles", 1, {
+        "pt": "Peças personalizadas sob encomenda",
+        "fr": "Pièces personnalisées sur commande",
+        "nl": "Gepersonaliseerde stukken op bestelling",
+        "en": "Personalised pieces made to order",
+    }),
+    ("envio", "truck", 2, {
+        "pt": "Envio para toda a Europa",
+        "fr": "Livraison dans toute l'Europe",
+        "nl": "Verzending naar heel Europa",
+        "en": "Shipping across Europe",
+    }),
+]
+
+#: Textos do rodapé, nos quatro idiomas.
+FOOTER_TEXTS = {
+    "pt": {
+        "about_text": "Produtos criativos feitos com impressão 3D. Peças decorativas, acessórios e filamentos — com opção de personalização e produção sob encomenda.",
+        "categories_title": "Categorias",
+        "contact_title": "Fale com a gente",
+        "copyright_text": "© JD PRINT. Todos os direitos reservados.",
+        "badge_text": "Compra segura",
+    },
+    "fr": {
+        "about_text": "Des produits créatifs réalisés en impression 3D. Objets décoratifs, accessoires et filaments — avec personnalisation et fabrication sur commande.",
+        "categories_title": "Catégories",
+        "contact_title": "Nous contacter",
+        "copyright_text": "© JD PRINT. Tous droits réservés.",
+        "badge_text": "Paiement sécurisé",
+    },
+    "nl": {
+        "about_text": "Creatieve producten gemaakt met 3D-printen. Decoratie, accessoires en filamenten — met personalisatie en productie op bestelling.",
+        "categories_title": "Categorieën",
+        "contact_title": "Neem contact op",
+        "copyright_text": "© JD PRINT. Alle rechten voorbehouden.",
+        "badge_text": "Veilig betalen",
+    },
+    "en": {
+        "about_text": "Creative products made with 3D printing. Decorative pieces, accessories and filaments — with customisation and made-to-order production.",
+        "categories_title": "Categories",
+        "contact_title": "Get in touch",
+        "copyright_text": "© JD PRINT. All rights reserved.",
+        "badge_text": "Secure checkout",
+    },
+}
+
+#: A coluna de informações do rodapé, apontando para as páginas da loja.
+FOOTER_COLUMN = "paginas-institucionais"
+FOOTER_COLUMN_TITLES = {
+    "pt": "Informações", "fr": "Informations", "nl": "Informatie", "en": "Information",
+}
 
 # --- catálogo ---------------------------------------------------------------
 
@@ -63,7 +222,9 @@ CATEGORIES = [
     ("acessorios", None, {"pt": "Acessórios", "fr": "Accessoires", "en": "Accessories", "nl": "Accessoires"}, 3),
 ]
 
-MATERIALS = ["PLA", "PETG", "Resina", "Madeira"]
+#: Os filamentos que a loja usa. "Resina" e "Madeira" continuam porque
+#: podem já existir em instalações antigas — o `get_or_create` não apaga.
+MATERIALS = ["PLA", "PETG", "TPU", "ABS", "Resina", "Madeira"]
 
 COLORS = [
     ("Preto", "#111111"),
@@ -575,12 +736,20 @@ class Command(BaseCommand):
             return
 
         with transaction.atomic():
+            self.ensure_languages()
+            countries = self.ensure_countries()
             categories = self.create_categories()
             materials = self.create_materials()
             colors = self.create_colors()
+            self.create_brands()
             products = self.create_products(categories, materials, colors)
+            self.create_shipping(countries)
             self.create_banner(categories)
             self.create_sections(categories, products)
+            self.create_cards()
+            self.create_callout(categories)
+            self.create_top_bar()
+            self.create_footer()
 
         self.stdout.write(self.style.SUCCESS("Dados de demonstração prontos. Acesse / para ver a Home."))
 
@@ -756,6 +925,175 @@ class Command(BaseCommand):
 
             if was_created:
                 self.stdout.write(f"  seção: {section.internal_name}")
+
+    # -- base da loja ------------------------------------------------------
+
+    def ensure_languages(self):
+        """Garante os quatro idiomas da loja.
+
+        Eles já vêm da migration de dados do `core`. Aqui só existe para uma
+        instalação nova não depender da ordem em que as coisas rodaram.
+        `defaults` age apenas na criação: idioma que o administrador desativou
+        continua desativado.
+        """
+        for code, order in LANGUAGES:
+            SiteLanguage.objects.get_or_create(
+                code=code, defaults={"is_active": True, "sort_order": order}
+            )
+
+    def ensure_countries(self):
+        """A Bélgica, no mínimo — sem país de entrega não há frete nem TVA."""
+        countries = {}
+        for iso, name, vat in COUNTRIES:
+            country, _created = DeliveryCountry.objects.get_or_create(
+                iso_code=iso, defaults={"name": name, "vat_rate": Decimal(vat), "is_active": True}
+            )
+            countries[iso] = country
+        return countries
+
+    def create_brands(self):
+        return {
+            name: Brand.objects.get_or_create(name=name)[0] for name in BRANDS
+        }
+
+    # -- entrega -----------------------------------------------------------
+
+    def create_shipping(self, countries):
+        """Transportadoras, métodos e tarifas.
+
+        A chave de cada `get_or_create` é o que identifica a linha de verdade
+        (o código, ou método+país+faixa de peso), nunca o preço: rodar de novo
+        não mexe numa tarifa que o administrador ajustou.
+        """
+        carriers = {}
+        for code, name, order, tracking in CARRIERS:
+            carriers[code] = ShippingCarrier.objects.get_or_create(
+                code=code,
+                defaults={
+                    "name": name,
+                    "sort_order": order,
+                    "is_active": True,
+                    "tracking_url_template": tracking,
+                },
+            )[0]
+
+        methods = {}
+        for code, carrier_code, name, description, min_days, max_days, order in SHIPPING_METHODS:
+            # A unicidade do método é (transportadora, código) — ver o
+            # UniqueConstraint do model. Procurar só pelo código encontraria a
+            # linha errada no dia em que duas transportadoras usarem o mesmo.
+            methods[code] = ShippingMethod.objects.get_or_create(
+                carrier=carriers[carrier_code],
+                code=code,
+                defaults={
+                    "name": name,
+                    "description": description,
+                    "min_days": min_days,
+                    "max_days": max_days,
+                    "sort_order": order,
+                    "is_active": True,
+                },
+            )[0]
+
+        for method_code, iso, min_weight, max_weight, price in SHIPPING_RATES:
+            country = countries.get(iso) or DeliveryCountry.objects.filter(iso_code=iso).first()
+            if country is None:
+                continue
+            ShippingRate.objects.get_or_create(
+                method=methods[method_code],
+                country=country,
+                min_weight_grams=min_weight,
+                max_weight_grams=max_weight,
+                defaults={"price": Decimal(price)},
+            )
+        return methods
+
+    # -- Home: cards e chamada ---------------------------------------------
+
+    def create_cards(self):
+        for internal_name, icon, accent, order, texts in HOME_CARDS:
+            card, _created = HomeCard.objects.get_or_create(
+                internal_name=internal_name,
+                defaults={"icon": icon, "accent": accent, "sort_order": order, "is_active": True},
+            )
+            for language, (title, text) in texts.items():
+                HomeCardTranslation.objects.get_or_create(
+                    master=card, language=language, defaults={"title": title, "text": text}
+                )
+
+    def create_callout(self, categories):
+        """A chamada final. Uma linha só (`load()` cuida disso)."""
+        callout = HomeCallout.load()
+        target = categories.get("modelos")
+        if target is not None and callout.cta_category_id is None and not callout.cta_url:
+            callout.cta_target = CtaTarget.CATEGORY
+            callout.cta_category = target
+        callout.is_active = True
+        callout.save()
+
+        for language, (eyebrow, title, text, cta_label) in HOME_CALLOUT.items():
+            HomeCalloutTranslation.objects.get_or_create(
+                master=callout,
+                language=language,
+                defaults={
+                    "eyebrow": eyebrow,
+                    "title": title,
+                    "text": text,
+                    "cta_label": cta_label,
+                },
+            )
+
+    # -- faixa do topo e rodapé --------------------------------------------
+
+    def create_top_bar(self):
+        for internal_name, icon, order, texts in TOP_BAR:
+            item, _created = TopBarItem.objects.get_or_create(
+                internal_name=internal_name,
+                defaults={"icon": icon, "sort_order": order, "is_active": True},
+            )
+            for language, text in texts.items():
+                TopBarItemTranslation.objects.get_or_create(
+                    master=item, language=language, defaults={"text": text}
+                )
+
+    def create_footer(self):
+        """Textos, contato e a coluna que aponta para as páginas da loja.
+
+        A coluna já pode existir (migration `storefront.0005`); o
+        `get_or_create` pelo nome interno faz este método não criar uma segunda.
+        """
+        settings_row = FooterSettings.load()
+        settings_row.is_active = True
+        if not settings_row.contact_email:
+            settings_row.contact_email = "contato@jd-print.com"
+        settings_row.save()
+
+        for language, fields in FOOTER_TEXTS.items():
+            FooterSettingsTranslation.objects.get_or_create(
+                master=settings_row, language=language, defaults=fields
+            )
+
+        column, _created = FooterColumn.objects.get_or_create(
+            internal_name=FOOTER_COLUMN, defaults={"is_active": True, "sort_order": 10}
+        )
+        for language, title in FOOTER_COLUMN_TITLES.items():
+            FooterColumnTranslation.objects.get_or_create(
+                master=column, language=language, defaults={"title": title}
+            )
+
+        # Um link por página institucional publicada, por **referência**: é o
+        # que faz o endereço acompanhar o idioma do visitante.
+        from apps.storefront.models import InstitutionalPage, PageSlug
+
+        for order, slug in enumerate(PageSlug.values, start=1):
+            page = InstitutionalPage.objects.filter(slug=slug).first()
+            if page is None:
+                continue
+            FooterLink.objects.get_or_create(
+                column=column,
+                page=page,
+                defaults={"is_active": True, "sort_order": order, "url": ""},
+            )
 
     # -- remoção -----------------------------------------------------------
 

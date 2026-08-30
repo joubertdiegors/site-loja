@@ -1,0 +1,36 @@
+{% load i18n %}JD PRINT — {% translate "Pedido aguardando transferência" %}
+
+{% translate "Este pedido foi registrado e está esperando o pagamento. Envie os dados bancários ao cliente." %}
+
+{{ order.number }} · {{ order.created_at|date:"d/m/Y H:i" }}
+{% translate "Forma de pagamento" %}: {% translate "Transferência bancária" %}
+{% translate "Total a receber" %}: {{ order.currency_symbol }} {{ order.total|floatformat:2 }}
+
+--- {% translate "Cliente" %} ---
+{{ customer.full_name|default:user.username }}
+{{ user.email }}
+{% if customer.phone %}{{ customer.phone }}
+{% endif %}{% if customer.company_name %}{{ customer.company_name }}{% if customer.vat_number %} · {{ customer.vat_number }}{% endif %}
+{% endif %}{% translate "Idioma" %}: {{ order.language|default:"pt-br" }}
+
+{% if shipping_address %}--- {% translate "Entrega" %} ---
+{% for line in shipping_address.lines %}{{ line }}
+{% endfor %}{% if shipping_address.phone %}{{ shipping_address.phone }}
+{% endif %}{% endif %}{% if billing_address %}
+--- {% translate "Faturamento" %} ---
+{% for line in billing_address.lines %}{{ line }}
+{% endfor %}{% if billing_address.vat_number %}{{ billing_address.vat_number }}
+{% endif %}{% endif %}
+{% if bank.is_complete %}--- {% translate "Dados para enviar ao cliente" %} ---
+{{ bank.beneficiary }}
+IBAN: {{ bank.iban }}{% if bank.bic %}
+BIC: {{ bank.bic }}{% endif %}{% if bank.instructions %}
+
+{{ bank.instructions }}{% endif %}
+{% else %}--- {% translate "Atenção" %} ---
+{% translate "Os dados bancários ainda não foram cadastrados no Admin (Pedidos › dados para transferência)." %}
+{% endif %}
+--- {% translate "No Admin" %} ---
+{{ admin_url }}
+
+{% translate "O pedido só fica pago quando alguém confirmar o recebimento no Admin." %}

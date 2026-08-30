@@ -21,6 +21,7 @@ from django.utils.translation import gettext_lazy as _
 
 from apps.orders import services
 from apps.orders.models import (
+    BankTransferSettings,
     CancellationStatus,
     FulfillmentStatus,
     Order,
@@ -76,7 +77,7 @@ class OrderItemInline(ReadOnlyInline):
             upload = obj.personalization_upload
             return format_html(
                 '<a href="{}" target="_blank" rel="noopener">{}</a>',
-                upload.file.url,
+                reverse("cart:customization_file", args=[upload.pk]),
                 upload.original_name or upload.file.name,
             )
         return obj.personalization_text or obj.personalization_notes or obj.personalization_type
@@ -445,7 +446,7 @@ class OrderAdmin(admin.ModelAdmin):
 
     # -- ações -------------------------------------------------------------
 
-    @admin.action(description="Marcar como enviado (envia o e-mail de rastreio)")
+    @admin.action(permissions=["change"], description="Marcar como enviado (envia o e-mail de rastreio)")
     def action_mark_shipped(self, request, queryset):
         done = sum(
             1 for order in queryset if services.mark_shipped(order, order.tracking_number, request.user)
@@ -483,19 +484,19 @@ class OrderAdmin(admin.ModelAdmin):
                 messages.ERROR,
             )
 
-    @admin.action(description="Reenviar confirmação ao cliente")
+    @admin.action(permissions=["change"], description="Reenviar confirmação ao cliente")
     def action_resend_confirmation(self, request, queryset):
         self._resend(request, queryset, "confirmation", "confirmação(ões)")
 
-    @admin.action(description="Reenviar ordem de produção (equipe)")
+    @admin.action(permissions=["change"], description="Reenviar ordem de produção (equipe)")
     def action_resend_admin_email(self, request, queryset):
         self._resend(request, queryset, "admin", "ordem(ns) de produção")
 
-    @admin.action(description="Reenviar aviso de envio ao cliente")
+    @admin.action(permissions=["change"], description="Reenviar aviso de envio ao cliente")
     def action_resend_shipped_email(self, request, queryset):
         self._resend(request, queryset, "shipped", "aviso(s) de envio")
 
-    @admin.action(description="Aprovar cancelamento solicitado")
+    @admin.action(permissions=["change"], description="Aprovar cancelamento solicitado")
     def action_approve_cancellation(self, request, queryset):
         done = sum(1 for order in queryset if services.approve_cancellation(order, user=request.user))
         self.message_user(
@@ -505,7 +506,7 @@ class OrderAdmin(admin.ModelAdmin):
             messages.SUCCESS if done else messages.WARNING,
         )
 
-    @admin.action(description="Recusar cancelamento solicitado")
+    @admin.action(permissions=["change"], description="Recusar cancelamento solicitado")
     def action_refuse_cancellation(self, request, queryset):
         done = sum(1 for order in queryset if services.refuse_cancellation(order, user=request.user))
         self.message_user(
@@ -635,3 +636,61 @@ class OrderNumberSequenceAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         return super().get_queryset(request).annotate(total=Count("pk"))
+
+
+# ---------------------------------------------------------------------------
+# Dados para transferência
+# ---------------------------------------------------------------------------
+
+
+@admin.register(BankTransferSettings)
+class BankTransferSettingsAdmin(admin.ModelAdmin):
+    """Os dados que a equipe manda ao cliente que vai pagar por transferência.
+
+    **Uma linha só** — a loja tem uma conta, não uma lista. Mesmo padrão da
+    configuração de e-mail.
+
+    Hoje nada aqui aparece sozinho na loja: quem envia é uma pessoa, depois de
+    ver o pedido. O cadastro existe para o IBAN não morar num papel, e vai
+    junto no aviso que a loja recebe a cada pedido novo.
+    """
+
+    list_display = ("__str__", "iban", "bic", "situacao", "updated_at")
+    readonly_fields = ("created_at", "updated_at")
+    fieldsets = (
+        (
+            "CONTA QUE RECEBE",
+            {
+                "fields": ("beneficiary", "iban", "bic"),
+                "description": (
+                    "Estes dados vão no aviso que a loja recebe a cada pedido por "
+                    "transferência — é de lá que a equipe copia para responder ao cliente."
+                ),
+            },
+        ),
+        (
+            "INSTRUÇÕES",
+            {
+                "fields": ("instructions",),
+                "description": (
+                    "Texto livre, em português. Ex.: pedir que o número do pedido "
+                    "vá na comunicação da transferência."
+                ),
+            },
+        ),
+        ("AUDITORIA", {"classes": ("collapse",), "fields": ("created_at", "updated_at")}),
+    )
+
+    @admin.display(description="pronto para usar", boolean=True)
+    def situacao(self, obj):
+        return obj.is_complete
+
+    def has_add_permission(self, request):
+        # Uma linha só.
+        return not BankTransferSettings.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        # Apagar deixaria a equipe sem o IBAN no meio da operação; para parar
+        # de usar transferência, troque o PAYMENT_PROVIDER no servidor.
+        return False
+

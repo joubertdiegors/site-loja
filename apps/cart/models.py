@@ -58,10 +58,6 @@ class CustomizationUpload(TimeStampedModel):
             return f"{self.size_bytes / 1024:.0f} KB"
         return f"{self.size_bytes / (1024 * 1024):.1f} MB"
 
-    @property
-    def max_size(self) -> int:
-        return getattr(settings, "CUSTOMIZATION_MAX_UPLOAD_SIZE", 10 * 1024 * 1024)
-
 
 # ---------------------------------------------------------------------------
 # Carrinho persistente

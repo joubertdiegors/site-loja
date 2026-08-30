@@ -14,6 +14,7 @@ from apps.orders.payments.base import (
     WebhookMessage,
 )
 from apps.orders.payments.stripe_provider import StripeProvider
+from apps.orders.payments.transfer_provider import TransferProvider
 
 __all__ = [
     "PaymentError",
@@ -22,6 +23,7 @@ __all__ = [
     "WebhookError",
     "WebhookMessage",
     "StripeProvider",
+    "TransferProvider",
     "get_provider",
     "ImproperlyConfiguredProvider",
     "PROVIDERS",
@@ -34,6 +36,9 @@ class ImproperlyConfiguredProvider(Exception):
 
 PROVIDERS = {
     "stripe": StripeProvider,
+    # Provisório: a loja precisa vender antes de o gateway existir. Sai
+    # trocando `PAYMENT_PROVIDER` no `.env`, sem tocar em pedido nenhum.
+    "transfer": TransferProvider,
 }
 
 

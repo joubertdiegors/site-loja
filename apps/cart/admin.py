@@ -41,7 +41,8 @@ class CustomizationUploadAdmin(admin.ModelAdmin):
         if not obj.file:
             return "—"
         return format_html(
-            '<img src="{}" style="max-height:60px;border-radius:4px" />', obj.file.url
+            '<img src="{}" style="max-height:60px;border-radius:4px" />',
+            reverse("cart:customization_file", args=[obj.pk]),
         )
 
     @admin.display(description="tamanho")

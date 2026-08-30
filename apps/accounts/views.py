@@ -43,6 +43,11 @@ from apps.accounts.forms import (
 from apps.accounts.models import Customer, CustomerAddress, User
 from apps.accounts.tokens import decode_uid, email_verification_token
 from apps.core.languages import is_language_available
+from apps.core.security import (
+    ip_is_throttled,
+    login_is_blocked,
+    register_login_failure,
+)
 
 #: Resposta única dos fluxos que não podem revelar se a conta existe.
 GENERIC_EMAIL_RESPONSE = _(
@@ -56,37 +61,6 @@ def current_language() -> str:
     """Idioma da loja nesta requisição, se ele estiver disponível."""
     language = get_language()
     return language if is_language_available(language) else settings.LANGUAGE_CODE
-
-
-def client_ip(request) -> str:
-    forwarded = request.META.get("HTTP_X_FORWARDED_FOR", "")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    return request.META.get("REMOTE_ADDR", "")
-
-
-def ip_is_throttled(request, bucket: str) -> bool:
-    """Trava por IP, para o envio de e-mail não virar uma torneira.
-
-    Complementa a trava por usuário (``verification_sent_at``), que sozinha não
-    protegeria contra alguém pedindo reenvio para vários endereços diferentes.
-
-    É uma cota (N pedidos por janela) e não "um pedido por janela": num
-    escritório ou numa casa, várias pessoas dividem o mesmo IP, e a segunda
-    delas não pode ficar sem o e-mail por causa da primeira.
-    """
-    interval = int(getattr(settings, "EMAIL_VERIFICATION_IP_INTERVAL", 60))
-    limit = int(getattr(settings, "ACCOUNT_EMAIL_IP_LIMIT", 5))
-    if interval <= 0 or limit <= 0:
-        return False
-
-    key = f"accounts:{bucket}:{client_ip(request)}"
-    try:
-        count = cache.incr(key)
-    except ValueError:  # primeira vez nesta janela
-        cache.set(key, 1, interval)
-        count = 1
-    return count > limit
 
 
 class RegisterView(FormView):
@@ -110,6 +84,28 @@ class RegisterView(FormView):
         context = super().get_context_data(**kwargs)
         context["meta_title"] = _("Criar conta — JD PRINT")
         return context
+
+    def post(self, request, *args, **kwargs):
+        """Cadastro em série é uma torneira de e-mail com o nosso domínio.
+
+        Cada cadastro dispara um e-mail de confirmação para o endereço que o
+        visitante escolheu. Em laço, isso vira envio em massa saindo do
+        remetente da loja — e o estrago não é o nosso servidor, é a reputação
+        do domínio: quem recebe marca como spam e, depois, o e-mail de pedido
+        de um cliente de verdade para na caixa de lixo.
+
+        A trava é a mesma do reenvio de confirmação e do reset de senha
+        (`ip_is_throttled`), com a mesma cota por janela — várias pessoas
+        dividem um IP num escritório, e a segunda delas não pode ficar sem
+        criar conta por causa da primeira.
+        """
+        if ip_is_throttled(request, "register"):
+            messages.warning(
+                request,
+                _("Muitas contas criadas a partir deste endereço. Aguarde alguns instantes."),
+            )
+            return self.form_invalid(self.get_form())
+        return super().post(request, *args, **kwargs)
 
     def form_valid(self, form):
         user = form.save()
@@ -139,9 +135,39 @@ class RegisterView(FormView):
 
 
 class LoginView(auth_views.LoginView):
+    """Entrada do cliente, com freio para tentativa em série.
+
+    Sem o freio, a tela aceitava senha errada indefinidamente — o suficiente
+    para testar uma lista de e-mail+senha vazada de outro site. A trava é a
+    mesma que o reenvio de confirmação e o reset de senha já usavam.
+
+    A mensagem é a mesma para IP bloqueado e para senha errada de propósito:
+    dizer "você foi bloqueado" contaria ao atacante que ele chegou ao limite
+    e como calibrar a próxima rodada.
+    """
+
     template_name = "accounts/login.html"
     authentication_form = LoginForm
     redirect_authenticated_user = True
+
+    def post(self, request, *args, **kwargs):
+        if login_is_blocked(request):
+            form = self.get_form()
+            form.is_valid()  # popula cleaned_data e os erros de campo
+            form.add_error(
+                None,
+                _(
+                    "Muitas tentativas a partir deste endereço. "
+                    "Aguarde alguns minutos e tente de novo."
+                ),
+            )
+            return self.form_invalid(form)
+        return super().post(request, *args, **kwargs)
+
+    def form_invalid(self, form):
+        """Só a falha conta. Acertar a senha não aproxima ninguém do limite."""
+        register_login_failure(self.request)
+        return super().form_invalid(form)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -637,9 +663,9 @@ def _favorite_htmx_response(request, product, esta_favoritado, mensagem):
     }
     if request.POST.get("from_list"):
         contexto["favorites"] = _favorite_products(request.user)
-        return render(request, "accounts/_favorites_update.html", contexto)
+        return render(request, "accounts/_favorites_grid_update.html", contexto)
 
-    return render(request, "accounts/_favorite_update.html", contexto)
+    return render(request, "accounts/_favorite_button_update.html", contexto)
 
 
 def _favorite_products(user):

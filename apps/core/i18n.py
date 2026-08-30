@@ -108,4 +108,17 @@ def translate_path(url: str, target_language: str) -> str:
     if translated is None:
         translated = _add_language_prefix(_strip_language_prefix(path), target_language)
 
+    # Sempre um caminho absoluto DESTE site. Sem esta linha, um caminho como
+    # `/de//evil.com` (o `de` é engolido como prefixo de idioma e sobram duas
+    # barras) sairia daqui como `////evil.com` — que o navegador resolve como
+    # `https://evil.com/`, porque referência começando com `//` é
+    # protocol-relative. Era um open redirect anônimo, de um GET só, usando o
+    # domínio da loja para phishing.
+    #
+    # O corte fica aqui, na raiz, e não em cada chamador: quem chama são o
+    # `PreferredLanguageRedirectMiddleware` e a view `set_language`, e os dois
+    # precisam da mesma garantia. É a mesma regra que o Django aplica em
+    # `url_has_allowed_host_and_scheme`, que recusa `//`, `///` e `////`.
+    translated = "/" + (translated or "").lstrip("/")
+
     return urlunsplit(("", "", translated, parts.query, parts.fragment))

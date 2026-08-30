@@ -1845,3 +1845,56 @@ msgstr "Request sent. We'll be in touch to talk about the partnership."
 
 msgid "Ou fale direto"
 msgstr "Or reach us directly"
+
+#: etapa 20 — pagamento por transferência bancária
+
+msgid "Pedido recebido"
+msgstr "Order received"
+
+msgid "Seu pedido foi registrado com sucesso. Entraremos em contato para enviar os dados para pagamento por transferência bancária."
+msgstr "Your order has been registered. We'll be in touch with the details for payment by bank transfer."
+
+msgid "Transferência bancária"
+msgstr "Bank transfer"
+
+msgid "assim que o pedido for registrado, enviamos por e-mail os dados para você fazer a transferência."
+msgstr "as soon as the order is registered, we'll email you the details to make the transfer."
+
+msgid "Confirmar pedido · €&nbsp;%(total)s"
+msgstr "Confirm order · €&nbsp;%(total)s"
+
+msgid "Você recebe os dados bancários por e-mail"
+msgstr "You'll receive the bank details by email"
+
+msgid "Pedido aguardando transferência"
+msgstr "Order awaiting bank transfer"
+
+msgid "Pedido %(number)s aguardando transferência"
+msgstr "Order %(number)s awaiting bank transfer"
+
+msgid "[JD PRINT] Pedido %(number)s aguardando transferência — %(total)s %(currency)s"
+msgstr "[JD PRINT] Order %(number)s awaiting bank transfer — %(total)s %(currency)s"
+
+msgid "O pedido foi registrado e está esperando o pagamento. Envie os dados bancários ao cliente."
+msgstr "The order is registered and awaiting payment. Send the bank details to the customer."
+
+msgid "O pedido só fica pago quando alguém confirmar o recebimento no Admin."
+msgstr "The order is only paid once someone confirms receipt in the Admin."
+
+msgid "Os dados bancários ainda não foram cadastrados no Admin (Pedidos › dados para transferência)."
+msgstr "The bank details are not registered in the Admin yet (Orders › bank transfer details)."
+
+msgid "Dados para enviar ao cliente"
+msgstr "Details to send to the customer"
+
+msgid "Total a receber"
+msgstr "Total to receive"
+
+msgid "Forma de pagamento"
+msgstr "Payment method"
+
+msgid "Data"
+msgstr "Date"
+
+msgid "enviar dados bancários"
+msgstr "send the bank details"

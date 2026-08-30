@@ -19,12 +19,27 @@ o cliente vê "estamos confirmando", nunca "pago" por otimismo.
           <span class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-state-warning-soft text-state-warning-dark" aria-hidden="true">
             {% icon "clock" "h-6 w-6" %}
           </span>
-          <h1 class="mt-5 font-display text-2xl font-bold tracking-[-0.02em] text-ink sm:text-3xl">
-            {% translate "Estamos confirmando seu pagamento" %}
-          </h1>
-          <p class="mt-3 text-sm leading-relaxed text-ink-soft sm:text-base">
-            {% translate "O banco ainda está respondendo. Assim que a confirmação chegar, enviamos o e-mail com todos os detalhes — normalmente em poucos segundos." %}
-          </p>
+          {% comment %}
+            Duas esperas diferentes: com gateway o dinheiro já saiu e falta
+            a confirmação chegar; por transferência o cliente ainda nem
+            recebeu os dados. Dizer "estamos confirmando" no segundo caso
+            seria mentir sobre o que está acontecendo.
+          {% endcomment %}
+          {% if payment_provider == "transfer" %}
+            <h1 class="mt-5 font-display text-2xl font-bold tracking-[-0.02em] text-ink sm:text-3xl">
+              {% translate "Pedido recebido" %}
+            </h1>
+            <p class="mt-3 text-sm leading-relaxed text-ink-soft sm:text-base">
+              {% translate "Seu pedido foi registrado com sucesso. Entraremos em contato para enviar os dados para pagamento por transferência bancária." %}
+            </p>
+          {% else %}
+            <h1 class="mt-5 font-display text-2xl font-bold tracking-[-0.02em] text-ink sm:text-3xl">
+              {% translate "Estamos confirmando seu pagamento" %}
+            </h1>
+            <p class="mt-3 text-sm leading-relaxed text-ink-soft sm:text-base">
+              {% translate "O banco ainda está respondendo. Assim que a confirmação chegar, enviamos o e-mail com todos os detalhes — normalmente em poucos segundos." %}
+            </p>
+          {% endif %}
           <p class="mt-5 font-mono text-sm text-ink">
             {% translate "Pedido" %} <strong class="text-brand-800">{{ order.number }}</strong>
           </p>

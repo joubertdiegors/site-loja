@@ -296,10 +296,6 @@ class Customer(TimeStampedModel):
         return " ".join(part for part in (self.first_name, self.last_name) if part).strip()
 
     @property
-    def is_company(self) -> bool:
-        return bool(self.company_name or self.vat_number)
-
-    @property
     def is_complete(self) -> bool:
         """Tem o mínimo para um pedido? (o checkout vai exigir bem mais)."""
         return bool(self.first_name and self.last_name)

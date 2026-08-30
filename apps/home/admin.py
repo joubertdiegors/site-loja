@@ -92,12 +92,12 @@ class HomeBannerAdmin(admin.ModelAdmin):
     def has_image(self, obj):
         return bool(obj.image_desktop)
 
-    @admin.action(description="Ativar banners selecionados")
+    @admin.action(permissions=["change"], description="Ativar banners selecionados")
     def action_activate(self, request, queryset):
         updated = queryset.update(is_active=True)
         self.message_user(request, f"{updated} banner(s) ativado(s).", messages.SUCCESS)
 
-    @admin.action(description="Desativar banners selecionados")
+    @admin.action(permissions=["change"], description="Desativar banners selecionados")
     def action_deactivate(self, request, queryset):
         updated = queryset.update(is_active=False)
         self.message_user(request, f"{updated} banner(s) desativado(s).", messages.SUCCESS)
@@ -228,17 +228,17 @@ class HomeSectionAdmin(admin.ModelAdmin):
 
     # -- ações -------------------------------------------------------------
 
-    @admin.action(description="Ativar seções selecionadas")
+    @admin.action(permissions=["change"], description="Ativar seções selecionadas")
     def action_activate(self, request, queryset):
         updated = queryset.update(is_active=True)
         self.message_user(request, f"{updated} seção(ões) ativada(s).", messages.SUCCESS)
 
-    @admin.action(description="Desativar seções selecionadas")
+    @admin.action(permissions=["change"], description="Desativar seções selecionadas")
     def action_deactivate(self, request, queryset):
         updated = queryset.update(is_active=False)
         self.message_user(request, f"{updated} seção(ões) desativada(s).", messages.SUCCESS)
 
-    @admin.action(description="Duplicar seções selecionadas (como rascunho inativo)")
+    @admin.action(permissions=["change"], description="Duplicar seções selecionadas (como rascunho inativo)")
     def action_duplicate(self, request, queryset):
         created = 0
         for section in queryset.prefetch_related("translations", "items"):
@@ -334,12 +334,12 @@ class HomeCardAdmin(admin.ModelAdmin):
     def title_pt(self, obj):
         return obj.tr("title", language=DEFAULT_LANGUAGE.value, default="—")
 
-    @admin.action(description="Ativar cards selecionados")
+    @admin.action(permissions=["change"], description="Ativar cards selecionados")
     def action_activate(self, request, queryset):
         total = queryset.update(is_active=True)
         self.message_user(request, f"{total} card(s) ativado(s).", messages.SUCCESS)
 
-    @admin.action(description="Desativar cards selecionados")
+    @admin.action(permissions=["change"], description="Desativar cards selecionados")
     def action_deactivate(self, request, queryset):
         total = queryset.update(is_active=False)
         self.message_user(request, f"{total} card(s) desativado(s).", messages.SUCCESS)

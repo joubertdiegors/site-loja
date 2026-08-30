@@ -1845,3 +1845,56 @@ msgstr "Demande envoyée. Nous vous contacterons pour parler du partenariat."
 
 msgid "Ou fale direto"
 msgstr "Ou écrivez-nous directement"
+
+#: etapa 20 — pagamento por transferência bancária
+
+msgid "Pedido recebido"
+msgstr "Commande reçue"
+
+msgid "Seu pedido foi registrado com sucesso. Entraremos em contato para enviar os dados para pagamento por transferência bancária."
+msgstr "Votre commande a bien été enregistrée. Nous vous contactons pour vous envoyer les coordonnées de paiement par virement bancaire."
+
+msgid "Transferência bancária"
+msgstr "Virement bancaire"
+
+msgid "assim que o pedido for registrado, enviamos por e-mail os dados para você fazer a transferência."
+msgstr "dès que la commande sera enregistrée, nous vous enverrons par e-mail les coordonnées pour effectuer le virement."
+
+msgid "Confirmar pedido · €&nbsp;%(total)s"
+msgstr "Confirmer la commande · €&nbsp;%(total)s"
+
+msgid "Você recebe os dados bancários por e-mail"
+msgstr "Vous recevrez les coordonnées bancaires par e-mail"
+
+msgid "Pedido aguardando transferência"
+msgstr "Commande en attente de virement"
+
+msgid "Pedido %(number)s aguardando transferência"
+msgstr "Commande %(number)s en attente de virement"
+
+msgid "[JD PRINT] Pedido %(number)s aguardando transferência — %(total)s %(currency)s"
+msgstr "[JD PRINT] Commande %(number)s en attente de virement — %(total)s %(currency)s"
+
+msgid "O pedido foi registrado e está esperando o pagamento. Envie os dados bancários ao cliente."
+msgstr "La commande est enregistrée et attend le paiement. Envoyez les coordonnées bancaires au client."
+
+msgid "O pedido só fica pago quando alguém confirmar o recebimento no Admin."
+msgstr "La commande n'est payée que lorsque quelqu'un confirme la réception dans l'Admin."
+
+msgid "Os dados bancários ainda não foram cadastrados no Admin (Pedidos › dados para transferência)."
+msgstr "Les coordonnées bancaires ne sont pas encore enregistrées dans l'Admin (Commandes › données pour virement)."
+
+msgid "Dados para enviar ao cliente"
+msgstr "Coordonnées à envoyer au client"
+
+msgid "Total a receber"
+msgstr "Total à recevoir"
+
+msgid "Forma de pagamento"
+msgstr "Moyen de paiement"
+
+msgid "Data"
+msgstr "Date"
+
+msgid "enviar dados bancários"
+msgstr "envoyer les coordonnées bancaires"

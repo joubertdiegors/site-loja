@@ -105,28 +105,6 @@ class TranslatableMixin:
             self._translations_by_language = cache
         return cache
 
-    def get_translation(self, language: str | None = None, fallback: bool = True):
-        """Retorna a tradução do idioma pedido.
-
-        Ordem de fallback: idioma pedido -> idioma padrão (pt) -> qualquer
-        tradução existente -> ``None``.
-        """
-        if self.pk is None:
-            return None
-
-        language = language or get_content_language()
-        table = self.translations_by_language()
-
-        translation = table.get(language)
-        if translation is not None or not fallback:
-            return translation
-
-        translation = table.get(DEFAULT_LANGUAGE.value)
-        if translation is not None:
-            return translation
-
-        return next(iter(table.values()), None)
-
     def tr(self, field: str, language: str | None = None, fallback: bool = True, default: str = "") -> str:
         """Valor traduzido de um campo, com fallback por CAMPO.
 
@@ -504,15 +482,6 @@ class EmailSettings(TimeStampedModel):
     def recipient_list(self) -> list[str]:
         """Os e-mails da equipe que recebem a ordem de produção."""
         return self._split(self.admin_recipients)
-
-    def contact_recipient_list(self) -> list[str]:
-        """Quem esta linha diz que recebe contato e revenda.
-
-        Só o que está escrito aqui. Quem resolve o "em branco cai em quem
-        recebe os pedidos" é `apps.core.mailer.contact_recipients()`, para a
-        cadeia de prioridade viver num lugar só.
-        """
-        return self._split(self.contact_recipients)
 
     @property
     def is_usable(self) -> bool:

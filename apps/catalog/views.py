@@ -20,7 +20,6 @@ from django.db.models import Count, F, OuterRef, Prefetch, Q, Subquery
 from django.db.models.functions import Coalesce, Lower
 from django.http import HttpResponsePermanentRedirect
 from django.shortcuts import get_object_or_404
-from django.urls import reverse
 from django.utils import formats
 from django.utils.translation import gettext_lazy as _
 from django.utils.translation import ngettext

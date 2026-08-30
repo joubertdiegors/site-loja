@@ -1845,3 +1845,56 @@ msgstr "Aanvraag verzonden. We nemen contact op over de samenwerking."
 
 msgid "Ou fale direto"
 msgstr "Of neem rechtstreeks contact op"
+
+#: etapa 20 — pagamento por transferência bancária
+
+msgid "Pedido recebido"
+msgstr "Bestelling ontvangen"
+
+msgid "Seu pedido foi registrado com sucesso. Entraremos em contato para enviar os dados para pagamento por transferência bancária."
+msgstr "Uw bestelling is geregistreerd. We nemen contact op om u de gegevens voor de bankoverschrijving te bezorgen."
+
+msgid "Transferência bancária"
+msgstr "Bankoverschrijving"
+
+msgid "assim que o pedido for registrado, enviamos por e-mail os dados para você fazer a transferência."
+msgstr "zodra de bestelling geregistreerd is, sturen we u per e-mail de gegevens voor de overschrijving."
+
+msgid "Confirmar pedido · €&nbsp;%(total)s"
+msgstr "Bestelling bevestigen · €&nbsp;%(total)s"
+
+msgid "Você recebe os dados bancários por e-mail"
+msgstr "U ontvangt de bankgegevens per e-mail"
+
+msgid "Pedido aguardando transferência"
+msgstr "Bestelling wacht op overschrijving"
+
+msgid "Pedido %(number)s aguardando transferência"
+msgstr "Bestelling %(number)s wacht op overschrijving"
+
+msgid "[JD PRINT] Pedido %(number)s aguardando transferência — %(total)s %(currency)s"
+msgstr "[JD PRINT] Bestelling %(number)s wacht op overschrijving — %(total)s %(currency)s"
+
+msgid "O pedido foi registrado e está esperando o pagamento. Envie os dados bancários ao cliente."
+msgstr "De bestelling is geregistreerd en wacht op betaling. Stuur de bankgegevens naar de klant."
+
+msgid "O pedido só fica pago quando alguém confirmar o recebimento no Admin."
+msgstr "De bestelling geldt pas als betaald wanneer iemand de ontvangst in de Admin bevestigt."
+
+msgid "Os dados bancários ainda não foram cadastrados no Admin (Pedidos › dados para transferência)."
+msgstr "De bankgegevens staan nog niet in de Admin (Bestellingen › gegevens voor overschrijving)."
+
+msgid "Dados para enviar ao cliente"
+msgstr "Gegevens om naar de klant te sturen"
+
+msgid "Total a receber"
+msgstr "Te ontvangen totaal"
+
+msgid "Forma de pagamento"
+msgstr "Betaalwijze"
+
+msgid "Data"
+msgstr "Datum"
+
+msgid "enviar dados bancários"
+msgstr "bankgegevens versturen"

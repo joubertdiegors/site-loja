@@ -11,6 +11,13 @@ urlpatterns = [
     path("carrinho/atualizar/", views.update, name="update"),
     path("carrinho/remover/", views.remove, name="remove"),
     path("carrinho/painel/", views.drawer, name="drawer"),
+    # A foto que o cliente enviou. Não é `/media/`: passa por uma view que
+    # confere quem está pedindo (ver `customization_file`).
+    path(
+        "personalizacao/<int:pk>/",
+        views.customization_file,
+        name="customization_file",
+    ),
     # A URL é da etapa 3 e continua a mesma: quem tinha ela salva não perde
     # nada. O que mudou foi o que há do outro lado — agora é o checkout real
     # (apps.orders), não mais a página de "em breve".

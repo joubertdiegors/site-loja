@@ -500,9 +500,6 @@ class InstitutionalPageQuerySet(models.QuerySet):
     def for_display(self):
         return self.filter(is_active=True).order_by("sort_order", "slug")
 
-    def in_footer(self):
-        return self.for_display().filter(show_in_footer=True)
-
 
 class InstitutionalPage(TranslatableMixin, TimeStampedModel):
     """Uma das páginas de informação da loja.

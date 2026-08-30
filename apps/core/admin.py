@@ -4,7 +4,6 @@ from django import forms
 from django.conf import settings
 from django.contrib import admin, messages
 from django.http import HttpResponseRedirect
-from django.shortcuts import render
 from django.template.response import TemplateResponse
 from django.urls import path, reverse
 from django.utils import timezone
@@ -76,12 +75,12 @@ class SiteLanguageAdmin(admin.ModelAdmin):
             return False
         return super().has_delete_permission(request, obj)
 
-    @admin.action(description="Disponibilizar na loja")
+    @admin.action(permissions=["change"], description="Disponibilizar na loja")
     def action_activate(self, request, queryset):
         updated = queryset.update(is_active=True)
         self.message_user(request, f"{updated} idioma(s) disponível(is).", messages.SUCCESS)
 
-    @admin.action(description="Retirar da loja")
+    @admin.action(permissions=["change"], description="Retirar da loja")
     def action_deactivate(self, request, queryset):
         protected = queryset.filter(code=settings.LANGUAGE_CODE)
         updated = queryset.exclude(code=settings.LANGUAGE_CODE).update(is_active=False)
@@ -232,12 +231,12 @@ class DeliveryCountryAdmin(admin.ModelAdmin):
             '<span style="color:#b42318" title="{}">{}</span>', problema, "⚠ sem tarifa"
         )
 
-    @admin.action(description="Passar a entregar nestes países")
+    @admin.action(permissions=["change"], description="Passar a entregar nestes países")
     def action_activate(self, request, queryset):
         updated = queryset.update(is_active=True)
         self.message_user(request, f"{updated} país(es) disponível(is).", messages.SUCCESS)
 
-    @admin.action(description="Parar de entregar nestes países")
+    @admin.action(permissions=["change"], description="Parar de entregar nestes países")
     def action_deactivate(self, request, queryset):
         updated = queryset.update(is_active=False)
         self.message_user(request, f"{updated} país(es) retirado(s) do checkout.", messages.SUCCESS)

@@ -50,4 +50,17 @@ urlpatterns += i18n_patterns(
 )
 
 if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    # Só as pastas públicas. `customizations/` fica de fora de propósito: é
+    # foto que o cliente mandou, e quem a entrega é a view protegida
+    # `cart:customization_file`. Servir `media/` inteiro aqui faria o
+    # desenvolvimento não bater com a produção justamente no ponto que a
+    # etapa fechou.
+    #
+    # Em produção quem serve é o proxy da hospedagem: o mapeamento tem de
+    # apontar para estas duas pastas, nunca para `media/` inteiro (ver
+    # docs/DEPLOY_PYTHONANYWHERE.md).
+    for _publica in ("products", "banners"):
+        urlpatterns += static(
+            f"{settings.MEDIA_URL}{_publica}/",
+            document_root=settings.MEDIA_ROOT / _publica,
+        )

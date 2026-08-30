@@ -110,6 +110,26 @@ fica registrado no histórico do pedido com autor e data.
 
 ---
 
+## 1b. Pagamento por transferência (provisório)
+
+Enquanto `PAYMENT_PROVIDER=transfer` estiver no `.env`, o fluxo é este:
+
+1. o cliente fecha o pedido e vê "Pedido recebido";
+2. a loja recebe **[JD PRINT] Pedido … aguardando transferência**, com o total,
+   o contato do cliente, os endereços e o IBAN cadastrado;
+3. alguém responde ao cliente com os dados bancários;
+4. quando o dinheiro entra, alguém abre o pedido no Admin e confirma o
+   pagamento. **Só aí** o pedido vira pago, o estoque baixa e saem a
+   confirmação do cliente e a ordem de produção.
+
+Cadastre a conta em *Admin › Pedidos › dados para transferência* — sem ela o
+aviso avisa que ela falta, mas o pedido é registrado do mesmo jeito.
+
+Nada confirma pagamento sozinho: não há webhook, e não deve haver. Para voltar
+ao cartão, troque `PAYMENT_PROVIDER=stripe` e recarregue a aplicação.
+
+---
+
 ## 2. Backup
 
 Três coisas precisam sair do servidor. Elas são independentes e se perdem de

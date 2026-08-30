@@ -24,7 +24,7 @@ não vive sem. Tudo aqui vem do snapshot gravado na compra.
               {% if item.personalization_upload %}— {{ item.personalization_upload.original_name }}{% endif %}
               {% if show_sku and item.personalization_upload %}
                 <span style="display:block;font-family:monospace;font-size:12px;">
-                  {{ site_url }}{{ item.personalization_upload.file.url }}
+                  {{ site_url }}{% url 'cart:customization_file' item.personalization_upload.pk %}
                 </span>
               {% endif %}
             {% else %}

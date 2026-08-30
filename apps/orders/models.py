@@ -19,7 +19,6 @@ Um pedido pago que ainda não saiu da oficina é ``confirmed`` + ``paid`` +
 from decimal import Decimal
 
 from django.conf import settings
-from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from django.db import models, transaction
 from django.utils import timezone
@@ -719,9 +718,54 @@ class Payment(TimeStampedModel):
     def __str__(self) -> str:
         return f"{self.order.number} · {self.get_status_display()}"
 
+
+class BankTransferSettings(TimeStampedModel):
+    """Os dados bancários que a equipe manda ao cliente.
+
+    Uma linha só (o padrão de `EmailSettings` e `FooterSettings`): a loja tem
+    uma conta, não uma tabela de contas.
+
+    Hoje eles não aparecem sozinhos para o cliente — quem envia é uma pessoa,
+    depois de ver o pedido. O cadastro existe para que essa pessoa não precise
+    procurar o IBAN num papel, e para que o dia de mostrá-los na tela seja um
+    template a mais, não um model novo.
+
+    **Nada de dados bancários do cliente aqui.** O que a loja recebe é uma
+    transferência; o IBAN de quem paga nunca chega a este servidor.
+    """
+
+    beneficiary = models.CharField("titular da conta", max_length=140, blank=True)
+    iban = models.CharField("IBAN", max_length=40, blank=True)
+    bic = models.CharField("BIC/SWIFT", max_length=15, blank=True)
+    instructions = models.TextField(
+        "instruções de pagamento",
+        blank=True,
+        help_text="Texto que a equipe copia no e-mail. Ex.: use o número do pedido na comunicação.",
+    )
+
+    class Meta:
+        verbose_name = "dados para transferência"
+        verbose_name_plural = "PAGAMENTO — dados para transferência"
+
+    def __str__(self) -> str:
+        return self.beneficiary or "dados para transferência"
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def load(cls) -> "BankTransferSettings":
+        return cls.objects.get_or_create(pk=1)[0]
+
+    @classmethod
+    def current(cls) -> "BankTransferSettings | None":
+        return cls.objects.filter(pk=1).first()
+
     @property
-    def is_succeeded(self) -> bool:
-        return self.status == PaymentState.SUCCEEDED
+    def is_complete(self) -> bool:
+        """Tem o mínimo para alguém conseguir transferir?"""
+        return bool(self.beneficiary and self.iban)
 
 
 class WebhookEvent(models.Model):
