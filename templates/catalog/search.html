@@ -38,8 +38,17 @@ pessoa de volta ao topo para isso é atrito à toa.
     </header>
 
     {# Buscar de novo, sem voltar ao topo. #}
+    {% comment %}
+      Centralizado (`mx-auto`) e mais estreito que o texto acima: o campo é uma
+      ação, não um bloco de leitura, e ancorá-lo no meio da área principal o
+      separa do título sem competir com ele.
+
+      `max-w-xl` (576 px) é a largura confortável para um termo de busca — ela
+      não constrange nada abaixo de 576 px, então no celular o conjunto ocupa a
+      largura disponível inteira e o botão continua ao lado do campo.
+    {% endcomment %}
     <form action="{% url 'catalog:search' %}" method="get" role="search"
-          class="mt-6 flex max-w-xl gap-2">
+          class="mx-auto mt-6 flex max-w-xl gap-2">
       <div class="relative flex-1">
         <span class="pointer-events-none absolute inset-y-0 start-0 flex items-center ps-3.5 text-ink-muted">
           {% icon "search" "h-4 w-4" %}
@@ -54,33 +63,45 @@ pessoa de volta ao topo para isso é atrito à toa.
     </form>
 
     {% comment %}
-      A grade de duas colunas existe quando alguma coluna tem função.
+      Três estados, e a diferença entre eles é se existe **coluna lateral com
+      função** — não se existem produtos.
 
-      Com cards, a lateral segura o alinhamento: é ela que faz o card da busca
-      medir exatamente o que mede no catálogo, e por isso continua sendo um
-      item da grade mesmo vazia (`hidden lg:block`, e não `hidden` — com
-      `display: none` ela sairia da grade e os resultados cairiam na coluna de
-      254 px). Ela também impede o card de mudar de tamanho entre uma busca e
-      outra, conforme o filtro de material aparece ou some.
+      A grade de duas colunas é a do catálogo (`shop-layout`), e lá a primeira
+      coluna é ocupada pelas categorias. Aqui ela só tem o filtro de material;
+      quando não há material para filtrar, reservar os 254 px empurrava a barra
+      e os cards 282 px para a direita, enquanto o título e o campo ficavam na
+      borda esquerda. O bloco de resultados virava uma ilha no meio da página.
 
-      Sem cards não há nada a alinhar, e a coluna vira 254 px de vão morto que
-      empurram a barra e o estado vazio para a direita — enquanto o título e o
-      campo ficam à esquerda. Aí a grade não se justifica.
+      Não havia o que alinhar: sem lateral, os resultados ocupam a largura
+      inteira do container, que é o mesmo container do catálogo.
     {% endcomment %}
-    {% if products or material_nodes %}
+    {% if material_nodes %}
 
+      {% comment %}
+        Com filtro de material: exatamente o layout do catálogo.
+
+        O cartão é desenhado pelo próprio `_material_filter.html` (standalone),
+        e não aqui: a resposta parcial do HTMX troca este `#shop-materials`
+        inteiro, e o que os dois lados não compartilham, eles perdem.
+      {% endcomment %}
       <div class="shop-layout">
-        <div id="shop-materials" class="{% if not material_nodes %}hidden lg:block{% endif %}">
-          {% if material_nodes %}
-            <div class="card p-3 lg:sticky lg:top-28">
-              {% include "catalog/_material_filter.html" with standalone=True %}
-            </div>
-          {% endif %}
+        <div id="shop-materials">
+          {% include "catalog/_material_filter.html" with standalone=True %}
         </div>
 
         <div id="shop-results">
           {% include "catalog/_shop_results.html" %}
         </div>
+      </div>
+
+    {% elif products %}
+
+      {% comment %}
+        Sem filtro, com resultados: uma coluna, na largura toda. A barra de
+        ordenação e a grade passam a medir o mesmo que o container.
+      {% endcomment %}
+      <div id="shop-results" class="mt-7">
+        {% include "catalog/_shop_results.html" %}
       </div>
 
     {% else %}

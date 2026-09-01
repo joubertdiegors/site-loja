@@ -245,8 +245,13 @@ class LanguageTests(TestCase):
         self.assertContains(response, "Gato Pompom")
 
     def test_interface_strings_are_translated(self):
-        self.assertContains(self.client.get(HOME_FR), "Catégories")
-        self.assertContains(self.client.get(HOME_EN), "Categories")
+        """A âncora era "Categorias", que saiu da Home junto com a faixa.
+
+        Trocada por outra cadeia de interface da própria página — o teste
+        continua guardando a mesma coisa: a Home sai traduzida.
+        """
+        self.assertContains(self.client.get(HOME_FR), "Rechercher des produits")
+        self.assertContains(self.client.get(HOME_EN), "Search products")
 
     def test_language_selector_lists_the_available_languages(self):
         response = self.client.get(HOME_PT)

@@ -27,13 +27,27 @@ fingirem funcionar.
           com a lista vindo do banco.
 
           O ponto separador é `aria-hidden`: é desenho, não conteúdo.
+
+          O ícone é o do próprio item (`TopBarItem.icon`), quando houver —
+          o mesmo campo que o hero já usava. Item sem ícone continua
+          aparecendo só com o texto.
         {% endcomment %}
         {% for item in top_bar_items %}
           {% if item.text %}
             {% if not forloop.first %}
               <li class="hidden whitespace-nowrap {% if forloop.counter == 2 %}sm:list-item{% else %}lg:list-item{% endif %}" aria-hidden="true">·</li>
             {% endif %}
-            <li class="{% if not forloop.first %}hidden {% if forloop.counter == 2 %}sm:list-item{% else %}lg:list-item{% endif %} {% endif %}whitespace-nowrap">{{ item.text }}</li>
+            <li class="{% if not forloop.first %}hidden {% if forloop.counter == 2 %}sm:list-item{% else %}lg:list-item{% endif %} {% endif %}whitespace-nowrap">
+              {% comment %}
+                `inline-flex` e não `flex`: o `<li>` continua sendo um item
+                de lista dentro de uma linha, e o alinhamento vertical do
+                ícone com a maiúscula do texto sai do `items-center`.
+              {% endcomment %}
+              <span class="inline-flex items-center gap-1.5 align-middle">
+                {% if item.icon %}{% icon item.icon "h-3.5 w-3.5 shrink-0 text-brand-300" %}{% endif %}
+                {{ item.text }}
+              </span>
+            </li>
           {% endif %}
         {% endfor %}
       </ul>

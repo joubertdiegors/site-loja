@@ -7,6 +7,7 @@ que é como quem digita a grade da Bpost pensa — uma linha por país e faixa.
 
 from django.contrib import admin
 
+from apps.core.admin_mixins import DuplicateAdminMixin
 from apps.shipping.models import ShippingCarrier, ShippingMethod, ShippingRate
 
 
@@ -52,7 +53,24 @@ class ShippingRateInline(admin.TabularInline):
 
 
 @admin.register(ShippingMethod)
-class ShippingMethodAdmin(admin.ModelAdmin):
+class ShippingMethodAdmin(DuplicateAdminMixin):
+    """Duplicar um método é copiar a **grade de preços** junto.
+
+    "Bpost Standard" e "Bpost Express" têm a mesma lista de países e as mesmas
+    faixas de peso; o que muda é o preço de cada linha e o prazo. Sem as
+    tarifas, duplicar economizaria seis campos e deixaria quinze linhas para
+    digitar de novo.
+
+    O `code` vem copiado: com a `UniqueConstraint (carrier, code)`, salvar sem
+    mexer em nada volta com "Método de entrega com este Transportadora e
+    Código já existe" — que é a recusa certa, vinda da regra que já existia.
+    """
+
+    #: As tarifas acompanham. Cada uma nasce apontando para o método novo, e
+    #: `ShippingRate.clean()` continua sendo quem impede faixas sobrepostas —
+    #: agora dentro do método novo, onde a conta é outra.
+    duplicate_inlines = {ShippingRate: ()}
+
     list_display = ("__str__", "delivery_days_display", "rate_count", "is_active", "sort_order")
     list_editable = ("is_active", "sort_order")
     list_filter = ("is_active", "carrier")
@@ -84,7 +102,15 @@ class ShippingMethodAdmin(admin.ModelAdmin):
 
 
 @admin.register(ShippingRate)
-class ShippingRateAdmin(admin.ModelAdmin):
+class ShippingRateAdmin(DuplicateAdminMixin):
+    """A tabela mais repetitiva do projeto: país × faixa de peso × preço.
+
+    Duplicar traz método, país, faixa e preço; troca-se o que muda — o país, ou
+    a faixa seguinte — e salva. Salvar sem trocar nada é recusado por
+    `ShippingRate.clean()`: uma cópia idêntica se sobrepõe à original, e duas
+    faixas sobrepostas dariam dois preços para o mesmo pedido.
+    """
+
     list_display = ("method", "country", "weight_range_display", "price", "is_active")
     list_editable = ("price", "is_active")
     list_filter = ("is_active", "country", "method__carrier")

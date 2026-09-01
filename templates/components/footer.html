@@ -30,7 +30,12 @@ precisa lembrar de atualizar.
 <footer class="mt-16 bg-surface-deep layers-light text-brand-100">
   <div class="container-page py-14">
 
-    <div class="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
+    {% comment %}
+      Três colunas no desktop, e não quatro: a de categorias saiu, e o que
+      restou (logo ocupando duas + a coluna cadastrada) preenche exatamente
+      três. Com quatro sobrava um vão de ~300 px à direita.
+    {% endcomment %}
+    <div class="grid gap-10 sm:grid-cols-2 lg:grid-cols-3">
       <div class="lg:col-span-2">
         {% include "components/logo.html" with dark=True %}
         <p class="mt-5 max-w-sm text-sm leading-relaxed text-brand-200/85">
@@ -62,25 +67,14 @@ precisa lembrar de atualizar.
         {% endif %}
       </div>
 
-      <div>
-        <h2 class="font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-white">
-          {% if footer_settings.categories_title %}
-            {{ footer_settings.categories_title }}
-          {% else %}
-            {% translate "Categorias" %}
-          {% endif %}
-        </h2>
-        <ul class="mt-4 space-y-2.5" role="list">
-          {% for category in nav_categories %}
-            <li>
-              <a class="focus-ring rounded text-sm text-brand-200/85 transition-colors hover:text-white"
-                 href="{{ category.get_absolute_url }}">{{ category.name }}</a>
-            </li>
-          {% empty %}
-            <li class="text-sm text-brand-200/60">{% translate "Em breve" %}</li>
-          {% endfor %}
-        </ul>
-      </div>
+      {% comment %}
+        A coluna automática de categorias foi retirada do rodapé.
+
+        As categorias continuam no banco e no menu do cabeçalho — o que saiu
+        foi só a repetição no rodapé. `nav_categories` continua no contexto
+        (o cabeçalho usa), e `FooterSettings.categories_title` continua
+        cadastrável: voltar é reinserir este bloco.
+      {% endcomment %}
 
       {% comment %}
         As colunas cadastradas. Link com destino vira `<a>`; sem destino, vira

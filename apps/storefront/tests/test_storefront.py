@@ -217,16 +217,32 @@ class FooterSettingsTests(StorefrontBase):
         self.assertIn("Pagamento protegido", html)
         self.assertNotIn("Compra segura", html)
 
-    def test_the_categories_column_title_can_be_replaced(self):
+    def test_the_footer_no_longer_repeats_the_categories(self):
+        """A coluna automática de categorias saiu do rodapé.
+
+        Ela repetia o que o menu do cabeçalho já mostra. `categories_title`
+        continua cadastrável no Admin — o campo não foi removido —, mas o
+        rodapé não o desenha mais.
+        """
         self.configurar(pt={"categories_title": "Nossas linhas"})
-
-        self.assertIn("Nossas linhas", self.html())
-
-    def test_the_category_list_itself_stays_automatic(self):
-        """Trocar por lista manual seria trocar algo que se atualiza sozinho."""
         make_category(slug="filamentos", name="Filamentos")
 
-        self.assertIn("Filamentos", self.html())
+        rodape = self.html().split("<footer", 1)[1]
+
+        self.assertNotIn("Nossas linhas", rodape)
+        self.assertNotIn("Filamentos", rodape)
+
+    def test_the_categories_are_still_in_the_header(self):
+        """Sair do rodapé não é sumir do site — e muito menos do banco."""
+        from apps.categories.models import Category
+
+        make_category(slug="filamentos", name="Filamentos")
+
+        html = self.html()
+        cabecalho = html.split("<header", 1)[1].split("</header>", 1)[0]
+
+        self.assertIn("Filamentos", cabecalho)
+        self.assertTrue(Category.objects.filter(slug="filamentos").exists())
 
     def test_contact_appears_only_when_filled(self):
         html = self.html()

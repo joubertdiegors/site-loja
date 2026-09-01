@@ -405,10 +405,19 @@ class SearchUntranslatedFieldsTests(SearchBase):
 class SearchLayoutTests(SearchBase):
     """A busca é o catálogo por outra porta — inclusive no tamanho do card.
 
-    O defeito: sem filtro de material, a coluna lateral levava `hidden`
-    (`display: none`), e um item com `display: none` **sai da grade**. Sobrava
-    um item, e os resultados caíam na coluna de 254 px — cards de 49 px em vez
-    dos 219 px do catálogo.
+    Dois defeitos já passaram por aqui, e os dois produziam card errado:
+
+    1. (etapa 15b) a lateral vazia levava `hidden` — `display: none` tira o
+       item da grade, sobrava um só, e os resultados caíam na coluna de 254 px:
+       cards de 49 px;
+    2. (esta etapa) a correção do primeiro foi manter a lateral vazia **dentro**
+       da grade. Ela passou a reservar 254 px + o gap e a empurrar a barra e os
+       cards 282 px para a direita, enquanto o título e o campo ficavam na
+       borda esquerda. O bloco de resultados virava uma ilha no meio da página.
+
+    A regra que ficou: a grade de duas colunas existe quando a lateral tem
+    conteúdo. Sem conteúdo não há coluna nenhuma — os resultados ocupam a
+    largura inteira do container, que é o mesmo do catálogo.
 
     A medição em pixels é feita no navegador; o que se guarda aqui é a
     estrutura que a produz.
@@ -425,19 +434,41 @@ class SearchLayoutTests(SearchBase):
         )
 
     def html(self, url, **params):
-        resposta = self.client.get(url, params)
+        # Chaves `HTTP_...` vão como cabeçalho da requisição, não como
+        # parâmetro da URL — é assim que se simula o HTMX.
+        cabecalhos = {k: params.pop(k) for k in list(params) if k.startswith("HTTP_")}
+        resposta = self.client.get(url, params, **cabecalhos)
         self.assertEqual(resposta.status_code, 200, f"{url} respondeu {resposta.status_code}")
         return resposta.content.decode()
 
-    def test_all_three_pages_use_the_same_layout_utility(self):
-        """Duas cópias das classes da grade foi por onde a busca divergiu."""
-        for url, params in (
-            ("/modelos/", {}),
-            ("/categorias/filamentos/", {}),
-            ("/buscar/", {"q": "gato"}),
-        ):
+    def sem_material(self):
+        """Um produto que nenhum material alcança.
+
+        É o único cenário em que a busca não desenha a lateral: com material,
+        mesmo um só, o filtro aparece (`SearchView.MIN_MATERIAL_OPTIONS = 1`).
+        """
+        return make_product(
+            sku="SEM-MAT-01", name="Peça Anônima", category=self.filamentos,
+            price=Decimal("5.00"), stock_quantity=2,
+        )
+
+    def test_the_catalogue_pages_use_the_shared_layout_utility(self):
+        """Duas cópias das classes da grade foi por onde a busca divergiu.
+
+        O catálogo sempre tem lateral (as categorias), então sempre usa a
+        utilidade. A busca usa quando tem material para filtrar — ver
+        `test_the_search_uses_the_same_utility_when_it_has_a_side_column`.
+        """
+        for url, params in (("/modelos/", {}), ("/categorias/filamentos/", {})):
             with self.subTest(url=url):
                 self.assertIn('class="shop-layout"', self.html(url, **params))
+
+    def test_the_search_uses_the_same_utility_when_it_has_a_side_column(self):
+        """Com material para filtrar, a busca é o catálogo — mesma utilidade."""
+        html = self.html("/buscar/", q="pla")
+
+        if 'id="shop-materials"' in html:
+            self.assertIn('class="shop-layout"', html)
 
     def test_no_template_hardcodes_the_grid_columns(self):
         for arquivo in ("shop.html", "search.html"):
@@ -445,18 +476,26 @@ class SearchLayoutTests(SearchBase):
                 with open(f"templates/catalog/{arquivo}", encoding="utf-8") as origem:
                     self.assertNotIn("lg:grid-cols-[254px_1fr]", origem.read())
 
-    def test_the_side_column_survives_on_desktop_when_empty(self):
-        """`hidden` sozinho tirava a coluna da grade e espremia os cards."""
-        html = self.html("/buscar/", q="gato")
+    def test_without_a_filter_no_empty_side_column_is_drawn(self):
+        """Coluna vazia é vão morto: 254 px empurrando tudo para a direita."""
+        self.sem_material()
 
-        self.assertIn('id="shop-materials"', html)
-        self.assertIn("hidden lg:block", html)
+        html = self.html("/buscar/", q="Anônima")
 
-    def test_the_side_column_is_dropped_on_mobile_when_empty(self):
-        """Uma coluna vazia no celular seria só um vão de 24 px."""
-        bloco = self.html("/buscar/", q="gato").split('id="shop-materials"')[1][:80]
+        self.assertNotIn('id="shop-materials"', html)
+        self.assertNotIn('class="shop-layout"', html)
 
-        self.assertIn("hidden", bloco)
+    def test_without_a_filter_the_results_take_the_whole_width(self):
+        """O ponto: a barra e a grade começam onde o título começa."""
+        self.sem_material()
+
+        html = self.html("/buscar/", q="Anônima")
+        depois = html.split('id="shop-results"')[1][:120]
+
+        self.assertIn('class="mt-7"', depois)
+        # Nada de `max-w-*` aqui: essa é a largura do estado vazio, não a de
+        # uma página com cards.
+        self.assertNotIn("max-w-", depois)
 
     def test_all_three_pages_use_the_same_grid_and_card(self):
         for url, params in (
@@ -471,12 +510,118 @@ class SearchLayoutTests(SearchBase):
         resposta = self.client.get("/buscar/", {"q": "gato"})
         self.assertTemplateUsed(resposta, "components/product_card.html")
 
-    def test_with_results_the_two_column_grid_stays(self):
-        """Com card, a lateral segura o alinhamento com o catálogo."""
+    def test_one_material_is_enough_for_the_search_to_show_the_filter(self):
+        """A causa do defeito: o mínimo da vitrine (dois) apagava o filtro.
+
+        De oito termos medidos no banco de trabalho, sete alcançavam exatamente
+        um material — e em todos os sete o filtro sumia.
+        """
+        html = self.html("/buscar/", q="gato")  # só PLA
+
+        self.assertIn('id="shop-materials"', html)
+        self.assertIn("PLA", html)
+
+    def test_the_filter_always_offers_todos_beside_the_material(self):
+        """Sem "Todos" não há como desfazer a escolha."""
         html = self.html("/buscar/", q="gato")
 
-        self.assertIn('class="shop-layout"', html)
-        self.assertIn('id="shop-materials"', html)
+        self.assertIn("Todos", html)
+
+    def test_selecting_the_material_still_filters(self):
+        """A seleção continua funcionando — nenhuma lógica de busca mudou."""
+        todos = self.client.get("/buscar/", {"q": "gato"})
+        filtrado = self.client.get("/buscar/", {"q": "gato", "material": self.pla.slug})
+
+        self.assertEqual(self.encontrados(filtrado), self.encontrados(todos))
+        self.assertEqual(filtrado.context["selected_material"], self.pla)
+
+    def test_a_material_that_matches_nothing_returns_nothing(self):
+        """Filtrar por Resina numa busca só de PLA não pode devolver o PLA."""
+        resposta = self.client.get("/buscar/", {"q": "gato", "material": self.resina.slug})
+
+        self.assertEqual(self.encontrados(resposta), [])
+
+    def test_results_without_any_material_draw_no_filter(self):
+        """Um bloco com só "Todos" seria uma escolha que não escolhe nada."""
+        self.sem_material()
+
+        html = self.html("/buscar/", q="Anônima")
+
+        self.assertNotIn('id="shop-materials"', html)
+
+    def test_the_htmx_swap_returns_the_same_block_as_the_full_page(self):
+        """A troca *out of band* é `outerHTML`: o que os dois lados não
+        compartilham, o primeiro clique perde.
+
+        O defeito real: a página cheia embrulhava o filtro num
+        `card p-3 lg:sticky lg:top-28` e a resposta parcial não. Clicar num
+        material trocava `#shop-materials` inteiro pela versão sem cartão — a
+        lateral perdia fundo, borda, respiro e `sticky`.
+
+        Comparar os dois blocos é o que impede a divergência de voltar.
+        """
+        import re
+
+        def bloco(**extra):
+            html = self.html("/buscar/", q="gato", material=self.pla.slug, **extra)
+            self.assertIn('id="shop-materials"', html)
+            corpo = html.split('id="shop-materials"', 1)[1]
+            corpo = corpo.split("</div>")[0]
+            return re.sub(r"\s+", " ", corpo.replace(' hx-swap-oob="true"', "")).strip()
+
+        self.assertEqual(bloco(), bloco(HTTP_HX_REQUEST="true"))
+
+    def test_the_side_card_survives_the_htmx_swap(self):
+        """O cartão tem de estar nos dois lados, não só na página cheia."""
+        for extra in ({}, {"HTTP_HX_REQUEST": "true"}):
+            with self.subTest(htmx=bool(extra)):
+                html = self.html("/buscar/", q="gato", material=self.pla.slug, **extra)
+                depois = html.split('id="shop-materials"', 1)[1][:160]
+
+                self.assertIn("card p-3", depois)
+                self.assertIn("lg:sticky", depois)
+
+    def test_the_catalogue_filter_keeps_its_separator_and_no_card(self):
+        """No catálogo o filtro fica DENTRO do cartão das categorias.
+
+        Ele não pode ganhar um cartão próprio: seriam dois cartões aninhados.
+        """
+        html = self.html("/categorias/filamentos/")
+
+        self.assertNotIn("card p-3 lg:sticky lg:top-28", html)
+
+    def test_the_shop_still_needs_two_options(self):
+        """A vitrine não muda: lá "Todos + PLA" seria a lista inteira duas vezes."""
+        from apps.catalog.views import SearchView, ShopView
+
+        self.assertEqual(ShopView.MIN_MATERIAL_OPTIONS, 2)
+        self.assertEqual(SearchView.MIN_MATERIAL_OPTIONS, 1)
+
+    def test_the_controls_bar_and_the_grid_share_the_same_box(self):
+        """A barra de ordenação mede o mesmo que a grade — as duas em `#shop-results`.
+
+        Era o sintoma visível: a barra parecia mais larga que os produtos
+        porque as duas viviam numa coluna deslocada, e não porque medissem
+        diferente.
+        """
+        html = self.html("/buscar/", q="gato")
+        bloco = html.split('id="shop-results"')[1]
+
+        self.assertIn('class="product-grid', bloco)
+        self.assertIn("Ordenar", bloco)
+
+    def test_the_empty_state_stays_in_the_reading_column(self):
+        """Sem resultado, uma faixa de 1216 px em volta de quatro linhas seria pior."""
+        depois = self.html("/buscar/", q="zzzznaoexiste").split('id="shop-results"')[1][:120]
+
+        self.assertIn("max-w-2xl", depois)
+
+    def test_the_search_field_is_centred_and_not_full_width(self):
+        """O campo é uma ação, não um bloco de leitura: fica no meio e estreito."""
+        with open("templates/catalog/search.html", encoding="utf-8") as origem:
+            fonte = origem.read()
+
+        self.assertIn('class="mx-auto mt-6 flex max-w-xl gap-2"', fonte)
 
     def test_without_results_there_is_no_dead_side_column(self):
         """O defeito: 254 px de vão morto empurravam tudo para a direita.

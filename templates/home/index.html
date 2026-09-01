@@ -19,19 +19,14 @@ substitui.
 
   {% include "components/hero.html" %}
 
-  {# ---- Categorias: logo abaixo do hero, como atalho ------------------- #}
-  {% if category_cards %}
-    <section class="border-b border-surface-line bg-white py-8" aria-labelledby="titulo-categorias">
-      <div class="container-page">
-        <h2 id="titulo-categorias" class="sr-only">{% translate "Categorias" %}</h2>
-        <ul class="flex flex-wrap gap-3" role="list">
-          {% for card in category_cards %}
-            <li class="min-w-[8.5rem] flex-1">{% include "components/category_card.html" %}</li>
-          {% endfor %}
-        </ul>
-      </div>
-    </section>
-  {% endif %}
+  {% comment %}
+    A faixa de atalhos de categoria que ficava aqui foi retirada da Home.
+
+    Não é remoção de dado: as categorias continuam no banco, no menu do
+    cabeçalho, na vitrine e nas seções. `category_cards` continua sendo
+    montado pela view — o que saiu foi só o desenho, e voltar é reinserir
+    este bloco.
+  {% endcomment %}
 
   {# ---- Seções dinâmicas ------------------------------------------------ #}
   {% for section in sections %}
@@ -69,14 +64,16 @@ substitui.
       <ul class="grid gap-4 sm:grid-cols-3" role="list">
         {% for card in home_cards %}
           {% if card.title %}
-            <li class="card flex h-full flex-col gap-2.5 p-6">
-              <span class="flex h-9 w-9 items-center justify-center rounded-[10px] bg-{{ card.accent }}-100 text-{{ card.accent }}-700" aria-hidden="true">
-                {% icon card.icon "h-4 w-4" %}
+            <li class="card flex h-full items-center gap-4 p-5 sm:gap-5 sm:p-6">
+              <span class="flex h-14 w-14 shrink-0 items-center justify-center rounded-[14px] bg-{{ card.accent }}-100 text-{{ card.accent }}-700" aria-hidden="true">
+                {% icon card.icon "h-7 w-7" %}
               </span>
-              <strong class="text-[15px] text-ink">{{ card.title }}</strong>
-              {% if card.text %}
-                <span class="text-sm leading-relaxed text-ink-soft">{{ card.text }}</span>
-              {% endif %}
+              <div class="min-w-0">
+                <strong class="block font-display text-base font-bold tracking-[-0.01em] text-ink">{{ card.title }}</strong>
+                {% if card.text %}
+                  <span class="mt-1.5 block text-sm leading-relaxed text-ink-soft">{{ card.text }}</span>
+                {% endif %}
+              </div>
             </li>
           {% endif %}
         {% endfor %}
@@ -86,32 +83,38 @@ substitui.
     <section class="container-page py-12 sm:py-14" aria-labelledby="titulo-como">
       <h2 id="titulo-como" class="sr-only">{% translate "Como trabalhamos" %}</h2>
       <ul class="grid gap-4 sm:grid-cols-3" role="list">
-        <li class="card flex h-full flex-col gap-2.5 p-6">
-          <span class="flex h-9 w-9 items-center justify-center rounded-[10px] bg-brand-100 text-brand-700" aria-hidden="true">
-            {% icon "cube" "h-4 w-4" %}
+        <li class="card flex h-full items-center gap-4 p-5 sm:gap-5 sm:p-6">
+          <span class="flex h-14 w-14 shrink-0 items-center justify-center rounded-[14px] bg-brand-100 text-brand-700" aria-hidden="true">
+            {% icon "cube" "h-7 w-7" %}
           </span>
-          <strong class="text-[15px] text-ink">{% translate "Produção própria" %}</strong>
-          <span class="text-sm leading-relaxed text-ink-soft">
-            {% translate "Impressão feita por nós, com controle de camada e acabamento." %}
-          </span>
+          <div class="min-w-0">
+            <strong class="block font-display text-base font-bold tracking-[-0.01em] text-ink">{% translate "Produção própria" %}</strong>
+            <span class="mt-1.5 block text-sm leading-relaxed text-ink-soft">
+              {% translate "Impressão feita por nós, com controle de camada e acabamento." %}
+            </span>
+          </div>
         </li>
-        <li class="card flex h-full flex-col gap-2.5 p-6">
-          <span class="flex h-9 w-9 items-center justify-center rounded-[10px] bg-cyan-100 text-cyan-700" aria-hidden="true">
-            {% icon "palette" "h-4 w-4" %}
+        <li class="card flex h-full items-center gap-4 p-5 sm:gap-5 sm:p-6">
+          <span class="flex h-14 w-14 shrink-0 items-center justify-center rounded-[14px] bg-cyan-100 text-cyan-700" aria-hidden="true">
+            {% icon "palette" "h-7 w-7" %}
           </span>
-          <strong class="text-[15px] text-ink">{% translate "Cores e materiais à escolha" %}</strong>
-          <span class="text-sm leading-relaxed text-ink-soft">
-            {% translate "Cada peça sai na cor e no material que você escolher." %}
-          </span>
+          <div class="min-w-0">
+            <strong class="block font-display text-base font-bold tracking-[-0.01em] text-ink">{% translate "Cores e materiais à escolha" %}</strong>
+            <span class="mt-1.5 block text-sm leading-relaxed text-ink-soft">
+              {% translate "Cada peça sai na cor e no material que você escolher." %}
+            </span>
+          </div>
         </li>
-        <li class="card flex h-full flex-col gap-2.5 p-6">
-          <span class="flex h-9 w-9 items-center justify-center rounded-[10px] bg-magenta-100 text-magenta-700" aria-hidden="true">
-            {% icon "sparkles" "h-4 w-4" %}
+        <li class="card flex h-full items-center gap-4 p-5 sm:gap-5 sm:p-6">
+          <span class="flex h-14 w-14 shrink-0 items-center justify-center rounded-[14px] bg-magenta-100 text-magenta-700" aria-hidden="true">
+            {% icon "sparkles" "h-7 w-7" %}
           </span>
-          <strong class="text-[15px] text-ink">{% translate "Personalização real" %}</strong>
-          <span class="text-sm leading-relaxed text-ink-soft">
-            {% translate "Foto ou texto aplicados na peça antes da impressão." %}
-          </span>
+          <div class="min-w-0">
+            <strong class="block font-display text-base font-bold tracking-[-0.01em] text-ink">{% translate "Personalização real" %}</strong>
+            <span class="mt-1.5 block text-sm leading-relaxed text-ink-soft">
+              {% translate "Foto ou texto aplicados na peça antes da impressão." %}
+            </span>
+          </div>
         </li>
       </ul>
     </section>

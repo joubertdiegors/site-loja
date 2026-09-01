@@ -20,10 +20,19 @@ novo.
 {% endcomment %}
 {% if material_nodes %}
   {% comment %}
-    `standalone`: na busca ele e o unico bloco do cartao, e o separador de cima
-    nao separaria nada.
+    `standalone`: na busca este filtro é o cartão inteiro da lateral, e não um
+    bloco abaixo das categorias — por isso ele mesmo desenha o cartão, e o
+    separador de cima não separaria nada.
+
+    O cartão mora AQUI, e não em quem inclui, de propósito. `#shop-materials` é
+    escrito em dois lugares — a página cheia (`search.html`) e a resposta
+    parcial do HTMX (`_shop_results.html`) —, e a troca *out of band* substitui
+    o nó inteiro por `outerHTML`. Enquanto o cartão era do lado de fora, os dois
+    lados divergiam e o primeiro clique num material descascava a lateral. É o
+    mesmo desenho de `_shop_sidebar.html`, onde o `card p-3` já vive dentro do
+    elemento que carrega o `id`.
   {% endcomment %}
-  <div class="{% if not standalone %}mt-3 border-t border-surface-line pt-3{% endif %}">
+  <div class="{% if standalone %}card p-3 lg:sticky lg:top-28{% else %}mt-3 border-t border-surface-line pt-3{% endif %}">
     <h2 id="titulo-materiais-shop"
         class="px-2.5 pb-2 pt-1.5 font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-ink-muted">
       {% translate "Material" %}

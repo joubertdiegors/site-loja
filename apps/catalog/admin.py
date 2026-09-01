@@ -28,7 +28,11 @@ from apps.catalog.models import (
     ProductTranslation,
     ProductVariant,
 )
-from apps.core.admin_mixins import AuditUserAdminMixin, TranslatedSlugAdminMixin
+from apps.core.admin_mixins import (
+    AuditUserAdminMixin,
+    DuplicateAdminMixin,
+    TranslatedSlugAdminMixin,
+)
 from apps.core.constants import DEFAULT_LANGUAGE, Language
 
 # ---------------------------------------------------------------------------
@@ -105,8 +109,18 @@ class MaterialTranslationInline(NameTranslationInline):
 
 
 @admin.register(Material)
-class MaterialAdmin(admin.ModelAdmin):
+class MaterialAdmin(DuplicateAdminMixin):
     """O material é um só; o que muda por idioma é o nome que o cliente lê."""
+
+    #: O `name` é copiado de propósito: ele é a identidade (é `unique`), e é o
+    #: que faz "Duplicar" + "Salvar" sem mexer em nada voltar com "Material com
+    #: este nome interno já existe" em vez de criar um segundo PLA. O `slug` sai
+    #: vazio porque o `save()` o gera a partir do nome.
+    duplicate_exclude = ("slug",)
+
+    #: As traduções são o motivo de duplicar um material: são elas que custam
+    #: caro de digitar. Cada uma vira uma linha nova, do material novo.
+    duplicate_inlines = {MaterialTranslation: ()}
 
     inlines = [MaterialTranslationInline]
     list_display = ("name", "translations_display", "slug", "description", "is_active")
@@ -131,8 +145,14 @@ class ColorTranslationInline(NameTranslationInline):
 
 
 @admin.register(Color)
-class ColorAdmin(admin.ModelAdmin):
+class ColorAdmin(DuplicateAdminMixin):
     """A cor é uma só; o que muda por idioma é o nome que o cliente lê."""
+
+    #: Mesma decisão do material: `name` copiado (é a identidade `unique`),
+    #: `slug` vazio (o `save()` o gera). O HEX acompanha — duas cores próximas
+    #: partem do mesmo tom e é justamente isso que se quer ajustar.
+    duplicate_exclude = ("slug",)
+    duplicate_inlines = {ColorTranslation: ()}
 
     inlines = [ColorTranslationInline]
     list_display = ("name", "swatch", "translations_display", "hex_code", "slug", "is_active")
@@ -439,12 +459,44 @@ SECTION_ORDER = (
 
 
 @admin.register(Product)
-class ProductAdmin(TranslatedSlugAdminMixin, AuditUserAdminMixin):
+class ProductAdmin(DuplicateAdminMixin, TranslatedSlugAdminMixin, AuditUserAdminMixin):
     #: Quem manda na ordem da tela é `SECTION_ORDER`, não esta lista — ela só
     #: diz quais inlines existem. Mesmo assim vão na ordem final, para quem
     #: ler o arquivo não precisar cruzar os dois lugares.
     inlines = [ProductTranslationInline, ProductVariantInline, ProductMediaInline]
     save_on_top = True
+
+    #: -- Duplicar ---------------------------------------------------------
+    #:
+    #: `sku` é copiado: é a identidade do produto (`unique`), e é o que faz
+    #: "Duplicar" + "Salvar" sem alterar nada parar em "Produto com este SKU já
+    #: existe" em vez de criar um gêmeo. `slug` sai vazio — quem o gera é o
+    #: `TranslatedSlugAdminMixin`, a partir do nome em português.
+    #:
+    #: A auditoria (`created_at`, `created_by`, ...) nunca entra: o Django a
+    #: marca `editable=False`, e `duplicable_values` respeita isso.
+    duplicate_exclude = ("slug",)
+
+    #: Dos três inlines, dois acompanham a cópia:
+    #:
+    #: **CONTEÚDO** — é o motivo de duplicar um produto. Quatro idiomas de
+    #: nome, descrição curta, descrição e informações extras é o trabalho que
+    #: se quer reaproveitar.
+    #:
+    #: **VARIANTES** — preço, custo, peso, dimensões e tempo de impressão são a
+    #: base de uma peça parecida. O SKU vai junto (mesma razão do produto: sem
+    #: ele a cópia idêntica não seria recusada), mas o **estoque não**: é
+    #: quantidade de peça física, do produto original. Copiar "10 em estoque"
+    #: para um produto que ainda não existe faria a loja vender dez unidades
+    #: que ninguém imprimiu — e o campo aparece na tela zerado, para quem
+    #: cadastra informar o número certo.
+    #:
+    #: **MÍDIA** fica de fora: são arquivos. Duas linhas apontando para a mesma
+    #: foto é um vínculo entre os dois produtos, não uma cópia.
+    duplicate_inlines = {
+        ProductTranslation: (),
+        ProductVariant: ("stock_quantity",),
+    }
 
     list_display = (
         "sku",
@@ -478,7 +530,17 @@ class ProductAdmin(TranslatedSlugAdminMixin, AuditUserAdminMixin):
     date_hierarchy = "created_at"
     list_per_page = 30
     autocomplete_fields = ("category", "brand")
-    actions = ("action_activate", "action_deactivate", "action_feature", "action_unfeature")
+    #: `DuplicateAdminMixin.actions` entra explicitamente porque o Django monta
+    #: a lista a partir de `self.actions` e só dela: declarar ações aqui
+    #: **substitui** as da mixin em vez de somar, e o "Duplicar" sumiria da
+    #: tela sem nenhum aviso. `AcaoPorCadastroTests` guarda essa armadilha.
+    actions = (
+        *DuplicateAdminMixin.actions,
+        "action_activate",
+        "action_deactivate",
+        "action_feature",
+        "action_unfeature",
+    )
 
     readonly_fields = (
         "created_at",
@@ -990,13 +1052,25 @@ class ProductAdmin(TranslatedSlugAdminMixin, AuditUserAdminMixin):
 
 
 @admin.register(ProductVariant)
-class ProductVariantAdmin(admin.ModelAdmin):
+class ProductVariantAdmin(DuplicateAdminMixin):
     """A variante também tem tela própria.
 
     O inline dentro do produto serve para cadastrar; esta tela serve para
     operar — procurar por SKU, conferir estoque, corrigir preço de uma opção
     sem abrir o produto inteiro.
     """
+
+    #: Duplicar uma variante é o caminho mais curto para a variante seguinte do
+    #: mesmo produto: muda a cor, ou o tamanho, e o resto (preço, custo, peso,
+    #: dimensões, prazo) já está certo.
+    #:
+    #: A cópia chega com o **mesmo produto e os mesmos eixos**, e é isso que faz
+    #: "Salvar" sem alterar nada esbarrar nas duas regras que o modelo já tem:
+    #: o SKU `unique` e o `clean()`, que recusa dois eixos iguais no mesmo
+    #: produto ("Já existe uma variante com esta combinação neste produto").
+    #:
+    #: Só o estoque não vem: é a contagem física da variante original.
+    duplicate_exclude = ("stock_quantity",)
 
     list_display = (
         "sku",

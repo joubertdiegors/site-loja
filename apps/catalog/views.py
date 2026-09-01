@@ -146,6 +146,16 @@ class ShopView(ListView):
             return None
         return Material.objects.filter(slug=slug, is_active=True).first()
 
+    #: Quantas opções de material justificam desenhar a lista.
+    #:
+    #: Duas, na vitrine: ela mostra a loja inteira, e "Todos + PLA" seria uma
+    #: escolha que não escolhe nada — a lista inteira já é PLA.
+    #:
+    #: A busca sobrescreve para **uma** (ver `SearchView`): lá o recorte é o
+    #: resultado, e "Todos + PLA" diz algo de verdade — que tudo o que apareceu
+    #: é PLA. Some só quando nenhum resultado tem material.
+    MIN_MATERIAL_OPTIONS = 2
+
     def available_materials(self):
         """Materiais que **existem** no recorte atual, com quantos produtos.
 
@@ -171,11 +181,11 @@ class ShopView(ListView):
             .prefetch_related("translations")
         )
         materials = list(rows)
-        # Com um material só não há escolha a fazer: a lista mostraria uma
-        # linha que não filtra nada. Devolver `[]` aqui é o que faz o bloco
-        # inteiro sumir da tela — a decisão fica num lugar, e não numa
-        # condição repetida em cada template que inclui o filtro.
-        if len(materials) < 2:
+        # Quantas opções justificam mostrar a lista — ver `MIN_MATERIAL_OPTIONS`.
+        # Devolver `[]` aqui é o que faz o bloco inteiro sumir da tela: a
+        # decisão fica num lugar, e não numa condição repetida em cada template
+        # que inclui o filtro.
+        if len(materials) < self.MIN_MATERIAL_OPTIONS:
             return []
 
         return [
@@ -910,6 +920,13 @@ class SearchView(ShopView):
         # `distinct()` de novo: cada JOIN acrescentado acima pode repetir a
         # linha do produto, e o cliente veria o mesmo card três vezes.
         return queryset.distinct().order_by(*SORT_OPTIONS[self.sort_key][1])
+
+    #: Um material já é informação aqui, ao contrário da vitrine: o recorte é
+    #: o resultado da busca, e "Todos + PLA" conta ao cliente que tudo o que
+    #: ele encontrou é PLA. Com o mínimo da vitrine (dois), o filtro sumia em
+    #: praticamente toda busca — de oito termos medidos, sete alcançavam
+    #: exatamente um material.
+    MIN_MATERIAL_OPTIONS = 1
 
     def materials_scope(self):
         """A lista de materiais conta sobre o resultado, não sobre a loja."""
