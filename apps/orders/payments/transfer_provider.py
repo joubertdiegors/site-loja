@@ -6,7 +6,11 @@ que é diferente: `start()` é chamado no mesmo lugar, o `Payment` é gravado na
 mesma tabela e o pedido nasce no mesmo estado pendente.
 
 O que muda é para onde o cliente vai: em vez da página de um gateway, ele vai
-direto para a confirmação, que explica que a loja mandará os dados bancários.
+direto para a confirmação — e o e-mail com os dados da conta **já saiu**, antes
+de ele chegar lá. Ninguém da equipe precisa agir para o cliente conseguir pagar;
+a conta usada é a padrão ativa, escolhida no `create_order` e copiada para o
+pedido. A ação do Admin continua existindo para reenviar, ou para mandar por
+outra conta.
 
 ## Nada aqui confirma pagamento
 
@@ -75,12 +79,33 @@ class TransferProvider(PaymentProvider):
             method_label=rotulo,
         )
 
+        # O cliente primeiro: é ele quem está esperando para pagar. Se o aviso
+        # interno falhar, a venda continua andando; se este falhar, o pedido
+        # fica sem instruções — e é por isso que o Admin mantém o reenvio.
+        self._send_details(order)
         self._notify_store(order)
 
         return PaymentStart(
             redirect_url=reverse("orders:confirmation", kwargs={"number": order.number}),
             payment=payment,
         )
+
+    def _send_details(self, order) -> None:
+        """Manda ao cliente os dados da conta que o pedido copiou.
+
+        Falhar aqui não desfaz o pedido — pelo mesmo motivo do aviso interno: a
+        venda já aconteceu. O que falha é a **instrução**, e ela tem conserto
+        (a ação "Enviar dados bancários ao cliente", no Admin), enquanto um
+        pedido desfeito por causa de um servidor de e-mail não tem.
+        """
+        from apps.orders.emails import send_transfer_details_email
+
+        try:
+            send_transfer_details_email(order)
+        except Exception:  # noqa: BLE001 — nenhuma falha de e-mail derruba um pedido
+            logger.exception(
+                "Falha ao enviar os dados bancários do pedido %s ao cliente.", order.number
+            )
 
     def _notify_store(self, order) -> None:
         """Avisa a equipe que há um pedido esperando transferência.

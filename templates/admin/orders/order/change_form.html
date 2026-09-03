@@ -1,0 +1,214 @@
+{% extends "admin/change_form.html" %}
+{% comment %}
+  A tela do pedido: sete seções, uma por área de negócio.
+
+  Duas coisas acontecem aqui.
+
+  **A ordem.** O Django desenha todos os fieldsets e só depois todos os inlines.
+  A ordem que a operação precisa intercala os dois — as notas internas logo
+  abaixo do histórico —, então `OrderAdmin._page_layout` monta em Python uma
+  lista única (`order_layout`) e aqui é só caminhar por ela. A ordem propriamente
+  dita mora em `ORDER_SECTION_ORDER`, no admin: sem isso, mudá-la exigiria editar
+  dois arquivos e lembrar de manter os dois de acordo. É a mesma mecânica do
+  `admin/catalog/product/change_form.html`, de propósito.
+
+  **A aparência dos painéis.** Cada seção é um painel montado em Python
+  (`resumo_painel`, `pagamento_painel`, ...) e o estilo dele está abaixo, num
+  lugar só.
+
+  As cores saem todas das variáveis do próprio Admin (`--border-color`,
+  `--body-quiet-color`, `--message-warning-bg`...). Não é preciosismo: o Admin
+  do Django tem tema escuro, e um verde escrito à mão fica ilegível nele. De
+  quebra, o teste `DesignTokenTests` proíbe cor literal em template.
+{% endcomment %}
+
+{% block extrahead %}
+  {{ block.super }}
+  <style>
+    /* ---- painel: o corpo de cada seção ---------------------------------- */
+    .jd-panel { display: flex; flex-direction: column; gap: 14px; width: 100%; }
+    .jd-panel:empty { display: none; }
+
+    /* Cada painel é uma linha de formulário com um campo somente-leitura sem
+       rótulo. Duas coisas precisam de ajuste por causa disso.
+
+       O rótulo vazio: o Django desenha `<label>:</label>` mesmo quando não há
+       texto, e sobrava um dois-pontos solto no alto de cada seção.
+
+       A largura: o `.readonly` do Django encolhe até o conteúdo, então a grade
+       de duas colunas virava uma só nas seções de conteúdo curto — justamente
+       as que mais ganhariam com a largura da tela. */
+    .field-resumo_painel > .flex-container > label,
+    .field-pagamento_painel > .flex-container > label,
+    .field-producao_painel > .flex-container > label,
+    .field-itens_e_valores > .flex-container > label,
+    .field-cancelamento_painel > .flex-container > label,
+    .field-historico_painel > .flex-container > label,
+    .field-comunicacoes_painel > .flex-container > label,
+    .field-cancelamento_aviso > .flex-container > label { display: none; }
+
+    .field-resumo_painel .readonly,
+    .field-pagamento_painel .readonly,
+    .field-producao_painel .readonly,
+    .field-itens_e_valores .readonly,
+    .field-cancelamento_painel .readonly,
+    .field-historico_painel .readonly,
+    .field-comunicacoes_painel .readonly,
+    .field-cancelamento_aviso .readonly {
+      display: block;
+      width: 100%;
+      max-width: none;
+      padding-left: 0;
+    }
+
+    /* ---- grade de rótulo + valor ---------------------------------------- */
+    /* `auto-fit` em vez de um número de colunas: a mesma grade serve à tela
+       larga do escritório e ao telefone de quem confere um pedido na oficina. */
+    .jd-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 10px 22px;
+    }
+    .jd-cell { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .jd-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      color: var(--body-quiet-color);
+      display: block;
+    }
+    .jd-value { color: var(--body-fg); word-break: break-word; }
+    .jd-addr .jd-value { line-height: 1.5; }
+    .jd-muted { color: var(--body-quiet-color); font-size: 12px; }
+    .jd-empty { color: var(--body-quiet-color); margin: 0; }
+    .jd-foot {
+      margin: 0;
+      font-size: 11px;
+      color: var(--body-quiet-color);
+      border-top: 1px solid var(--hairline-color);
+      padding-top: 8px;
+    }
+
+    /* ---- selos de estado ------------------------------------------------ */
+    .jd-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; }
+    .jd-chip {
+      display: inline-block;
+      padding: 2px 9px;
+      border-radius: 11px;
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.6;
+      background: var(--darkened-bg);
+      color: var(--body-fg);
+      border: 1px solid var(--border-color);
+      white-space: nowrap;
+    }
+    .jd-chip.jd-ok { background: var(--message-success-bg); border-color: transparent; }
+    .jd-chip.jd-warn { background: var(--message-warning-bg); border-color: transparent; }
+    .jd-chip.jd-bad { background: var(--message-error-bg); border-color: transparent; }
+    .jd-chip.jd-info { background: var(--message-info-bg); border-color: transparent; }
+    /* Sem cor de texto própria: os `--message-*-bg` do Admin já mudam com o
+       tema (verde claro no claro, verde escuro no escuro), e `--body-fg`
+       acompanha os dois. É exatamente o que o Django faz nas mensagens dele. */
+
+    /* ---- tabelas compactas ---------------------------------------------- */
+    .jd-scroll { overflow-x: auto; }
+    .jd-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .jd-table th {
+      text-align: left;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      color: var(--body-quiet-color);
+      font-weight: 600;
+      padding: 6px 10px 6px 0;
+      border-bottom: 1px solid var(--border-color);
+      white-space: nowrap;
+    }
+    .jd-table td {
+      padding: 7px 10px 7px 0;
+      border-bottom: 1px solid var(--hairline-color);
+      vertical-align: top;
+    }
+    .jd-table tr:last-child td { border-bottom: 0; }
+
+    /* ---- sub-bloco dentro de uma seção ---------------------------------- */
+    .jd-sub {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin: 0;
+      padding-top: 10px;
+      border-top: 1px solid var(--hairline-color);
+    }
+    .jd-note { margin: 0; }
+    .jd-proof { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .jd-thumb {
+      max-width: 190px;
+      max-height: 190px;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      display: block;
+    }
+
+    /* ---- rodapé de valores ---------------------------------------------- */
+    .jd-totais {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 6px 20px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border-color);
+    }
+    .jd-parcela { display: flex; flex-direction: column; font-size: 13px; }
+    .jd-total {
+      margin-left: auto;
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--body-loud-color);
+    }
+
+    /* ---- atalhos de ação ------------------------------------------------ */
+    /* As ações do Django ficam na lista de pedidos, não na tela de edição.
+       Esta faixa não as executa: ela diz **quais existem para este estado**,
+       para quem está olhando o pedido não precisar decorar a lista inteira. */
+    .jd-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px 10px;
+      margin: 0;
+      padding-top: 10px;
+      border-top: 1px solid var(--hairline-color);
+    }
+    .jd-action {
+      font-size: 12px;
+      padding: 2px 9px;
+      border-radius: 11px;
+      border: 1px dashed var(--border-color);
+      color: var(--body-quiet-color);
+    }
+  </style>
+{% endblock %}
+
+{% block field_sets %}
+  {% if order_layout %}
+    {% for item in order_layout %}
+      {% if item.kind == "fieldset" %}
+        {% include "admin/includes/fieldset.html" with fieldset=item.fieldset heading_level=2 prefix="fieldset" id_prefix=0 id_suffix=item.index %}
+      {% else %}
+        {% include item.formset.opts.template with inline_admin_formset=item.formset %}
+      {% endif %}
+    {% endfor %}
+  {% else %}
+    {{ block.super }}
+  {% endif %}
+{% endblock %}
+
+{% comment %}
+  Os inlines já saíram acima, na posição certa. Repeti-los aqui desenharia cada
+  formset duas vezes — e dois campos com o mesmo `name` no mesmo formulário.
+{% endcomment %}
+{% block inline_field_sets %}
+  {% if not order_layout %}{{ block.super }}{% endif %}
+{% endblock %}

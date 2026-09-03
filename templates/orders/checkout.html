@@ -104,6 +104,12 @@ com o resumo antes do botão de pagar — é o que o cliente confere por último
 
             <form method="post" action="{% url 'cart:checkout' %}" class="contents">
               {% csrf_token %}
+              {% comment %}
+                A chave desta tela. Volta no POST, e é o que faz o segundo
+                clique reconhecer o pedido que o primeiro criou em vez de
+                criar um gêmeo.
+              {% endcomment %}
+              {{ form.checkout_token }}
 
               {% include "orders/_delivery.html" %}
 
@@ -117,26 +123,46 @@ com o resumo antes do botão de pagar — é o que o cliente confere por último
                 </div>
 
                 {% comment %}
-                  Uma forma de pagamento por vez, decidida no servidor
-                  (`PAYMENT_PROVIDER`). A tela nunca oferece um meio que a
-                  loja não tem — nada de cartão desenhado sem gateway.
+                  A lista inteira, com o que ainda não existe **desativado** em
+                  vez de escondido. Esconder faria a loja parecer uma que só
+                  aceita transferência por opção; mostrar em cinza diz que o
+                  resto está a caminho.
+
+                  O `disabled` é conveniência da tela, não a regra: quem decide
+                  o que pode ser escolhido é `CheckoutForm.clean_payment_method`,
+                  no servidor. Um radio reabilitado pelo inspetor chega lá e é
+                  recusado como qualquer código inventado.
                 {% endcomment %}
-                {% if payment_provider == "transfer" %}
-                  <p class="mt-3 flex items-start gap-2 text-sm leading-relaxed text-ink-soft">
-                    {% icon "shield" "mt-0.5 h-4 w-4 shrink-0 text-brand-600" %}
-                    <span>
-                      <strong class="text-ink">{% translate "Transferência bancária" %}</strong> —
-                      {% translate "assim que o pedido for registrado, enviamos por e-mail os dados para você fazer a transferência." %}
-                    </span>
-                  </p>
-                {% else %}
-                  <p class="mt-3 flex items-start gap-2 text-sm leading-relaxed text-ink-soft">
-                    {% icon "shield" "mt-0.5 h-4 w-4 shrink-0 text-brand-600" %}
-                    <span>
-                      {% translate "O pagamento acontece na página segura da Stripe. Os dados do seu cartão não passam pelos nossos servidores." %}
-                    </span>
-                  </p>
-                {% endif %}
+                <fieldset class="mt-4">
+                  <legend class="sr-only">{% translate "Forma de pagamento" %}</legend>
+                  {% if form.payment_method.errors %}
+                    {% for erro in form.payment_method.errors %}
+                      <p class="form-error mb-2">{{ erro }}</p>
+                    {% endfor %}
+                  {% endif %}
+
+                  <div class="space-y-2" role="radiogroup" aria-labelledby="titulo-pagamento">
+                    {% for metodo in payment_methods %}
+                      <label class="flex cursor-pointer items-start gap-3 rounded-card border border-surface-line p-3.5 transition-colors has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-55">
+                        <input type="radio" name="payment_method" value="{{ metodo.code }}"
+                               class="mt-0.5 h-4 w-4 shrink-0 accent-brand-600"
+                               {% if not metodo.is_available %}disabled{% endif %}
+                               {% if metodo.is_available and available_payment_methods|length == 1 %}checked{% endif %}>
+                        <span class="min-w-0 flex-1">
+                          <span class="flex flex-wrap items-center gap-2">
+                            <strong class="text-sm text-ink">{{ metodo.label }}</strong>
+                            {% if not metodo.is_available %}
+                              <span class="rounded-full bg-surface-soft px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.08em] text-ink-muted">
+                                {% translate "Em breve" %}
+                              </span>
+                            {% endif %}
+                          </span>
+                          <span class="mt-0.5 block text-xs leading-relaxed text-ink-soft">{{ metodo.note }}</span>
+                        </span>
+                      </label>
+                    {% endfor %}
+                  </div>
+                </fieldset>
 
                 <div class="mt-4">
                   <label class="form-label" for="{{ form.customer_note.id_for_label }}">
@@ -170,7 +196,7 @@ com o resumo antes do botão de pagar — é o que o cliente confere por último
 
                 <p class="mt-3 text-center font-mono text-[10.5px] uppercase tracking-[0.08em] text-ink-muted">
                   {% if payment_provider == "transfer" %}
-                    {% translate "Você recebe os dados bancários por e-mail" %}
+                    {% translate "Os dados bancários chegam por e-mail na hora" %}
                   {% else %}
                     {% translate "Você será levado à Stripe para concluir" %}
                   {% endif %}

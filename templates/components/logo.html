@@ -2,14 +2,22 @@
 {% comment %}
 Logo da JD PRINT.
 
-Se o arquivo oficial estiver em static/images/logo/, ele é usado como está —
-sem filtros, sem recorte, sem redesenho. Enquanto não estiver, mostramos uma
-marca tipográfica provisória dentro de uma moldura tracejada: fica claro que
-aquele é o espaço da logo, e não uma logo inventada.
+São **duas** imagens diferentes, cadastradas separadamente no Admin
+(CONFIGURAÇÕES DA LOJA → LOGOS E IMAGENS): a do cabeçalho, sobre fundo claro, e
+a do rodapé, sobre fundo escuro. Uma marca escura fica invisível no rodapé, e
+era exatamente isso que acontecia quando as duas eram o mesmo arquivo.
 
-`dark=True` inverte as cores para uso sobre fundo profundo (rodapé).
+`dark=True` escolhe a do rodapé — e também inverte as cores do espaço
+reservado, para o caso de nenhuma imagem estar cadastrada.
+
+Sem imagem, mostramos uma marca tipográfica dentro de uma moldura tracejada:
+fica claro que aquele é o espaço da logo, e não uma logo inventada.
 {% endcomment %}
-{% brand_logo_url as logo_url %}
+{% if dark %}
+  {% brand_footer_logo_url as logo_url %}
+{% else %}
+  {% brand_header_logo_url as logo_url %}
+{% endif %}
 <a href="{% url 'home:index' %}" class="focus-ring flex items-center gap-2.5 rounded-control"
    aria-label="{% blocktranslate %}{{ site_name }} — página inicial{% endblocktranslate %}">
   {% if logo_url %}

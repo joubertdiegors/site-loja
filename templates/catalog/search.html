@@ -107,16 +107,23 @@ pessoa de volta ao topo para isso é atrito à toa.
     {% else %}
 
       {% comment %}
-        Uma coluna só, alinhada com o título. A largura é a do `<header>` acima
-        (`max-w-2xl`): título, subtítulo e resultado ficam na mesma coluna de
-        leitura, e o estado vazio deixa de ser uma faixa tracejada de 1216 px
-        em volta de quatro linhas de texto.
+        Uma coluna só, e agora **centralizada** (`mx-auto`).
+
+        A largura continua a do `<header>` (`max-w-2xl`), pelo mesmo motivo de
+        antes: o estado vazio deixa de ser uma faixa tracejada de 1216 px em
+        volta de quatro linhas de texto. O que muda é a âncora. Encostado à
+        esquerda, o bloco ficava com 600 px de vazio à direita numa tela larga e
+        parecia um pedaço solto da página; no meio, ele é o assunto da tela — que
+        é o que ele é, já que não há mais nada para ver.
+
+        O campo de busca acima já é `mx-auto`: os dois passam a compartilhar o
+        mesmo eixo, e o olho desce do campo direto para a resposta.
 
         Sem `min-height` em lugar nenhum: empurrar o rodapé com altura
         artificial esconderia o sintoma em vez de resolver. Página com pouco
         conteúdo é curta.
       {% endcomment %}
-      <div id="shop-results" class="mt-7 max-w-2xl">
+      <div id="shop-results" class="mx-auto mt-7 max-w-2xl">
         {% include "catalog/_shop_results.html" %}
       </div>
 

@@ -140,7 +140,10 @@ class HomeBanner(TranslatableMixin, CtaMixin, TimeStampedModel):
         upload_to=banner_upload_to,
         blank=True,
         validators=[FileExtensionValidator(allowed_extensions=list(BANNER_IMAGE_EXTENSIONS))],
-        help_text="Proporção recomendada: 16:6 (ex.: 1920×720).",
+        help_text=(
+            "1920 × 700 px — proporção 2,74:1. Fora dessa medida a imagem é "
+            "cortada pelo centro para caber na faixa."
+        ),
     )
     image_mobile = models.FileField(
         "imagem (mobile)",

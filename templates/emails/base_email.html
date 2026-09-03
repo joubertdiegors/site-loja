@@ -36,9 +36,17 @@ tipográfica, como no header enquanto a logo oficial não está no projeto.
 
           <tr>
             <td style="padding:18px 28px;background-color:#fbfaff;border-top:1px solid #e6e0f5;font-size:12px;color:#6b6486;">
+              {% comment %}
+                O aviso contra golpe. É bloco porque o e-mail que leva o IBAN da
+                loja precisa de outra frase: repetir "a JD PRINT nunca manda
+                dados bancários" logo abaixo dos dados bancários ensinaria o
+                cliente a ignorar o aviso.
+              {% endcomment %}
+              {% block email_security_note %}
               <p style="margin:0 0 6px 0;">
                 {% blocktranslate %}A JD PRINT nunca pede senha, dados bancários ou código por e-mail.{% endblocktranslate %}
               </p>
+              {% endblock %}
               <p style="margin:0;">
                 <a href="{{ site_url }}" style="color:#6d2ce0;text-decoration:none;">{{ site_url }}</a>
               </p>

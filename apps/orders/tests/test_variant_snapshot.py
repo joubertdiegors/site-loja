@@ -20,6 +20,7 @@ from apps.catalog.models import Color, ColorTranslation, Material, ProductVarian
 from apps.core.testing import (
     LanguageResetMixin,
     make_address,
+    make_bank_account,
     make_country,
     make_method,
     make_product,
@@ -43,6 +44,7 @@ class VariantSnapshotBase(LanguageResetMixin, TestCase):
         self.method = make_method(min_days=2, max_days=3)
         make_rate(self.method, self.country, 0, 500, "4.90")
         make_rate(self.method, self.country, 501, 5000, "7.90")
+        make_bank_account()
 
         self.user = make_user(username="diego3d", email="diego@example.com")
         self.address = make_address(self.user.customer, self.country)

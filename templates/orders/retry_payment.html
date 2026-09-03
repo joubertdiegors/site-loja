@@ -1,0 +1,155 @@
+{% extends "accounts/base_account.html" %}
+{% load i18n jdprint %}
+
+{% comment %}
+"Pagar agora" — a segunda tentativa de um pedido que ficou esperando.
+
+A tela existe porque o tempo passa. Entre o pedido nascer e o cliente voltar
+para pagá-lo, a peça pode ter esgotado, a loja pode ter ligado outra forma de
+pagamento e a conta bancária pode ter mudado. Repetir cegamente a escolha de
+semanas atrás mandaria o cliente transferir para uma conta desativada, por uma
+peça que não existe mais.
+
+Por isso ela pergunta de novo — e, com uma forma só disponível, "perguntar" é
+mostrar qual é e confirmar. Nenhum pedido novo nasce aqui: é o mesmo `Order`,
+com uma tentativa de pagamento a mais.
+{% endcomment %}
+
+{% block account_eyebrow %}{% translate "Meus pedidos" %}{% endblock %}
+{% block account_title %}{% translate "Pagar agora" %}{% endblock %}
+{% block account_subtitle %}
+  <p class="section-subtitle">{{ order.number }}</p>
+{% endblock %}
+
+{% block account_body %}
+  <div class="max-w-xl space-y-5">
+
+    {# 1. O que se vai pagar. #}
+    <div class="card p-6 sm:p-7">
+      <h2 class="font-display text-base font-bold text-ink">{% translate "Pedido" %}</h2>
+      <dl class="mt-3 space-y-2 text-sm">
+        <div class="flex items-baseline justify-between gap-4">
+          <dt class="text-ink-soft">{% translate "Número" %}</dt>
+          <dd class="font-mono font-bold text-ink">{{ order.number }}</dd>
+        </div>
+        <div class="flex items-baseline justify-between gap-4">
+          <dt class="text-ink-soft">{% translate "Data" %}</dt>
+          <dd class="text-ink">{{ order.created_at|date:"d/m/Y" }}</dd>
+        </div>
+        <div class="flex items-baseline justify-between gap-4">
+          <dt class="text-ink-soft">{% translate "Valor" %}</dt>
+          <dd class="font-display text-lg font-bold text-ink">
+            {{ order.currency_symbol }} {{ order.total|floatformat:2 }}
+          </dd>
+        </div>
+      </dl>
+      <ul class="mt-4 space-y-1.5 border-t border-surface-line pt-4 text-sm text-ink-soft" role="list">
+        {% for item in order.items.all %}
+          <li class="flex justify-between gap-4">
+            <span class="min-w-0">{{ item.quantity }}× {{ item.product_name }}{% if item.variant_label %} · {{ item.variant_label }}{% endif %}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    {% if problems %}
+
+      {# 2a. Não dá para pagar: diga o quê, e não ofereça um botão que mente. #}
+      <div class="card p-6 sm:p-7">
+        <div class="flex items-start gap-3">
+          <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-state-error-soft text-state-error" aria-hidden="true">
+            {% icon "alert" "h-5 w-5" %}
+          </span>
+          <div class="min-w-0">
+            <h2 class="font-display text-base font-bold text-ink">
+              {% translate "Não é possível concluir este pagamento" %}
+            </h2>
+            <p class="mt-1.5 text-sm leading-relaxed text-ink-soft">
+              {% translate "Algo mudou no catálogo desde que você fez o pedido:" %}
+            </p>
+          </div>
+        </div>
+
+        <ul class="mt-4 space-y-2" role="list">
+          {% for problema in problems %}
+            <li class="alert-error" role="alert">
+              {% icon "alert" "h-4 w-4 shrink-0" %}
+              <span>{{ problema }}</span>
+            </li>
+          {% endfor %}
+        </ul>
+
+        <p class="mt-4 text-sm leading-relaxed text-ink-soft">
+          {% translate "Fale com a gente e resolvemos: dá para trocar a peça, ajustar a quantidade ou cancelar o pedido sem custo." %}
+        </p>
+
+        <div class="mt-5 flex flex-wrap gap-3 border-t border-surface-line pt-5">
+          <a href="{% url 'storefront:page_contact' %}" class="btn-primary btn-sm">
+            {% translate "Entrar em contato" %}
+          </a>
+          <a href="{{ order.get_absolute_url }}" class="btn-ghost btn-sm">
+            {% translate "Voltar ao pedido" %}
+          </a>
+        </div>
+      </div>
+
+    {% else %}
+
+      {# 2b. Dá para pagar: a escolha, feita de novo. #}
+      <form method="post" class="card space-y-5 p-6 sm:p-7">
+        {% csrf_token %}
+
+        <div>
+          <h2 class="font-display text-base font-bold text-ink">
+            {% translate "Forma de pagamento" %}
+          </h2>
+          <p class="mt-1.5 text-sm leading-relaxed text-ink-soft">
+            {% if available_payment_methods|length == 1 %}
+              {% translate "Esta é a forma de pagamento disponível hoje. Confirme e enviamos as instruções para o seu e-mail." %}
+            {% else %}
+              {% translate "Escolha como quer pagar. Enviamos as instruções para o seu e-mail." %}
+            {% endif %}
+          </p>
+        </div>
+
+        <div class="space-y-2" role="radiogroup" aria-label="{% translate 'Forma de pagamento' %}">
+          {% for metodo in payment_methods %}
+            <label class="flex cursor-pointer items-start gap-3 rounded-card border border-surface-line p-3.5 transition-colors has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-55">
+              <input type="radio" name="payment_method" value="{{ metodo.code }}"
+                     class="mt-0.5 h-4 w-4 shrink-0 accent-brand-600"
+                     {% if not metodo.is_available %}disabled{% endif %}
+                     {% if metodo.is_available and available_payment_methods|length == 1 %}checked{% endif %}>
+              <span class="min-w-0 flex-1">
+                <span class="flex flex-wrap items-center gap-2">
+                  <strong class="text-sm text-ink">{{ metodo.label }}</strong>
+                  {% if not metodo.is_available %}
+                    <span class="rounded-full bg-surface-soft px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.08em] text-ink-muted">
+                      {% translate "Em breve" %}
+                    </span>
+                  {% endif %}
+                </span>
+                <span class="mt-0.5 block text-xs leading-relaxed text-ink-soft">{{ metodo.note }}</span>
+              </span>
+            </label>
+          {% endfor %}
+        </div>
+
+        <p class="alert-info" role="status">
+          {% icon "mail" "h-4 w-4 shrink-0" %}
+          <span>
+            {% translate "Reenviamos os dados atualizados para o seu e-mail. Nenhum pedido novo é criado — este mesmo continua valendo." %}
+          </span>
+        </p>
+
+        <div class="flex flex-wrap items-center gap-3 border-t border-surface-line pt-5">
+          <button type="submit" class="btn-primary">
+            {% icon "credit-card" "h-4 w-4" %}{% translate "Continuar" %}
+          </button>
+          <a href="{{ order.get_absolute_url }}" class="btn-ghost">{% translate "Voltar ao pedido" %}</a>
+        </div>
+      </form>
+
+    {% endif %}
+
+  </div>
+{% endblock %}

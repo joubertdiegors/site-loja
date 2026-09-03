@@ -1,0 +1,20 @@
+{% load i18n %}JD PRINT — {% translate "AÇÃO NECESSÁRIA: cancelamento solicitado" %}
+
+{% translate "Um cliente pediu o cancelamento de um pedido e está esperando a decisão da equipe. Nada foi cancelado ainda." %}
+
+{{ order.number }} · {{ order.created_at|date:"d/m/Y H:i" }}
+{% translate "Total" %}: {{ order.currency_symbol }} {{ order.total|floatformat:2 }}
+{% translate "Situação" %}: {{ order.get_status_display }} · {{ order.get_payment_status_display }} · {{ order.get_fulfillment_status_display }}
+
+--- {% translate "Cliente" %} ---
+{{ customer.full_name|default:user.username }}
+{{ user.email }}
+{% if customer.phone %}{{ customer.phone }}
+{% endif %}
+--- {% translate "Motivo informado pelo cliente" %} ---
+{{ reason|default:"(não informado)" }}
+
+--- {% translate "Decidir no Admin" %} ---
+{{ admin_url }}
+
+{% translate "Aprovar o cancelamento avisa o cliente automaticamente. Recusar também fica registrado no pedido." %}

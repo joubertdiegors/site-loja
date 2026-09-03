@@ -24,6 +24,7 @@ from apps.cart.cart import CartLine
 from apps.core.testing import (
     LanguageResetMixin,
     make_address,
+    make_bank_account,
     make_country,
     make_method,
     make_product,
@@ -45,6 +46,7 @@ class RecoveryBase(LanguageResetMixin, TestCase):
         self.country = make_country("BE", vat_rate="21.00")
         self.method = make_method(min_days=2, max_days=3)
         make_rate(self.method, self.country, 0, 5000, "5.90")
+        make_bank_account()
 
         self.user = make_user(username="diego3d", email="diego@example.com")
         self.address = make_address(self.user.customer, self.country)
@@ -468,6 +470,7 @@ class FulfillmentHistoryTests(RecoveryBase):
             ("items", self.order.items.count()),
             ("addresses", self.order.addresses.count()),
             ("payments", self.order.payments.count()),
+            ("payment_proofs", self.order.payment_proofs.count()),
             ("history", self.order.history.count()),
             ("notes", 0),
         ):
@@ -492,34 +495,47 @@ class AdminEmailStatusTests(RecoveryBase):
     def page(self):
         return self.client.get(reverse("admin:orders_order_change", args=[self.order.pk]))
 
-    def test_a_pending_order_shows_nothing_sent_yet(self):
+    def test_a_pending_order_has_an_empty_communications_section(self):
         resposta = self.page()
 
-        self.assertContains(resposta, "AVISOS ENVIADOS")
-        self.assertContains(resposta, "ainda não enviado")
+        self.assertContains(resposta, "7. COMUNICAÇÕES")
+        self.assertContains(resposta, "Nenhuma mensagem enviada ainda")
 
-    def test_a_paid_order_shows_the_two_confirmations(self):
+    def test_a_paid_order_lists_the_two_confirmations(self):
         services.confirm_payment(self.order)
+
         resposta = self.page()
 
-        self.assertContains(resposta, "Confirmação ao cliente")
+        self.assertContains(resposta, "Confirmação da compra")
         self.assertContains(resposta, "Ordem de produção")
-        self.assertContains(resposta, "enviado em")
+        self.assertContains(resposta, "registrado no pedido")
 
-    def test_a_failed_email_is_flagged_in_red(self):
+    def test_the_communications_table_names_the_recipient(self):
+        """Quem recebeu é metade da pergunta: cliente ou equipe?"""
+        services.confirm_payment(self.order)
+
+        resposta = self.page()
+
+        self.assertContains(resposta, self.order.customer.user.email)
+
+    def test_a_failed_email_is_flagged_as_pending(self):
+        """A tabela mostra o que saiu; a pendência mostra o que faltou sair."""
         with mock.patch("apps.orders.emails._send", return_value=False):
             services.confirm_payment(self.order)
 
         resposta = self.page()
+
+        self.assertContains(resposta, "Pendências")
         self.assertContains(resposta, "NÃO enviado")
 
     def test_the_shipping_notice_is_not_flagged_before_shipping(self):
         """Ainda não saiu: não ter ido é o certo, não um problema."""
         services.confirm_payment(self.order)
+
         resposta = self.page()
 
-        self.assertContains(resposta, "Aviso de envio")
-        self.assertContains(resposta, "ainda não enviado")
+        self.assertNotContains(resposta, "Aviso de envio")
+        self.assertNotContains(resposta, "Pendências")
 
     def test_the_changelist_flags_the_order_that_needs_attention(self):
         with mock.patch("apps.orders.emails._send", return_value=False):

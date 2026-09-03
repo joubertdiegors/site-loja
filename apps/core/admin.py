@@ -11,6 +11,7 @@ from django.utils.html import format_html
 
 from apps.core.admin_mixins import RequiredDefaultLanguageInlineFormSet
 from apps.core.models import (
+    BrandAssets,
     DeliveryCountry,
     DeliveryCountryTranslation,
     EmailSettings,
@@ -19,7 +20,8 @@ from apps.core.models import (
 
 admin.site.site_header = "JD PRINT — Administração"
 admin.site.site_title = "JD PRINT"
-admin.site.index_title = "Catálogo"
+# A página lista as seções da loja inteira — e uma delas se chama CATÁLOGO.
+admin.site.index_title = "Administração"
 
 
 class SiteLanguageForm(forms.ModelForm):
@@ -39,6 +41,131 @@ class SiteLanguageForm(forms.ModelForm):
         self.fields["code"] = forms.ChoiceField(
             label="idioma", choices=settings.LANGUAGES, help_text="Idioma suportado pelo sistema."
         )
+
+
+@admin.register(BrandAssets)
+class BrandAssetsAdmin(admin.ModelAdmin):
+    """As quatro imagens da marca, cada uma com o seu upload e o seu preview.
+
+    **Uma linha só.** Não é uma galeria: é *a* identidade da loja, e ter duas
+    versões dela é como o rodapé acaba com a logo do ano passado.
+
+    Cada campo tem o preview logo acima, e é isso que torna a tela utilizável:
+    trocar uma logo sem ver a que está lá é trocar no escuro. O preview do
+    rodapé vem sobre fundo escuro, porque é lá que ela vai aparecer — uma marca
+    preta parece ótima no formulário branco e some no rodapé.
+    """
+
+    readonly_fields = (
+        "preview_header_logo",
+        "preview_footer_logo",
+        "preview_favicon",
+        "preview_product_placeholder",
+        "created_at",
+        "updated_at",
+    )
+    fieldsets = (
+        (
+            "LOGO DO TOPO",
+            {
+                "fields": ("preview_header_logo", "header_logo"),
+                "description": (
+                    "Usada <b>só</b> no cabeçalho do site. Em branco, o cabeçalho "
+                    "mostra a marca tipográfica — a loja não quebra."
+                ),
+            },
+        ),
+        (
+            "LOGO DO RODAPÉ",
+            {
+                "fields": ("preview_footer_logo", "footer_logo"),
+                "description": (
+                    "Usada <b>só</b> no rodapé, que tem fundo escuro. "
+                    "Normalmente é a versão clara da marca: a mesma logo do topo "
+                    "costuma sumir ali."
+                ),
+            },
+        ),
+        (
+            "FAVICON",
+            {
+                "fields": ("preview_favicon", "favicon"),
+                "description": (
+                    "O ícone da aba do navegador. Independente das duas logos: "
+                    "num quadrado de 32 px a marca completa não se lê, e o que "
+                    "funciona é o símbolo sozinho."
+                ),
+            },
+        ),
+        (
+            "IMAGEM PADRÃO DOS PRODUTOS",
+            {
+                "fields": ("preview_product_placeholder", "product_placeholder"),
+                "description": (
+                    "Aparece <b>apenas</b> nos produtos que ainda não têm foto "
+                    "própria. Nenhum produto com foto é afetado. Em branco, "
+                    "continua o espaço reservado com a inicial do produto."
+                ),
+            },
+        ),
+        ("AUDITORIA", {"classes": ("collapse",), "fields": ("created_at", "updated_at")}),
+    )
+
+    def has_add_permission(self, request):
+        """Uma linha só — e só para quem já teria permissão de criá-la."""
+        return super().has_add_permission(request) and not BrandAssets.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        """Apagar deixaria o site sem marca. Para tirar uma imagem, limpe o campo."""
+        return False
+
+    def changelist_view(self, request, extra_context=None):
+        """Uma lista de um item é uma tela a mais para chegar ao mesmo lugar."""
+        from django.shortcuts import redirect
+
+        if not self.has_view_permission(request):
+            return super().changelist_view(request, extra_context)
+        return redirect(
+            reverse("admin:core_brandassets_change", args=[BrandAssets.load().pk])
+        )
+
+    # -- previews ----------------------------------------------------------
+
+    @staticmethod
+    def _preview(arquivo, *, escuro=False, altura=64):
+        """A imagem como ela está hoje, ou a frase de que não há nenhuma."""
+        if not arquivo:
+            return format_html(
+                '<span style="color:var(--body-quiet-color)">{}</span>',
+                "Nenhuma imagem cadastrada — o site usa o espaço reservado.",
+            )
+        fundo = "#1b1533" if escuro else "transparent"
+        return format_html(
+            '<div style="display:inline-flex;align-items:center;gap:14px;'
+            'padding:12px 16px;border:1px solid var(--border-color);'
+            'border-radius:10px;background:{}">'
+            '<img src="{}" alt="" style="height:{}px;width:auto;display:block">'
+            "</div>",
+            fundo,
+            arquivo.url,
+            altura,
+        )
+
+    @admin.display(description="como está hoje")
+    def preview_header_logo(self, obj):
+        return self._preview(obj.header_logo)
+
+    @admin.display(description="como está hoje (sobre o fundo do rodapé)")
+    def preview_footer_logo(self, obj):
+        return self._preview(obj.footer_logo, escuro=True)
+
+    @admin.display(description="como está hoje")
+    def preview_favicon(self, obj):
+        return self._preview(obj.favicon, altura=32)
+
+    @admin.display(description="como está hoje")
+    def preview_product_placeholder(self, obj):
+        return self._preview(obj.product_placeholder, altura=140)
 
 
 @admin.register(SiteLanguage)

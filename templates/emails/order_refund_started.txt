@@ -1,0 +1,17 @@
+{% load i18n %}JD PRINT
+
+{% blocktranslate with number=order.number %}Reembolso da encomenda {{ number }}{% endblocktranslate %}
+
+{% blocktranslate with valor=valor moeda=order.currency_symbol %}Iniciámos o reembolso de {{ moeda }} {{ valor }} da sua encomenda.{% endblocktranslate %}
+{% if prazo %}
+{% blocktranslate %}O reembolso será feito em {{ prazo }}.{% endblocktranslate %}
+{% endif %}
+{% translate "O tempo até o valor aparecer na sua conta depende do meio de pagamento e do seu banco." %}
+
+{% translate "Avisamos por e-mail assim que o reembolso estiver concluído." %}
+
+--- {% translate "Seu pedido" %} ---
+{{ order.number }} · {{ order.created_at|date:"d/m/Y" }}
+{{ order_url }}
+
+{% translate "Qualquer dúvida, é só responder a este e-mail." %}

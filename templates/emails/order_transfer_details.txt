@@ -1,0 +1,27 @@
+{% load i18n %}{% blocktranslate with number=order.number %}Pagamento do pedido {{ number }}{% endblocktranslate %} — JD PRINT
+
+{% blocktranslate %}Aqui estão os dados para você concluir o pagamento por transferência bancária.{% endblocktranslate %}
+
+--- {% translate "Transferência" %} ---
+{% translate "Valor" %}: {{ order.currency_symbol }} {{ order.total|floatformat:2 }}
+{% translate "Titular" %}: {{ account.beneficiary }}
+IBAN: {{ account.iban }}{% if account.bic %}
+BIC/SWIFT: {{ account.bic }}{% endif %}
+{% translate "Comunicação" %}: {{ communication }}
+
+{% blocktranslate %}Use a comunicação acima na transferência: é por ela que reconhecemos o seu pagamento.{% endblocktranslate %}
+{% if account.instructions %}
+{{ account.instructions }}
+{% endif %}
+--- {% translate "Depois de pagar" %} ---
+{% blocktranslate %}Envie o comprovante nesta página — é o que nos permite conferir e liberar a produção mais rápido:{% endblocktranslate %}
+{{ proof_url }}
+
+--- {% translate "Seu pedido" %} ---
+{{ order.number }} · {{ order.created_at|date:"d/m/Y" }}
+{{ order_url }}
+
+{% blocktranslate %}O pedido fica reservado aguardando o pagamento. Assim que o valor entrar na conta, confirmamos e começamos a produzir.{% endblocktranslate %}
+
+--- {% translate "Segurança" %} ---
+{% blocktranslate %}Confira o IBAN acima com o que aparece na sua conta em nosso site. A JD PRINT nunca pede a sua senha nem os seus dados bancários por e-mail, e nunca muda o IBAN por mensagem.{% endblocktranslate %}

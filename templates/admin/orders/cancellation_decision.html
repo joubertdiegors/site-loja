@@ -1,0 +1,103 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls %}
+
+{% comment %}
+  Aprovar ou recusar um cancelamento.
+
+  Tem tela intermediária porque a aprovação não é a gravação de um campo: ela
+  para a produção, decide o estoque, fecha a cobrança ou abre o reembolso e
+  manda um e-mail ao cliente — tudo de uma vez, e nada disso se desfaz com um
+  segundo clique.
+
+  Duas perguntas, e as duas só aparecem quando têm sentido:
+
+  * a **resposta ao cliente**, que na recusa é o corpo do e-mail;
+  * o **estoque**, só quando a peça já entrou em produção ou já saiu. Nos
+    outros casos a regra sabe o que fazer, e oferecer a escolha fingiria uma
+    decisão que não existe.
+{% endcomment %}
+
+{% block breadcrumbs %}
+  <div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% translate "Início" %}</a>
+    &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+    &rsaquo; <a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+    &rsaquo; {{ title }}
+  </div>
+{% endblock %}
+
+{% block content %}
+  <h1>{{ title }}</h1>
+
+  {% if aprovar %}
+    <p>
+      {% blocktranslate count total=orders|length %}
+        Ao aprovar, a produção é interrompida, o cliente recebe o e-mail de cancelamento
+        e — se houve cobrança — o reembolso fica aberto para registro.
+      {% plural %}
+        Ao aprovar, a produção destes pedidos é interrompida, os clientes recebem o e-mail
+        de cancelamento e — onde houve cobrança — o reembolso fica aberto para registro.
+      {% endblocktranslate %}
+    </p>
+  {% else %}
+    <p>
+      {% translate "Ao recusar, o pedido segue o curso normal e o cliente recebe um e-mail com a resposta escrita abaixo." %}
+    </p>
+  {% endif %}
+
+  <ul>
+    {% for pedido in orders %}
+      <li>
+        <strong>{{ pedido.number }}</strong>
+        — {{ pedido.currency_symbol }} {{ pedido.total|floatformat:2 }}
+        — {{ pedido.customer.user.email }}
+        — {% translate "produção" %}: {{ pedido.get_fulfillment_status_display }}
+        — {% translate "pagamento" %}: {{ pedido.get_payment_status_display }}
+        {% if pedido.has_personalized_items %}
+          <br><strong>{% translate "Contém item personalizado" %}</strong> —
+          {% translate "o direito de arrependimento pode não se aplicar (artigo 16.º c da diretiva 2011/83/UE). Confira antes de decidir." %}
+        {% endif %}
+        {% if pedido.cancellation_reason %}
+          <br>{% translate "Motivo do cliente" %}: <em>{{ pedido.cancellation_reason }}</em>
+        {% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+
+  <form method="post">
+    {% csrf_token %}
+
+    {% for pedido in orders %}
+      <input type="hidden" name="{{ action_checkbox_name }}" value="{{ pedido.pk }}">
+    {% endfor %}
+    <input type="hidden" name="{{ action_field }}" value="{{ action_name }}">
+    <input type="hidden" name="index" value="0">
+    <input type="hidden" name="confirmar" value="1">
+
+    <fieldset class="module aligned">
+      <div class="form-row">
+        {{ form.resposta.errors }}
+        <label for="{{ form.resposta.id_for_label }}">{{ form.resposta.label }}:</label>
+        {{ form.resposta }}
+        <div class="help">{{ form.resposta.help_text }}</div>
+      </div>
+
+      {% if precisa_estoque %}
+        <div class="form-row">
+          {{ form.restore_stock.errors }}
+          <label for="{{ form.restore_stock.id_for_label }}">{{ form.restore_stock.label }}:</label>
+          {{ form.restore_stock }}
+          <div class="help">
+            {% translate "A produção já começou. Uma peça pela metade pode virar sucata ou voltar ao saldo — quem está olhando para ela decide." %}
+          </div>
+        </div>
+      {% endif %}
+    </fieldset>
+
+    <div class="submit-row">
+      <input type="submit" class="default"
+             value="{% if aprovar %}{% translate 'Aprovar o cancelamento' %}{% else %}{% translate 'Recusar o cancelamento' %}{% endif %}">
+      <a href="{% url opts|admin_urlname:'changelist' %}" class="button cancel-link">{% translate "Voltar" %}</a>
+    </div>
+  </form>
+{% endblock %}

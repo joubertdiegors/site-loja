@@ -115,14 +115,19 @@ internas ficam no admin.
                   <span class="w-px flex-1 bg-surface-line"></span>
                 {% endif %}
               </span>
+              {% comment %}
+                Data primeiro, mensagem depois — e a mensagem e a do CLIENTE
+                (`customer_message`), nunca o `message` do evento. Aquele campo
+                e a anotacao da equipe: nele cabe o IBAN mascarado da conta e o
+                nome do arquivo que o cliente mandou, coisas que nao sao
+                comunicacao. O rotulo tecnico do evento tambem sai: "Dados
+                bancarios enviados" e um estado de sistema, nao uma frase.
+              {% endcomment %}
               <span class="min-w-0 flex-1">
-                <span class="block text-sm font-bold text-ink">{{ entry.get_event_display }}</span>
                 <span class="block font-mono text-[10.5px] uppercase tracking-[0.06em] text-ink-muted">
                   {{ entry.created_at|date:"d/m/Y H:i" }}
                 </span>
-                {% if entry.message %}
-                  <span class="mt-0.5 block text-[13px] text-ink-soft">{{ entry.message }}</span>
-                {% endif %}
+                <span class="mt-0.5 block text-sm leading-relaxed text-ink">{{ entry.customer_message }}</span>
               </span>
             </li>
           {% endfor %}
@@ -221,13 +226,15 @@ internas ficam no admin.
       {% endif %}
 
       <div class="flex flex-wrap gap-2">
+        {% comment %}
+          Link, e nao POST: "Pagar agora" abre uma tela que revalida o estoque
+          e pergunta a forma de pagamento de novo. O POST fica no formulario
+          de la, depois de o cliente ver o que ainda esta disponivel.
+        {% endcomment %}
         {% if not order.is_paid and not order.is_cancelled %}
-          <form method="post" action="{% url 'orders:retry_payment' order.number %}">
-            {% csrf_token %}
-            <button type="submit" class="btn-primary btn-sm">
-              {% icon "credit-card" "h-3.5 w-3.5" %}{% translate "Pagar agora" %}
-            </button>
-          </form>
+          <a href="{% url 'orders:retry_payment' order.number %}" class="btn-primary btn-sm">
+            {% icon "credit-card" "h-3.5 w-3.5" %}{% translate "Pagar agora" %}
+          </a>
         {% endif %}
         {% if order.can_request_cancellation %}
           <a href="{% url 'orders:cancel' order.number %}" class="btn-ghost btn-sm text-state-error hover:bg-state-error-soft">

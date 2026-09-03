@@ -1,0 +1,52 @@
+{% extends "emails/base_email.html" %}
+{% load i18n %}
+
+{% comment %}
+  A loja analisou o pedido de cancelamento e não vai cancelar.
+
+  O corpo é a resposta que a equipe escreveu no Admin — e é por isso que aquele
+  campo se chama "resposta ao cliente" e não "nota": ele sai daqui, com estas
+  palavras, para a caixa de entrada de quem comprou.
+
+  Sem resposta escrita, o e-mail continua saindo com a frase neutra. Um cliente
+  que pediu para cancelar e não recebe nada assume que o pedido se perdeu.
+{% endcomment %}
+
+{% block email_title %}{% blocktranslate with number=order.number %}Sobre o seu pedido de cancelamento da encomenda {{ number }}{% endblocktranslate %}{% endblock %}
+{% block email_preview %}{% translate "Analisámos o seu pedido de cancelamento." %}{% endblock %}
+
+{% block email_body %}
+  <h1 style="margin:0 0 12px 0;font-size:19px;line-height:1.3;color:#1b1533;">
+    {% blocktranslate with number=order.number %}Sobre o seu pedido de cancelamento da encomenda {{ number }}{% endblocktranslate %}
+  </h1>
+
+  <p style="margin:0 0 16px 0;font-size:15px;line-height:1.7;color:#3b3357;">
+    {% blocktranslate %}Analisámos o seu pedido de cancelamento e, desta vez, não foi possível cancelar a encomenda.{% endblocktranslate %}
+  </p>
+
+  {% if resposta %}
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+           style="margin:0 0 20px 0;background-color:#f5f2fd;border-radius:12px;">
+      <tr>
+        <td style="padding:14px 18px;font-size:15px;line-height:1.7;color:#3b3357;">
+          {{ resposta|linebreaksbr }}
+        </td>
+      </tr>
+    </table>
+  {% endif %}
+
+  <p style="margin:0 0 20px 0;font-size:15px;line-height:1.7;color:#3b3357;">
+    {% blocktranslate %}A encomenda segue o seu curso normal e continuamos a informá-lo sobre cada etapa.{% endblocktranslate %}
+  </p>
+
+  <p style="margin:0 0 22px 0;">
+    <a href="{{ order_url }}"
+       style="display:inline-block;padding:12px 22px;background-color:#6d2ce0;border-radius:10px;color:#ffffff;font-weight:700;text-decoration:none;">
+      {% translate "Acompanhar o pedido" %}
+    </a>
+  </p>
+
+  <p style="margin:0;font-size:13px;line-height:1.6;color:#6b6386;">
+    {% translate "Qualquer dúvida, é só responder a este e-mail." %}
+  </p>
+{% endblock %}

@@ -285,6 +285,30 @@ def make_rate(method=None, country=None, min_weight=0, max_weight=2000, price="5
     )
 
 
+def make_bank_account(label="Principal", is_default=True, **kwargs):
+    """A conta que recebe as transferências.
+
+    Faz parte do cenário mínimo de uma loja que vende, como o país, o método de
+    entrega e a tarifa: com ``PAYMENT_PROVIDER=transfer`` — o provedor do
+    projeto —, ``create_order`` recusa a compra sem uma conta padrão ativa.
+
+    Um teste que não fala de pagamento chama isto pelo mesmo motivo que chama
+    ``make_rate``: para que exista uma loja capaz de vender. E como a conta é
+    ignorada quando o provedor é outro, quem a cria funciona sob os dois — o
+    resultado deixa de depender do ``.env`` de quem roda a suíte.
+    """
+    from apps.orders.models import BankAccount
+
+    campos = {
+        "beneficiary": "JD PRINT SRL",
+        "iban": "BE68 5390 0754 7034",
+        "bic": "GEBABEBB",
+        "is_default": is_default,
+    }
+    campos.update(kwargs)
+    return BankAccount.objects.create(label=label, **campos)
+
+
 def make_address(customer, country=None, **kwargs):
     """Endereço completo de um cliente, com valores plausíveis por padrão."""
     from apps.accounts.models import CustomerAddress

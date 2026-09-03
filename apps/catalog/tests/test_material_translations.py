@@ -27,6 +27,7 @@ from apps.catalog.models import (
 from apps.core.testing import (
     LanguageResetMixin,
     make_address,
+    make_bank_account,
     make_category,
     make_country,
     make_method,
@@ -218,6 +219,7 @@ class MaterialInTheOrderSnapshotTests(LanguageResetMixin, TestCase):
         self.country = make_country("BE", vat_rate="21.00")
         self.method = make_method(min_days=2, max_days=3)
         make_rate(self.method, self.country, 0, 5000, "5.90")
+        make_bank_account()
         self.user = make_user(username="diego3d", email="diego@example.com")
         self.address = make_address(self.user.customer, self.country)
 

@@ -29,9 +29,38 @@ o cliente vê "estamos confirmando", nunca "pago" por otimismo.
             <h1 class="mt-5 font-display text-2xl font-bold tracking-[-0.02em] text-ink sm:text-3xl">
               {% translate "Pedido recebido" %}
             </h1>
+            {% comment %}
+              O que a tela precisa responder, nesta ordem: deu certo? o que eu
+              faço agora? e como eu aviso que paguei?
+
+              O IBAN **não** é repetido aqui. Ele foi para o e-mail, que é onde
+              o cliente vai procurá-lo quando abrir o aplicativo do banco —
+              e uma página de confirmação fica no histórico do navegador de
+              quem quer que use aquele computador depois.
+            {% endcomment %}
             <p class="mt-3 text-sm leading-relaxed text-ink-soft sm:text-base">
-              {% translate "Seu pedido foi registrado com sucesso. Entraremos em contato para enviar os dados para pagamento por transferência bancária." %}
+              {% translate "Seu pedido foi registrado com sucesso." %}
             </p>
+            <ol class="mx-auto mt-6 max-w-md space-y-3 text-start text-sm leading-relaxed text-ink-soft" role="list">
+              <li class="flex gap-3">
+                <span class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand-100 font-mono text-[11px] text-brand-700" aria-hidden="true">1</span>
+                <span>
+                  {% blocktranslate with email=order.customer.user.email %}Enviamos para <strong class="text-ink">{{ email }}</strong> o resumo do pedido e os dados bancários para a transferência.{% endblocktranslate %}
+                </span>
+              </li>
+              <li class="flex gap-3">
+                <span class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand-100 font-mono text-[11px] text-brand-700" aria-hidden="true">2</span>
+                <span>
+                  {% blocktranslate with numero=order.number %}Faça a transferência seguindo as instruções do e-mail, usando <strong class="text-ink">{{ numero }}</strong> como comunicação.{% endblocktranslate %}
+                </span>
+              </li>
+              <li class="flex gap-3">
+                <span class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand-100 font-mono text-[11px] text-brand-700" aria-hidden="true">3</span>
+                <span>
+                  {% translate "Depois, envie o comprovante pelo botão do e-mail — ou por aqui. Assim conferimos e liberamos a produção mais rápido." %}
+                </span>
+              </li>
+            </ol>
           {% else %}
             <h1 class="mt-5 font-display text-2xl font-bold tracking-[-0.02em] text-ink sm:text-3xl">
               {% translate "Estamos confirmando seu pagamento" %}
@@ -45,13 +74,23 @@ o cliente vê "estamos confirmando", nunca "pago" por otimismo.
           </p>
 
           <div class="mt-7 flex flex-wrap justify-center gap-3">
-            <a href="{{ order.get_absolute_url }}" class="btn-primary">
-              {% translate "Ver meu pedido" %}
-              {% icon "arrow-right" "h-4 w-4 rtl:rotate-180" %}
-            </a>
-            <a href="{% url 'catalog:models_shop' %}" class="btn-secondary">
-              {% translate "Continuar comprando" %}
-            </a>
+            {% if payment_provider == "transfer" %}
+              <a href="{{ proof_url }}" class="btn-primary">
+                {% translate "Enviar comprovante" %}
+                {% icon "arrow-right" "h-4 w-4 rtl:rotate-180" %}
+              </a>
+              <a href="{{ order.get_absolute_url }}" class="btn-secondary">
+                {% translate "Ver meu pedido" %}
+              </a>
+            {% else %}
+              <a href="{{ order.get_absolute_url }}" class="btn-primary">
+                {% translate "Ver meu pedido" %}
+                {% icon "arrow-right" "h-4 w-4 rtl:rotate-180" %}
+              </a>
+              <a href="{% url 'catalog:models_shop' %}" class="btn-secondary">
+                {% translate "Continuar comprando" %}
+              </a>
+            {% endif %}
           </div>
         </div>
 

@@ -1,0 +1,85 @@
+{% extends "emails/base_email.html" %}
+{% load i18n %}
+
+{% comment %}
+  Os dados para o cliente pagar. Sai por ação de uma pessoa, nunca sozinho.
+
+  A ordem é a da tarefa: primeiro o que ele precisa digitar no banco (valor,
+  IBAN, comunicação), depois o que fazer quando terminar (mandar o
+  comprovante), e só então o pedido em si. Quem abre este e-mail está com o
+  aplicativo do banco na outra mão.
+{% endcomment %}
+
+{% block email_title %}{% blocktranslate with number=order.number %}Pagamento do pedido {{ number }}{% endblocktranslate %}{% endblock %}
+{% block email_preview %}{% blocktranslate with total=order.total|floatformat:2 %}Transfira {{ total }} e envie o comprovante.{% endblocktranslate %}{% endblock %}
+
+{% block email_body %}
+  <h1 style="margin:0 0 12px 0;font-size:19px;line-height:1.3;color:#1b1533;">
+    {% blocktranslate with number=order.number %}Pagamento do pedido {{ number }}{% endblocktranslate %}
+  </h1>
+
+  <p style="margin:0 0 18px 0;font-size:15px;line-height:1.6;color:#3b3357;">
+    {% blocktranslate %}Aqui estão os dados para você concluir o pagamento por transferência bancária.{% endblocktranslate %}
+  </p>
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+         style="margin:0 0 20px 0;background-color:#f5f2fd;border-radius:12px;">
+    <tr>
+      <td style="padding:16px 18px;font-size:14px;line-height:1.8;color:#3b3357;">
+        <span style="color:#6b6386;">{% translate "Valor" %}</span><br>
+        <strong style="font-size:20px;color:#1b1533;">{{ order.currency_symbol }} {{ order.total|floatformat:2 }}</strong>
+        <br><br>
+        <span style="color:#6b6386;">{% translate "Titular" %}</span><br>
+        <strong style="color:#1b1533;">{{ account.beneficiary }}</strong>
+        <br><br>
+        <span style="color:#6b6386;">IBAN</span><br>
+        <strong style="font-size:16px;letter-spacing:0.5px;color:#1b1533;">{{ account.iban }}</strong>
+        {% if account.bic %}<br><br><span style="color:#6b6386;">BIC/SWIFT</span><br><strong style="color:#1b1533;">{{ account.bic }}</strong>{% endif %}
+        <br><br>
+        <span style="color:#6b6386;">{% translate "Comunicação" %}</span><br>
+        <strong style="font-size:16px;color:#1b1533;">{{ communication }}</strong>
+      </td>
+    </tr>
+  </table>
+
+  <p style="margin:0 0 18px 0;font-size:14px;line-height:1.6;color:#3b3357;">
+    {% blocktranslate %}Use a comunicação acima na transferência: é por ela que reconhecemos o seu pagamento.{% endblocktranslate %}
+  </p>
+
+  {% if account.instructions %}
+    <p style="margin:0 0 18px 0;font-size:14px;line-height:1.6;color:#3b3357;">
+      {{ account.instructions|linebreaksbr }}
+    </p>
+  {% endif %}
+
+  <h2 style="margin:0 0 8px 0;font-size:15px;color:#1b1533;">{% translate "Depois de pagar" %}</h2>
+  <p style="margin:0 0 14px 0;font-size:14px;line-height:1.6;color:#3b3357;">
+    {% blocktranslate %}Envie o comprovante — é o que nos permite conferir e liberar a produção mais rápido.{% endblocktranslate %}
+  </p>
+  <p style="margin:0 0 22px 0;">
+    <a href="{{ proof_url }}"
+       style="display:inline-block;padding:12px 22px;background-color:#6d2ce0;border-radius:10px;color:#ffffff;font-weight:700;text-decoration:none;">
+      {% translate "Confirmar pagamento / Enviar comprovante" %}
+    </a>
+  </p>
+
+  <p style="margin:0 0 6px 0;font-size:13px;color:#6b6386;">
+    {% translate "Seu pedido" %}: <a href="{{ order_url }}" style="color:#6d2ce0;text-decoration:none;">{{ order.number }}</a>
+    · {{ order.created_at|date:"d/m/Y" }}
+  </p>
+  <p style="margin:0;font-size:13px;line-height:1.6;color:#6b6386;">
+    {% blocktranslate %}O pedido fica reservado aguardando o pagamento. Assim que o valor entrar na conta, confirmamos e começamos a produzir.{% endblocktranslate %}
+  </p>
+{% endblock %}
+
+{% comment %}
+  O aviso padrão do rodapé ("a JD PRINT nunca manda dados bancários") não pode
+  aparecer no e-mail que manda os dados bancários. Esta versão continua sendo
+  defesa contra golpe — e a mais útil que existe aqui: conferir o IBAN contra o
+  que está na conta do cliente no site.
+{% endcomment %}
+{% block email_security_note %}
+  <p style="margin:0 0 6px 0;">
+    {% blocktranslate %}Confira o IBAN acima com o que aparece na sua conta em nosso site. A JD PRINT nunca pede a sua senha nem os seus dados bancários por e-mail, e nunca muda o IBAN por mensagem.{% endblocktranslate %}
+  </p>
+{% endblock %}

@@ -12,25 +12,10 @@ from django.utils.translation import gettext_lazy as _
 from apps.cart.models import CustomizationUpload
 from apps.catalog.models import PersonalizationType, ProductVariant
 
-#: Assinaturas de arquivo aceitas. Confiar na extensão ou no content-type que o
-#: navegador manda seria confiar no cliente.
-IMAGE_SIGNATURES = (
-    (b"\xff\xd8\xff", "jpg", "image/jpeg"),
-    (b"\x89PNG\r\n\x1a\n", "png", "image/png"),
-    (b"GIF87a", "gif", "image/gif"),
-    (b"GIF89a", "gif", "image/gif"),
-)
-
-
-def sniff_image(header: bytes) -> tuple[str, str] | None:
-    """(extensão, tipo) a partir dos primeiros bytes, ou ``None``."""
-    for signature, extension, content_type in IMAGE_SIGNATURES:
-        if header.startswith(signature):
-            return extension, content_type
-    # WEBP: "RIFF" + 4 bytes de tamanho + "WEBP"
-    if header[:4] == b"RIFF" and header[8:12] == b"WEBP":
-        return "webp", "image/webp"
-    return None
+# O reconhecimento por assinatura mora em `apps.core.uploads`: o comprovante de
+# pagamento (etapa dos ajustes finais) precisa exatamente do mesmo, e duas
+# tabelas de bytes mágicos seriam duas chances de uma envelhecer sem a outra.
+from apps.core.uploads import sniff_image
 
 
 class AddToCartForm(forms.Form):

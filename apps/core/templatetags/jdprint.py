@@ -7,59 +7,118 @@ from django.templatetags.static import static
 
 register = template.Library()
 
-#: Nomes de arquivo aceitos para a logo, na ordem de preferência.
-LOGO_CANDIDATES = (
-    "images/logo/jdprint-logo.svg",
-    "images/logo/jdprint-logo.png",
-    "images/logo/jdprint-logo.webp",
-    "images/logo/logo.svg",
-    "images/logo/logo.png",
-)
+# ---------------------------------------------------------------------------
+# Identidade visual
+#
+# As quatro imagens da marca vêm do Admin (`core.BrandAssets`), não de nomes de
+# arquivo procurados em `static/images/logo/`. A diferença prática: trocar a
+# logo deixou de exigir um commit e um deploy.
+#
+# Enquanto o dono da loja não abrir a tela e enviar as imagens, duas delas caem
+# nos arquivos que já estavam no repositório — é uma ponte de transição, e ela
+# tem prazo: assim que as imagens estiverem cadastradas, os arquivos de
+# `static/images/logo/` podem sair. Sem essa ponte, esta etapa deixaria o site
+# no ar sem logo até alguém fazer o upload.
+# ---------------------------------------------------------------------------
+
+#: Onde procurar cada imagem em `static/`, enquanto o Admin estiver vazio.
+#: Só o que já existia no repositório: rodapé e imagem de produto nunca tiveram
+#: arquivo, e por isso não têm ponte.
+STATIC_FALLBACKS = {
+    "header_logo": (
+        "images/logo/jdprint-logo.svg",
+        "images/logo/jdprint-logo.png",
+        "images/logo/jdprint-logo.webp",
+        "images/logo/logo.svg",
+        "images/logo/logo.png",
+    ),
+    "favicon": (
+        "images/logo/favicon.svg",
+        "images/logo/favicon.png",
+        "images/logo/favicon.ico",
+    ),
+}
 
 _logo_cache: dict[str, str] = {}
 
 
-@register.simple_tag
-def brand_logo_url() -> str:
-    """URL da logo oficial, ou string vazia se o arquivo ainda não existir.
+def _brand_assets(context):
+    """A linha da marca, lida **uma vez por requisição**.
 
-    Enquanto não existir, o header mostra a versão tipográfica (ver
-    ``components/logo.html``). A logo NÃO é recriada em código.
+    Guardada no `request` porque `product_placeholder_url` roda dentro do laço
+    da grade: sem isto, uma listagem de quarenta produtos fazia quarenta
+    consultas para ler a mesma linha.
+
+    O cache morre com a requisição, de propósito. Um cache de módulo seria mais
+    rápido e traria o problema descrito em `apps/core/languages.py`: o valor
+    antigo sobrevive ao rollback do teste, e o resultado passa a depender da
+    ordem em que a suíte roda.
     """
-    if not settings.DEBUG and "url" in _logo_cache:
-        return _logo_cache["url"]
+    from apps.core.models import BrandAssets
 
-    url = ""
-    for candidate in LOGO_CANDIDATES:
-        if finders.find(candidate):
-            url = static(candidate)
+    request = context.get("request") if hasattr(context, "get") else None
+    if request is None:
+        return BrandAssets.current()
+
+    if not hasattr(request, "_jd_brand"):
+        request._jd_brand = BrandAssets.current()
+    return request._jd_brand
+
+
+def _brand_url(campo: str, context=None) -> str:
+    """A imagem cadastrada; na falta dela, o arquivo estático de transição."""
+    config = _brand_assets(context) if context is not None else None
+    if config is None and context is None:
+        from apps.core.models import BrandAssets
+
+        config = BrandAssets.current()
+
+    arquivo = getattr(config, campo, None) if config is not None else None
+    if arquivo:
+        return arquivo.url
+
+    # O cache vale só para a ponte estática: o caminho do arquivo em `static/`
+    # não muda enquanto o processo vive. O que vem do banco **não** é cacheado
+    # — quem troca a logo no Admin espera vê-la na página seguinte.
+    if not settings.DEBUG and campo in _logo_cache:
+        return _logo_cache[campo]
+
+    encontrado = ""
+    for candidato in STATIC_FALLBACKS.get(campo, ()):
+        if finders.find(candidato):
+            encontrado = static(candidato)
             break
 
-    _logo_cache["url"] = url
-    return url
+    _logo_cache[campo] = encontrado
+    return encontrado
 
 
-FAVICON_CANDIDATES = (
-    "images/logo/favicon.svg",
-    "images/logo/favicon.png",
-    "images/logo/favicon.ico",
-)
+@register.simple_tag(takes_context=True)
+def brand_header_logo_url(context) -> str:
+    """A logo do cabeçalho. Vazia = o header usa a marca tipográfica."""
+    return _brand_url("header_logo", context)
 
 
-@register.simple_tag
-def brand_favicon_url() -> str:
-    """Favicon oficial, se existir. Sem arquivo, nenhum <link> é gerado."""
-    if not settings.DEBUG and "favicon" in _logo_cache:
-        return _logo_cache["favicon"]
+@register.simple_tag(takes_context=True)
+def brand_footer_logo_url(context) -> str:
+    """A logo do rodapé — normalmente a versão clara, sobre fundo escuro.
 
-    url = ""
-    for candidate in FAVICON_CANDIDATES:
-        if finders.find(candidate):
-            url = static(candidate)
-            break
+    Sem ponte estática de propósito: usar a logo do topo no rodapé escuro é
+    justamente o que esta etapa veio permitir corrigir.
+    """
+    return _brand_url("footer_logo", context)
 
-    _logo_cache["favicon"] = url
-    return url
+
+@register.simple_tag(takes_context=True)
+def brand_favicon_url(context) -> str:
+    """O ícone da aba. Vazio = nenhum `<link rel="icon">` é gerado."""
+    return _brand_url("favicon", context)
+
+
+@register.simple_tag(takes_context=True)
+def product_placeholder_url(context) -> str:
+    """A imagem padrão de produto. Vazia = o espaço reservado tipográfico."""
+    return _brand_url("product_placeholder", context)
 
 
 @register.inclusion_tag("components/icon.html")

@@ -15,6 +15,7 @@ from apps.catalog.models import ProductStatus, ProductVariant
 from apps.core.testing import (
     LanguageResetMixin,
     make_address,
+    make_bank_account,
     make_country,
     make_method,
     make_product,
@@ -31,6 +32,7 @@ from apps.orders.models import (
     OrderNote,
     OrderStatus,
     PaymentStatus,
+    RefundStatus,
     next_order_number,
 )
 
@@ -91,6 +93,7 @@ class CreateOrderTests(TestCase):
         self.country = make_country("BE", vat_rate="21.00")
         self.method = make_method(min_days=2, max_days=3)
         make_rate(self.method, self.country, 0, 5000, "5.90")
+        make_bank_account()
 
         self.user = make_user(username="diego3d", email="diego@example.com")
         self.customer = self.user.customer
@@ -191,6 +194,7 @@ class OrderItemSnapshotTests(TestCase):
         self.country = make_country("BE")
         self.method = make_method()
         make_rate(self.method, self.country, 0, 5000, "5.90")
+        make_bank_account()
 
         self.user = make_user(username="diego3d")
         self.address = make_address(self.user.customer, self.country)
@@ -271,6 +275,7 @@ class PersonalizationSnapshotTests(TestCase):
         self.country = make_country("BE")
         self.method = make_method()
         make_rate(self.method, self.country, 0, 5000, "5.90")
+        make_bank_account()
         self.user = make_user(username="diego3d")
         self.address = make_address(self.user.customer, self.country)
         self.product = make_product(
@@ -333,6 +338,7 @@ class AddressSnapshotTests(LanguageResetMixin, TestCase):
         self.country = make_country("BE")
         self.method = make_method()
         make_rate(self.method, self.country, 0, 5000, "5.90")
+        make_bank_account()
         self.user = make_user(username="diego3d")
         self.customer = self.user.customer
         self.shipping = make_address(self.customer, self.country, label="Casa", street="Rua A 1")
@@ -397,6 +403,7 @@ class ValidationTests(TestCase):
         self.country = make_country("BE")
         self.method = make_method()
         make_rate(self.method, self.country, 0, 5000, "5.90")
+        make_bank_account()
         self.user = make_user(username="diego3d")
         self.address = make_address(self.user.customer, self.country)
         self.product = make_product(sku="P1", name="Vaso", price=Decimal("10.00"), stock_quantity=2)
@@ -471,6 +478,7 @@ class StockTests(TestCase):
         self.country = make_country("BE")
         self.method = make_method()
         make_rate(self.method, self.country, 0, 5000, "5.90")
+        make_bank_account()
         self.user = make_user(username="diego3d")
         self.address = make_address(self.user.customer, self.country)
         self.product = make_product(sku="P1", name="Vaso", price=Decimal("10.00"), stock_quantity=10)
@@ -576,6 +584,7 @@ class CancellationTests(TestCase):
         self.country = make_country("BE")
         self.method = make_method()
         make_rate(self.method, self.country, 0, 5000, "5.90")
+        make_bank_account()
         self.user = make_user(username="diego3d")
         self.address = make_address(self.user.customer, self.country)
         self.product = make_product(sku="P1", name="Vaso", price=Decimal("10.00"), stock_quantity=5)
@@ -587,11 +596,22 @@ class CancellationTests(TestCase):
             shipping_method=self.method,
         )
 
-    def test_customer_requests_it_does_not_cancel(self):
+    def em_producao(self, order):
+        """Pago e na impressora — o cenário em que a decisão é de uma pessoa."""
+        services.confirm_payment(order)
+        order.refresh_from_db()
+        services.change_fulfillment_status(order, FulfillmentStatus.IN_PRODUCTION)
+        order.refresh_from_db()
+        return order
+
+    def test_an_unpaid_order_is_cancelled_on_the_spot(self):
+        """Sem cobrança não há o que analisar: a regra resolve na hora."""
         services.request_cancellation(self.order, "Comprei errado", user=self.user)
 
-        self.assertEqual(self.order.cancellation_status, CancellationStatus.REQUESTED)
-        self.assertEqual(self.order.status, OrderStatus.PENDING)
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.cancellation_status, CancellationStatus.APPROVED)
+        self.assertEqual(self.order.status, OrderStatus.CANCELLED)
+        self.assertEqual(self.order.payment_status, PaymentStatus.NOT_CHARGED)
 
     def test_the_request_is_logged_with_the_reason(self):
         services.request_cancellation(self.order, "Comprei errado", user=self.user)
@@ -600,45 +620,68 @@ class CancellationTests(TestCase):
         self.assertEqual(entry.message, "Comprei errado")
 
     def test_approving_cancels_the_order(self):
+        self.em_producao(self.order)
         services.request_cancellation(self.order, "Comprei errado")
-        services.approve_cancellation(self.order, "Ainda não tinha entrado em produção.")
+        services.approve_cancellation(self.order, "Sucata.", restore_stock=False)
 
+        self.order.refresh_from_db()
         self.assertEqual(self.order.cancellation_status, CancellationStatus.APPROVED)
         self.assertEqual(self.order.status, OrderStatus.CANCELLED)
         self.assertIsNotNone(self.order.cancelled_at)
 
-    def test_approving_does_not_refund(self):
-        """Reembolso é ação administrativa explícita, feita na Stripe."""
-        self.order.payment_status = PaymentStatus.PAID
-        self.order.save()
-
+    def test_approving_opens_the_refund_but_does_not_pay_it(self):
+        """Aprovar abre o processo. Quem devolve o dinheiro é uma pessoa."""
+        self.em_producao(self.order)
         services.request_cancellation(self.order, "Mudei de ideia")
-        services.approve_cancellation(self.order)
+        services.approve_cancellation(self.order, restore_stock=False)
 
+        self.order.refresh_from_db()
         self.assertEqual(self.order.payment_status, PaymentStatus.PAID)
+        self.assertEqual(self.order.refund_status, RefundStatus.PENDING)
+        self.assertEqual(self.order.refunded_amount, Decimal("0.00"))
+
+    def test_approving_stops_production(self):
+        self.em_producao(self.order)
+        services.request_cancellation(self.order, "Mudei de ideia")
+        services.approve_cancellation(self.order, restore_stock=False)
+
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.fulfillment_status, FulfillmentStatus.HALTED)
 
     def test_refusing_keeps_the_order_alive(self):
+        self.em_producao(self.order)
         services.request_cancellation(self.order, "Mudei de ideia")
         services.refuse_cancellation(self.order, "A peça já está na impressora.")
 
+        self.order.refresh_from_db()
         self.assertEqual(self.order.cancellation_status, CancellationStatus.REFUSED)
-        self.assertEqual(self.order.status, OrderStatus.PENDING)
+        self.assertEqual(self.order.status, OrderStatus.CONFIRMED)
+        self.assertEqual(self.order.fulfillment_status, FulfillmentStatus.IN_PRODUCTION)
         self.assertEqual(self.order.cancellation_decision_note, "A peça já está na impressora.")
 
     def test_a_decision_needs_a_request(self):
-        self.assertFalse(services.approve_cancellation(self.order))
+        self.em_producao(self.order)
+
+        self.assertFalse(services.approve_cancellation(self.order, restore_stock=False))
         self.assertFalse(services.refuse_cancellation(self.order))
 
     def test_second_request_is_ignored(self):
+        self.em_producao(self.order)
         services.request_cancellation(self.order, "Primeiro")
+
         self.assertFalse(services.request_cancellation(self.order, "Segundo"))
 
-    def test_shipped_order_cannot_be_cancelled_by_the_customer(self):
-        self.order.fulfillment_status = FulfillmentStatus.SHIPPED
-        self.order.save()
+    def test_a_shipped_order_can_still_be_asked_about(self):
+        """Enviado não é o fim do direito: o prazo legal nem começou a correr."""
+        self.em_producao(self.order)
+        services.mark_shipped(self.order, "BE123")
+        self.order.refresh_from_db()
 
-        self.assertFalse(self.order.can_request_cancellation)
-        self.assertFalse(services.request_cancellation(self.order, "Tarde demais"))
+        self.assertTrue(self.order.can_request_cancellation)
+        self.assertTrue(services.request_cancellation(self.order, "Quero devolver"))
+
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.cancellation_status, CancellationStatus.REQUESTED)
 
 
 class ShippingTests(TestCase):
@@ -646,6 +689,7 @@ class ShippingTests(TestCase):
         self.country = make_country("BE")
         self.method = make_method()
         make_rate(self.method, self.country, 0, 5000, "5.90")
+        make_bank_account()
         self.user = make_user(username="diego3d")
         self.address = make_address(self.user.customer, self.country)
         self.product = make_product(sku="P1", name="Vaso", price=Decimal("10.00"), stock_quantity=5)

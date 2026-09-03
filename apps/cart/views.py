@@ -13,11 +13,10 @@ Isso mantém a loja utilizável sem JavaScript e rápida com ele.
 import json
 
 from django.contrib import messages
-from django.http import FileResponse, Http404, HttpResponseRedirect
+from django.http import Http404, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
-from django.utils.text import get_valid_filename
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
 from django.views.generic import TemplateView
@@ -25,6 +24,7 @@ from django.views.generic import TemplateView
 from apps.cart.cart import Cart, CartResult
 from apps.cart.forms import AddToCartForm
 from apps.core.security import ip_is_throttled
+from apps.core.uploads import private_file_response
 from apps.catalog.models import Product, ProductStatus
 
 
@@ -194,23 +194,14 @@ def customization_file(request, pk: int):
     if not _may_read_customization(request, upload):
         raise Http404("Arquivo não encontrado.")
 
-    try:
-        arquivo = upload.file.open("rb")
-    except (FileNotFoundError, OSError):
-        # A linha existe no banco mas o arquivo sumiu do disco (restore
-        # parcial, limpeza manual). Para quem pede, é a mesma coisa.
-        raise Http404("Arquivo não encontrado.")
-
-    resposta = FileResponse(
-        arquivo,
-        content_type=upload.content_type or "application/octet-stream",
-        # `filename` é do cliente: o Django escapa, e ainda passamos pelo
-        # saneador para o cabeçalho não virar veículo de nada.
-        filename=get_valid_filename(upload.original_name or upload.file.name),
+    # A entrega em si (bytes, sem caminho, sem cache compartilhado, 404 quando
+    # o arquivo sumiu do disco) mora em `apps.core.uploads`. A **permissão**
+    # continua sendo decidida acima, e só aqui.
+    return private_file_response(
+        upload.file,
+        content_type=upload.content_type,
+        filename=upload.original_name or upload.file.name,
     )
-    # Cache só no navegador de quem tem direito, nunca em proxy compartilhado.
-    resposta["Cache-Control"] = "private, max-age=0, no-store"
-    return resposta
 
 
 def _may_read_customization(request, upload) -> bool:

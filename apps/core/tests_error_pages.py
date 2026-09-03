@@ -156,10 +156,16 @@ class ProductionBehaviourTests(TestCase):
     """O que muda com ``DEBUG=False`` e precisa continuar funcionando."""
 
     def test_the_favicon_does_not_404(self):
+        """Sem esta rota é um 404 por visitante no log.
+
+        O redirecionamento é temporário (302) desde que o ícone passou a vir do
+        Admin: um 301 fica no cache do navegador e do proxy, e quem trocasse o
+        favicon continuaria vendo o antigo por meses.
+        """
         resposta = self.client.get("/favicon.ico")
 
-        self.assertEqual(resposta.status_code, 301)
-        self.assertIn("favicon.svg", resposta["Location"])
+        self.assertEqual(resposta.status_code, 302)
+        self.assertIn("favicon", resposta["Location"])
 
     def test_a_private_page_redirects_to_the_login(self):
         resposta = self.client.get("/conta/")

@@ -1898,3 +1898,417 @@ msgstr "Date"
 
 msgid "enviar dados bancários"
 msgstr "send the bank details"
+
+msgid "Não encontramos nada para “%(termo)s”."
+msgstr "We couldn’t find anything for “%(termo)s”."
+
+msgid "Pode ser a grafia da palavra, ou a peça pode ainda não estar no catálogo."
+msgstr "It might be the spelling, or the piece may not be in the catalogue yet."
+
+msgid "Se você procura algo específico, fale com a gente."
+msgstr "If you're looking for something specific, get in touch."
+
+msgid "Entrar em contato"
+msgstr "Get in touch"
+
+msgid "Enviar comprovante — JD PRINT"
+msgstr "Send proof of payment — JD PRINT"
+
+msgid "Enviar comprovante"
+msgstr "Send proof of payment"
+
+msgid "Comprovante"
+msgstr "Proof of payment"
+
+msgid "Comprovantes enviados"
+msgstr "Proofs sent"
+
+msgid "Número"
+msgstr "Number"
+
+msgid "Valor"
+msgstr "Amount"
+
+msgid "Situação do pagamento"
+msgstr "Payment status"
+
+msgid "Ver o pedido completo"
+msgstr "View the full order"
+
+msgid "Enviar o comprovante não confirma o pagamento: nós conferimos o valor na conta e avisamos você."
+msgstr "Sending the proof does not confirm payment: we check the amount in the account and let you know."
+
+msgid "Recebemos. Estamos conferindo o pagamento e avisamos você assim que estiver confirmado."
+msgstr "Received. We're checking the payment and will let you know once it's confirmed."
+
+msgid "Foto (JPG, PNG ou WEBP) ou PDF, até %(limite)s MB."
+msgstr "Photo (JPG, PNG or WEBP) or PDF, up to %(limite)s MB."
+
+msgid "Foto ou PDF do comprovante da transferência."
+msgstr "Photo or PDF of the transfer receipt."
+
+msgid "Envie uma imagem (JPG, PNG ou WEBP) ou um PDF."
+msgstr "Send an image (JPG, PNG or WEBP) or a PDF."
+
+msgid "O arquivo pode ter no máximo %(limit)s MB."
+msgstr "The file can be at most %(limit)s MB."
+
+msgid "Muitos envios seguidos. Tente novamente em alguns minutos."
+msgstr "Too many uploads in a row. Try again in a few minutes."
+
+msgid "Comprovante recebido. Vamos conferir o pagamento e avisar você."
+msgstr "Proof received. We'll check the payment and let you know."
+
+msgid "Dados para o pagamento do pedido %(number)s — JD PRINT"
+msgstr "Payment details for order %(number)s — JD PRINT"
+
+msgid "Pagamento do pedido %(number)s"
+msgstr "Payment for order %(number)s"
+
+msgid "Transfira %(total)s e envie o comprovante."
+msgstr "Transfer %(total)s and send the proof."
+
+msgid "Aqui estão os dados para você concluir o pagamento por transferência bancária."
+msgstr "Here are the details to complete your payment by bank transfer."
+
+msgid "Transferência"
+msgstr "Bank transfer"
+
+msgid "Titular"
+msgstr "Account holder"
+
+msgid "Comunicação"
+msgstr "Reference"
+
+msgid "Use a comunicação acima na transferência: é por ela que reconhecemos o seu pagamento."
+msgstr "Use the reference above in the transfer: that is how we recognise your payment."
+
+msgid "Depois de pagar"
+msgstr "After paying"
+
+msgid "Envie o comprovante — é o que nos permite conferir e liberar a produção mais rápido."
+msgstr "Send the proof — it lets us check and start production sooner."
+
+msgid "Envie o comprovante nesta página — é o que nos permite conferir e liberar a produção mais rápido:"
+msgstr "Send the proof on this page — it lets us check and start production sooner:"
+
+msgid "Confirmar pagamento / Enviar comprovante"
+msgstr "Confirm payment / Send proof"
+
+msgid "Seu pedido"
+msgstr "Your order"
+
+msgid "O pedido fica reservado aguardando o pagamento. Assim que o valor entrar na conta, confirmamos e começamos a produzir."
+msgstr "The order is held while we wait for payment. As soon as the amount reaches the account, we confirm it and start production."
+
+msgid "Confira o IBAN acima com o que aparece na sua conta em nosso site. A JD PRINT nunca pede a sua senha nem os seus dados bancários por e-mail, e nunca muda o IBAN por mensagem."
+msgstr "Check the IBAN above against the one shown in your account on our site. JD PRINT never asks for your password or bank details by e-mail, and never changes the IBAN by message."
+
+msgid "Bancontact"
+msgstr "Bancontact"
+
+msgid "Você recebe os dados por e-mail assim que confirmar o pedido."
+msgstr "You receive the details by e-mail as soon as you confirm the order."
+
+msgid "Visa, Mastercard e Maestro."
+msgstr "Visa, Mastercard and Maestro."
+
+msgid "Pagamento pelo aplicativo do seu banco."
+msgstr "Payment through your bank's app."
+
+msgid "Escolha a forma de pagamento."
+msgstr "Choose the payment method."
+
+msgid "Escolha uma forma de pagamento disponível."
+msgstr "Choose an available payment method."
+
+msgid "O pagamento por transferência está indisponível neste momento. Entre em contato com a gente e concluímos o seu pedido."
+msgstr "Bank transfer is unavailable right now. Get in touch and we'll complete your order."
+
+msgid "Nenhuma forma de pagamento está configurada."
+msgstr "No payment method is configured."
+
+msgid "Seu pedido foi registrado com sucesso."
+msgstr "Your order has been registered."
+
+msgid "Enviamos para <strong class=\"text-ink\">%(email)s</strong> o resumo do pedido e os dados bancários para a transferência."
+msgstr "We sent the order summary and the bank details for the transfer to <strong class=\"text-ink\">%(email)s</strong>."
+
+msgid "Faça a transferência seguindo as instruções do e-mail, usando <strong class=\"text-ink\">%(numero)s</strong> como comunicação."
+msgstr "Make the transfer following the instructions in the e-mail, using <strong class=\"text-ink\">%(numero)s</strong> as the reference."
+
+msgid "Depois, envie o comprovante pelo botão do e-mail — ou por aqui. Assim conferimos e liberamos a produção mais rápido."
+msgstr "Then send the proof using the button in the e-mail — or here. That way we check it and start production sooner."
+
+msgid "Os dados bancários chegam por e-mail na hora"
+msgstr "The bank details arrive by e-mail right away"
+
+msgid "Recebemos a sua encomenda."
+msgstr "We've received your order."
+
+msgid "Enviámos para o seu e-mail os dados para pagamento por transferência bancária."
+msgstr "We've sent the bank transfer details to your e-mail."
+
+msgid "Recebemos o seu comprovativo de pagamento e vamos analisá-lo."
+msgstr "We've received your proof of payment and will check it."
+
+msgid "O seu pagamento foi confirmado."
+msgstr "Your payment has been confirmed."
+
+msgid "A sua encomenda foi confirmada."
+msgstr "Your order has been confirmed."
+
+msgid "Começámos a preparar a sua encomenda."
+msgstr "We've started preparing your order."
+
+msgid "A sua encomenda está pronta para envio."
+msgstr "Your order is ready to ship."
+
+msgid "A sua encomenda foi enviada."
+msgstr "Your order has been shipped."
+
+msgid "A sua encomenda foi enviada. Código de rastreio: %(code)s"
+msgstr "Your order has been shipped. Tracking number: %(code)s"
+
+msgid "A sua encomenda foi entregue."
+msgstr "Your order has been delivered."
+
+msgid "Encomenda concluída. Obrigado!"
+msgstr "Order completed. Thank you!"
+
+msgid "Recebemos o seu pedido de cancelamento."
+msgstr "We've received your cancellation request."
+
+msgid "O seu pedido de cancelamento foi aprovado."
+msgstr "Your cancellation request has been approved."
+
+msgid "Não foi possível cancelar a encomenda. Entrámos em contacto por e-mail."
+msgstr "We couldn't cancel the order. We've contacted you by e-mail."
+
+msgid "A sua encomenda foi cancelada."
+msgstr "Your order has been cancelled."
+
+msgid "O valor da sua encomenda foi reembolsado."
+msgstr "Your order has been refunded."
+
+msgid "Não conseguimos concluir o pagamento."
+msgstr "We couldn't complete the payment."
+
+msgid "Comprovante recebido"
+msgstr "Proof received"
+
+msgid "Recebemos o seu comprovante"
+msgstr "We've received your proof"
+
+msgid "Estamos conferindo o pagamento e avisamos você por e-mail assim que estiver confirmado. Não é preciso enviar de novo."
+msgstr "We're checking the payment and will e-mail you once it's confirmed. There's no need to send it again."
+
+msgid "Enviou o arquivo errado? Fale com a gente pelo contato e nós resolvemos — por segurança, o comprovante não pode ser substituído por aqui."
+msgstr "Sent the wrong file? Get in touch and we'll sort it out — for security, the proof can't be replaced here."
+
+msgid "O comprovante deste pedido já foi recebido. Não é preciso enviar de novo."
+msgstr "The proof for this order has already been received. There's no need to send it again."
+
+msgid "O comprovante deste pedido já foi recebido."
+msgstr "The proof for this order has already been received."
+
+msgid "Anexe o comprovante da transferência"
+msgstr "Attach the transfer receipt"
+
+msgid "Serve a foto da tela do banco ou o PDF que ele gerou. É o que nos permite conferir o pagamento e liberar a produção mais rápido."
+msgstr "A screenshot from your bank or the PDF it generates will do. It lets us check the payment and start production sooner."
+
+msgid "Escolher o arquivo"
+msgstr "Choose the file"
+
+msgid "Enviar o comprovante não confirma o pagamento: nós conferimos o valor na conta e avisamos você. Só é possível enviar uma vez."
+msgstr "Sending the proof does not confirm payment: we check the amount in the account and let you know. You can only send it once."
+
+msgid "Pagar o pedido %(number)s — JD PRINT"
+msgstr "Pay order %(number)s — JD PRINT"
+
+msgid "Não é possível concluir este pagamento"
+msgstr "This payment can't be completed"
+
+msgid "Algo mudou no catálogo desde que você fez o pedido:"
+msgstr "Something changed in the catalogue since you ordered:"
+
+msgid "Fale com a gente e resolvemos: dá para trocar a peça, ajustar a quantidade ou cancelar o pedido sem custo."
+msgstr "Get in touch and we'll sort it out: swap the item, adjust the quantity or cancel the order at no cost."
+
+msgid "Esta é a forma de pagamento disponível hoje. Confirme e enviamos as instruções para o seu e-mail."
+msgstr "This is the payment method available today. Confirm and we'll e-mail you the instructions."
+
+msgid "Escolha como quer pagar. Enviamos as instruções para o seu e-mail."
+msgstr "Choose how you want to pay. We'll e-mail you the instructions."
+
+msgid "Reenviamos os dados atualizados para o seu e-mail. Nenhum pedido novo é criado — este mesmo continua valendo."
+msgstr "We'll re-send the up-to-date details to your e-mail. No new order is created — this one still stands."
+
+msgid "Continuar"
+msgstr "Continue"
+
+#
+# Cancelamento aprovado: o que o cliente lê no e-mail e no acompanhamento
+# do pedido. O prazo do reembolso vem do Admin — e quando não está
+# cadastrado, a frase do prazo simplesmente não sai.
+#
+
+msgid "O seu pedido de cancelamento foi aprovado e a encomenda foi cancelada."
+msgstr "Your cancellation request has been approved and the order has been cancelled."
+
+msgid "O reembolso será feito em %(prazo)s."
+msgstr "The refund will be issued within %(prazo)s."
+
+msgid "O reembolso será feito."
+msgstr "The refund will be issued."
+
+msgid "O tempo até o valor aparecer na sua conta depende do meio de pagamento e do seu banco."
+msgstr "How long it takes to appear in your account depends on the payment method and on your bank."
+
+msgid "até %(days)s dias úteis"
+msgstr "%(days)s working days at most"
+
+msgid "%(min)s a %(max)s dias úteis"
+msgstr "%(min)s to %(max)s working days"
+
+msgid "Cancelamento do pedido %(number)s"
+msgstr "Cancellation of order %(number)s"
+
+msgid "Cancelamento do pedido %(number)s — JD PRINT"
+msgstr "Cancellation of order %(number)s — JD PRINT"
+
+#
+# Cancelamento solicitado: a confirmação que o cliente recebe na hora, e a
+# frase equivalente no acompanhamento do pedido. Nenhuma das duas fala em
+# aprovação, reembolso ou prazo — a decisão ainda não foi tomada.
+#
+
+msgid "Recebemos o seu pedido de cancelamento"
+msgstr "We have received your cancellation request"
+
+msgid "Recebemos o seu pedido de cancelamento — %(number)s"
+msgstr "We have received your cancellation request — %(number)s"
+
+msgid "Recebemos a sua solicitação de cancelamento da encomenda %(number)s. Vamos analisá-la e informamos o resultado assim que possível."
+msgstr "We have received your request to cancel order %(number)s. We will review it and let you know the outcome as soon as possible."
+
+msgid "A sua solicitação de cancelamento da encomenda %(number)s chegou até nós."
+msgstr "Your request to cancel order %(number)s has reached us."
+
+msgid "Ainda não há nada decidido: avisamos por e-mail assim que houver uma resposta."
+msgstr "Nothing has been decided yet: we will email you as soon as there is an answer."
+
+msgid "Acompanhar o pedido"
+msgstr "Track the order"
+
+msgid "Recebemos o seu pedido de cancelamento e vamos analisá-lo. Assim que houver uma decisão, avisamos por e-mail."
+msgstr "We have received your cancellation request and will review it. As soon as there is a decision, we will let you know by e-mail."
+
+#
+# Cancelamento e reembolso: o que o cliente lê quando desiste de uma compra,
+# quando a loja recusa, e quando o dinheiro começa a voltar.
+#
+
+msgid "Não cobrado"
+msgstr "Not charged"
+
+msgid "Interrompido"
+msgstr "Halted"
+
+msgid "Sem reembolso"
+msgstr "No refund"
+
+msgid "Reembolso pendente"
+msgstr "Refund pending"
+
+msgid "Nada foi cobrado por esta encomenda, portanto não há reembolso a fazer."
+msgstr "Nothing was charged for this order, so there is no refund to make."
+
+msgid "O reembolso da sua encomenda foi iniciado."
+msgstr "The refund for your order has been started."
+
+msgid "Parte do valor da sua encomenda foi reembolsada."
+msgstr "Part of your order amount has been refunded."
+
+msgid "Sobre o seu pedido de cancelamento — %(number)s"
+msgstr "About your cancellation request — %(number)s"
+
+msgid "Reembolso do pedido %(number)s — JD PRINT"
+msgstr "Refund for order %(number)s — JD PRINT"
+
+msgid "Sobre o seu pedido de cancelamento da encomenda %(number)s"
+msgstr "About your request to cancel order %(number)s"
+
+msgid "Analisámos o seu pedido de cancelamento."
+msgstr "We have reviewed your cancellation request."
+
+msgid "Analisámos o seu pedido de cancelamento e, desta vez, não foi possível cancelar a encomenda."
+msgstr "We have reviewed your cancellation request and this time it was not possible to cancel the order."
+
+msgid "A encomenda segue o seu curso normal e continuamos a informá-lo sobre cada etapa."
+msgstr "The order continues as normal and we will keep you posted at every step."
+
+msgid "Reembolso da encomenda %(number)s"
+msgstr "Refund for order %(number)s"
+
+msgid "Iniciámos o reembolso da sua encomenda."
+msgstr "We have started the refund for your order."
+
+msgid "Iniciámos o reembolso de %(moeda)s %(valor)s da sua encomenda."
+msgstr "We have started the refund of %(moeda)s %(valor)s for your order."
+
+msgid "Avisamos por e-mail assim que o reembolso estiver concluído."
+msgstr "We will email you as soon as the refund is complete."
+
+msgid "O reembolso da sua encomenda está concluído."
+msgstr "The refund for your order is complete."
+
+msgid "Parte do valor da sua encomenda já foi devolvida."
+msgstr "Part of your order amount has already been returned."
+
+msgid "O reembolso da sua encomenda está concluído: %(moeda)s %(valor)s foram devolvidos."
+msgstr "The refund for your order is complete: %(moeda)s %(valor)s have been returned."
+
+msgid "Já devolvemos %(moeda)s %(valor)s da sua encomenda. Ainda faltam %(moeda)s %(restante)s, e avisamos assim que saírem."
+msgstr "We have already returned %(moeda)s %(valor)s of your order. %(moeda)s %(restante)s is still to come, and we will let you know when it goes out."
+
+msgid "Pedido cancelado. Enviámos os detalhes por e-mail."
+msgstr "Order cancelled. We have emailed you the details."
+
+msgid "O prazo para cancelar ou devolver esta encomenda já passou. Se precisar de ajuda, é só responder ao e-mail do pedido."
+msgstr "The deadline to cancel or return this order has passed. If you need help, just reply to the order e-mail."
+
+msgid "O prazo para cancelar ou devolver esta encomenda já passou."
+msgstr "The deadline to cancel or return this order has passed."
+
+#
+# A tela de cancelamento: ela promete o que vai acontecer com aquele pedido,
+# e não uma regra geral.
+#
+
+msgid "Este pedido é cancelado assim que você enviar, e confirmamos por e-mail."
+msgstr "This order is cancelled as soon as you submit, and we confirm it by e-mail."
+
+msgid "Como já houve pagamento, o reembolso é iniciado junto."
+msgstr "Since payment has already been made, the refund starts at the same time."
+
+msgid "Nada foi cobrado, portanto não há reembolso a fazer."
+msgstr "Nothing was charged, so there is no refund to make."
+
+msgid "Analisamos o pedido e respondemos por e-mail. A produção já começou, então explicamos as opções antes de decidir."
+msgstr "We review the request and reply by e-mail. Production has already started, so we explain the options before deciding."
+
+msgid "Cancelar o pedido"
+msgstr "Cancel the order"
+
+#
+# A tela de cancelamento explica a situação daquele pedido — antes havia
+# uma frase só, que dizia "a produção já começou" mesmo quando não tinha.
+#
+
+msgid "Analisamos o pedido e respondemos por e-mail. A encomenda já saiu, então combinamos com você como fazer a devolução."
+msgstr "We review the request and reply by e-mail. The order has already left, so we will agree with you on how to return it."
+
+msgid "Analisamos o pedido e respondemos por e-mail assim que possível."
+msgstr "We review the request and reply by e-mail as soon as possible."

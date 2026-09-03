@@ -396,9 +396,15 @@ class HomeQueryTests(TestCase):
         # das páginas. A página vem no mesmo SELECT dos links
         # (`select_related`), então são cinco consultas para o rodapé inteiro.
         #
+        # E de 33 para 34 com as logos administráveis: uma consulta para ler a
+        # linha de `BrandAssets`. **Uma** por requisição, e não uma por card —
+        # a tag guarda a linha no `request`, e é isso que este orçamento prova:
+        # sem esse cuidado, a Home com oito produtos custaria oito consultas a
+        # mais só para descobrir a imagem padrão.
+        #
         # Fixas: `test_query_count_does_not_grow_with_more_content` continua
         # provando que cadastrar mais conteúdo não acrescenta nenhuma.
-        with self.assertNumQueries(33):
+        with self.assertNumQueries(34):
             self.client.get(HOME_PT)
 
     def test_query_count_does_not_grow_with_more_content(self):

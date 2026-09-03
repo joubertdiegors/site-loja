@@ -14,6 +14,7 @@ from django.contrib.auth.forms import (
     PasswordChangeForm,
 )
 from django.contrib.auth.tokens import default_token_generator
+from django.utils import translation
 from django.utils.translation import gettext_lazy as _
 
 from apps.accounts.emails import send_password_reset_email
@@ -145,11 +146,18 @@ class PasswordResetRequestForm(forms.Form):
         ]
 
     def save(self, token_generator=default_token_generator) -> int:
-        """Envia o link. Devolve quantos e-mails saíram (a view ignora)."""
+        """Envia o link. Devolve quantos e-mails saíram (a view ignora).
+
+        O idioma vai daqui: este formulário é processado dentro da requisição,
+        e ``get_language()`` devolve o idioma da tela em que a pessoa digitou o
+        e-mail — o que ela escolheu, não o que a conta guardou há meses. É o
+        único ponto do fluxo que sabe as duas coisas.
+        """
         email = User.objects.normalize_email(self.cleaned_data["email"])
+        idioma = translation.get_language()
         sent = 0
         for user in self.get_users(email):
-            if send_password_reset_email(user, token_generator):
+            if send_password_reset_email(user, token_generator, language=idioma):
                 sent += 1
         return sent
 

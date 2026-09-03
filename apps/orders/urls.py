@@ -27,6 +27,20 @@ urlpatterns = [
         views.OrderRetryPaymentView.as_view(),
         name="retry_payment",
     ),
+    # O comprovante fica sob `conta/pedidos/`, junto com as outras telas do
+    # pedido, porque é a mesma coisa: uma tela que só o dono do pedido abre.
+    # O arquivo em si sai por uma rota própria, por id, e com a mesma
+    # conferência — nunca como mídia pública.
+    path(
+        "conta/pedidos/<str:number>/comprovante/",
+        views.PaymentProofView.as_view(),
+        name="payment_proof",
+    ),
+    path(
+        "conta/comprovantes/<int:pk>/arquivo/",
+        views.payment_proof_file,
+        name="payment_proof_file",
+    ),
     path(
         "pedido/<str:number>/confirmacao/",
         views.ConfirmationView.as_view(),

@@ -19,7 +19,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from apps.orders.models import (
-    BankTransferSettings,
+    BankAccount,
     Order,
     OrderStatus,
     PaymentState,
@@ -64,6 +64,16 @@ class TransferBase(LanguageResetMixin, TestCase):
         self.product = make_product(
             sku="TRANSF-01", name="Vaso Espiral", category=self.category,
             price=Decimal("19.90"), stock_quantity=10, weight_grams=Decimal("300"),
+        )
+        # A conta padrão faz parte do cenário: sem ela a loja não aceita
+        # transferência, e é isso que `SemContaPadraoTests` cobra.
+        self.account = BankAccount.objects.create(
+            label="Principal",
+            beneficiary="JD PRINT SRL",
+            iban="BE68 5390 0754 7034",
+            bic="GEBABEBB",
+            instructions="Use o número do pedido na comunicação.",
+            is_default=True,
         )
         self.client.force_login(self.user)
 
@@ -160,9 +170,13 @@ class TransferCheckoutTests(TransferBase):
                 "billing_same_as_shipping": "on",
                 "shipping_method": self.method.pk,
                 # Tudo abaixo é ruído: nada disso é lido.
+                #
+                # `payment_method` saiu daqui porque deixou de ser ruído: ele é
+                # um campo de verdade, e forjá-lo tem teste próprio
+                # (`FormaDePagamentoTests`). Mandá-lo inválido aqui recusaria o
+                # pedido inteiro e este teste deixaria de falar do valor.
                 "amount": "0.01",
                 "total": "0.01",
-                "payment_method": "gratis",
                 "provider": "stripe",
             },
             follow=True,
@@ -181,11 +195,19 @@ class TransferCheckoutTests(TransferBase):
         self.assertEqual(resposta.status_code, 200)
         self.assertContains(resposta, pedido.number)
 
-    def test_the_confirmation_says_the_bank_details_are_coming(self):
+    def test_the_confirmation_says_the_details_were_already_sent(self):
+        """A promessa mudou, e é essa a diferença da etapa.
+
+        Antes: "entraremos em contato para enviar os dados" — o cliente ficava
+        esperando alguém da equipe agir. Agora o e-mail já saiu quando esta
+        página carrega, e é isso que ela diz.
+        """
         resposta = self.checkout()
 
         self.assertContains(resposta, "Pedido recebido")
-        self.assertContains(resposta, "transferência bancária")
+        self.assertContains(resposta, "Enviamos para")
+        self.assertContains(resposta, self.user.email)
+        self.assertContains(resposta, "Enviar comprovante")
         self.assertNotContains(resposta, "Stripe")
 
     def test_the_cart_is_emptied(self):
@@ -211,27 +233,41 @@ class TransferCheckoutTests(TransferBase):
 @TRANSFER
 @override_settings(ORDER_ADMIN_EMAILS=["loja@jdprint.test"])
 class TransferStoreEmailTests(TransferBase):
+    """O aviso que vai para a **equipe** — não o que vai para o cliente.
+
+    Desde que os dados bancários passaram a sair sozinhos, o checkout manda
+    dois e-mails. Procurar pelo destinatário, e não pelo índice, é o que faz
+    estes testes continuarem falando do aviso interno quando um terceiro
+    e-mail entrar na fila.
+    """
+
     def setUp(self):
         super().setUp()
         mail.outbox = []
 
+    def aviso(self):
+        """O e-mail endereçado à equipe."""
+        internos = [m for m in mail.outbox if m.to == ["loja@jdprint.test"]]
+        self.assertEqual(len(internos), 1, f"esperava um aviso interno, veio {len(internos)}")
+        return internos[0]
+
     def test_the_store_is_notified(self):
         self.checkout()
 
-        self.assertEqual(len(mail.outbox), 1)
-        self.assertEqual(mail.outbox[0].to, ["loja@jdprint.test"])
+        self.assertEqual(self.aviso().to, ["loja@jdprint.test"])
 
     def test_the_notice_carries_what_the_team_needs(self):
         self.checkout()
 
         pedido = Order.objects.get()
-        corpo = mail.outbox[0].body
-        self.assertIn(pedido.number, mail.outbox[0].subject)
+        aviso = self.aviso()
+        corpo = aviso.body
+        self.assertIn(pedido.number, aviso.subject)
         self.assertIn(pedido.number, corpo)
         self.assertIn("Ana Ribeiro", corpo)
         self.assertIn("ana@exemplo.test", corpo)
         # No assunto o valor vai cru; no corpo, formatado no idioma da loja.
-        self.assertIn(f"{pedido.total:.2f}", mail.outbox[0].subject)
+        self.assertIn(f"{pedido.total:.2f}", aviso.subject)
         self.assertIn(f"{pedido.total:.2f}".replace(".", ","), corpo)
         self.assertIn("Transferência bancária", corpo)
         self.assertIn("Rue du Test 1", corpo)
@@ -253,21 +289,53 @@ class TransferStoreEmailTests(TransferBase):
             follow=True,
         )
 
-        self.assertIn("aguardando transferência", mail.outbox[0].subject)
+        self.assertIn("aguardando transferência", self.aviso().subject)
 
-    def test_it_carries_the_bank_details_when_they_are_registered(self):
-        BankTransferSettings.objects.create(
-            beneficiary="JD PRINT SRL", iban="BE00 0000 0000 0000", bic="GEBABEBB"
+    def test_it_names_the_accounts_available_without_spelling_out_the_iban(self):
+        """O aviso interno diz que há conta; não é de onde se copia o IBAN.
+
+        Quem manda os dados ao cliente é a ação do Admin, que escolhe a conta.
+        Este e-mail é interno e se reencaminha como qualquer outro — o IBAN
+        inteiro fica no cadastro e no e-mail que o cliente pediu.
+        """
+        BankAccount.objects.create(
+            label="Segunda",
+            beneficiary="JD PRINT SRL",
+            iban="BE00 0000 0000 0000",
+            bic="GEBABEBB",
         )
 
         self.checkout()
 
-        self.assertIn("BE00 0000 0000 0000", mail.outbox[0].body)
+        corpo = self.aviso().body
+        self.assertIn("Segunda", corpo)
+        self.assertIn("BE00 ···· 0000", corpo)
+        self.assertNotIn("BE00 0000 0000 0000", corpo)
 
-    def test_without_bank_details_it_says_so_instead_of_going_silent(self):
+    def test_an_inactive_account_is_not_offered(self):
+        BankAccount.objects.create(
+            label="Antiga", beneficiary="JD PRINT SRL", iban="BE11 1111 1111 1111",
+            is_active=False,
+        )
+
         self.checkout()
 
-        self.assertIn("ainda não foram cadastrados", mail.outbox[0].body)
+        self.assertNotIn("Antiga", self.aviso().body)
+
+    def test_without_any_account_the_checkout_does_not_get_that_far(self):
+        """Sem conta padrão não há pedido — e portanto não há aviso.
+
+        Era um cenário possível quando o e-mail era só um lembrete para a
+        equipe mandar os dados à mão. Agora a conta é condição da venda:
+        `create_order` recusa antes, com uma mensagem para o cliente
+        (ver `SemContaPadraoTests`).
+        """
+        BankAccount.objects.all().delete()
+
+        self.checkout()
+
+        self.assertEqual(Order.objects.count(), 0)
+        self.assertEqual(mail.outbox, [])
 
     def test_a_dead_smtp_never_loses_the_order(self):
         """Provedor de e-mail fora do ar não pode apagar uma venda."""
@@ -316,45 +384,59 @@ class TransferLanguageTests(TransferBase):
 # ---------------------------------------------------------------------------
 
 
-class BankTransferSettingsTests(TestCase):
-    def test_a_second_row_cannot_be_created(self):
-        """A garantia fica na tabela, como em `EmailSettings` e `FooterSettings`.
+class BankAccountTests(TestCase):
+    """A conta deixou de ser singleton — era o que impedia escolher.
 
-        `save()` fixa `pk=1`, então um segundo `create()` esbarra no banco em
-        vez de gerar silenciosamente uma segunda conta bancária.
-        """
-        from django.db import IntegrityError, transaction
+    Enquanto os dados só apareciam num aviso interno, uma linha bastava:
+    ninguém escolhia nada, alguém copiava o IBAN. A partir do momento em que o
+    operador **seleciona** a conta antes de enviar (ver
+    `EnvioDeDadosBancariosTests`), uma linha só não responde à pergunta.
+    """
 
-        BankTransferSettings.objects.create(beneficiary="Primeira")
+    def test_more_than_one_account_can_exist(self):
+        BankAccount.objects.create(label="Principal", beneficiary="JD PRINT SRL", iban="BE00")
+        BankAccount.objects.create(label="Segunda", beneficiary="JD PRINT SRL", iban="BE11")
 
-        with self.assertRaises(IntegrityError):
-            with transaction.atomic():
-                BankTransferSettings.objects.create(beneficiary="Segunda")
-
-        self.assertEqual(BankTransferSettings.objects.count(), 1)
-
-    def test_load_creates_it_once(self):
-        primeira = BankTransferSettings.load()
-        segunda = BankTransferSettings.load()
-
-        self.assertEqual(primeira.pk, segunda.pk)
-        self.assertEqual(BankTransferSettings.objects.count(), 1)
-
-    def test_current_is_none_before_anyone_fills_it(self):
-        self.assertIsNone(BankTransferSettings.current())
+        self.assertEqual(BankAccount.objects.count(), 2)
 
     def test_it_is_only_usable_with_a_beneficiary_and_an_iban(self):
-        linha = BankTransferSettings(beneficiary="JD PRINT SRL")
+        linha = BankAccount(beneficiary="JD PRINT SRL")
         self.assertFalse(linha.is_complete)
 
         linha.iban = "BE00 0000 0000 0000"
         self.assertTrue(linha.is_complete)
 
+    def test_usable_leaves_out_the_inactive_and_the_incomplete(self):
+        """A lista de escolha não pode oferecer o que não dá para enviar."""
+        boa = BankAccount.objects.create(beneficiary="JD", iban="BE00 0000 0000 0000")
+        BankAccount.objects.create(beneficiary="JD", iban="BE11", is_active=False)
+        BankAccount.objects.create(beneficiary="", iban="BE22")  # sem titular
+        BankAccount.objects.create(beneficiary="JD", iban="")  # sem IBAN
+
+        self.assertEqual(list(BankAccount.objects.usable()), [boa])
+
+    def test_the_masked_iban_shows_only_the_ends(self):
+        """Para identificar a conta no histórico e na lista, não para usá-la."""
+        conta = BankAccount(iban="BE68 5390 0754 7034")
+
+        self.assertEqual(conta.masked_iban, "BE68 ···· 7034")
+
+    def test_a_short_iban_is_not_broken_by_the_mask(self):
+        self.assertEqual(BankAccount(iban="BE68").masked_iban, "BE68")
+
     def test_it_holds_no_customer_data(self):
-        """A loja recebe uma transferência; o IBAN de quem paga não é nosso."""
-        campos = {campo.name for campo in BankTransferSettings._meta.fields}
+        """A loja recebe uma transferência; o IBAN de quem paga não é nosso.
+
+        A lista é fechada de propósito: um campo novo nesta tabela tem que
+        passar por aqui antes de existir.
+        """
+        campos = {campo.name for campo in BankAccount._meta.fields}
 
         self.assertEqual(
             campos,
-            {"id", "created_at", "updated_at", "beneficiary", "iban", "bic", "instructions"},
+            {
+                "id", "created_at", "updated_at",
+                "label", "beneficiary", "iban", "bic", "instructions",
+                "is_default", "is_active", "sort_order",
+            },
         )

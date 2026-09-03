@@ -1,0 +1,16 @@
+{% load i18n %}JD PRINT
+
+{% translate "Recebemos o seu pedido de cancelamento" %}
+
+{% blocktranslate with number=order.number %}Recebemos a sua solicitação de cancelamento da encomenda {{ number }}. Vamos analisá-la e informamos o resultado assim que possível.{% endblocktranslate %}
+
+{% translate "Ainda não há nada decidido: avisamos por e-mail assim que houver uma resposta." %}
+
+--- {% translate "Seu pedido" %} ---
+{{ order.number }} · {{ order.created_at|date:"d/m/Y" }}
+{% translate "Valor" %}: {{ order.currency_symbol }} {{ order.total|floatformat:2 }}
+
+{% translate "Acompanhar o pedido" %}:
+{{ order_url }}
+
+{% translate "Qualquer dúvida, é só responder a este e-mail." %}

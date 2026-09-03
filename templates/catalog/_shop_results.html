@@ -146,11 +146,24 @@ funcionam igual sem JavaScript.
     <span class="empty-state-icon" aria-hidden="true">{% icon "search" "h-6 w-6" %}</span>
 
     {% if is_search and has_query %}
+      {% comment %}
+        Busca sem resultado é a única tela da loja em que o cliente já disse o
+        que quer e a loja não tem. Responder só "nenhum produto encontrado" o
+        deixa sem próximo passo — e a JD PRINT imprime sob encomenda, então
+        "não está no catálogo" não é o mesmo que "não dá para fazer".
+
+        Por isso o convite ao contato aparece **aqui e só aqui**: nas outras
+        listas vazias (categoria sem produto, filtro que não casou) o caminho
+        certo é continuar navegando, não escrever para a loja.
+      {% endcomment %}
       <p class="font-display text-lg font-bold text-ink">
-        {% blocktranslate with termo=query %}Nenhum produto encontrado para “{{ termo }}”.{% endblocktranslate %}
+        {% blocktranslate with termo=query %}Não encontramos nada para “{{ termo }}”.{% endblocktranslate %}
       </p>
       <p class="max-w-md text-sm text-ink-soft">
-        {% translate "Tente outra palavra, verifique a grafia ou navegue pelas categorias." %}
+        {% translate "Pode ser a grafia da palavra, ou a peça pode ainda não estar no catálogo." %}
+      </p>
+      <p class="max-w-md text-sm text-ink-soft">
+        {% translate "Se você procura algo específico, fale com a gente." %}
       </p>
     {% elif is_search %}
       <p class="font-display text-lg font-bold text-ink">{% translate "O que você procura?" %}</p>
@@ -180,6 +193,16 @@ funcionam igual sem JavaScript.
            hx-get="{% querystring categoria=None page=None %}"
            hx-target="#shop-results" hx-push-url="true"
            class="btn-secondary btn-sm">{% translate "Ver todos os produtos" %}</a>
+      {% endif %}
+      {% comment %}
+        A ordem importa: o contato vem primeiro porque é a saída que o cliente
+        não tem como adivinhar sozinho. "Ver o catálogo" continua ao lado, em
+        secundário — quem só errou a palavra volta por ali.
+      {% endcomment %}
+      {% if is_search and has_query %}
+        <a href="{% url 'storefront:page_contact' %}" class="btn-primary btn-sm">
+          {% translate "Entrar em contato" %}
+        </a>
       {% endif %}
       {% if is_search %}
         <a href="{% url 'catalog:models_shop' %}" class="btn-secondary btn-sm">

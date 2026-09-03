@@ -10,6 +10,7 @@ from django.urls import reverse
 
 from apps.home.models import (
     CtaTarget,
+    HomeBanner,
     HomeSection,
     HomeSectionLayout,
     HomeSectionProduct,
@@ -332,3 +333,56 @@ class AdminPermissionTests(TestCase):
 
         response = self.client.get(reverse("admin:home_homesection_changelist"))
         self.assertEqual(response.status_code, 302)
+
+
+class BannerMedidaTests(TestCase):
+    """A medida da arte tem que estar escrita onde ela é usada.
+
+    Quem cadastra um banner não abre o model nem a documentação: olha a tela.
+    Por isso a medida aparece nos dois lugares que a tela mostra — o texto de
+    ajuda do campo e a descrição da seção — e o teste cobra os dois.
+
+    A medida também mora no `help_text` do model, e não só no Admin, porque
+    ela é propriedade do campo: quem ler o model, um serializer ou uma tela
+    futura tem que encontrar o mesmo número.
+    """
+
+    MEDIDA = "1920 × 700"
+    PROPORCAO = "2,74:1"
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.chefe = get_user_model().objects.create_superuser(
+            "chefe-banner", "chefe-banner@jdprint.test", "senha-de-teste-77"
+        )
+
+    def setUp(self):
+        self.client.force_login(self.chefe)
+
+    def test_the_field_help_text_carries_the_exact_size(self):
+        campo = HomeBanner._meta.get_field("image_desktop")
+
+        self.assertIn(self.MEDIDA, campo.help_text)
+        self.assertIn(self.PROPORCAO, campo.help_text)
+
+    def test_the_add_screen_shows_the_size(self):
+        resposta = self.client.get(reverse("admin:home_homebanner_add"))
+
+        self.assertEqual(resposta.status_code, 200)
+        corpo = resposta.content.decode()
+        self.assertIn(self.MEDIDA, corpo)
+        self.assertIn(self.PROPORCAO, corpo)
+
+    def test_the_section_description_explains_what_happens_outside_the_size(self):
+        """Só o número não basta: quem cadastra precisa saber o que se perde."""
+        resposta = self.client.get(reverse("admin:home_homebanner_add"))
+
+        self.assertContains(resposta, "cortada pelo centro")
+
+    def test_the_old_recommendation_is_gone(self):
+        """Duas medidas diferentes na mesma tela seriam pior que nenhuma."""
+        campo = HomeBanner._meta.get_field("image_desktop")
+        corpo = self.client.get(reverse("admin:home_homebanner_add")).content.decode()
+
+        self.assertNotIn("1920×720", campo.help_text)
+        self.assertNotIn("1920×720", corpo)

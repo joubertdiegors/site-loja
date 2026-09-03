@@ -6,7 +6,7 @@ from django.templatetags.static import static as static_url
 from django.urls import include, path
 from django.views.generic import RedirectView
 
-from apps.core.views import set_language
+from apps.core.views import favicon, set_language
 from apps.orders.views import StripeWebhookView
 
 # Fora do i18n_patterns: o admin tem o próprio seletor de idioma do Django e a
@@ -22,11 +22,10 @@ urlpatterns = [
     # O navegador pede /favicon.ico sozinho, em toda visita, mesmo com o <link>
     # do <head> apontando para outro arquivo. Sem esta rota é um 404 por
     # visitante no log — ruído que esconde os 404 que importam.
-    path(
-        "favicon.ico",
-        RedirectView.as_view(url=static_url("images/logo/favicon.svg"), permanent=True),
-        name="favicon",
-    ),
+    #
+    # A view (e não um `RedirectView` com URL fixa) porque o ícone agora vem do
+    # Admin: ver `apps.core.views.favicon`.
+    path("favicon.ico", favicon, name="favicon"),
     # O webhook da Stripe não é um navegador: não tem idioma, não tem sessão e
     # não pode ganhar prefixo /fr/. Ele se autentica pela assinatura do corpo
     # (ver apps/orders/views.py::StripeWebhookView).
@@ -56,10 +55,14 @@ if settings.DEBUG:
     # desenvolvimento não bater com a produção justamente no ponto que a
     # etapa fechou.
     #
+    # `brand/` entrou junto: logo, favicon e imagem padrão de produto aparecem
+    # em toda página, inclusive para quem não fez login. São enviadas pelo
+    # Admin, não pelo cliente — e por isso são públicas por natureza.
+    #
     # Em produção quem serve é o proxy da hospedagem: o mapeamento tem de
-    # apontar para estas duas pastas, nunca para `media/` inteiro (ver
+    # apontar para estas três pastas, nunca para `media/` inteiro (ver
     # docs/DEPLOY_PYTHONANYWHERE.md).
-    for _publica in ("products", "banners"):
+    for _publica in ("products", "banners", "brand"):
         urlpatterns += static(
             f"{settings.MEDIA_URL}{_publica}/",
             document_root=settings.MEDIA_ROOT / _publica,

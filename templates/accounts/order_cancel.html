@@ -4,9 +4,14 @@
 {% comment %}
 Solicitação de cancelamento.
 
-O cliente **pede**; a loja decide. A tela diz isso com todas as letras, para
-ninguém sair achando que o pedido já foi cancelado — sobretudo quando a peça
-já está na impressora.
+A tela promete o que vai acontecer com **este** pedido, e não uma regra geral:
+sem cobrança, ou com a produção ainda parada, o cancelamento sai no clique;
+com a peça na impressora ou já enviada, ele vai para análise.
+
+Uma frase só para os dois casos estaria errada metade das vezes — e o cliente
+que lê "vamos analisar" e recebe "cancelado" desconfia tanto quanto o contrário.
+
+Espera `plano` (`services.cancellation_plan`).
 {% endcomment %}
 
 {% block account_eyebrow %}{% translate "Meus pedidos" %}{% endblock %}
@@ -23,7 +28,31 @@ já está na impressora.
       <p class="alert-info" role="status">
         {% icon "mail" "h-4 w-4 shrink-0" %}
         <span>
-          {% translate "O cancelamento não é automático: analisamos o pedido e respondemos. Se a produção já tiver começado, explicamos as opções." %}
+          {% if plano.auto %}
+            {% translate "Este pedido é cancelado assim que você enviar, e confirmamos por e-mail." %}
+            {% if plano.refund %}
+              {% translate "Como já houve pagamento, o reembolso é iniciado junto." %}
+            {% else %}
+              {% translate "Nada foi cobrado, portanto não há reembolso a fazer." %}
+            {% endif %}
+          {% else %}
+            {% comment %}
+              Três frases, uma por situação: antes havia uma só, dizendo "a
+              produção já começou" — inclusive para um pedido personalizado que
+              nem entrou na impressora e para um já entregue.
+
+              O texto é escrito para quem comprou. O `plano.reason` existe e
+              seria mais fácil, mas ele fala de estoque e de fila de oficina:
+              vocabulário de dentro da loja.
+            {% endcomment %}
+            {% if order.fulfillment_status == "in_production" %}
+              {% translate "Analisamos o pedido e respondemos por e-mail. A produção já começou, então explicamos as opções antes de decidir." %}
+            {% elif order.fulfillment_status == "shipped" or order.fulfillment_status == "delivered" %}
+              {% translate "Analisamos o pedido e respondemos por e-mail. A encomenda já saiu, então combinamos com você como fazer a devolução." %}
+            {% else %}
+              {% translate "Analisamos o pedido e respondemos por e-mail assim que possível." %}
+            {% endif %}
+          {% endif %}
         </span>
       </p>
 
@@ -38,7 +67,9 @@ já está na impressora.
       </div>
 
       <div class="flex flex-wrap items-center gap-3 border-t border-surface-line pt-5">
-        <button type="submit" class="btn-danger">{% translate "Enviar solicitação" %}</button>
+        <button type="submit" class="btn-danger">
+          {% if plano.auto %}{% translate "Cancelar o pedido" %}{% else %}{% translate "Enviar solicitação" %}{% endif %}
+        </button>
         <a href="{{ order.get_absolute_url }}" class="btn-ghost">{% translate "Voltar ao pedido" %}</a>
       </div>
     </form>

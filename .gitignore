@@ -19,6 +19,7 @@
 .env
 .env.*
 !.env.example
+.envrc
 *.pem
 *.key
 *.crt
@@ -73,6 +74,28 @@ customizations/
 staticfiles/
 
 # ---------------------------------------------------------------------------
+# Documentacao interna
+#
+# `docs/` guarda manual de operacao, arquitetura, procedimento de deploy e os
+# relatorios de auditoria das etapas. Nada disso e lido pela aplicacao -- as
+# unicas mencoes no codigo sao em comentario -- e o repositorio e PUBLICO.
+#
+# Consequencia deliberada: quem clonar o repositorio nao recebe o procedimento
+# de deploy nem o manual de backup. Eles passam a viver so na maquina do dono e
+# no PythonAnywhere. Ver o relatorio desta etapa.
+# ---------------------------------------------------------------------------
+docs/
+
+# ---------------------------------------------------------------------------
+# Auxiliares da maquina local
+#
+# `comandos.txt` e um bloco de notas de comandos de desenvolvimento (criar o
+# venv, ativar, instalar Django). Util para quem escreveu, irrelevante para
+# quem roda o site.
+# ---------------------------------------------------------------------------
+comandos.txt
+
+# ---------------------------------------------------------------------------
 # Python
 # ---------------------------------------------------------------------------
 __pycache__/
@@ -96,6 +119,21 @@ ENV/
 .coverage.*
 htmlcov/
 
+# Sondas descartaveis.
+#
+# Duas vezes um arquivo de investigacao ficou esquecido em `apps/*/tests/`
+# depois de uma auditoria. A convencao e o prefixo `_tmp`: quem escreve uma
+# sonda a chama assim, e ela nao volta no `git add .` por descuido. Teste que
+# deve ficar nao usa esse prefixo.
+**/test_tmp_*.py
+**/tests_tmp_*.py
+
+# Caches de ferramentas de analise (nenhuma em uso hoje; o cache aparece na
+# primeira vez que alguem rodar uma delas).
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
 # ---------------------------------------------------------------------------
 # Node (usado so para o build do Tailwind)
 # ---------------------------------------------------------------------------
@@ -115,6 +153,14 @@ logs/
 *.orig
 *.rej
 *~
+*.pid
+*.sock
+
+# Pastas de rascunho na raiz do projeto. Nomeadas uma a uma, e nao por um
+# padrao amplo: `scratch` como sufixo poderia esconder um app de verdade.
+/scratch/
+/tmp/
+/temp/
 
 # ---------------------------------------------------------------------------
 # Editores e sistema operacional

@@ -1,0 +1,84 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls %}
+
+{% comment %}
+  Escolher a conta antes de mandar.
+
+  É o mesmo desenho da confirmação de exclusão do Django, e pelo mesmo motivo:
+  o clique na lista não pode ser o envio. O que sai daqui é um e-mail com um
+  IBAN para um cliente — a decisão merece uma tela.
+
+  Os pedidos vão como `_selected_action`, exatamente como o Django os mandou
+  para cá; a ação os recebe de volta no mesmo queryset recortado pela
+  permissão. O `<select>` manda só o id da conta, e a ação a procura de novo
+  entre as que podem ser usadas: um id antigo de conta desativada não passa.
+{% endcomment %}
+
+{% block breadcrumbs %}
+  <div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% translate "Início" %}</a>
+    &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+    &rsaquo; <a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+    &rsaquo; {{ title }}
+  </div>
+{% endblock %}
+
+{% block content %}
+  <h1>{{ title }}</h1>
+
+  <p>
+    {% blocktranslate count total=orders|length %}
+      O e-mail com os dados da conta escolhida será enviado para o cliente deste pedido.
+    {% plural %}
+      O e-mail com os dados da conta escolhida será enviado para os clientes destes {{ total }} pedidos.
+    {% endblocktranslate %}
+  </p>
+
+  <ul>
+    {% for pedido in orders %}
+      <li>
+        <strong>{{ pedido.number }}</strong>
+        — {{ pedido.customer.user.email }}
+        — {{ pedido.currency_symbol }} {{ pedido.total|floatformat:2 }}
+{% comment %}
+          Sem cor literal: a varredura do Design System
+          (`DesignTokenTests`) cobre `templates/` inteiro, admin incluso, e
+          está certa em cobrir. Aqui o aviso se distingue pelo peso do texto.
+        {% endcomment %}{% if pedido.transfer_details_sent_at %}
+          — <strong>{% blocktranslate with quando=pedido.transfer_details_sent_at|date:"d/m/Y H:i" %}já recebeu os dados em {{ quando }}; será reenviado{% endblocktranslate %}</strong>
+        {% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+
+  <form method="post">
+    {% csrf_token %}
+
+    {% for pedido in orders %}
+      <input type="hidden" name="{{ action_checkbox_name }}" value="{{ pedido.pk }}">
+    {% endfor %}
+    <input type="hidden" name="{{ action_field }}" value="{{ action_name }}">
+    <input type="hidden" name="index" value="0">
+
+    <fieldset class="module aligned">
+      <div class="form-row">
+        <div class="flex-container">
+          <label class="required" for="conta">{% translate "Conta bancária:" %}</label>
+          <select name="conta" id="conta" required>
+            {% for conta in accounts %}
+              <option value="{{ conta.pk }}">{{ conta }} — {{ conta.beneficiary }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="help">
+          {% translate "Só aparecem contas ativas e com titular e IBAN preenchidos. O número do pedido vai como comunicação da transferência." %}
+        </div>
+      </div>
+    </fieldset>
+
+    <div class="submit-row">
+      <input type="submit" class="default" value="{% translate 'Enviar dados bancários' %}">
+      <a href="{% url opts|admin_urlname:'changelist' %}" class="button cancel-link">{% translate "Cancelar" %}</a>
+    </div>
+  </form>
+{% endblock %}

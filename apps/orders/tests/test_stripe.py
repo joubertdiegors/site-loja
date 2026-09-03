@@ -81,6 +81,12 @@ def checkout_completed(order, event_id="evt_1", payment_status="paid"):
     }
 
 
+#: A loja destes testes roda na Stripe. Estava implícito no padrão do
+#: `settings.py` e vinha de graça enquanto o `.env` local não declarava
+#: `PAYMENT_PROVIDER`; com o `.env` alinhado ao modelo oficial (transferência),
+#: o implícito virou o provedor errado. Um teste da Stripe diz que testa a
+#: Stripe.
+@override_settings(PAYMENT_PROVIDER="stripe")
 class StripeTestCase(LanguageResetMixin, TestCase):
     def setUp(self):
         super().setUp()
@@ -415,7 +421,10 @@ class WebhookEffectTests(StripeTestCase):
         self.order.refresh_from_db()
         self.assertEqual(self.order.status, OrderStatus.CONFIRMED)
         self.assertEqual(self.order.payment_status, PaymentStatus.PAID)
-        self.assertEqual(self.order.fulfillment_status, FulfillmentStatus.IN_PRODUCTION)
+        # A produção continua onde estava: pagar não é começar a imprimir.
+        # Quem começa é a oficina, e é ela que marca — é essa distinção que
+        # permite cancelar sozinho um pedido pago e ainda parado.
+        self.assertEqual(self.order.fulfillment_status, FulfillmentStatus.NOT_STARTED)
 
     def test_payment_row_is_updated(self):
         self.post_event(checkout_completed(self.order))

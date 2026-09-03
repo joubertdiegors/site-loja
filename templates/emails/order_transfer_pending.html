@@ -69,17 +69,21 @@ Sempre em português: quem lê é a equipe.
     </p>
   {% endif %}
 
-  {% if bank.is_complete %}
-    <h2 style="margin:0 0 8px 0;font-size:15px;color:#1b1533;">{% translate "Dados para enviar ao cliente" %}</h2>
+  {% comment %}
+    As contas aparecem aqui só para quem lê saber que existe conta cadastrada.
+    O IBAN inteiro não vem: quem manda os dados ao cliente é a ação do Admin,
+    e este e-mail interno se reencaminha com a mesma facilidade que qualquer
+    outro.
+  {% endcomment %}
+  {% if accounts %}
+    <h2 style="margin:0 0 8px 0;font-size:15px;color:#1b1533;">{% translate "Contas disponíveis" %}</h2>
     <p style="margin:0 0 20px 0;padding:12px 14px;background-color:#f5f2fd;border-radius:10px;font-size:14px;line-height:1.6;color:#3b3357;">
-      {{ bank.beneficiary }}<br>
-      IBAN: <strong style="color:#1b1533;">{{ bank.iban }}</strong>
-      {% if bank.bic %}<br>BIC: {{ bank.bic }}{% endif %}
-      {% if bank.instructions %}<br><br>{{ bank.instructions|linebreaksbr }}{% endif %}
+      {% for conta in accounts %}{{ conta }}<br>{% endfor %}
+      <span style="color:#6b6386;">{% translate "Abra o pedido no Admin, escolha a conta e use a ação “Enviar dados bancários ao cliente”." %}</span>
     </p>
   {% else %}
     <p style="margin:0 0 20px 0;padding:12px 14px;background-color:#fdf3d7;border-radius:10px;font-size:14px;color:#3b3357;">
-      {% translate "Os dados bancários ainda não foram cadastrados no Admin (Pedidos › dados para transferência)." %}
+      {% translate "Nenhuma conta bancária cadastrada no Admin (Pedidos › contas bancárias). Sem ela não há o que enviar ao cliente." %}
     </p>
   {% endif %}
 

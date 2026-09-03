@@ -4,16 +4,30 @@ Imagem do produto (ou o espaço reservado).
 
 Parâmetros: `media` (ProductMedia ou vazio) e `name` (nome já traduzido).
 
-Sem imagem cadastrada, mostramos um bloco com a inicial do produto sobre o
-padrão da marca. É claramente um espaço reservado — nunca uma foto inventada —
-e ocupa exatamente a mesma área, então a grade não muda de altura.
+Sem imagem própria, há dois caminhos, nesta ordem:
+
+1. a **imagem padrão** cadastrada no Admin (CONFIGURAÇÕES DA LOJA → LOGOS E
+   IMAGENS), quando existir;
+2. um bloco com a inicial do produto sobre o padrão da marca.
+
+O segundo é claramente um espaço reservado — nunca uma foto inventada — e os
+dois ocupam exatamente a mesma área, então a grade não muda de altura.
+
+A imagem padrão **não** substitui foto nenhuma: ela só aparece onde não há
+`media`. Produto com foto própria continua exatamente como estava.
 {% endcomment %}
+{% product_placeholder_url as placeholder_url %}
 <div class="aspect-square w-full overflow-hidden bg-surface-soft">
   {% if media %}
     <img src="{{ media.file.url }}"
          alt="{{ media.alt_text|default:name }}"
          loading="lazy" decoding="async"
          class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]">
+  {% elif placeholder_url %}
+    <img src="{{ placeholder_url }}"
+         alt="{% blocktranslate %}Imagem de {{ name }} ainda não cadastrada{% endblocktranslate %}"
+         loading="lazy" decoding="async"
+         class="h-full w-full object-cover">
   {% else %}
     <div class="placeholder-mesh flex h-full w-full flex-col items-center justify-center gap-2"
          role="img" aria-label="{% blocktranslate %}Imagem de {{ name }} ainda não cadastrada{% endblocktranslate %}">

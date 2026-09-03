@@ -14,6 +14,7 @@ from apps.cart.cart import CartLine
 from apps.core.testing import (
     LanguageResetMixin,
     make_address,
+    make_bank_account,
     make_country,
     make_method,
     make_product,
@@ -50,6 +51,7 @@ class OrdersBase(LanguageResetMixin, TestCase):
         self.country = make_country("BE")
         self.method = make_method()
         make_rate(self.method, self.country, 0, 5000, "5.90")
+        make_bank_account()
         self.product = make_product(
             sku="P1", name="Vaso Espiral", price=Decimal("19.90"), stock_quantity=10
         )
@@ -134,11 +136,50 @@ class OrderDetailTests(OrdersBase):
         self.assertNotContains(response, "Combinar fonte maior")
 
     def test_visible_history_is_shown(self):
+        """O acompanhamento fala com o cliente, não com a operação.
+
+        Antes a tela imprimia o rótulo técnico do evento ("Pedido criado") e o
+        `message` interno logo abaixo — e é por ali que sairiam o IBAN
+        mascarado da conta e o nome do arquivo que o cliente mandou. Agora sai
+        a frase escrita para ele.
+        """
         self.client.force_login(self.owner)
 
         response = self.client.get(self.url())
 
-        self.assertContains(response, "Pedido criado")
+        self.assertContains(response, "Recebemos a sua encomenda")
+
+    def test_the_internal_message_never_reaches_the_customer(self):
+        """A anotação da equipe fica no Admin. Aqui, nunca."""
+        self.order.log(
+            OrderEvent.TRANSFER_DETAILS_SENT,
+            "Dados bancários enviados ao cliente (conta: Interna · LT14 ···· 2545)",
+        )
+        self.client.force_login(self.owner)
+
+        response = self.client.get(self.url())
+
+        self.assertNotContains(response, "LT14")
+        self.assertNotContains(response, "conta: Interna")
+        self.assertContains(response, "Enviámos para o seu e-mail os dados")
+
+    def test_the_tracking_code_is_the_exception(self):
+        """No envio o detalhe **é** a informação que o cliente quer."""
+        self.order.log(OrderEvent.SHIPPED, "BE123456789")
+        self.client.force_login(self.owner)
+
+        response = self.client.get(self.url())
+
+        self.assertContains(response, "BE123456789")
+        self.assertContains(response, "Código de rastreio")
+
+    def test_an_event_without_a_customer_message_draws_no_empty_line(self):
+        self.order.log(OrderEvent.STATUS_CHANGED, "não iniciado → em produção")
+        self.client.force_login(self.owner)
+
+        response = self.client.get(self.url())
+
+        self.assertNotContains(response, "não iniciado")
 
     def test_addresses_come_from_the_snapshot(self):
         self.client.force_login(self.owner)
@@ -177,7 +218,6 @@ class CancellationRequestTests(OrdersBase):
 
         self.assertRedirects(response, self.order.get_absolute_url())
         self.order.refresh_from_db()
-        self.assertEqual(self.order.cancellation_status, CancellationStatus.REQUESTED)
         self.assertEqual(self.order.cancellation_reason, "Comprei o tamanho errado")
 
     def test_reason_is_required(self):
@@ -189,25 +229,45 @@ class CancellationRequestTests(OrdersBase):
         self.order.refresh_from_db()
         self.assertEqual(self.order.cancellation_status, CancellationStatus.NONE)
 
-    def test_requesting_does_not_cancel_the_order(self):
-        """Quem cancela é a loja — e a tela diz isso com todas as letras."""
+    def test_an_unpaid_order_is_cancelled_right_away(self):
+        """Nada foi cobrado: não há o que analisar, e a página já responde."""
         self.client.force_login(self.owner)
 
         self.client.post(self.url(), {"reason": "Mudei de ideia"})
 
         self.order.refresh_from_db()
-        self.assertNotEqual(self.order.status, "cancelled")
+        self.assertEqual(self.order.status, "cancelled")
+        self.assertEqual(self.order.cancellation_status, CancellationStatus.APPROVED)
 
-    def test_shipped_order_cannot_be_cancelled_here(self):
-        self.order.fulfillment_status = FulfillmentStatus.SHIPPED
-        self.order.save()
+    def test_a_paid_order_in_production_waits_for_a_person(self):
+        from apps.orders import services
+
+        services.confirm_payment(self.order)
+        self.order.refresh_from_db()
+        services.change_fulfillment_status(self.order, FulfillmentStatus.IN_PRODUCTION)
         self.client.force_login(self.owner)
 
-        response = self.client.post(self.url(), {"reason": "Tarde demais"})
+        self.client.post(self.url(), {"reason": "Mudei de ideia"})
+
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.cancellation_status, CancellationStatus.REQUESTED)
+        self.assertNotEqual(self.order.status, "cancelled")
+
+    def test_a_shipped_order_can_still_be_asked_about(self):
+        """O prazo legal só começa na entrega — enviado ainda dá para pedir."""
+        from apps.orders import services
+
+        services.confirm_payment(self.order)
+        self.order.refresh_from_db()
+        self.order.fulfillment_status = FulfillmentStatus.SHIPPED
+        self.order.save(update_fields=["fulfillment_status"])
+        self.client.force_login(self.owner)
+
+        response = self.client.post(self.url(), {"reason": "Quero devolver"})
 
         self.assertRedirects(response, self.order.get_absolute_url())
         self.order.refresh_from_db()
-        self.assertEqual(self.order.cancellation_status, CancellationStatus.NONE)
+        self.assertEqual(self.order.cancellation_status, CancellationStatus.REQUESTED)
 
 
 class RetryPaymentTests(OrdersBase):
@@ -221,10 +281,19 @@ class RetryPaymentTests(OrdersBase):
 
         self.assertEqual(response.status_code, 404)
 
-    def test_retry_requires_post(self):
+    def test_retry_opens_a_page_that_asks_again(self):
+        """"Pagar agora" deixou de ser um POST cego.
+
+        Um pedido pode ficar dias esperando, e nesse intervalo o estoque, as
+        formas de pagamento e a conta bancária mudam sozinhos. A tela existe
+        para perguntar de novo — ver `PagarAgoraTests`.
+        """
         self.client.force_login(self.owner)
 
-        self.assertEqual(self.client.get(self.url()).status_code, 405)
+        resposta = self.client.get(self.url())
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertContains(resposta, "Forma de pagamento")
 
 
 class ConfirmationPageTests(OrdersBase):
@@ -240,7 +309,19 @@ class ConfirmationPageTests(OrdersBase):
         self.order.refresh_from_db()
         self.assertFalse(self.order.is_paid)
 
-    def test_unpaid_order_shows_that_we_are_waiting(self):
+    def test_an_unpaid_card_order_shows_that_we_are_waiting(self):
+        """O ramo do gateway: o dinheiro já saiu e falta a confirmação chegar.
+
+        O pedido tem que dizer que é de cartão — a página escolhe a mensagem
+        por `payment_method`, e o cenário desta classe nasce com o provedor do
+        ambiente. Antes isso vinha de graça do padrão do settings; passou a ser
+        dito em voz alta quando o `.env` alinhou o provedor à transferência.
+
+        O ramo da transferência tem cobertura própria em
+        `test_payment_flow.PaginaDeSucessoTests`.
+        """
+        self.order.payment_method = "card"
+        self.order.save(update_fields=["payment_method"])
         self.client.force_login(self.owner)
 
         response = self.client.get(self.url())

@@ -1898,3 +1898,417 @@ msgstr "Date"
 
 msgid "enviar dados bancários"
 msgstr "envoyer les coordonnées bancaires"
+
+msgid "Não encontramos nada para “%(termo)s”."
+msgstr "Nous n’avons rien trouvé pour « %(termo)s »."
+
+msgid "Pode ser a grafia da palavra, ou a peça pode ainda não estar no catálogo."
+msgstr "C’est peut-être l’orthographe, ou la pièce n’est pas encore au catalogue."
+
+msgid "Se você procura algo específico, fale com a gente."
+msgstr "Si vous cherchez quelque chose de précis, écrivez-nous."
+
+msgid "Entrar em contato"
+msgstr "Nous contacter"
+
+msgid "Enviar comprovante — JD PRINT"
+msgstr "Envoyer le justificatif — JD PRINT"
+
+msgid "Enviar comprovante"
+msgstr "Envoyer le justificatif"
+
+msgid "Comprovante"
+msgstr "Justificatif"
+
+msgid "Comprovantes enviados"
+msgstr "Justificatifs envoyés"
+
+msgid "Número"
+msgstr "Numéro"
+
+msgid "Valor"
+msgstr "Montant"
+
+msgid "Situação do pagamento"
+msgstr "État du paiement"
+
+msgid "Ver o pedido completo"
+msgstr "Voir la commande complète"
+
+msgid "Enviar o comprovante não confirma o pagamento: nós conferimos o valor na conta e avisamos você."
+msgstr "Envoyer le justificatif ne confirme pas le paiement : nous vérifions le montant sur le compte et vous prévenons."
+
+msgid "Recebemos. Estamos conferindo o pagamento e avisamos você assim que estiver confirmado."
+msgstr "Bien reçu. Nous vérifions le paiement et vous prévenons dès qu’il est confirmé."
+
+msgid "Foto (JPG, PNG ou WEBP) ou PDF, até %(limite)s MB."
+msgstr "Photo (JPG, PNG ou WEBP) ou PDF, jusqu’à %(limite)s Mo."
+
+msgid "Foto ou PDF do comprovante da transferência."
+msgstr "Photo ou PDF du justificatif de virement."
+
+msgid "Envie uma imagem (JPG, PNG ou WEBP) ou um PDF."
+msgstr "Envoyez une image (JPG, PNG ou WEBP) ou un PDF."
+
+msgid "O arquivo pode ter no máximo %(limit)s MB."
+msgstr "Le fichier ne peut pas dépasser %(limit)s Mo."
+
+msgid "Muitos envios seguidos. Tente novamente em alguns minutos."
+msgstr "Trop d’envois d’affilée. Réessayez dans quelques minutes."
+
+msgid "Comprovante recebido. Vamos conferir o pagamento e avisar você."
+msgstr "Justificatif reçu. Nous vérifions le paiement et vous prévenons."
+
+msgid "Dados para o pagamento do pedido %(number)s — JD PRINT"
+msgstr "Coordonnées pour le paiement de la commande %(number)s — JD PRINT"
+
+msgid "Pagamento do pedido %(number)s"
+msgstr "Paiement de la commande %(number)s"
+
+msgid "Transfira %(total)s e envie o comprovante."
+msgstr "Virez %(total)s et envoyez le justificatif."
+
+msgid "Aqui estão os dados para você concluir o pagamento por transferência bancária."
+msgstr "Voici les coordonnées pour finaliser votre paiement par virement bancaire."
+
+msgid "Transferência"
+msgstr "Virement"
+
+msgid "Titular"
+msgstr "Titulaire"
+
+msgid "Comunicação"
+msgstr "Communication"
+
+msgid "Use a comunicação acima na transferência: é por ela que reconhecemos o seu pagamento."
+msgstr "Indiquez la communication ci-dessus dans le virement : c’est ainsi que nous reconnaissons votre paiement."
+
+msgid "Depois de pagar"
+msgstr "Après le paiement"
+
+msgid "Envie o comprovante — é o que nos permite conferir e liberar a produção mais rápido."
+msgstr "Envoyez le justificatif : cela nous permet de vérifier et de lancer la production plus vite."
+
+msgid "Envie o comprovante nesta página — é o que nos permite conferir e liberar a produção mais rápido:"
+msgstr "Envoyez le justificatif sur cette page : cela nous permet de vérifier et de lancer la production plus vite :"
+
+msgid "Confirmar pagamento / Enviar comprovante"
+msgstr "Confirmer le paiement / Envoyer le justificatif"
+
+msgid "Seu pedido"
+msgstr "Votre commande"
+
+msgid "O pedido fica reservado aguardando o pagamento. Assim que o valor entrar na conta, confirmamos e começamos a produzir."
+msgstr "La commande est réservée en attendant le paiement. Dès que le montant arrive sur le compte, nous confirmons et lançons la production."
+
+msgid "Confira o IBAN acima com o que aparece na sua conta em nosso site. A JD PRINT nunca pede a sua senha nem os seus dados bancários por e-mail, e nunca muda o IBAN por mensagem."
+msgstr "Vérifiez l’IBAN ci-dessus avec celui affiché dans votre compte sur notre site. JD PRINT ne demande jamais votre mot de passe ni vos coordonnées bancaires par e-mail, et ne change jamais d’IBAN par message."
+
+msgid "Bancontact"
+msgstr "Bancontact"
+
+msgid "Você recebe os dados por e-mail assim que confirmar o pedido."
+msgstr "Vous recevez les coordonnées par e-mail dès la confirmation de la commande."
+
+msgid "Visa, Mastercard e Maestro."
+msgstr "Visa, Mastercard et Maestro."
+
+msgid "Pagamento pelo aplicativo do seu banco."
+msgstr "Paiement via l’application de votre banque."
+
+msgid "Escolha a forma de pagamento."
+msgstr "Choisissez le mode de paiement."
+
+msgid "Escolha uma forma de pagamento disponível."
+msgstr "Choisissez un mode de paiement disponible."
+
+msgid "O pagamento por transferência está indisponível neste momento. Entre em contato com a gente e concluímos o seu pedido."
+msgstr "Le paiement par virement est indisponible pour le moment. Contactez-nous et nous finalisons votre commande."
+
+msgid "Nenhuma forma de pagamento está configurada."
+msgstr "Aucun mode de paiement n’est configuré."
+
+msgid "Seu pedido foi registrado com sucesso."
+msgstr "Votre commande a bien été enregistrée."
+
+msgid "Enviamos para <strong class=\"text-ink\">%(email)s</strong> o resumo do pedido e os dados bancários para a transferência."
+msgstr "Nous avons envoyé à <strong class=\"text-ink\">%(email)s</strong> le récapitulatif de la commande et les coordonnées bancaires pour le virement."
+
+msgid "Faça a transferência seguindo as instruções do e-mail, usando <strong class=\"text-ink\">%(numero)s</strong> como comunicação."
+msgstr "Effectuez le virement en suivant les instructions de l’e-mail, avec <strong class=\"text-ink\">%(numero)s</strong> en communication."
+
+msgid "Depois, envie o comprovante pelo botão do e-mail — ou por aqui. Assim conferimos e liberamos a produção mais rápido."
+msgstr "Ensuite, envoyez le justificatif via le bouton de l’e-mail — ou ici. Nous vérifions et lançons la production plus vite."
+
+msgid "Os dados bancários chegam por e-mail na hora"
+msgstr "Les coordonnées bancaires arrivent par e-mail aussitôt"
+
+msgid "Recebemos a sua encomenda."
+msgstr "Nous avons bien reçu votre commande."
+
+msgid "Enviámos para o seu e-mail os dados para pagamento por transferência bancária."
+msgstr "Nous avons envoyé les coordonnées pour le virement bancaire à votre adresse e-mail."
+
+msgid "Recebemos o seu comprovativo de pagamento e vamos analisá-lo."
+msgstr "Nous avons reçu votre justificatif de paiement et nous allons le vérifier."
+
+msgid "O seu pagamento foi confirmado."
+msgstr "Votre paiement a été confirmé."
+
+msgid "A sua encomenda foi confirmada."
+msgstr "Votre commande a été confirmée."
+
+msgid "Começámos a preparar a sua encomenda."
+msgstr "Nous avons commencé à préparer votre commande."
+
+msgid "A sua encomenda está pronta para envio."
+msgstr "Votre commande est prête à être expédiée."
+
+msgid "A sua encomenda foi enviada."
+msgstr "Votre commande a été expédiée."
+
+msgid "A sua encomenda foi enviada. Código de rastreio: %(code)s"
+msgstr "Votre commande a été expédiée. Numéro de suivi : %(code)s"
+
+msgid "A sua encomenda foi entregue."
+msgstr "Votre commande a été livrée."
+
+msgid "Encomenda concluída. Obrigado!"
+msgstr "Commande terminée. Merci !"
+
+msgid "Recebemos o seu pedido de cancelamento."
+msgstr "Nous avons reçu votre demande d'annulation."
+
+msgid "O seu pedido de cancelamento foi aprovado."
+msgstr "Votre demande d'annulation a été acceptée."
+
+msgid "Não foi possível cancelar a encomenda. Entrámos em contacto por e-mail."
+msgstr "Il n'a pas été possible d'annuler la commande. Nous vous avons écrit par e-mail."
+
+msgid "A sua encomenda foi cancelada."
+msgstr "Votre commande a été annulée."
+
+msgid "O valor da sua encomenda foi reembolsado."
+msgstr "Le montant de votre commande a été remboursé."
+
+msgid "Não conseguimos concluir o pagamento."
+msgstr "Nous n'avons pas pu finaliser le paiement."
+
+msgid "Comprovante recebido"
+msgstr "Justificatif reçu"
+
+msgid "Recebemos o seu comprovante"
+msgstr "Nous avons reçu votre justificatif"
+
+msgid "Estamos conferindo o pagamento e avisamos você por e-mail assim que estiver confirmado. Não é preciso enviar de novo."
+msgstr "Nous vérifions le paiement et vous préviendrons par e-mail dès qu'il sera confirmé. Il n'est pas nécessaire de renvoyer."
+
+msgid "Enviou o arquivo errado? Fale com a gente pelo contato e nós resolvemos — por segurança, o comprovante não pode ser substituído por aqui."
+msgstr "Vous avez envoyé le mauvais fichier ? Écrivez-nous et nous réglons cela — par sécurité, le justificatif ne peut pas être remplacé ici."
+
+msgid "O comprovante deste pedido já foi recebido. Não é preciso enviar de novo."
+msgstr "Le justificatif de cette commande a déjà été reçu. Il n'est pas nécessaire de le renvoyer."
+
+msgid "O comprovante deste pedido já foi recebido."
+msgstr "Le justificatif de cette commande a déjà été reçu."
+
+msgid "Anexe o comprovante da transferência"
+msgstr "Joignez le justificatif du virement"
+
+msgid "Serve a foto da tela do banco ou o PDF que ele gerou. É o que nos permite conferir o pagamento e liberar a produção mais rápido."
+msgstr "Une capture d'écran de votre banque ou le PDF qu'elle génère convient. C'est ce qui nous permet de vérifier le paiement et de lancer la production plus vite."
+
+msgid "Escolher o arquivo"
+msgstr "Choisir le fichier"
+
+msgid "Enviar o comprovante não confirma o pagamento: nós conferimos o valor na conta e avisamos você. Só é possível enviar uma vez."
+msgstr "Envoyer le justificatif ne confirme pas le paiement : nous vérifions le montant sur le compte et vous prévenons. L'envoi n'est possible qu'une seule fois."
+
+msgid "Pagar o pedido %(number)s — JD PRINT"
+msgstr "Payer la commande %(number)s — JD PRINT"
+
+msgid "Não é possível concluir este pagamento"
+msgstr "Ce paiement ne peut pas être finalisé"
+
+msgid "Algo mudou no catálogo desde que você fez o pedido:"
+msgstr "Quelque chose a changé dans le catalogue depuis votre commande :"
+
+msgid "Fale com a gente e resolvemos: dá para trocar a peça, ajustar a quantidade ou cancelar o pedido sem custo."
+msgstr "Écrivez-nous et nous trouvons une solution : changer la pièce, ajuster la quantité ou annuler la commande sans frais."
+
+msgid "Esta é a forma de pagamento disponível hoje. Confirme e enviamos as instruções para o seu e-mail."
+msgstr "C'est le mode de paiement disponible aujourd'hui. Confirmez et nous envoyons les instructions à votre e-mail."
+
+msgid "Escolha como quer pagar. Enviamos as instruções para o seu e-mail."
+msgstr "Choisissez comment payer. Nous envoyons les instructions à votre e-mail."
+
+msgid "Reenviamos os dados atualizados para o seu e-mail. Nenhum pedido novo é criado — este mesmo continua valendo."
+msgstr "Nous renvoyons les coordonnées à jour à votre e-mail. Aucune nouvelle commande n'est créée — celle-ci reste valable."
+
+msgid "Continuar"
+msgstr "Continuer"
+
+#
+# Cancelamento aprovado: o que o cliente lê no e-mail e no acompanhamento
+# do pedido. O prazo do reembolso vem do Admin — e quando não está
+# cadastrado, a frase do prazo simplesmente não sai.
+#
+
+msgid "O seu pedido de cancelamento foi aprovado e a encomenda foi cancelada."
+msgstr "Votre demande d'annulation a été acceptée et la commande a été annulée."
+
+msgid "O reembolso será feito em %(prazo)s."
+msgstr "Le remboursement sera effectué sous %(prazo)s."
+
+msgid "O reembolso será feito."
+msgstr "Le remboursement sera effectué."
+
+msgid "O tempo até o valor aparecer na sua conta depende do meio de pagamento e do seu banco."
+msgstr "Le délai avant que le montant apparaisse sur votre compte dépend du moyen de paiement et de votre banque."
+
+msgid "até %(days)s dias úteis"
+msgstr "%(days)s jours ouvrés maximum"
+
+msgid "%(min)s a %(max)s dias úteis"
+msgstr "%(min)s à %(max)s jours ouvrés"
+
+msgid "Cancelamento do pedido %(number)s"
+msgstr "Annulation de la commande %(number)s"
+
+msgid "Cancelamento do pedido %(number)s — JD PRINT"
+msgstr "Annulation de la commande %(number)s — JD PRINT"
+
+#
+# Cancelamento solicitado: a confirmação que o cliente recebe na hora, e a
+# frase equivalente no acompanhamento do pedido. Nenhuma das duas fala em
+# aprovação, reembolso ou prazo — a decisão ainda não foi tomada.
+#
+
+msgid "Recebemos o seu pedido de cancelamento"
+msgstr "Nous avons bien reçu votre demande d'annulation"
+
+msgid "Recebemos o seu pedido de cancelamento — %(number)s"
+msgstr "Nous avons bien reçu votre demande d'annulation — %(number)s"
+
+msgid "Recebemos a sua solicitação de cancelamento da encomenda %(number)s. Vamos analisá-la e informamos o resultado assim que possível."
+msgstr "Nous avons bien reçu votre demande d'annulation de la commande %(number)s. Nous allons l'examiner et vous informerons du résultat dès que possible."
+
+msgid "A sua solicitação de cancelamento da encomenda %(number)s chegou até nós."
+msgstr "Votre demande d'annulation de la commande %(number)s nous est bien parvenue."
+
+msgid "Ainda não há nada decidido: avisamos por e-mail assim que houver uma resposta."
+msgstr "Rien n'est encore décidé : nous vous prévenons par e-mail dès qu'il y a une réponse."
+
+msgid "Acompanhar o pedido"
+msgstr "Suivre la commande"
+
+msgid "Recebemos o seu pedido de cancelamento e vamos analisá-lo. Assim que houver uma decisão, avisamos por e-mail."
+msgstr "Nous avons bien reçu votre demande d'annulation et nous allons l'examiner. Dès qu'une décision sera prise, nous vous préviendrons par e-mail."
+
+#
+# Cancelamento e reembolso: o que o cliente lê quando desiste de uma compra,
+# quando a loja recusa, e quando o dinheiro começa a voltar.
+#
+
+msgid "Não cobrado"
+msgstr "Non facturé"
+
+msgid "Interrompido"
+msgstr "Interrompu"
+
+msgid "Sem reembolso"
+msgstr "Sans remboursement"
+
+msgid "Reembolso pendente"
+msgstr "Remboursement en cours"
+
+msgid "Nada foi cobrado por esta encomenda, portanto não há reembolso a fazer."
+msgstr "Rien n'a été facturé pour cette commande : il n'y a donc pas de remboursement à effectuer."
+
+msgid "O reembolso da sua encomenda foi iniciado."
+msgstr "Le remboursement de votre commande a été lancé."
+
+msgid "Parte do valor da sua encomenda foi reembolsada."
+msgstr "Une partie du montant de votre commande a été remboursée."
+
+msgid "Sobre o seu pedido de cancelamento — %(number)s"
+msgstr "Au sujet de votre demande d'annulation — %(number)s"
+
+msgid "Reembolso do pedido %(number)s — JD PRINT"
+msgstr "Remboursement de la commande %(number)s — JD PRINT"
+
+msgid "Sobre o seu pedido de cancelamento da encomenda %(number)s"
+msgstr "Au sujet de votre demande d'annulation de la commande %(number)s"
+
+msgid "Analisámos o seu pedido de cancelamento."
+msgstr "Nous avons examiné votre demande d'annulation."
+
+msgid "Analisámos o seu pedido de cancelamento e, desta vez, não foi possível cancelar a encomenda."
+msgstr "Nous avons examiné votre demande d'annulation et, cette fois, il n'a pas été possible d'annuler la commande."
+
+msgid "A encomenda segue o seu curso normal e continuamos a informá-lo sobre cada etapa."
+msgstr "La commande suit son cours normal et nous continuons à vous informer à chaque étape."
+
+msgid "Reembolso da encomenda %(number)s"
+msgstr "Remboursement de la commande %(number)s"
+
+msgid "Iniciámos o reembolso da sua encomenda."
+msgstr "Nous avons lancé le remboursement de votre commande."
+
+msgid "Iniciámos o reembolso de %(moeda)s %(valor)s da sua encomenda."
+msgstr "Nous avons lancé le remboursement de %(moeda)s %(valor)s de votre commande."
+
+msgid "Avisamos por e-mail assim que o reembolso estiver concluído."
+msgstr "Nous vous prévenons par e-mail dès que le remboursement sera terminé."
+
+msgid "O reembolso da sua encomenda está concluído."
+msgstr "Le remboursement de votre commande est terminé."
+
+msgid "Parte do valor da sua encomenda já foi devolvida."
+msgstr "Une partie du montant de votre commande a déjà été remboursée."
+
+msgid "O reembolso da sua encomenda está concluído: %(moeda)s %(valor)s foram devolvidos."
+msgstr "Le remboursement de votre commande est terminé : %(moeda)s %(valor)s ont été remboursés."
+
+msgid "Já devolvemos %(moeda)s %(valor)s da sua encomenda. Ainda faltam %(moeda)s %(restante)s, e avisamos assim que saírem."
+msgstr "Nous avons déjà remboursé %(moeda)s %(valor)s de votre commande. Il reste %(moeda)s %(restante)s, et nous vous préviendrons dès leur envoi."
+
+msgid "Pedido cancelado. Enviámos os detalhes por e-mail."
+msgstr "Commande annulée. Nous vous avons envoyé les détails par e-mail."
+
+msgid "O prazo para cancelar ou devolver esta encomenda já passou. Se precisar de ajuda, é só responder ao e-mail do pedido."
+msgstr "Le délai pour annuler ou retourner cette commande est dépassé. Si vous avez besoin d'aide, répondez simplement à l'e-mail de la commande."
+
+msgid "O prazo para cancelar ou devolver esta encomenda já passou."
+msgstr "Le délai pour annuler ou retourner cette commande est dépassé."
+
+#
+# A tela de cancelamento: ela promete o que vai acontecer com aquele pedido,
+# e não uma regra geral.
+#
+
+msgid "Este pedido é cancelado assim que você enviar, e confirmamos por e-mail."
+msgstr "Cette commande est annulée dès que vous validez, et nous vous le confirmons par e-mail."
+
+msgid "Como já houve pagamento, o reembolso é iniciado junto."
+msgstr "Comme le paiement a déjà eu lieu, le remboursement est lancé en même temps."
+
+msgid "Nada foi cobrado, portanto não há reembolso a fazer."
+msgstr "Rien n'a été facturé, il n'y a donc pas de remboursement à effectuer."
+
+msgid "Analisamos o pedido e respondemos por e-mail. A produção já começou, então explicamos as opções antes de decidir."
+msgstr "Nous examinons la demande et vous répondons par e-mail. La production a déjà commencé : nous vous expliquons les options avant de décider."
+
+msgid "Cancelar o pedido"
+msgstr "Annuler la commande"
+
+#
+# A tela de cancelamento explica a situação daquele pedido — antes havia
+# uma frase só, que dizia "a produção já começou" mesmo quando não tinha.
+#
+
+msgid "Analisamos o pedido e respondemos por e-mail. A encomenda já saiu, então combinamos com você como fazer a devolução."
+msgstr "Nous examinons la demande et vous répondons par e-mail. La commande est déjà partie : nous conviendrons avec vous des modalités du retour."
+
+msgid "Analisamos o pedido e respondemos por e-mail assim que possível."
+msgstr "Nous examinons la demande et vous répondons par e-mail dès que possible."

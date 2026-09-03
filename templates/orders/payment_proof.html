@@ -1,0 +1,178 @@
+{% extends "accounts/base_account.html" %}
+{% load i18n jdprint %}
+
+{% comment %}
+Enviar o comprovante da transferência.
+
+É a tela para onde o botão do e-mail leva. Ela vive sob "Minha conta" e não
+numa rota com token porque quem a abre já provou quem é: `OrderAccessMixin`
+exige sessão e procura o pedido dentro dos pedidos daquele usuário. Quem chega
+pelo e-mail sem estar logado passa pela tela de entrar e volta para cá.
+
+## Duas telas, não uma
+
+Antes do envio, a tela é sobre **anexar**: o pedido em cima, para conferir que é
+o certo, e uma área de upload grande, com borda tracejada e um botão que diz o
+que faz. O campo de arquivo cru do navegador ("Escolher arquivo — nenhum
+arquivo") não dizia o que era para escolher, e era isso que ninguém achava.
+
+Depois do envio, a tela é sobre **confirmar**: o formulário some, o arquivo
+recebido aparece com data, e o texto diz que não é preciso mandar de novo.
+Quem voltar pelo botão do e-mail cai aqui — a mesma URL, outra resposta.
+
+O JavaScript escreve o nome do arquivo escolhido antes de enviar. É
+conveniência: sem ele a tela continua funcionando, só sem a prévia.
+{% endcomment %}
+
+{% block account_eyebrow %}{% translate "Meus pedidos" %}{% endblock %}
+{% block account_title %}
+  {% if already_sent %}{% translate "Comprovante recebido" %}{% else %}{% translate "Enviar comprovante" %}{% endif %}
+{% endblock %}
+{% block account_subtitle %}
+  <p class="section-subtitle">{{ order.number }}</p>
+{% endblock %}
+
+{% block account_body %}
+  <div class="max-w-xl space-y-5">
+
+    {# 1. Que pedido é este. #}
+    <div class="card p-6 sm:p-7">
+      <h2 class="font-display text-base font-bold text-ink">{% translate "Pedido" %}</h2>
+      <dl class="mt-3 space-y-2 text-sm">
+        <div class="flex items-baseline justify-between gap-4">
+          <dt class="text-ink-soft">{% translate "Número" %}</dt>
+          <dd class="font-mono font-bold text-ink">{{ order.number }}</dd>
+        </div>
+        <div class="flex items-baseline justify-between gap-4">
+          <dt class="text-ink-soft">{% translate "Data" %}</dt>
+          <dd class="text-ink">{{ order.created_at|date:"d/m/Y" }}</dd>
+        </div>
+        <div class="flex items-baseline justify-between gap-4">
+          <dt class="text-ink-soft">{% translate "Valor" %}</dt>
+          <dd class="font-display text-lg font-bold text-ink">
+            {{ order.currency_symbol }} {{ order.total|floatformat:2 }}
+          </dd>
+        </div>
+        <div class="flex items-baseline justify-between gap-4">
+          <dt class="text-ink-soft">{% translate "Situação do pagamento" %}</dt>
+          <dd class="text-ink">{{ order.get_payment_status_display }}</dd>
+        </div>
+      </dl>
+      <p class="mt-4 border-t border-surface-line pt-4">
+        <a href="{{ order.get_absolute_url }}" class="btn-ghost btn-sm">
+          {% translate "Ver o pedido completo" %}
+        </a>
+      </p>
+    </div>
+
+    {% if already_sent %}
+
+      {# 2a. Já chegou: nada a fazer, e a tela diz isso. #}
+      <div class="card p-6 sm:p-7">
+        <div class="flex items-start gap-3">
+          <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-state-success-soft text-state-success-dark" aria-hidden="true">
+            {% icon "check" "h-5 w-5" %}
+          </span>
+          <div class="min-w-0">
+            <h2 class="font-display text-base font-bold text-ink">
+              {% translate "Recebemos o seu comprovante" %}
+            </h2>
+            <p class="mt-1.5 text-sm leading-relaxed text-ink-soft">
+              {% translate "Estamos conferindo o pagamento e avisamos você por e-mail assim que estiver confirmado. Não é preciso enviar de novo." %}
+            </p>
+          </div>
+        </div>
+
+        <div class="mt-5 flex flex-wrap items-baseline justify-between gap-2 rounded-card border border-surface-line bg-surface-soft px-4 py-3 text-sm">
+          <span class="min-w-0 break-all text-ink">{{ proof.original_name|default:proof.extension }}</span>
+          <span class="font-mono text-[11px] uppercase tracking-[0.06em] text-ink-muted">
+            {{ proof.size_display }} · {{ proof.created_at|date:"d/m/Y H:i" }}
+          </span>
+        </div>
+
+        <p class="mt-4 text-xs leading-relaxed text-ink-muted">
+          {% translate "Enviou o arquivo errado? Fale com a gente pelo contato e nós resolvemos — por segurança, o comprovante não pode ser substituído por aqui." %}
+        </p>
+
+        <p class="mt-5 border-t border-surface-line pt-5">
+          <a href="{{ order.get_absolute_url }}" class="btn-primary btn-sm">
+            {% translate "Voltar ao pedido" %}
+          </a>
+        </p>
+      </div>
+
+    {% else %}
+
+      {# 2b. Ainda não chegou: a área de anexar, e nada mais. #}
+      <form method="post" enctype="multipart/form-data" class="card space-y-5 p-6 sm:p-7"
+            data-proof-form>
+        {% csrf_token %}
+
+        <div>
+          <h2 class="font-display text-base font-bold text-ink">
+            {% translate "Anexe o comprovante da transferência" %}
+          </h2>
+          <p class="mt-1.5 text-sm leading-relaxed text-ink-soft">
+            {% translate "Serve a foto da tela do banco ou o PDF que ele gerou. É o que nos permite conferir o pagamento e liberar a produção mais rápido." %}
+          </p>
+        </div>
+
+        {% comment %}
+          A área inteira é o rótulo do `<input type=file>`: clicar em qualquer
+          lugar dela abre o seletor de arquivos, e o teclado chega nela pelo
+          próprio campo, que continua existindo (só não desenhado pelo
+          navegador). Sem JavaScript, continua funcionando.
+        {% endcomment %}
+        <label class="focus-within:ring-brand-300 flex cursor-pointer flex-col items-center gap-3 rounded-card border-2 border-dashed border-surface-line-strong bg-surface-soft px-6 py-9 text-center transition-colors hover:border-brand-400 hover:bg-brand-50 focus-within:ring-2">
+          <span class="empty-state-icon" aria-hidden="true">{% icon "mail" "h-6 w-6" %}</span>
+          <span class="font-display text-sm font-bold text-brand-700">
+            {% translate "Escolher o arquivo" %}
+          </span>
+          <span class="text-xs text-ink-muted" data-proof-name>
+            {% blocktranslate with limite=max_mb %}Foto (JPG, PNG ou WEBP) ou PDF, até {{ limite }} MB.{% endblocktranslate %}
+          </span>
+          <input type="file" name="file" class="sr-only" data-proof-input
+                 accept="image/jpeg,image/png,image/webp,application/pdf" required>
+        </label>
+
+        {% for error in form.file.errors %}
+          <p class="form-error" role="alert">{{ error }}</p>
+        {% endfor %}
+
+        <p class="alert-info" role="status">
+          {% icon "shield" "h-4 w-4 shrink-0" %}
+          <span>
+            {% translate "Enviar o comprovante não confirma o pagamento: nós conferimos o valor na conta e avisamos você. Só é possível enviar uma vez." %}
+          </span>
+        </p>
+
+        <div class="flex flex-wrap items-center gap-3 border-t border-surface-line pt-5">
+          <button type="submit" class="btn-primary">
+            {% icon "check" "h-4 w-4" %}{% translate "Enviar comprovante" %}
+          </button>
+          <a href="{{ order.get_absolute_url }}" class="btn-ghost">{% translate "Voltar ao pedido" %}</a>
+        </div>
+      </form>
+
+      <script>
+        /* Mostra o arquivo escolhido antes de enviar. Conveniência: sem isto a
+           tela continua funcionando, só sem a prévia. */
+        (function () {
+          var campo = document.querySelector("[data-proof-input]");
+          var alvo = document.querySelector("[data-proof-name]");
+          if (!campo || !alvo) return;
+          var padrao = alvo.textContent;
+          campo.addEventListener("change", function () {
+            var arquivo = campo.files && campo.files[0];
+            alvo.textContent = arquivo ? arquivo.name : padrao;
+            alvo.classList.toggle("text-ink", !!arquivo);
+            alvo.classList.toggle("font-bold", !!arquivo);
+            alvo.classList.toggle("text-ink-muted", !arquivo);
+          });
+        })();
+      </script>
+
+    {% endif %}
+
+  </div>
+{% endblock %}

@@ -13,6 +13,14 @@ francês, mesmo que a mensagem seja disparada por um administrador em português
 ``translation.override`` cobre tanto os textos quanto o ``reverse()`` — a URL do
 link já sai com o prefixo do idioma certo.
 
+Há duas perguntas diferentes por trás disso, e ``email_language`` responde as
+duas. Quando o **cliente** pede alguma coisa na tela — "esqueci minha senha" —,
+o idioma é o da tela em que ele está agora: ele escolheu o francês há dois
+cliques, e receber a resposta em português seria a loja ignorando a escolha.
+Quando é a **equipe** que dispara pelo Admin, não existe "tela do cliente"; o
+que vale é a preferência guardada na conta, senão o idioma do administrador
+vazaria para o e-mail de quem não fala português.
+
 **3. Nada sensível no corpo.** Nem senha, nem dados pessoais além do necessário:
 o link carrega apenas ``uid`` + token assinado.
 """
@@ -41,11 +49,22 @@ def absolute_url(path: str) -> str:
     return f"{site_url()}{path}"
 
 
-def email_language(user) -> str:
-    """Idioma do e-mail: o do cliente, se ainda estiver disponível na loja."""
-    language = (user.preferred_language or "").strip()
-    if language and is_language_available(language):
-        return language
+def email_language(user, requested: str | None = None) -> str:
+    """Idioma do e-mail, em três degraus.
+
+    1. ``requested`` — o idioma da tela em que o cliente está **neste
+       momento**. Só chega preenchido quando foi ele quem disparou a ação;
+    2. ``user.preferred_language`` — a preferência guardada na conta, que é o
+       que vale quando quem dispara é a equipe, pelo Admin;
+    3. o idioma padrão da loja.
+
+    Cada degrau só é aceito se o idioma ainda estiver ativo: um idioma
+    desligado no Admin depois de alguém escolhê-lo não pode produzir um e-mail
+    em branco.
+    """
+    for language in ((requested or "").strip(), (user.preferred_language or "").strip()):
+        if language and is_language_available(language):
+            return language
     return settings.LANGUAGE_CODE
 
 
@@ -55,6 +74,10 @@ def _send(user, subject: str, template: str, context: dict) -> bool:
         "user": user,
         "site_name": "JD PRINT",
         "site_url": site_url(),
+        # `LANGUAGE_CODE` normalmente vem do processador de contexto `i18n`,
+        # que só roda numa requisição. Aqui não há uma — e sem isto o
+        # `<html lang="">` do `base_email.html` sai vazio.
+        "LANGUAGE_CODE": translation.get_language(),
         **context,
     }
     text_body = render_to_string(f"emails/{template}.txt", context)
@@ -99,9 +122,16 @@ def send_verification_email(user) -> bool:
     return sent
 
 
-def send_password_reset_email(user, token_generator) -> bool:
-    """Recuperação de senha, com o gerador de token padrão do Django."""
-    with translation.override(email_language(user)):
+def send_password_reset_email(user, token_generator, language: str | None = None) -> bool:
+    """Recuperação de senha, com o gerador de token padrão do Django.
+
+    ``language`` é o idioma da tela de quem pediu. Quem chama é o formulário,
+    que está dentro da requisição e sabe qual é — e é por isso que ele é
+    passado em vez de lido aqui: esta função também é chamada de fora de uma
+    requisição (teste, comando), onde ``get_language()`` devolveria o padrão do
+    processo e não o de ninguém.
+    """
+    with translation.override(email_language(user, language)):
         path = reverse(
             "accounts:password_reset_confirm",
             kwargs={"uidb64": encode_uid(user), "token": token_generator.make_token(user)},

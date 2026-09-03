@@ -1898,3 +1898,417 @@ msgstr "Datum"
 
 msgid "enviar dados bancários"
 msgstr "bankgegevens versturen"
+
+msgid "Não encontramos nada para “%(termo)s”."
+msgstr "We hebben niets gevonden voor “%(termo)s”."
+
+msgid "Pode ser a grafia da palavra, ou a peça pode ainda não estar no catálogo."
+msgstr "Misschien is het de spelling, of staat het stuk nog niet in de catalogus."
+
+msgid "Se você procura algo específico, fale com a gente."
+msgstr "Zoekt u iets specifieks? Neem contact met ons op."
+
+msgid "Entrar em contato"
+msgstr "Contact opnemen"
+
+msgid "Enviar comprovante — JD PRINT"
+msgstr "Betaalbewijs versturen — JD PRINT"
+
+msgid "Enviar comprovante"
+msgstr "Betaalbewijs versturen"
+
+msgid "Comprovante"
+msgstr "Betaalbewijs"
+
+msgid "Comprovantes enviados"
+msgstr "Verzonden betaalbewijzen"
+
+msgid "Número"
+msgstr "Nummer"
+
+msgid "Valor"
+msgstr "Bedrag"
+
+msgid "Situação do pagamento"
+msgstr "Betaalstatus"
+
+msgid "Ver o pedido completo"
+msgstr "Bekijk de volledige bestelling"
+
+msgid "Enviar o comprovante não confirma o pagamento: nós conferimos o valor na conta e avisamos você."
+msgstr "Het versturen van het betaalbewijs bevestigt de betaling niet: wij controleren het bedrag op de rekening en laten het u weten."
+
+msgid "Recebemos. Estamos conferindo o pagamento e avisamos você assim que estiver confirmado."
+msgstr "Ontvangen. We controleren de betaling en laten het u weten zodra die bevestigd is."
+
+msgid "Foto (JPG, PNG ou WEBP) ou PDF, até %(limite)s MB."
+msgstr "Foto (JPG, PNG of WEBP) of PDF, tot %(limite)s MB."
+
+msgid "Foto ou PDF do comprovante da transferência."
+msgstr "Foto of PDF van het overschrijvingsbewijs."
+
+msgid "Envie uma imagem (JPG, PNG ou WEBP) ou um PDF."
+msgstr "Stuur een afbeelding (JPG, PNG of WEBP) of een PDF."
+
+msgid "O arquivo pode ter no máximo %(limit)s MB."
+msgstr "Het bestand mag maximaal %(limit)s MB zijn."
+
+msgid "Muitos envios seguidos. Tente novamente em alguns minutos."
+msgstr "Te veel opeenvolgende uploads. Probeer het over enkele minuten opnieuw."
+
+msgid "Comprovante recebido. Vamos conferir o pagamento e avisar você."
+msgstr "Betaalbewijs ontvangen. We controleren de betaling en laten het u weten."
+
+msgid "Dados para o pagamento do pedido %(number)s — JD PRINT"
+msgstr "Gegevens voor de betaling van bestelling %(number)s — JD PRINT"
+
+msgid "Pagamento do pedido %(number)s"
+msgstr "Betaling van bestelling %(number)s"
+
+msgid "Transfira %(total)s e envie o comprovante."
+msgstr "Schrijf %(total)s over en stuur het betaalbewijs."
+
+msgid "Aqui estão os dados para você concluir o pagamento por transferência bancária."
+msgstr "Hier zijn de gegevens om uw betaling per overschrijving af te ronden."
+
+msgid "Transferência"
+msgstr "Overschrijving"
+
+msgid "Titular"
+msgstr "Rekeninghouder"
+
+msgid "Comunicação"
+msgstr "Mededeling"
+
+msgid "Use a comunicação acima na transferência: é por ela que reconhecemos o seu pagamento."
+msgstr "Gebruik de mededeling hierboven bij de overschrijving: daaraan herkennen wij uw betaling."
+
+msgid "Depois de pagar"
+msgstr "Na de betaling"
+
+msgid "Envie o comprovante — é o que nos permite conferir e liberar a produção mais rápido."
+msgstr "Stuur het betaalbewijs: zo kunnen we sneller controleren en de productie starten."
+
+msgid "Envie o comprovante nesta página — é o que nos permite conferir e liberar a produção mais rápido:"
+msgstr "Stuur het betaalbewijs via deze pagina: zo kunnen we sneller controleren en de productie starten:"
+
+msgid "Confirmar pagamento / Enviar comprovante"
+msgstr "Betaling bevestigen / Betaalbewijs versturen"
+
+msgid "Seu pedido"
+msgstr "Uw bestelling"
+
+msgid "O pedido fica reservado aguardando o pagamento. Assim que o valor entrar na conta, confirmamos e começamos a produzir."
+msgstr "De bestelling blijft gereserveerd in afwachting van de betaling. Zodra het bedrag op de rekening staat, bevestigen we en starten we de productie."
+
+msgid "Confira o IBAN acima com o que aparece na sua conta em nosso site. A JD PRINT nunca pede a sua senha nem os seus dados bancários por e-mail, e nunca muda o IBAN por mensagem."
+msgstr "Vergelijk het IBAN hierboven met wat in uw account op onze site staat. JD PRINT vraagt nooit uw wachtwoord of bankgegevens per e-mail en wijzigt het IBAN nooit via een bericht."
+
+msgid "Bancontact"
+msgstr "Bancontact"
+
+msgid "Você recebe os dados por e-mail assim que confirmar o pedido."
+msgstr "U ontvangt de gegevens per e-mail zodra u de bestelling bevestigt."
+
+msgid "Visa, Mastercard e Maestro."
+msgstr "Visa, Mastercard en Maestro."
+
+msgid "Pagamento pelo aplicativo do seu banco."
+msgstr "Betaling via de app van uw bank."
+
+msgid "Escolha a forma de pagamento."
+msgstr "Kies de betaalwijze."
+
+msgid "Escolha uma forma de pagamento disponível."
+msgstr "Kies een beschikbare betaalwijze."
+
+msgid "O pagamento por transferência está indisponível neste momento. Entre em contato com a gente e concluímos o seu pedido."
+msgstr "Betalen via overschrijving is op dit moment niet beschikbaar. Neem contact met ons op en we ronden uw bestelling af."
+
+msgid "Nenhuma forma de pagamento está configurada."
+msgstr "Er is geen betaalwijze geconfigureerd."
+
+msgid "Seu pedido foi registrado com sucesso."
+msgstr "Uw bestelling is geregistreerd."
+
+msgid "Enviamos para <strong class=\"text-ink\">%(email)s</strong> o resumo do pedido e os dados bancários para a transferência."
+msgstr "We hebben het besteloverzicht en de bankgegevens voor de overschrijving naar <strong class=\"text-ink\">%(email)s</strong> gestuurd."
+
+msgid "Faça a transferência seguindo as instruções do e-mail, usando <strong class=\"text-ink\">%(numero)s</strong> como comunicação."
+msgstr "Voer de overschrijving uit volgens de instructies in de e-mail, met <strong class=\"text-ink\">%(numero)s</strong> als mededeling."
+
+msgid "Depois, envie o comprovante pelo botão do e-mail — ou por aqui. Assim conferimos e liberamos a produção mais rápido."
+msgstr "Stuur daarna het betaalbewijs via de knop in de e-mail — of hier. Zo controleren we het en starten we de productie sneller."
+
+msgid "Os dados bancários chegam por e-mail na hora"
+msgstr "De bankgegevens komen meteen per e-mail"
+
+msgid "Recebemos a sua encomenda."
+msgstr "We hebben uw bestelling ontvangen."
+
+msgid "Enviámos para o seu e-mail os dados para pagamento por transferência bancária."
+msgstr "We hebben de gegevens voor de bankoverschrijving naar uw e-mailadres gestuurd."
+
+msgid "Recebemos o seu comprovativo de pagamento e vamos analisá-lo."
+msgstr "We hebben uw betaalbewijs ontvangen en gaan het controleren."
+
+msgid "O seu pagamento foi confirmado."
+msgstr "Uw betaling is bevestigd."
+
+msgid "A sua encomenda foi confirmada."
+msgstr "Uw bestelling is bevestigd."
+
+msgid "Começámos a preparar a sua encomenda."
+msgstr "We zijn begonnen met het klaarmaken van uw bestelling."
+
+msgid "A sua encomenda está pronta para envio."
+msgstr "Uw bestelling is klaar voor verzending."
+
+msgid "A sua encomenda foi enviada."
+msgstr "Uw bestelling is verzonden."
+
+msgid "A sua encomenda foi enviada. Código de rastreio: %(code)s"
+msgstr "Uw bestelling is verzonden. Trackingnummer: %(code)s"
+
+msgid "A sua encomenda foi entregue."
+msgstr "Uw bestelling is bezorgd."
+
+msgid "Encomenda concluída. Obrigado!"
+msgstr "Bestelling afgerond. Bedankt!"
+
+msgid "Recebemos o seu pedido de cancelamento."
+msgstr "We hebben uw annuleringsverzoek ontvangen."
+
+msgid "O seu pedido de cancelamento foi aprovado."
+msgstr "Uw annuleringsverzoek is goedgekeurd."
+
+msgid "Não foi possível cancelar a encomenda. Entrámos em contacto por e-mail."
+msgstr "De bestelling kon niet worden geannuleerd. We hebben u per e-mail gecontacteerd."
+
+msgid "A sua encomenda foi cancelada."
+msgstr "Uw bestelling is geannuleerd."
+
+msgid "O valor da sua encomenda foi reembolsado."
+msgstr "Het bedrag van uw bestelling is terugbetaald."
+
+msgid "Não conseguimos concluir o pagamento."
+msgstr "We konden de betaling niet afronden."
+
+msgid "Comprovante recebido"
+msgstr "Betaalbewijs ontvangen"
+
+msgid "Recebemos o seu comprovante"
+msgstr "We hebben uw betaalbewijs ontvangen"
+
+msgid "Estamos conferindo o pagamento e avisamos você por e-mail assim que estiver confirmado. Não é preciso enviar de novo."
+msgstr "We controleren de betaling en laten het u per e-mail weten zodra die bevestigd is. U hoeft niets opnieuw te sturen."
+
+msgid "Enviou o arquivo errado? Fale com a gente pelo contato e nós resolvemos — por segurança, o comprovante não pode ser substituído por aqui."
+msgstr "Verkeerd bestand verstuurd? Neem contact met ons op en we lossen het op — om veiligheidsredenen kan het betaalbewijs hier niet worden vervangen."
+
+msgid "O comprovante deste pedido já foi recebido. Não é preciso enviar de novo."
+msgstr "Het betaalbewijs van deze bestelling is al ontvangen. U hoeft het niet opnieuw te sturen."
+
+msgid "O comprovante deste pedido já foi recebido."
+msgstr "Het betaalbewijs van deze bestelling is al ontvangen."
+
+msgid "Anexe o comprovante da transferência"
+msgstr "Voeg het overschrijvingsbewijs toe"
+
+msgid "Serve a foto da tela do banco ou o PDF que ele gerou. É o que nos permite conferir o pagamento e liberar a produção mais rápido."
+msgstr "Een schermafbeelding van uw bank of de PDF die zij maakt volstaat. Daarmee kunnen we de betaling controleren en de productie sneller starten."
+
+msgid "Escolher o arquivo"
+msgstr "Bestand kiezen"
+
+msgid "Enviar o comprovante não confirma o pagamento: nós conferimos o valor na conta e avisamos você. Só é possível enviar uma vez."
+msgstr "Het versturen van het betaalbewijs bevestigt de betaling niet: wij controleren het bedrag op de rekening en laten het u weten. U kunt maar één keer versturen."
+
+msgid "Pagar o pedido %(number)s — JD PRINT"
+msgstr "Bestelling %(number)s betalen — JD PRINT"
+
+msgid "Não é possível concluir este pagamento"
+msgstr "Deze betaling kan niet worden afgerond"
+
+msgid "Algo mudou no catálogo desde que você fez o pedido:"
+msgstr "Er is iets veranderd in de catalogus sinds uw bestelling:"
+
+msgid "Fale com a gente e resolvemos: dá para trocar a peça, ajustar a quantidade ou cancelar o pedido sem custo."
+msgstr "Neem contact met ons op en we lossen het op: een ander stuk kiezen, het aantal aanpassen of de bestelling kosteloos annuleren."
+
+msgid "Esta é a forma de pagamento disponível hoje. Confirme e enviamos as instruções para o seu e-mail."
+msgstr "Dit is de betaalwijze die vandaag beschikbaar is. Bevestig en we sturen de instructies naar uw e-mail."
+
+msgid "Escolha como quer pagar. Enviamos as instruções para o seu e-mail."
+msgstr "Kies hoe u wilt betalen. We sturen de instructies naar uw e-mail."
+
+msgid "Reenviamos os dados atualizados para o seu e-mail. Nenhum pedido novo é criado — este mesmo continua valendo."
+msgstr "We sturen de bijgewerkte gegevens opnieuw naar uw e-mail. Er wordt geen nieuwe bestelling aangemaakt — deze blijft geldig."
+
+msgid "Continuar"
+msgstr "Doorgaan"
+
+#
+# Cancelamento aprovado: o que o cliente lê no e-mail e no acompanhamento
+# do pedido. O prazo do reembolso vem do Admin — e quando não está
+# cadastrado, a frase do prazo simplesmente não sai.
+#
+
+msgid "O seu pedido de cancelamento foi aprovado e a encomenda foi cancelada."
+msgstr "Uw annuleringsverzoek is goedgekeurd en de bestelling is geannuleerd."
+
+msgid "O reembolso será feito em %(prazo)s."
+msgstr "De terugbetaling gebeurt binnen %(prazo)s."
+
+msgid "O reembolso será feito."
+msgstr "De terugbetaling wordt uitgevoerd."
+
+msgid "O tempo até o valor aparecer na sua conta depende do meio de pagamento e do seu banco."
+msgstr "Hoelang het duurt voor het bedrag op uw rekening staat, hangt af van de betaalmethode en van uw bank."
+
+msgid "até %(days)s dias úteis"
+msgstr "maximaal %(days)s werkdagen"
+
+msgid "%(min)s a %(max)s dias úteis"
+msgstr "%(min)s tot %(max)s werkdagen"
+
+msgid "Cancelamento do pedido %(number)s"
+msgstr "Annulering van bestelling %(number)s"
+
+msgid "Cancelamento do pedido %(number)s — JD PRINT"
+msgstr "Annulering van bestelling %(number)s — JD PRINT"
+
+#
+# Cancelamento solicitado: a confirmação que o cliente recebe na hora, e a
+# frase equivalente no acompanhamento do pedido. Nenhuma das duas fala em
+# aprovação, reembolso ou prazo — a decisão ainda não foi tomada.
+#
+
+msgid "Recebemos o seu pedido de cancelamento"
+msgstr "We hebben uw annuleringsverzoek ontvangen"
+
+msgid "Recebemos o seu pedido de cancelamento — %(number)s"
+msgstr "We hebben uw annuleringsverzoek ontvangen — %(number)s"
+
+msgid "Recebemos a sua solicitação de cancelamento da encomenda %(number)s. Vamos analisá-la e informamos o resultado assim que possível."
+msgstr "We hebben uw annuleringsverzoek voor bestelling %(number)s ontvangen. We bekijken het en laten u het resultaat zo snel mogelijk weten."
+
+msgid "A sua solicitação de cancelamento da encomenda %(number)s chegou até nós."
+msgstr "Uw annuleringsverzoek voor bestelling %(number)s is bij ons aangekomen."
+
+msgid "Ainda não há nada decidido: avisamos por e-mail assim que houver uma resposta."
+msgstr "Er is nog niets beslist: we laten het u per e-mail weten zodra er een antwoord is."
+
+msgid "Acompanhar o pedido"
+msgstr "Bestelling volgen"
+
+msgid "Recebemos o seu pedido de cancelamento e vamos analisá-lo. Assim que houver uma decisão, avisamos por e-mail."
+msgstr "We hebben uw annuleringsverzoek ontvangen en bekijken het. Zodra er een beslissing is, laten we het u per e-mail weten."
+
+#
+# Cancelamento e reembolso: o que o cliente lê quando desiste de uma compra,
+# quando a loja recusa, e quando o dinheiro começa a voltar.
+#
+
+msgid "Não cobrado"
+msgstr "Niet aangerekend"
+
+msgid "Interrompido"
+msgstr "Onderbroken"
+
+msgid "Sem reembolso"
+msgstr "Geen terugbetaling"
+
+msgid "Reembolso pendente"
+msgstr "Terugbetaling in behandeling"
+
+msgid "Nada foi cobrado por esta encomenda, portanto não há reembolso a fazer."
+msgstr "Voor deze bestelling is niets aangerekend, dus er is geen terugbetaling nodig."
+
+msgid "O reembolso da sua encomenda foi iniciado."
+msgstr "De terugbetaling van uw bestelling is gestart."
+
+msgid "Parte do valor da sua encomenda foi reembolsada."
+msgstr "Een deel van het bedrag van uw bestelling is terugbetaald."
+
+msgid "Sobre o seu pedido de cancelamento — %(number)s"
+msgstr "Over uw annuleringsverzoek — %(number)s"
+
+msgid "Reembolso do pedido %(number)s — JD PRINT"
+msgstr "Terugbetaling van bestelling %(number)s — JD PRINT"
+
+msgid "Sobre o seu pedido de cancelamento da encomenda %(number)s"
+msgstr "Over uw annuleringsverzoek voor bestelling %(number)s"
+
+msgid "Analisámos o seu pedido de cancelamento."
+msgstr "We hebben uw annuleringsverzoek bekeken."
+
+msgid "Analisámos o seu pedido de cancelamento e, desta vez, não foi possível cancelar a encomenda."
+msgstr "We hebben uw annuleringsverzoek bekeken en deze keer was het niet mogelijk om de bestelling te annuleren."
+
+msgid "A encomenda segue o seu curso normal e continuamos a informá-lo sobre cada etapa."
+msgstr "De bestelling loopt gewoon door en we houden u bij elke stap op de hoogte."
+
+msgid "Reembolso da encomenda %(number)s"
+msgstr "Terugbetaling van bestelling %(number)s"
+
+msgid "Iniciámos o reembolso da sua encomenda."
+msgstr "We zijn met de terugbetaling van uw bestelling begonnen."
+
+msgid "Iniciámos o reembolso de %(moeda)s %(valor)s da sua encomenda."
+msgstr "We zijn begonnen met de terugbetaling van %(moeda)s %(valor)s van uw bestelling."
+
+msgid "Avisamos por e-mail assim que o reembolso estiver concluído."
+msgstr "We laten het u per e-mail weten zodra de terugbetaling is afgerond."
+
+msgid "O reembolso da sua encomenda está concluído."
+msgstr "De terugbetaling van uw bestelling is afgerond."
+
+msgid "Parte do valor da sua encomenda já foi devolvida."
+msgstr "Een deel van het bedrag van uw bestelling is al terugbetaald."
+
+msgid "O reembolso da sua encomenda está concluído: %(moeda)s %(valor)s foram devolvidos."
+msgstr "De terugbetaling van uw bestelling is afgerond: %(moeda)s %(valor)s is terugbetaald."
+
+msgid "Já devolvemos %(moeda)s %(valor)s da sua encomenda. Ainda faltam %(moeda)s %(restante)s, e avisamos assim que saírem."
+msgstr "We hebben al %(moeda)s %(valor)s van uw bestelling terugbetaald. Er is nog %(moeda)s %(restante)s open, en we laten het u weten zodra dat vertrekt."
+
+msgid "Pedido cancelado. Enviámos os detalhes por e-mail."
+msgstr "Bestelling geannuleerd. We hebben u de details per e-mail gestuurd."
+
+msgid "O prazo para cancelar ou devolver esta encomenda já passou. Se precisar de ajuda, é só responder ao e-mail do pedido."
+msgstr "De termijn om deze bestelling te annuleren of terug te sturen is verstreken. Hebt u hulp nodig? Antwoord gewoon op de e-mail van de bestelling."
+
+msgid "O prazo para cancelar ou devolver esta encomenda já passou."
+msgstr "De termijn om deze bestelling te annuleren of terug te sturen is verstreken."
+
+#
+# A tela de cancelamento: ela promete o que vai acontecer com aquele pedido,
+# e não uma regra geral.
+#
+
+msgid "Este pedido é cancelado assim que você enviar, e confirmamos por e-mail."
+msgstr "Deze bestelling wordt geannuleerd zodra u verzendt, en we bevestigen dat per e-mail."
+
+msgid "Como já houve pagamento, o reembolso é iniciado junto."
+msgstr "Omdat er al betaald is, wordt de terugbetaling meteen gestart."
+
+msgid "Nada foi cobrado, portanto não há reembolso a fazer."
+msgstr "Er is niets aangerekend, dus er is geen terugbetaling nodig."
+
+msgid "Analisamos o pedido e respondemos por e-mail. A produção já começou, então explicamos as opções antes de decidir."
+msgstr "We bekijken de aanvraag en antwoorden per e-mail. De productie is al begonnen, dus we leggen de opties uit voordat we beslissen."
+
+msgid "Cancelar o pedido"
+msgstr "Bestelling annuleren"
+
+#
+# A tela de cancelamento explica a situação daquele pedido — antes havia
+# uma frase só, que dizia "a produção já começou" mesmo quando não tinha.
+#
+
+msgid "Analisamos o pedido e respondemos por e-mail. A encomenda já saiu, então combinamos com você como fazer a devolução."
+msgstr "We bekijken de aanvraag en antwoorden per e-mail. De bestelling is al onderweg, dus we spreken met u af hoe de retour verloopt."
+
+msgid "Analisamos o pedido e respondemos por e-mail assim que possível."
+msgstr "We bekijken de aanvraag en antwoorden zo snel mogelijk per e-mail."

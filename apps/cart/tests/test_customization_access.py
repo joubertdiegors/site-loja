@@ -249,10 +249,21 @@ class PublicMediaStillWorksTests(LanguageResetMixin, TestCase):
         público na máquina de quem desenvolve.
         """
         import io
+        import re
 
         fonte = io.open("config/urls.py", encoding="utf-8").read()
 
-        self.assertIn('for _publica in ("products", "banners")', fonte)
+        publicas = re.search(r"for _publica in \(([^)]*)\)", fonte)
+        self.assertIsNotNone(publicas, "o laço das pastas públicas sumiu de config/urls.py")
+        servidas = {nome.strip(" \"'") for nome in publicas.group(1).split(",") if nome.strip()}
+
+        # A lista cresce quando o site ganha um tipo novo de imagem pública
+        # (`brand/` entrou com as logos administráveis). O que não pode crescer
+        # é o outro lado.
+        self.assertIn("products", servidas)
+        for privada in ("customizations", "payment-proofs"):
+            with self.subTest(pasta=privada):
+                self.assertNotIn(privada, servidas)
         self.assertNotIn(
             "static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)",
             fonte,

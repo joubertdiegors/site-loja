@@ -13,6 +13,7 @@ from apps.cart.cart import CartLine
 from apps.core.testing import (
     LanguageResetMixin,
     make_address,
+    make_bank_account,
     make_country,
     make_method,
     make_product,
@@ -36,6 +37,7 @@ class OrderAdminBase(LanguageResetMixin, TestCase):
         self.country = make_country("BE")
         self.method = make_method()
         make_rate(self.method, self.country, 0, 5000, "5.90")
+        make_bank_account()
 
         self.staff = make_user(username="operador", email="op@example.com", is_staff=True)
         self.staff.is_superuser = True
@@ -79,12 +81,33 @@ class OrderAdminPagesTests(OrderAdminBase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Vaso Espiral")
 
-    def test_the_three_states_are_visible_side_by_side(self):
+    def test_the_seven_sections_are_on_the_page(self):
+        """Uma seção por área de negócio, na ordem em que a operação lê."""
+        corpo = self.client.get(self.change_url()).content.decode()
+
+        posicoes = []
+        for secao in (
+            "1. RESUMO",
+            "2. PAGAMENTO",
+            "3. PRODUÇÃO E ENTREGA",
+            "4. ITENS E VALORES",
+            "6. HISTÓRICO",
+            "7. COMUNICAÇÕES",
+        ):
+            with self.subTest(secao=secao):
+                self.assertIn(secao, corpo)
+            posicoes.append(corpo.index(secao))
+
+        self.assertEqual(posicoes, sorted(posicoes))
+
+    def test_the_states_are_side_by_side_in_the_summary(self):
+        """Os selos respondem perguntas diferentes — e juntos contam a situação."""
         response = self.client.get(self.change_url())
 
-        self.assertContains(response, "SITUAÇÃO")
-        self.assertContains(response, "CANCELAMENTO")
-        self.assertContains(response, "VALORES")
+        self.assertContains(response, "jd-chips")
+        self.assertContains(response, self.order.get_status_display())
+        self.assertContains(response, self.order.get_payment_status_display())
+        self.assertContains(response, self.order.get_fulfillment_status_display())
 
     def test_related_pages_open(self):
         for name in (
@@ -118,12 +141,36 @@ class OrderAdminProtectionTests(OrderAdminBase):
 
         self.assertFalse(admin.has_delete_permission(None, self.order))
 
-    def test_money_and_snapshots_are_read_only(self):
-        readonly = OrderAdmin(Order, None).readonly_fields
+    def test_money_and_snapshots_cannot_be_edited(self):
+        """A garantia não é o `readonly_fields`: é não haver campo no formulário.
 
-        for field in ("number", "total", "subtotal", "tax_rate", "currency", "customer"):
+        Dinheiro e snapshots deixaram de ser `fields` — eles são desenhados
+        dentro dos painéis. A conferência passa a ser sobre o formulário de
+        verdade, que é onde um `<input>` a mais faria estrago.
+        """
+        editaveis = set(
+            OrderAdmin(Order, None).get_form(None, self.order)().fields
+        )
+
+        for field in (
+            "number", "total", "subtotal", "tax_rate", "currency", "customer",
+            "status", "payment_status", "cancellation_status", "refund_status",
+            "refunded_amount", "cancelled_at", "delivered_at", "paid_at",
+            "stock_return_decision", "stock_returned_at", "stock_applied_at",
+        ):
             with self.subTest(field=field):
-                self.assertIn(field, readonly)
+                self.assertNotIn(field, editaveis)
+
+    def test_only_four_things_can_be_typed_on_an_order(self):
+        """A lista completa do que um operador digita — e ela é curta."""
+        editaveis = set(
+            OrderAdmin(Order, None).get_form(None, self.order)().fields
+        )
+
+        self.assertEqual(
+            editaveis,
+            {"fulfillment_status", "tracking_number", "is_gift", "gift_message"},
+        )
 
     def test_payments_are_read_only(self):
         from apps.orders.admin import PaymentAdmin
@@ -145,12 +192,23 @@ class OrderAdminProtectionTests(OrderAdminBase):
 
 
 class OrderAdminActionTests(OrderAdminBase):
-    def post_action(self, action):
+    def post_action(self, action, **extra):
+        dados = {"action": action, "_selected_action": [str(self.order.pk)]}
+        dados.update(extra)
         return self.client.post(
-            reverse("admin:orders_order_changelist"),
-            {"action": action, "_selected_action": [str(self.order.pk)]},
-            follow=True,
+            reverse("admin:orders_order_changelist"), dados, follow=True
         )
+
+    def decidir(self, action, **extra):
+        """A decisão de cancelamento, já com a confirmação da tela do meio.
+
+        Aprovar e recusar deixaram de ser um clique só: a tela pergunta a
+        resposta ao cliente e, quando a peça já entrou em produção, o que fazer
+        com ela. É o que impede a aprovação de acontecer pela metade.
+        """
+        dados = {"confirmar": "1", "resposta": "", "restore_stock": "0"}
+        dados.update(extra)
+        return self.post_action(action, **dados)
 
     def test_mark_shipped_action(self):
         from django.core import mail
@@ -174,19 +232,27 @@ class OrderAdminActionTests(OrderAdminBase):
         self.assertEqual(self.order.cancellation_status, CancellationStatus.APPROVED)
         self.assertEqual(self.order.status, OrderStatus.CANCELLED)
 
-    def test_refuse_cancellation_action(self):
+    def em_analise(self):
+        """Pago e em produção: o único caso em que a decisão espera uma pessoa."""
+        services.confirm_payment(self.order)
+        self.order.refresh_from_db()
+        services.change_fulfillment_status(self.order, FulfillmentStatus.IN_PRODUCTION)
         services.request_cancellation(self.order, "Mudei de ideia")
+        self.order.refresh_from_db()
 
-        self.post_action("action_refuse_cancellation")
+    def test_refuse_cancellation_action(self):
+        self.em_analise()
+
+        self.decidir("action_refuse_cancellation", resposta="A peça já está na impressora.")
 
         self.order.refresh_from_db()
         self.assertEqual(self.order.cancellation_status, CancellationStatus.REFUSED)
-        self.assertEqual(self.order.status, OrderStatus.PENDING)
+        self.assertEqual(self.order.status, OrderStatus.CONFIRMED)
 
     def test_the_decision_is_recorded_with_the_author(self):
-        services.request_cancellation(self.order, "Comprei errado")
+        self.em_analise()
 
-        self.post_action("action_approve_cancellation")
+        self.decidir("action_approve_cancellation")
 
         entry = self.order.history.filter(event="cancellation_approved").first()
         self.assertIsNotNone(entry)

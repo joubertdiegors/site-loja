@@ -12,7 +12,11 @@ from decimal import Decimal
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
+from django.core.validators import FileExtensionValidator
 from django.db import models
+from django.utils.text import get_valid_filename
+
+from apps.core.uploads import BRAND_IMAGE_EXTENSIONS, validate_brand_image
 
 from apps.core.constants import DEFAULT_LANGUAGE, Language
 from apps.core.i18n import get_content_language
@@ -535,3 +539,127 @@ class EmailSettings(TimeStampedModel):
         """A configuração utilizável, ou ``None`` para cair no ``.env``."""
         obj = cls.objects.filter(pk=1, is_active=True).first()
         return obj if (obj is not None and obj.is_usable) else None
+
+
+# ---------------------------------------------------------------------------
+# Identidade visual
+# ---------------------------------------------------------------------------
+
+
+def brand_upload_to(instance, filename: str) -> str:
+    """``media/brand/<arquivo>`` — pasta pública, como `products/` e `banners/`.
+
+    Fora de `static/` de propósito. `static/` é código: vai no repositório, é
+    coletado no deploy e só muda com um commit. Uma logo trocada pelo dono da
+    loja numa terça-feira não é código.
+    """
+    return f"brand/{get_valid_filename(filename)}"
+
+
+class BrandAssets(TimeStampedModel):
+    """As imagens da marca, gerenciáveis sem passar por um programador.
+
+    **Uma linha só** (``pk=1``), como `EmailSettings`: não é uma galeria, é *a*
+    identidade da loja.
+
+    Quatro imagens independentes, e a independência é o ponto. Antes, uma
+    função procurava `jdprint-logo.svg` dentro de `static/images/logo/` e a
+    mesma imagem servia header e rodapé — trocar a do rodapé por uma versão
+    clara exigia um commit. Aqui cada uma tem o seu campo, o seu upload e o seu
+    preview.
+
+    **Todas opcionais.** Sem imagem cadastrada o site não quebra: o header e o
+    rodapé mostram a marca tipográfica que já existia, a página sai sem
+    ``<link rel="icon">`` e o produto sem foto continua com o espaço reservado.
+    Uma loja recém-instalada funciona antes de alguém abrir esta tela.
+    """
+
+    header_logo = models.FileField(
+        "logo do topo",
+        upload_to=brand_upload_to,
+        blank=True,
+        validators=[
+            FileExtensionValidator(allowed_extensions=list(BRAND_IMAGE_EXTENSIONS)),
+            validate_brand_image,
+        ],
+        help_text=(
+            "Aparece no cabeçalho, sobre fundo claro. Altura de exibição: 40 px "
+            "— envie com o dobro para telas retina. SVG é o formato preferido."
+        ),
+    )
+    footer_logo = models.FileField(
+        "logo do rodapé",
+        upload_to=brand_upload_to,
+        blank=True,
+        validators=[
+            FileExtensionValidator(allowed_extensions=list(BRAND_IMAGE_EXTENSIONS)),
+            validate_brand_image,
+        ],
+        help_text=(
+            "Aparece no rodapé, sobre fundo escuro — normalmente é a versão "
+            "clara da logo. Em branco, o rodapé usa a marca tipográfica."
+        ),
+    )
+    favicon = models.FileField(
+        "favicon",
+        upload_to=brand_upload_to,
+        blank=True,
+        validators=[
+            FileExtensionValidator(allowed_extensions=list(BRAND_IMAGE_EXTENSIONS)),
+            validate_brand_image,
+        ],
+        help_text=(
+            "O ícone da aba do navegador. Quadrado, a partir de 48×48 px. "
+            "Em branco, a página sai sem ícone — o navegador mostra o dele."
+        ),
+    )
+    product_placeholder = models.FileField(
+        "imagem padrão dos produtos",
+        upload_to=brand_upload_to,
+        blank=True,
+        validators=[
+            FileExtensionValidator(allowed_extensions=list(BRAND_IMAGE_EXTENSIONS)),
+            validate_brand_image,
+        ],
+        help_text=(
+            "Usada só onde o produto ainda não tem foto própria. Quadrada "
+            "(1:1). Em branco, aparece o espaço reservado com a inicial do "
+            "produto — nunca uma foto de outro produto."
+        ),
+    )
+
+    class Meta:
+        verbose_name = "logos e imagens"
+        verbose_name_plural = "LOGOS E IMAGENS"
+
+    def __str__(self) -> str:
+        return "Logos e imagens"
+
+    def save(self, *args, **kwargs):
+        """Uma linha só, garantida pela chave primária e não por convenção."""
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def load(cls) -> "BrandAssets":
+        obj, _criado = cls.objects.get_or_create(pk=1)
+        return obj
+
+    @classmethod
+    def current(cls) -> "BrandAssets | None":
+        """A linha, ou ``None`` numa instalação em que ninguém a abriu ainda."""
+        return cls.objects.filter(pk=1).first()
+
+    @classmethod
+    def url_for(cls, campo: str) -> str:
+        """A URL da imagem pedida, ou ``""`` quando não há imagem.
+
+        Um lugar só para a pergunta que as tags de template fazem. Devolver
+        string vazia — em vez de levantar — é o que permite ao template decidir
+        entre a imagem e o espaço reservado com um `{% if %}`.
+        """
+        config = cls.current()
+        if config is None:
+            return ""
+        arquivo = getattr(config, campo, None)
+        return arquivo.url if arquivo else ""

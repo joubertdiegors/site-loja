@@ -16,11 +16,14 @@ de conferir a assinatura.
 """
 
 import logging
+import re
+import uuid
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.db import IntegrityError, transaction
-from django.http import HttpResponse, HttpResponseRedirect
+from django.db import DatabaseError, IntegrityError, transaction
+from django.http import Http404, HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.decorators import method_decorator
@@ -33,10 +36,20 @@ from django.views.generic import DetailView, TemplateView
 from apps.accounts.models import Customer
 from apps.cart.cart import Cart
 from apps.core.security import ip_is_throttled
+from apps.core.uploads import private_file_response
 from apps.orders import services
-from apps.orders.forms import CancellationRequestForm, CheckoutForm
-from apps.orders.models import Order, OrderEvent, WebhookEvent
-from apps.orders.payments import PaymentError, WebhookError, get_provider
+from apps.orders.emails import send_payment_proof_email
+from apps.orders.forms import CancellationRequestForm, CheckoutForm, PaymentProofForm
+from apps.orders.models import CancellationStatus, Order, OrderEvent, WebhookEvent
+from apps.orders.payments import (
+    TRANSFER,
+    PaymentError,
+    WebhookError,
+    available_checkout_methods,
+    checkout_methods,
+    get_checkout_method,
+    get_provider,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +61,22 @@ def _is_htmx(request) -> bool:
 # ---------------------------------------------------------------------------
 # Checkout
 # ---------------------------------------------------------------------------
+
+
+def _checkout_token(request) -> str:
+    """A chave da finalização, lida direto do POST.
+
+    Não passa pelo formulário de propósito: a chave precisa ser conhecida
+    **antes** de qualquer validação — antes de olhar o carrinho, antes de
+    montar o formulário. Um segundo clique chega com o carrinho já vazio, e é
+    a chave que o distingue de alguém que abriu o checkout sem nada dentro.
+
+    Só o formato é conferido. Valor estranho vira vazio: no pior caso não casa
+    com pedido nenhum e a finalização segue como se fosse a primeira — que é
+    exatamente o que ela é.
+    """
+    chave = (request.POST.get("checkout_token") or "").strip()
+    return chave if re.fullmatch(r"[0-9a-f]{32}", chave) else ""
 
 
 class CheckoutView(TemplateView):
@@ -143,6 +172,12 @@ class CheckoutView(TemplateView):
         # O nome do provedor, para a tela não falar de um meio de pagamento
         # que não é o que está cobrando. Quem escolhe é o servidor.
         context["payment_provider"] = provider.name
+        # As formas de pagamento, **todas** — as indisponíveis aparecem
+        # desativadas, com "em breve". Esconder o que ainda não existe faria a
+        # tela parecer uma loja que só aceita transferência por opção; mostrar
+        # desativado diz que o resto está a caminho.
+        context["payment_methods"] = checkout_methods()
+        context["available_payment_methods"] = available_checkout_methods()
         context.setdefault("form", None)
         return context
 
@@ -151,7 +186,12 @@ class CheckoutView(TemplateView):
 
         if request.user.is_authenticated and self.lines:
             context["form"] = CheckoutForm(
-                customer=self.customer, methods=context["draft"].options
+                customer=self.customer,
+                methods=context["draft"].options,
+                # Uma chave por tela aberta. Recarregar a página gera outra —
+                # e está certo: recarregar é uma intenção nova. O que a chave
+                # impede é a **mesma** tela virar dois pedidos.
+                initial={"checkout_token": uuid.uuid4().hex},
             )
 
         # Recalcular frete/resumo quando o cliente troca de endereço, sem
@@ -170,6 +210,22 @@ class CheckoutView(TemplateView):
             return redirect(f"{reverse('accounts:login')}?next={reverse('cart:checkout')}")
 
         context = self.get_context_data(**kwargs)
+        # A chave vem antes de tudo — inclusive de "o carrinho está vazio".
+        #
+        # O primeiro clique esvazia o carrinho ao terminar; o segundo chega com
+        # o carrinho já vazio e, sem esta ordem, cairia na tela de "seu carrinho
+        # está vazio" logo abaixo. Quem acabou de comprar veria um estado vazio
+        # em vez do pedido que acabou de fazer — e concluiria que a compra não
+        # passou.
+        chave = _checkout_token(request)
+        if chave:
+            ja_existe = Order.objects.filter(
+                customer=self.customer, checkout_token=chave
+            ).first()
+            if ja_existe is not None:
+                self.cart.clear()
+                return redirect("orders:confirmation", number=ja_existe.number)
+
         if not self.lines:
             return self.render_to_response(context)
 
@@ -188,14 +244,37 @@ class CheckoutView(TemplateView):
                 shipping_address=form.cleaned_data["shipping_address"],
                 billing_address=form.cleaned_data["billing_address"],
                 shipping_method=form.cleaned_data["shipping_method"],
+                payment_method=form.cleaned_data.get("payment_method", ""),
                 is_gift=form.cleaned_data.get("is_gift", False),
                 customer_note=form.cleaned_data.get("customer_note", ""),
                 language=get_language() or "",
+                checkout_token=chave,
             )
         except services.CheckoutError as error:
             messages.error(request, error.message)
             context["problems"] = error.problems or context["problems"]
             return self.render_to_response(context)
+        except DatabaseError:
+            # Dois cliques **ao mesmo tempo**: as duas requisições passaram pela
+            # consulta acima antes de qualquer uma gravar, e a segunda esbarrou
+            # no banco. É o caso que nenhum `if` em Python resolve.
+            #
+            # `DatabaseError` e não `IntegrityError` porque o banco recusa de
+            # duas maneiras: no PostgreSQL a segunda gravação viola a
+            # constraint (`IntegrityError`); no SQLite ela nem chega lá — o
+            # arquivo inteiro fica travado enquanto o outro escreve, e sai um
+            # `OperationalError: database is locked`. As duas dizem a mesma
+            # coisa: alguém chegou primeiro.
+            #
+            # Isto **não** engole falha de banco. Só há recuperação se o pedido
+            # do outro clique realmente existir; qualquer outra coisa sobe.
+            vencedor = Order.objects.filter(
+                customer=self.customer, checkout_token=chave
+            ).first()
+            if vencedor is None:
+                raise
+            self.cart.clear()
+            return redirect("orders:confirmation", number=vencedor.number)
 
         try:
             start = get_provider().start(order, request)
@@ -250,11 +329,20 @@ class ConfirmationView(OrderAccessMixin, DetailView):
         context = super().get_context_data(**kwargs)
         context["meta_title"] = _("Pedido confirmado — JD PRINT")
         context["awaiting_payment"] = not self.object.is_paid
-        # Como o cliente escolheu pagar. Vem do `Payment` gravado no
-        # checkout, nunca de um parâmetro da URL: esta página é pública
-        # para quem tem o link e não decide nada.
+        # Como o cliente escolheu pagar. Vem do pedido, nunca de um parâmetro
+        # da URL: esta página é pública para quem tem o link e não decide nada.
+        # O `Payment` continua sendo a reserva para pedidos anteriores a
+        # `Order.payment_method`, que nasceram sem o campo.
         ultimo = self.object.payments.first()
-        context["payment_provider"] = ultimo.provider if ultimo else ""
+        context["payment_provider"] = self.object.payment_method or (
+            ultimo.provider if ultimo else ""
+        )
+        # Os dados que o cliente recebeu por e-mail, para a tela dizer o que foi
+        # enviado sem repetir o IBAN numa página que o navegador guarda.
+        context["bank_details"] = self.object.bank_details
+        context["proof_url"] = reverse(
+            "orders:payment_proof", kwargs={"number": self.object.number}
+        )
         return context
 
 
@@ -270,27 +358,111 @@ class PaymentCancelledView(OrderAccessMixin, DetailView):
         return context
 
 
-class OrderRetryPaymentView(OrderAccessMixin, View):
-    """Nova tentativa de pagamento de um pedido pendente. POST com CSRF."""
+class OrderRetryPaymentView(OrderAccessMixin, DetailView):
+    """"Pagar agora": uma tentativa nova, com as perguntas feitas de novo.
+
+    Era um POST cego que repetia o `start()` do provedor. O problema é que um
+    pedido esperando pagamento pode ficar dias parado, e nesse intervalo três
+    coisas mudam sozinhas:
+
+    * **o estoque.** A peça pode ter esgotado depois que o pedido nasceu.
+      Mandar o cliente transferir por algo que a loja não tem mais é o pior
+      desfecho possível — o dinheiro entra e a venda não existe;
+    * **as formas de pagamento.** A loja pode ter ligado o cartão, ou
+      desligado a transferência. A escolha de semanas atrás não vale como
+      resposta de hoje;
+    * **a conta bancária padrão.** Se ela mudou, é para a nova que o cliente
+      tem de transferir.
+
+    Por isso a tela existe: ela mostra o que está disponível **agora** e pede a
+    escolha de novo. Com uma forma só, não há o que escolher e o botão
+    simplesmente confirma; com duas, o cliente decide.
+
+    O que ela **não** faz é criar pedido: é o mesmo `Order`, com uma tentativa
+    de pagamento a mais.
+    """
+
+    template_name = "orders/retry_payment.html"
+    context_object_name = "order"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        order = self.object
+        context["meta_title"] = _("Pagar o pedido %(number)s — JD PRINT") % {
+            "number": order.number
+        }
+        context["account_page"] = "orders"
+        # A disponibilidade é conferida na hora de abrir a tela **e** de novo
+        # no envio: entre uma coisa e outra alguém pode ter comprado a última.
+        context["problems"] = services.validate_order_items(order)
+        context["payment_methods"] = checkout_methods()
+        context["available_payment_methods"] = available_checkout_methods()
+        context["can_pay"] = not (
+            order.is_paid or order.is_cancelled or context["problems"]
+        )
+        return context
+
+    def get(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        if self.object.is_paid or self.object.is_cancelled:
+            return redirect("orders:detail", number=self.object.number)
+        return self.render_to_response(self.get_context_data())
 
     def post(self, request, *args, **kwargs):
-        order = self.get_object()
+        order = self.object = self.get_object()
 
         if order.is_paid or order.is_cancelled:
             return redirect("orders:detail", number=order.number)
 
-        # Cada tentativa grava um `Payment` e, no fluxo de transferência,
-        # manda um e-mail para a loja. Sem freio, um laço de POST queima a
-        # cota diária de envio da hospedagem — e o e-mail é o canal pelo qual
-        # a equipe fica sabendo que há pedido esperando pagamento.
+        # Cada tentativa grava um `Payment` e manda e-mail. Sem freio, um laço
+        # de POST queima a cota diária de envio da hospedagem — e o e-mail é o
+        # canal pelo qual a equipe fica sabendo que há pedido esperando.
         if ip_is_throttled(request, "order-retry"):
             messages.error(
                 request, _("Aguarde alguns instantes antes de tentar pagar de novo.")
             )
             return redirect("orders:detail", number=order.number)
 
+        problemas = services.validate_order_items(order)
+        if problemas:
+            # Segunda checagem, agora dentro do envio: a tela pode ter sido
+            # aberta antes de a última unidade sair.
+            for problema in problemas:
+                messages.error(request, problema)
+            return self.render_to_response(self.get_context_data())
+
+        escolhido = (request.POST.get("payment_method") or "").strip()
+        disponiveis = available_checkout_methods()
+        if not escolhido and len(disponiveis) == 1:
+            # Uma opção só: o rádio já vem marcado e o silêncio quer dizer
+            # "essa mesma" — a mesma regra do checkout.
+            escolhido = disponiveis[0].code
+
+        metodo = get_checkout_method(escolhido)
+        if metodo is None:
+            messages.error(request, _("Escolha uma forma de pagamento disponível."))
+            return self.render_to_response(self.get_context_data())
+
+        if metodo.code == TRANSFER:
+            conta = services.refresh_transfer_account(order)
+            if conta is None:
+                messages.error(
+                    request,
+                    _(
+                        "O pagamento por transferência está indisponível neste momento. "
+                        "Entre em contato com a gente e concluímos o seu pedido."
+                    ),
+                )
+                return self.render_to_response(self.get_context_data())
+
+        # A forma escolhida agora passa a ser a do pedido: é por ela que a
+        # equipe vai cobrar, e é ela que a tela de confirmação lê.
+        if order.payment_method != metodo.code:
+            order.payment_method = metodo.code
+            order.save(update_fields=["payment_method", "updated_at"])
+
         try:
-            start = get_provider().start(order, request)
+            start = get_provider(metodo.provider).start(order, request)
         except PaymentError as error:
             messages.error(request, str(error))
             return redirect("orders:detail", number=order.number)
@@ -313,8 +485,15 @@ class OrderDetailView(OrderAccessMixin, DetailView):
         context["meta_title"] = _("Pedido %(number)s — JD PRINT") % {"number": self.object.number}
         context["account_page"] = "orders"
         context["items"] = self.object.items.all()
-        # O histórico interno fica no admin; aqui só o que é do cliente.
-        context["history"] = self.object.history.filter(is_customer_visible=True)
+        # O histórico interno fica no Admin; aqui só o que é do cliente — e só
+        # o que **tem uma frase para ele**. Um evento marcado como visível mas
+        # sem mensagem de cliente (``customer_message`` vazio) desenharia uma
+        # linha em branco na tela de quem comprou.
+        context["history"] = [
+            entrada
+            for entrada in self.object.history.filter(is_customer_visible=True)
+            if entrada.customer_message
+        ]
         return context
 
 
@@ -329,27 +508,187 @@ class OrderCancelView(OrderAccessMixin, DetailView):
         context["meta_title"] = _("Solicitar cancelamento — JD PRINT")
         context["account_page"] = "orders"
         context.setdefault("form", CancellationRequestForm())
+        # A tela promete o que vai mesmo acontecer com **este** pedido: uns são
+        # cancelados no clique, outros vão para análise. Uma frase só para os
+        # dois casos estaria errada metade das vezes.
+        context["plano"] = services.cancellation_plan(self.object)
         return context
 
     def post(self, request, *args, **kwargs):
         self.object = self.get_object()
 
         if not self.object.can_request_cancellation:
-            messages.error(request, _("Este pedido não pode mais ser cancelado por aqui."))
+            # Dizer só "não pode" deixa o cliente sem saber se é um erro da
+            # tela ou uma regra — e ele escreve para perguntar. O prazo legal é
+            # a resposta, e ela cabe na própria mensagem.
+            messages.error(
+                request,
+                _(
+                    "O prazo para cancelar ou devolver esta encomenda já passou. "
+                    "Se precisar de ajuda, é só responder ao e-mail do pedido."
+                ),
+            )
             return redirect("orders:detail", number=self.object.number)
 
         form = CancellationRequestForm(request.POST)
         if not form.is_valid():
             return self.render_to_response(self.get_context_data(form=form))
 
-        services.request_cancellation(
-            self.object, form.cleaned_data["reason"], user=request.user
+        try:
+            services.request_cancellation(
+                self.object, form.cleaned_data["reason"], user=request.user
+            )
+        except services.CancellationRefused as erro:
+            messages.error(request, str(erro))
+            return redirect("orders:detail", number=self.object.number)
+
+        # A regra pode ter resolvido na hora — nada cobrado, ou pago sem a
+        # produção ter começado. Dizer "vamos analisar" nesse caso seria pedir
+        # ao cliente que esperasse por uma decisão que já foi tomada.
+        self.object.refresh_from_db()
+        if self.object.cancellation_status == CancellationStatus.APPROVED:
+            messages.success(request, _("Pedido cancelado. Enviámos os detalhes por e-mail."))
+        else:
+            messages.success(
+                request,
+                _("Pedido de cancelamento enviado. Respondemos assim que analisarmos."),
+            )
+        return redirect("orders:detail", number=self.object.number)
+
+
+class PaymentProofView(OrderAccessMixin, DetailView):
+    """A página segura do comprovante — para onde o botão do e-mail leva.
+
+    "Segura" aqui não é um token na URL. É `OrderAccessMixin`, o mesmo portão
+    das outras telas de pedido: precisa estar autenticado, e o pedido é
+    procurado dentro de `Order.objects.for_user(request.user)`. O pedido de
+    outra pessoa não está nesse queryset, então trocar o número na barra de
+    endereços dá **404** — não 403, que confirmaria que aquele número existe.
+
+    Um token assinado no link seria mais frágil, não mais forte: e-mail se
+    reencaminha, e quem recebesse o encaminhamento abriria o pedido de outra
+    pessoa. Assim, quem chega pelo e-mail sem estar logado passa pela tela de
+    entrar e volta para cá — o `next` do `LoginRequiredMixin` cuida disso.
+
+    Enviar comprovante **não** confirma pagamento. A tela diz isso, e o
+    `PaymentProofForm.save()` também não mexe em `payment_status`.
+
+    ## Um comprovante, e só
+
+    Depois do primeiro envio a tela deixa de oferecer o formulário e passa a
+    dizer que o comprovante chegou — inclusive para quem voltar pelo botão do
+    e-mail ou digitar a URL de novo. Um POST que insista é recusado aqui, antes
+    de tocar em disco, e a constraint do banco é a rede embaixo.
+
+    Substituir sozinho abriria a porta para trocar o documento depois de a
+    equipe já ter olhado. Se o cliente mandou o arquivo errado, quem resolve é
+    a equipe — e o arquivo original não é apagado.
+    """
+
+    template_name = "orders/payment_proof.html"
+    context_object_name = "order"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["meta_title"] = _("Enviar comprovante — JD PRINT")
+        context["account_page"] = "orders"
+        context["proof"] = self.object.payment_proofs.first()
+        context["already_sent"] = context["proof"] is not None
+        if not context["already_sent"]:
+            context.setdefault("form", PaymentProofForm())
+        context["max_mb"] = (
+            getattr(settings, "PAYMENT_PROOF_MAX_UPLOAD_SIZE", 10 * 1024 * 1024) // (1024 * 1024)
         )
+        return context
+
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+
+        if self.object.payment_proofs.exists():
+            messages.info(
+                request,
+                _("O comprovante deste pedido já foi recebido. Não é preciso enviar de novo."),
+            )
+            return redirect("orders:payment_proof", number=self.object.number)
+
+        if ip_is_throttled(request, "payment-proof"):
+            messages.error(
+                request, _("Muitos envios seguidos. Tente novamente em alguns minutos.")
+            )
+            return redirect("orders:payment_proof", number=self.object.number)
+
+        form = PaymentProofForm(request.POST, request.FILES)
+        if not form.is_valid():
+            return self.render_to_response(self.get_context_data(form=form))
+
+        try:
+            proof = form.save(self.object)
+        except IntegrityError:
+            # Dois POST ao mesmo tempo: o segundo esbarra na constraint. Para
+            # quem enviou, o resultado é o mesmo — o comprovante está lá.
+            messages.info(request, _("O comprovante deste pedido já foi recebido."))
+            return redirect("orders:payment_proof", number=self.object.number)
+        self.object.log(
+            OrderEvent.PAYMENT_PROOF_RECEIVED,
+            _("Comprovante enviado pelo cliente: %(name)s") % {"name": proof.original_name},
+            user=request.user,
+        )
+        try:
+            send_payment_proof_email(self.object, proof)
+        except Exception:  # avisar a equipe não pode desfazer o envio
+            logger.exception("Falha ao avisar a equipe do comprovante do pedido %s", self.object.pk)
+
         messages.success(
             request,
-            _("Pedido de cancelamento enviado. Respondemos assim que analisarmos."),
+            _("Comprovante recebido. Vamos conferir o pagamento e avisar você."),
         )
-        return redirect("orders:detail", number=self.object.number)
+        return redirect("orders:payment_proof", number=self.object.number)
+
+
+def payment_proof_file(request, pk: int):
+    """Entrega o comprovante — só a quem tem o que ver com ele.
+
+    Mesmo desenho de `cart.views.customization_file`, pelas mesmas razões. Duas
+    portas, e nenhuma delas é "ter o link":
+
+    * **a equipe** — staff com permissão de ver o comprovante ou de ver
+      pedidos. É quem confere o pagamento;
+    * **o dono** — o cliente do pedido a que o comprovante pertence.
+
+    Quem não passa recebe **404**, não 403: um 403 confirmaria que o arquivo
+    existe, e a lista de ids é curta de percorrer.
+
+    O arquivo também não é servido como mídia pública: `payment-proofs/` não
+    está entre as pastas que `config/urls.py` publica, e em produção o proxy
+    aponta só para `products/` e `banners/`.
+    """
+    from apps.orders.models import PaymentProof
+
+    proof = PaymentProof.objects.filter(pk=pk).select_related("order__customer").first()
+    if proof is None or not proof.file:
+        raise Http404("Arquivo não encontrado.")
+
+    if not _may_read_proof(request, proof):
+        raise Http404("Arquivo não encontrado.")
+
+    return private_file_response(
+        proof.file,
+        content_type=proof.content_type,
+        filename=proof.original_name or proof.file.name,
+    )
+
+
+def _may_read_proof(request, proof) -> bool:
+    user = request.user
+    if not user.is_authenticated:
+        return False
+
+    if user.is_staff and (
+        user.has_perm("orders.view_paymentproof") or user.has_perm("orders.view_order")
+    ):
+        return True
+
+    return proof.order.customer.user_id == user.pk
 
 
 # ---------------------------------------------------------------------------

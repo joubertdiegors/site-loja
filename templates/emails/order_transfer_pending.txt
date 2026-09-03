@@ -21,14 +21,12 @@
 {% for line in billing_address.lines %}{{ line }}
 {% endfor %}{% if billing_address.vat_number %}{{ billing_address.vat_number }}
 {% endif %}{% endif %}
-{% if bank.is_complete %}--- {% translate "Dados para enviar ao cliente" %} ---
-{{ bank.beneficiary }}
-IBAN: {{ bank.iban }}{% if bank.bic %}
-BIC: {{ bank.bic }}{% endif %}{% if bank.instructions %}
-
-{{ bank.instructions }}{% endif %}
+{% if accounts %}--- {% translate "Contas disponíveis" %} ---
+{% for conta in accounts %}{{ conta }}
+{% endfor %}
+{% translate "Abra o pedido no Admin, escolha a conta e use a ação “Enviar dados bancários ao cliente”." %}
 {% else %}--- {% translate "Atenção" %} ---
-{% translate "Os dados bancários ainda não foram cadastrados no Admin (Pedidos › dados para transferência)." %}
+{% translate "Nenhuma conta bancária cadastrada no Admin (Pedidos › contas bancárias). Sem ela não há o que enviar ao cliente." %}
 {% endif %}
 --- {% translate "No Admin" %} ---
 {{ admin_url }}

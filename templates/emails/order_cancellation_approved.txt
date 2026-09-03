@@ -1,0 +1,12 @@
+{% load i18n %}JD PRINT
+
+{% blocktranslate with number=order.number %}Cancelamento do pedido {{ number }}{% endblocktranslate %}
+
+{{ message }}
+
+--- {% translate "Seu pedido" %} ---
+{{ order.number }} · {{ order.created_at|date:"d/m/Y" }}
+{% translate "Valor" %}: {{ order.currency_symbol }} {{ order.total|floatformat:2 }}
+{{ order_url }}
+
+{% translate "Qualquer dúvida, é só responder a este e-mail." %}

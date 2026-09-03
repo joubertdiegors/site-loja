@@ -1,0 +1,20 @@
+{% load i18n %}JD PRINT — {% translate "Comprovante recebido" %}
+
+{% translate "O cliente enviou um comprovante. O pagamento ainda NÃO está confirmado: confira o valor na conta antes de marcar." %}
+
+{{ order.number }} · {{ order.created_at|date:"d/m/Y H:i" }}
+{% translate "Total a receber" %}: {{ order.currency_symbol }} {{ order.total|floatformat:2 }}
+{% translate "Comunicação esperada" %}: {{ order.number }}
+
+--- {% translate "Cliente" %} ---
+{{ customer.full_name|default:user.username }}
+{{ user.email }}
+
+--- {% translate "Arquivo" %} ---
+{{ proof.original_name }} · {{ proof.size_display }} · {{ proof.created_at|date:"d/m/Y H:i" }}
+{% translate "O arquivo abre no Admin, dentro do pedido. Ele não fica acessível por link público." %}
+
+--- {% translate "No Admin" %} ---
+{{ admin_url }}
+
+{% translate "O pedido só fica pago quando alguém confirmar o recebimento no Admin." %}

@@ -32,7 +32,11 @@ Espera `order`.
 {% endif %}
 
 {# ---- Produção e entrega ---- #}
-{% if order.fulfillment_status != "not_started" %}
+{% comment %}
+  Pedido cancelado não mostra produção. "Interrompido" é palavra de oficina, e
+  ao lado de "Cancelado" só levanta a pergunta "interrompido como?".
+{% endcomment %}
+{% if order.status != "cancelled" and order.fulfillment_status != "not_started" %}
   <span class="badge-cyan">{{ order.get_fulfillment_status_display }}</span>
 {% endif %}
 

@@ -66,8 +66,12 @@ class HomeBannerAdmin(admin.ModelAdmin):
             {
                 "fields": ("image_desktop", "image_mobile"),
                 "description": (
-                    "Opcionais. Sem imagem, a Home exibe um destaque tipográfico "
-                    "com a identidade da marca — o layout não quebra."
+                    "<b>Desktop: 1920 × 700 px</b> — proporção <b>2,74:1</b>. "
+                    "Fora dessa medida a imagem é cortada pelo centro para caber "
+                    "na faixa, e o que estiver nas bordas se perde.<br>"
+                    "Mobile: proporção 4:5 (ex.: 900 × 1125 px).<br>"
+                    "As duas são opcionais: sem imagem, a Home exibe um destaque "
+                    "tipográfico com a identidade da marca — o layout não quebra."
                 ),
             },
         ),

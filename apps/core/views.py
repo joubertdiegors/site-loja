@@ -50,3 +50,26 @@ def set_language(request):
         samesite=settings.LANGUAGE_COOKIE_SAMESITE,
     )
     return response
+
+
+def favicon(request):
+    """Redireciona ``/favicon.ico`` para o ícone que estiver configurado.
+
+    O navegador pede este caminho sozinho, em toda visita, mesmo com o
+    ``<link rel="icon">`` do ``<head>`` apontando para outro arquivo. Sem a
+    rota é um 404 por visitante no log — ruído que esconde os 404 que importam.
+
+    Não é `RedirectView` com URL fixa porque o ícone deixou de ser um arquivo
+    fixo: ele vem do Admin. Sem nada cadastrado, cai no arquivo estático que já
+    existia — o mesmo caminho de transição das logos.
+
+    `permanent=False` de propósito: um 301 fica no cache do navegador e do
+    proxy, e quem trocar o favicon amanhã ficaria vendo o antigo por meses.
+    """
+    from django.shortcuts import redirect
+    from django.templatetags.static import static as static_url
+
+    from apps.core.models import BrandAssets
+
+    url = BrandAssets.url_for("favicon") or static_url("images/logo/favicon.svg")
+    return redirect(url, permanent=False)

@@ -11,7 +11,7 @@ Duas coisas concentram a atenção aqui:
 from decimal import Decimal
 from unittest import mock
 
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from apps.core.testing import (
@@ -45,6 +45,16 @@ class FakeStart:
         return PaymentStart(redirect_url=self.url, payment=payment)
 
 
+#: A Stripe é o provedor destes testes, e um provedor sem credencial não é um
+#: provedor: o checkout passa a recusar antes de gravar o pedido, em vez de
+#: gravar e falhar no `start()`. A chave é falsa e nunca sai daqui — as
+#: chamadas de rede continuam mockadas.
+STRIPE_LIGADA = override_settings(
+    PAYMENT_PROVIDER="stripe", STRIPE_SECRET_KEY="sk_test_apenas_para_o_teste"
+)
+
+
+@STRIPE_LIGADA
 class CheckoutBase(LanguageResetMixin, TestCase):
     def setUp(self):
         super().setUp()

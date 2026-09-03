@@ -46,7 +46,12 @@ CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS")
 # ---------------------------------------------------------------------------
 
 DJANGO_APPS = [
-    "django.contrib.admin",
+    # O Admin entra pela configuracao do projeto, e nao direto: e ela que
+    # troca o site padrao pelo `JDPrintAdminSite`, cujo menu e agrupado por
+    # assunto em vez de por app Python (ver config/admin.py). O caminho e o
+    # oficial do Django (`AdminConfig.default_site`) -- nenhum model, URL ou
+    # permissao muda.
+    "config.apps.JDPrintAdminConfig",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
@@ -120,6 +125,23 @@ if env("DJANGO_DB_ENGINE", "postgres") == "sqlite":
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
             "NAME": BASE_DIR / "db.sqlite3",
+            # O SQLite trava o arquivo inteiro para escrever. Sem `timeout`, a
+            # segunda requisicao simultanea falha na hora com "database is
+            # locked" — e o desenvolvimento passa a errar onde a producao
+            # acerta: no PostgreSQL a segunda gravacao ESPERA e so entao
+            # esbarra na constraint, que e o caminho que o codigo trata.
+            #
+            # Vinte segundos e o padrao que a documentacao do Django sugere
+            # para desenvolvimento. Nao muda nada em producao: este ramo so
+            # existe enquanto o PostgreSQL nao esta instalado na maquina.
+            #
+            # `transaction_mode` importa tanto quanto o `timeout`: sem ele o
+            # SQLite abre a transacao como leitora e so pede a escrita depois.
+            # Duas leitoras que tentam virar escritoras nao esperam uma pela
+            # outra — o SQLite devolve "database is locked" na hora, e o
+            # `timeout` nao se aplica. Com IMMEDIATE a escrita e pedida na
+            # abertura, e ai sim a segunda espera.
+            "OPTIONS": {"timeout": 20, "transaction_mode": "IMMEDIATE"},
         }
     }
 else:
@@ -287,6 +309,11 @@ CART_MAX_QUANTITY_PER_LINE = int(env("CART_MAX_QUANTITY_PER_LINE", "99"))
 
 # Tamanho máximo aceito para upload de mídia de produto (bytes).
 PRODUCT_MEDIA_MAX_UPLOAD_SIZE = int(env("PRODUCT_MEDIA_MAX_UPLOAD_SIZE", str(50 * 1024 * 1024)))
+
+# Comprovante de pagamento enviado pelo cliente (foto do celular ou PDF do
+# banco). O mesmo teto da personalização: é o tamanho de uma foto de celular,
+# e um PDF de comprovante nunca chega perto disso.
+PAYMENT_PROOF_MAX_UPLOAD_SIZE = int(env("PAYMENT_PROOF_MAX_UPLOAD_SIZE", str(10 * 1024 * 1024)))
 
 # ---------------------------------------------------------------------------
 # E-mail e confirmacao de conta

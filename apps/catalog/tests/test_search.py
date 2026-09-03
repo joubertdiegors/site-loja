@@ -11,9 +11,11 @@ com o nome em português; se a busca não olhasse o português, o cliente não
 acharia exatamente aquilo que está lendo na tela.
 """
 
+import io
 from decimal import Decimal
 
 from django.test import TestCase
+from django.urls import reverse
 
 from apps.catalog.models import Material, ProductStatus
 from apps.core.testing import (
@@ -188,7 +190,7 @@ class SearchEmptyTests(SearchBase):
         self.assertEqual(resposta.status_code, 200)
         self.assertEqual(self.encontrados(resposta), [])
         self.assertContains(resposta, "xyzabc")
-        self.assertContains(resposta, "Nenhum produto encontrado")
+        self.assertContains(resposta, "Não encontramos nada para")
 
     def test_no_result_still_offers_a_new_search(self):
         resposta = self.buscar("xyzabc")
@@ -755,3 +757,70 @@ class SearchPageTests(SearchBase):
         resposta = self.buscar("gato")
 
         self.assertContains(resposta, '<input type="hidden" name="q" value="gato">')
+
+
+class SearchEmptyStateTests(LanguageResetMixin, TestCase):
+    """Busca sem resultado é a única tela em que o cliente já disse o que quer
+    e a loja não tem. Ela precisa oferecer um próximo passo.
+
+    A JD PRINT imprime sob encomenda: "não está no catálogo" não é o mesmo que
+    "não dá para fazer", e é por isso que o convite ao contato existe aqui — e
+    **só** aqui. Numa categoria vazia o caminho certo é continuar navegando.
+    """
+
+    IDIOMAS = (
+        ("", "Não encontramos nada para", "Entrar em contato"),
+        ("/fr", "Nous n’avons rien trouvé pour", "Nous contacter"),
+        ("/nl", "We hebben niets gevonden voor", "Contact opnemen"),
+        ("/en", "We couldn’t find anything for", "Get in touch"),
+    )
+
+    def buscar(self, prefixo=""):
+        return self.client.get(f"{prefixo}/buscar/", {"q": "zzznaoexiste"})
+
+    def test_the_message_is_humanised_in_every_language(self):
+        for prefixo, mensagem, _botao in self.IDIOMAS:
+            with self.subTest(idioma=prefixo or "pt"):
+                self.assertContains(self.buscar(prefixo), mensagem)
+
+    def test_the_contact_button_is_offered_in_every_language(self):
+        for prefixo, _mensagem, botao in self.IDIOMAS:
+            with self.subTest(idioma=prefixo or "pt"):
+                self.assertContains(self.buscar(prefixo), botao)
+
+    def test_the_button_points_at_the_institutional_contact_page(self):
+        """A página existe e é administrável — o link não é inventado aqui."""
+        resposta = self.buscar()
+
+        self.assertContains(resposta, reverse("storefront:page_contact"))
+
+    def test_the_invitation_to_write_is_there(self):
+        self.assertContains(self.buscar(), "fale com a gente")
+
+    def test_the_block_is_centred(self):
+        """Encostado à esquerda, sobravam 600 px de vazio numa tela larga."""
+        with io.open("templates/catalog/search.html", encoding="utf-8") as origem:
+            fonte = origem.read()
+
+        self.assertIn('id="shop-results" class="mx-auto mt-7 max-w-2xl"', fonte)
+
+    def test_a_search_with_results_keeps_no_contact_button(self):
+        """O convite é da tela vazia; com resultados ele seria ruído."""
+        make_product(sku="ACHA-01", name="Vaso Achável", price=Decimal("10.00"))
+
+        resposta = self.client.get("/buscar/", {"q": "Achável"})
+
+        self.assertNotContains(resposta, "Entrar em contato")
+
+    def test_an_empty_category_does_not_invite_to_contact(self):
+        """Categoria sem produto tem outro caminho: continuar navegando."""
+        categoria = make_category(slug="modelos", name="Modelos")
+        resposta = self.client.get(reverse("catalog:models_shop"), {"categoria": categoria.slug})
+
+        self.assertNotContains(resposta, "Entrar em contato")
+
+    def test_the_search_page_without_a_term_does_not_invite_either(self):
+        """Sem termo, ninguém procurou nada — não há o que não ter sido achado."""
+        resposta = self.client.get("/buscar/")
+
+        self.assertNotContains(resposta, "Entrar em contato")
