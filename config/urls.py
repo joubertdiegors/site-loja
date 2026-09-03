@@ -49,20 +49,19 @@ urlpatterns += i18n_patterns(
 )
 
 if settings.DEBUG:
-    # Só as pastas públicas. `customizations/` fica de fora de propósito: é
-    # foto que o cliente mandou, e quem a entrega é a view protegida
-    # `cart:customization_file`. Servir `media/` inteiro aqui faria o
-    # desenvolvimento não bater com a produção justamente no ponto que a
-    # etapa fechou.
+    # Uma rota por pasta pública, e só por elas: `customizations/` e
+    # `payment-proofs/` ficam de fora de propósito — são a foto e o comprovante
+    # que o cliente mandou, e quem os entrega é uma view que confere quem está
+    # pedindo. Servir `media/` inteiro aqui faria o desenvolvimento não bater
+    # com a produção justamente no ponto que a etapa de segurança fechou.
     #
-    # `brand/` entrou junto: logo, favicon e imagem padrão de produto aparecem
-    # em toda página, inclusive para quem não fez login. São enviadas pelo
-    # Admin, não pelo cliente — e por isso são públicas por natureza.
-    #
-    # Em produção quem serve é o proxy da hospedagem: o mapeamento tem de
-    # apontar para estas três pastas, nunca para `media/` inteiro (ver
-    # docs/DEPLOY_PYTHONANYWHERE.md).
-    for _publica in ("products", "banners", "brand"):
+    # A lista vive em `settings.PUBLIC_MEDIA_DIRS`, e não aqui, porque ela tem
+    # um segundo leitor: em produção o Django não serve mídia nenhuma, e o
+    # mapeamento do painel da hospedagem precisa ter as mesmas pastas. Enquanto
+    # a lista morava dentro deste `if`, acrescentar uma pasta não lembrava
+    # ninguém do passo no servidor — e foi assim que `brand/` chegou à produção
+    # sem mapeamento, com a imagem padrão dos produtos dando 404.
+    for _publica in settings.PUBLIC_MEDIA_DIRS:
         urlpatterns += static(
             f"{settings.MEDIA_URL}{_publica}/",
             document_root=settings.MEDIA_ROOT / _publica,

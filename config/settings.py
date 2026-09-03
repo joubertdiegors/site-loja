@@ -295,6 +295,25 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
+#: As pastas de `media/` que podem ser servidas como arquivo, para qualquer um.
+#:
+#: `media/` NAO e publico em bloco. `customizations/` e a foto que o cliente
+#: mandou para a personalizacao e `payment-proofs/` e o comprovante bancario
+#: dele: quem entrega esses dois e uma view que confere quem esta pedindo.
+#:
+#: Esta lista tem duas leituras, e e por isso que ela mora aqui e nao dentro do
+#: `if DEBUG` do `config/urls.py`:
+#:
+#:   * em desenvolvimento, `config/urls.py` monta uma rota por pasta;
+#:   * em producao, quem serve e o proxy da hospedagem, e o mapeamento do painel
+#:     precisa ter **exatamente estas** pastas -- uma entrada por linha, nunca
+#:     `/media/` inteiro.
+#:
+#: Acrescentar uma pasta aqui e metade do trabalho: a outra metade e a linha
+#: correspondente no painel da hospedagem. Foi o que faltou quando `brand/`
+#: entrou, e a imagem padrao dos produtos passou a dar 404 em producao.
+PUBLIC_MEDIA_DIRS = ("products", "banners", "brand")
+
 # ---------------------------------------------------------------------------
 # Loja
 # ---------------------------------------------------------------------------

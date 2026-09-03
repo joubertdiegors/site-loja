@@ -802,3 +802,137 @@ class TelaDeGestaoTests(BrandBase):
         self.client.force_login(pessoa)
 
         self.assertIn(self.client.get(self.url()).status_code, (302, 403))
+
+
+# ---------------------------------------------------------------------------
+# A imagem quebrada em produção
+# ---------------------------------------------------------------------------
+
+
+class ImagemPadraoServivelTests(BrandBase):
+    """A imagem padrão apareceu quebrada no site: `<img>` com 404.
+
+    O código estava certo — URL absoluta, arquivo no disco, 200 no servidor de
+    desenvolvimento. O que faltava era do lado de fora: em produção o Django
+    não serve mídia nenhuma, quem serve é o mapeamento de arquivos estáticos do
+    painel da hospedagem, e `media/brand/` não tinha entrada lá.
+
+    Passou despercebido porque a lista de pastas públicas vivia **dentro** do
+    `if settings.DEBUG:` do `config/urls.py`: nada em produção a lia, e
+    acrescentar uma pasta não lembrava ninguém do passo no servidor.
+
+    Estes testes prendem os dois lados da ligação: o arquivo é gravado numa
+    pasta que está em `PUBLIC_MEDIA_DIRS`, e a página nunca emite um `<img>`
+    que não tenha como carregar.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.category = make_category(slug="modelos", name="Modelos")
+        self.product = make_product(sku="SEM-FOTO", name="Vaso Sem Foto", category=self.category)
+
+    # -- a URL é servível --------------------------------------------------
+
+    def test_the_brand_folder_is_public(self):
+        """A metade que faltava: a pasta precisa estar na lista que o deploy lê."""
+        from django.conf import settings
+
+        self.assertIn("brand", settings.PUBLIC_MEDIA_DIRS)
+
+    def test_every_brand_image_lands_in_a_public_folder(self):
+        """De nada adianta a URL estar certa se a pasta não é servida."""
+        from django.conf import settings
+
+        self.config(
+            header_logo=imagem("topo.png"),
+            footer_logo=imagem("rodape.png"),
+            favicon=imagem("icone.png"),
+            product_placeholder=imagem("padrao.png"),
+        )
+        obj = BrandAssets.current()
+
+        for campo in ("header_logo", "footer_logo", "favicon", "product_placeholder"):
+            with self.subTest(campo=campo):
+                pasta = getattr(obj, campo).name.split("/")[0]
+                self.assertIn(pasta, settings.PUBLIC_MEDIA_DIRS)
+
+    def test_the_placeholder_url_is_absolute(self):
+        """Relativa, ela quebraria em toda página que não fosse a raiz."""
+        self.config(product_placeholder=imagem("padrao.png"))
+
+        url = BrandAssets.url_for("product_placeholder")
+
+        self.assertTrue(url.startswith("/"), url)
+        self.assertIn("/brand/", url)
+
+    def test_the_placeholder_url_starts_with_media_url(self):
+        from django.conf import settings
+
+        self.config(product_placeholder=imagem("padrao.png"))
+
+        url = BrandAssets.url_for("product_placeholder")
+
+        self.assertTrue(url.startswith(settings.MEDIA_URL), url)
+
+    def test_the_file_behind_the_url_exists(self):
+        """URL válida e arquivo ausente dão a mesma imagem quebrada."""
+        self.config(product_placeholder=imagem("padrao.png"))
+        arquivo = BrandAssets.current().product_placeholder
+
+        self.assertTrue(arquivo.storage.exists(arquivo.name))
+
+    def test_the_public_list_holds_exactly_the_three_folders(self):
+        """Mudar esta lista é metade do trabalho — a outra é o painel da
+        hospedagem. O teste existe para a mudança não passar despercebida."""
+        from django.conf import settings
+
+        self.assertEqual(tuple(settings.PUBLIC_MEDIA_DIRS), ("products", "banners", "brand"))
+
+    # -- a página não emite imagem quebrada --------------------------------
+
+    def loja(self):
+        return self.client.get(reverse("catalog:models_shop")).content.decode()
+
+    def test_a_product_without_a_photo_never_emits_an_empty_src(self):
+        """Sem imagem padrão cadastrada, o card usa o espaço reservado."""
+        corpo = self.loja()
+
+        self.assertNotIn('src=""', corpo)
+        self.assertIn("Foto em breve", corpo)
+
+    def test_with_a_placeholder_the_img_points_at_a_real_file(self):
+        self.config(product_placeholder=imagem("padrao.png"))
+        arquivo = BrandAssets.current().product_placeholder
+
+        corpo = self.loja()
+
+        self.assertIn('src="%s"' % arquivo.url, corpo)
+        self.assertTrue(arquivo.storage.exists(arquivo.name))
+
+    def test_removing_the_placeholder_goes_back_to_the_reserved_space(self):
+        """Não pode sobrar um `<img>` apontando para um arquivo que saiu."""
+        self.config(product_placeholder=imagem("padrao.png"))
+        url = BrandAssets.current().product_placeholder.url
+
+        obj = BrandAssets.load()
+        obj.product_placeholder = None
+        obj.save()
+
+        corpo = self.loja()
+        self.assertNotIn(url, corpo)
+        self.assertIn("Foto em breve", corpo)
+
+    def test_a_product_with_its_own_photo_is_untouched(self):
+        from apps.catalog.models import ProductMedia
+
+        ProductMedia.objects.create(
+            product=self.product,
+            file=SimpleUploadedFile("propria.png", PNG, content_type="image/png"),
+            is_primary=True,
+        )
+        self.config(product_placeholder=imagem("padrao.png"))
+
+        corpo = self.loja()
+
+        self.assertIn(self.product.media.get().file.url, corpo)
+        self.assertNotIn(BrandAssets.current().product_placeholder.url, corpo)

@@ -568,22 +568,23 @@ class ComprovanteNaoEhPublicoTests(TransferFlowBase):
         nenhuma das duas listas.
         """
         import io
-        import re
 
-        fonte = io.open("config/urls.py", encoding="utf-8").read()
-
-        publicas = re.search(r"for _publica in \(([^)]*)\)", fonte)
-        self.assertIsNotNone(publicas, "o laço das pastas públicas sumiu de config/urls.py")
-        servidas = {nome.strip(" \"'") for nome in publicas.group(1).split(",") if nome.strip()}
+        from django.conf import settings
 
         # A lista cresce quando o site ganha um tipo novo de imagem pública
         # (`brand/` entrou com as logos administráveis). O que não pode crescer
         # é o outro lado.
-        self.assertIn("products", servidas)
+        self.assertIn("products", settings.PUBLIC_MEDIA_DIRS)
         for privada in ("customizations", "payment-proofs"):
             with self.subTest(pasta=privada):
-                self.assertNotIn(privada, servidas)
-        self.assertNotIn("payment-proofs", fonte)
+                self.assertNotIn(privada, settings.PUBLIC_MEDIA_DIRS)
+
+        # A ausência da pasta na lista é a garantia; procurar a string
+        # "payment-proofs" no fonte era um substituto tosco dela, e passou a
+        # falhar quando o comentário do `config/urls.py` explicou por que a
+        # pasta fica de fora.
+        fonte = io.open("config/urls.py", encoding="utf-8").read()
+        self.assertIn("for _publica in settings.PUBLIC_MEDIA_DIRS", fonte)
         self.assertNotIn(
             "static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)", fonte
         )
