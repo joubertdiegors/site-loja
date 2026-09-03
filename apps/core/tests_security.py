@@ -405,3 +405,92 @@ class AbuseLoopTests(LanguageResetMixin, TestCase):
             ip_is_throttled(pedido, "upload")
 
         self.assertFalse(ip_is_throttled(pedido, "order-retry"))
+
+
+class CookieSecureTests(TestCase):
+    """A marca `Secure` do cookie de sessão e do CSRF, em produção.
+
+    Antes, as duas eram ``env_bool(..., not DEBUG)``: o padrão acertava, mas o
+    `.env` mandava — e o `.env.example`, que é o arquivo que quem faz o deploy
+    copia, trazia as duas como ``False``. Uma produção configurada a partir dele
+    nascia servindo o cookie de sessão de cliente logado e o token CSRF sem a
+    marca, e o padrão seguro nunca era consultado, porque a variável existia.
+
+    Estes testes leem o `config/settings.py` como fonte, e não as `settings`
+    carregadas: o valor em memória depende do `.env` da máquina que roda a
+    suíte, e o que precisa ficar travado é a **regra**.
+    """
+
+    @staticmethod
+    def fonte() -> str:
+        import io
+
+        return io.open("config/settings.py", encoding="utf-8").read()
+
+    def test_production_does_not_negotiate_the_secure_flag(self):
+        self.assertIn(
+            'COOKIE_SECURE = True if not DEBUG else env_bool("COOKIE_SECURE_IN_DEBUG", False)',
+            self.fonte(),
+        )
+
+    def test_neither_cookie_reads_an_env_var_of_its_own(self):
+        """Uma variável por cookie é uma chance a mais de esquecer uma linha."""
+        fonte = self.fonte()
+
+        self.assertIn("SESSION_COOKIE_SECURE = COOKIE_SECURE", fonte)
+        self.assertIn("CSRF_COOKIE_SECURE = COOKIE_SECURE", fonte)
+        self.assertNotIn('env_bool("SESSION_COOKIE_SECURE"', fonte)
+        self.assertNotIn('env_bool("CSRF_COOKIE_SECURE"', fonte)
+
+    def test_the_example_env_does_not_document_an_insecure_production(self):
+        import io
+
+        exemplo = io.open(".env.example", encoding="utf-8").read()
+
+        self.assertNotIn("SESSION_COOKIE_SECURE=False", exemplo)
+        self.assertNotIn("CSRF_COOKIE_SECURE=False", exemplo)
+
+    @staticmethod
+    def regra(debug: bool, variavel: str = "False") -> bool:
+        """A expressão do `settings.py`, avaliada com um DEBUG à escolha.
+
+        Não dá para ler `settings.SESSION_COOKIE_SECURE` e concluir nada: ele é
+        calculado no import, com o `.env` da máquina, e o runner de teste força
+        `settings.DEBUG = False` **depois** disso. O que se testa aqui é a
+        regra, com os dois valores de DEBUG que importam.
+        """
+        import os
+        from unittest import mock
+
+        from config.settings import env_bool
+
+        with mock.patch.dict(os.environ, {"COOKIE_SECURE_IN_DEBUG": variavel}):
+            return True if not debug else env_bool("COOKIE_SECURE_IN_DEBUG", False)
+
+    def test_production_forces_the_flag_on(self):
+        self.assertTrue(self.regra(debug=False))
+
+    def test_production_ignores_a_variable_asking_to_turn_it_off(self):
+        """O caso que o `.env.example` antigo produzia."""
+        self.assertTrue(self.regra(debug=False, variavel="False"))
+
+    def test_development_keeps_the_flag_off_so_login_works_over_http(self):
+        """Em HTTP puro o navegador não grava um cookie `Secure`."""
+        self.assertFalse(self.regra(debug=True))
+
+    def test_development_can_turn_it_on_for_local_https(self):
+        """mkcert, túnel — quem testa HTTPS local precisa da marca."""
+        self.assertTrue(self.regra(debug=True, variavel="True"))
+
+    def test_the_other_cookie_protections_are_untouched(self):
+        from django.conf import settings
+
+        self.assertTrue(settings.SESSION_COOKIE_HTTPONLY)
+        self.assertEqual(settings.SESSION_COOKIE_SAMESITE, "Lax")
+        self.assertEqual(settings.CSRF_COOKIE_SAMESITE, "Lax")
+        # O HTMX precisa ler o token no navegador.
+        self.assertFalse(settings.CSRF_COOKIE_HTTPONLY)
+
+    def test_hsts_preload_stays_off(self):
+        """Entrar na lista de preload é praticamente irreversível."""
+        self.assertIn('SECURE_HSTS_PRELOAD = env_bool("SECURE_HSTS_PRELOAD", False)', self.fonte())

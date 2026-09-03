@@ -195,17 +195,30 @@ LOGOUT_REDIRECT_URL = "home:index"
 # Sessao e cookies
 #
 # Em HTTPS os cookies precisam ser `Secure`; em desenvolvimento (HTTP puro) um
-# cookie `Secure` simplesmente nao e gravado e nada funciona. Por isso o padrao
-# acompanha o DEBUG, e o .env manda em producao.
+# cookie `Secure` simplesmente nao e gravado, e ninguem consegue fazer login na
+# maquina local.
+#
+# Por isso a marca `Secure` **nao e configuravel em producao**. Com DEBUG=False
+# ela e True e pronto; a variavel de ambiente so e lida em desenvolvimento.
+#
+# A regra anterior era `env_bool(..., not DEBUG)` -- o padrao acertava, mas o
+# `.env` mandava. E o `.env.example`, que e o arquivo que quem faz o deploy
+# copia, trazia as duas como False: uma producao configurada a partir dele
+# nascia servindo o cookie de sessao de cliente logado e o token CSRF sem a
+# marca, e o padrao seguro nunca era consultado, porque a variavel existia.
+# Um esquecimento de uma linha no `.env` nao pode custar a sessao de um cliente.
 # ---------------------------------------------------------------------------
+
+#: `Secure` obrigatorio em producao; negociavel so em desenvolvimento.
+COOKIE_SECURE = True if not DEBUG else env_bool("COOKIE_SECURE_IN_DEBUG", False)
 
 SESSION_COOKIE_HTTPONLY = True  # JavaScript nao le o cookie de sessao
 SESSION_COOKIE_SAMESITE = "Lax"  # o cookie nao viaja em POST de outro site
-SESSION_COOKIE_SECURE = env_bool("SESSION_COOKIE_SECURE", not DEBUG)
+SESSION_COOKIE_SECURE = COOKIE_SECURE
 SESSION_COOKIE_AGE = int(env("SESSION_COOKIE_AGE", str(60 * 60 * 24 * 14)))
 SESSION_SAVE_EVERY_REQUEST = False
 
-CSRF_COOKIE_SECURE = env_bool("CSRF_COOKIE_SECURE", not DEBUG)
+CSRF_COOKIE_SECURE = COOKIE_SECURE
 CSRF_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_HTTPONLY = False  # o HTMX precisa ler o token no navegador
 
