@@ -16,10 +16,11 @@ Backend e vitrine do e-commerce da JD PRINT.
 | 10 | **Preparação operacional: material traduzível, recuperação do webhook, reenvio de e-mail, configuração de e-mail no Admin, 404/500, hardening** | concluída |
 | 11+ | Cupons, devoluções, faturas em PDF, painel de produção | não iniciada |
 
-Documentação de apoio:
-[`docs/ARQUITETURA.md`](docs/ARQUITETURA.md) (decisões),
-[`docs/OPERACAO.md`](docs/OPERACAO.md) (e-mail, backup, restore, log),
-[`docs/DEPLOY_PYTHONANYWHERE.md`](docs/DEPLOY_PYTHONANYWHERE.md).
+Este README é a documentação pública do projeto: o que alguém precisa para
+instalar, entender as decisões e rodar a suíte. Os materiais internos —
+procedimento de deploy, rotina de backup e restore, e o registro das decisões de
+arquitetura com o porquê de cada uma — **não são versionados**: o repositório é
+público, e eles descrevem a operação de uma loja específica.
 
 Stack: **Python 3.13 · Django 6.1 · PostgreSQL · Django Templates · Tailwind CSS 4 · Django Admin**.
 Sem React, Vue, Angular ou qualquer SPA: a página é renderizada no servidor.
@@ -132,8 +133,7 @@ Site JD-Print/
 │   └── images/logo/              # ← coloque a logo oficial aqui
 ├── locale/{fr,en,nl}/LC_MESSAGES/  # traduções da interface (.po/.mo)
 ├── scripts/compile_messages.py   # compila .po sem precisar do gettext
-├── media/                        # uploads (products/<sku>/…, banners/…)
-├── docs/ARQUITETURA.md           # decisões e pontos de extensão
+├── media/                        # uploads (products/…, banners/…, brand/…)
 ├── package.json                  # apenas o build do Tailwind
 └── manage.py
 ```
@@ -917,20 +917,33 @@ convite para entrar, em vez de um redirecionamento seco que perde a compra.
 
 O estoque **não** é reservado em nenhum desses passos. Ver F11.
 
-### Três estados, não um
+### Cinco eixos, não um
 
-| Campo | Valores |
-|---|---|
-| `status` | `pending` · `confirmed` · `completed` · `cancelled` · `refunded` |
-| `payment_status` | `pending` · `paid` · `failed` · `partially_refunded` · `refunded` |
-| `fulfillment_status` | `not_started` · `in_production` · `ready` · `shipped` · `delivered` |
+| Campo | Valores | Responde |
+|---|---|---|
+| `status` | `pending` · `confirmed` · `completed` · `cancelled` | o pedido está de pé? |
+| `payment_status` | `pending` · `paid` · `failed` · `not_charged` | o dinheiro entrou? |
+| `fulfillment_status` | `not_started` · `in_production` · `ready` · `shipped` · `delivered` · `halted` | onde a peça está? |
+| `cancellation_status` | `none` · `requested` · `approved` · `refused` | há um pedido de cancelamento esperando decisão? |
+| `refund_status` | `none` · `pending` · `partially_refunded` · `refunded` | o dinheiro voltou? |
 
-Um pedido pago que ainda não saiu da oficina é `confirmed` + `paid` +
-`in_production`. Com um campo só, esse estado não teria nome.
+São perguntas diferentes, e por isso são campos diferentes. Um pedido pago que
+ainda não saiu da oficina é `confirmed` + `paid` + `in_production`; com um campo
+só, esse estado não teria nome.
 
-O cancelamento é um **quarto** eixo (`cancellation_status`:
-`none`/`requested`/`approved`/`refused`) e está explicado na decisão 59 de
-[`docs/ARQUITETURA.md`](docs/ARQUITETURA.md).
+**`status` é derivado.** Ele é consequência dos outros — cancelado vence
+entregue, que vence pago — e quem o escreve é `services.recompute_status`,
+nunca o formulário do Admin. Enquanto era um `select`, era possível gravar
+"cancelado" num pedido e deixar a oficina imprimindo a peça.
+
+**Reembolso não é estado de pagamento.** Um pedido reembolsado continua tendo
+sido pago, e apagar isso perderia a informação de que houve cobrança. Daí o
+campo próprio — e o `not_charged`, que é a resposta certa para um pedido
+cancelado antes de pagar: ele não está "pendente", ninguém espera esse dinheiro.
+
+`halted` é a produção interrompida por um cancelamento aprovado. É terminal e
+não se escolhe na tela: quem o escreve é a aprovação, junto com a decisão sobre
+o estoque e a abertura do reembolso.
 
 ### Numeração
 
@@ -1451,8 +1464,12 @@ sumiu em produção":
 
 ### 9. Produção
 
-O deploy no PythonAnywhere tem documento próprio, passo a passo:
-[`docs/DEPLOY_PYTHONANYWHERE.md`](docs/DEPLOY_PYTHONANYWHERE.md).
+O deploy no PythonAnywhere tem um passo a passo próprio, mantido fora do
+repositório junto com o resto do material de operação. Em linhas gerais: `git
+pull`, `pip install -r requirements.txt`, `manage.py migrate`, `manage.py
+collectstatic`, o mapeamento das pastas públicas de `media/` no proxy da
+hospedagem (`products/`, `banners/` e `brand/` — nunca `media/` inteiro) e o
+reload da aplicação.
 
 ---
 
@@ -1578,7 +1595,9 @@ e orçamentos fixos de consultas para impedir N+1. **Etapa 13: a foto do produto
 | **Idiomas da interface** | francês, inglês e holandês traduzidos; alemão, espanhol, italiano, turco e árabe caem no português | tradução dos `.po` |
 | **PostgreSQL** | configurado, mas a suíte roda hoje em SQLite | instalação do PostgreSQL |
 
-Decisões de arquitetura e pontos de extensão: [`docs/ARQUITETURA.md`](docs/ARQUITETURA.md).
+As decisões de arquitetura e os pontos de extensão de cada uma delas estão
+registrados fora do repositório; o essencial de cada escolha está explicado na
+seção correspondente deste README.
 
 ---
 
@@ -1637,6 +1656,9 @@ Stripe e dá acesso aos seus dados de teste.
 
 ### Deploy
 
-[`docs/DEPLOY_PYTHONANYWHERE.md`](docs/DEPLOY_PYTHONANYWHERE.md) — passo a
-passo, incluindo as pendências que precisam ser resolvidas **antes** de a loja
-receber um pedido real.
+O passo a passo do PythonAnywhere — incluindo as pendências que precisam ser
+resolvidas **antes** de a loja receber um pedido real — é mantido fora do
+repositório, com o resto do material de operação. O que vale registrar aqui é o
+que o repositório público **não** pode conter: nenhuma das variáveis da tabela
+acima, em nenhuma forma, nem mesmo como exemplo preenchido. O `.env.example`
+existe para documentar os nomes; os valores vivem no `.env` do servidor.
