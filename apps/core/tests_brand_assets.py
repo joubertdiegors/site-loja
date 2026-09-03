@@ -554,3 +554,251 @@ class ConsultasTests(BrandBase):
             make_product(sku=f"B{indice}", name=f"B {indice}", category=category)
 
         self.assertEqual(self.consultas_da_loja(), poucos)
+
+
+# ---------------------------------------------------------------------------
+# A tela: ver, enviar, substituir, remover
+# ---------------------------------------------------------------------------
+
+
+class TelaDeGestaoTests(BrandBase):
+    """As quatro operações que a tela precisa oferecer para cada imagem.
+
+    Quem desenha as três últimas é o `ClearableFileInput` do Django — o
+    "Atualmente: <arquivo> · Limpar · Modificar". Estes testes existem para
+    garantir que ele continua ali: trocá-lo por um controle próprio seria
+    reescrever o que já funciona, e perder o "Limpar" tiraria a única forma de
+    remover uma imagem sem mexer no banco.
+    """
+
+    SENHA = "senha-de-teste-77"
+    CAMPOS = ("header_logo", "footer_logo", "favicon", "product_placeholder")
+
+    def setUp(self):
+        super().setUp()
+        self.chefe = get_user_model().objects.create_superuser(
+            "chefe", "chefe@jdprint.test", self.SENHA
+        )
+        self.client.force_login(self.chefe)
+
+    def url(self):
+        return reverse("admin:core_brandassets_change", args=[BrandAssets.load().pk])
+
+    def corpo(self):
+        return self.client.get(self.url()).content.decode()
+
+    def enviar(self, **campos):
+        """Posta o formulário inteiro — o Admin espera todos os campos."""
+        dados = {campo: "" for campo in self.CAMPOS}
+        dados.update(campos)
+        return self.client.post(self.url(), dados, follow=True)
+
+    # -- ver ---------------------------------------------------------------
+
+    def test_the_four_fields_are_on_the_screen(self):
+        corpo = self.corpo()
+
+        for campo in self.CAMPOS:
+            with self.subTest(campo=campo):
+                self.assertIn('name="%s"' % campo, corpo)
+        self.assertIn('type="file"', corpo)
+
+    def test_a_configured_image_shows_the_current_file(self):
+        self.config(header_logo=imagem("topo.png"))
+
+        corpo = self.corpo()
+
+        self.assertIn("Atualmente", corpo)
+        self.assertIn(BrandAssets.current().header_logo.url, corpo)
+
+    def test_a_configured_image_shows_a_preview(self):
+        self.config(header_logo=imagem("topo.png"))
+
+        url = BrandAssets.current().header_logo.url
+        self.assertIn('<img src="%s"' % url, self.corpo())
+
+    # -- enviar ------------------------------------------------------------
+
+    def test_each_image_can_be_uploaded_through_the_screen(self):
+        for campo in self.CAMPOS:
+            with self.subTest(campo=campo):
+                BrandAssets.objects.all().delete()
+
+                self.enviar(**{campo: imagem("%s.png" % campo)})
+
+                obj = BrandAssets.current()
+                self.assertTrue(getattr(obj, campo), "%s não foi gravado" % campo)
+
+    def test_the_upload_is_persisted(self):
+        self.enviar(header_logo=imagem("topo.png"))
+
+        obj = BrandAssets.current()
+        self.assertTrue(obj.header_logo.name.startswith("brand/"))
+        self.assertTrue(obj.header_logo.storage.exists(obj.header_logo.name))
+
+    def test_uploading_one_does_not_touch_the_others(self):
+        self.config(footer_logo=imagem("rodape.png"))
+        antes = BrandAssets.current().footer_logo.name
+
+        self.enviar(header_logo=imagem("topo.png"))
+
+        obj = BrandAssets.current()
+        self.assertTrue(obj.header_logo)
+        self.assertEqual(obj.footer_logo.name, antes)
+
+    # -- substituir --------------------------------------------------------
+
+    def test_an_image_can_be_replaced(self):
+        self.config(header_logo=imagem("antiga.png"))
+        antiga = BrandAssets.current().header_logo.name
+
+        self.enviar(header_logo=imagem("nova.png"))
+
+        nova = BrandAssets.current().header_logo.name
+        self.assertNotEqual(nova, antiga)
+        self.assertIn("nova", nova)
+
+    def test_replacing_one_leaves_the_other_three_alone(self):
+        self.config(
+            header_logo=imagem("topo.png"),
+            footer_logo=imagem("rodape.png"),
+            favicon=imagem("icone.png"),
+            product_placeholder=imagem("padrao.png"),
+        )
+        antes = BrandAssets.current()
+        guardados = {c: getattr(antes, c).name for c in self.CAMPOS if c != "header_logo"}
+
+        self.enviar(header_logo=imagem("nova.png"))
+
+        depois = BrandAssets.current()
+        for campo, nome in guardados.items():
+            with self.subTest(campo=campo):
+                self.assertEqual(getattr(depois, campo).name, nome)
+
+    # -- remover -----------------------------------------------------------
+
+    def test_the_clear_checkbox_appears_for_a_configured_image(self):
+        """Sem ele não há como tirar uma imagem sem mexer no banco."""
+        self.config(header_logo=imagem("topo.png"))
+
+        self.assertIn('name="header_logo-clear"', self.corpo())
+
+    def test_there_is_nothing_to_clear_when_no_image_is_set(self):
+        self.assertNotIn('name="header_logo-clear"', self.corpo())
+
+    def test_an_image_can_be_removed(self):
+        self.config(header_logo=imagem("topo.png"))
+
+        self.enviar(**{"header_logo-clear": "on"})
+
+        self.assertFalse(BrandAssets.current().header_logo)
+
+    def test_removing_one_leaves_the_others_alone(self):
+        self.config(header_logo=imagem("topo.png"), footer_logo=imagem("rodape.png"))
+        antes = BrandAssets.current().footer_logo.name
+
+        self.enviar(**{"header_logo-clear": "on"})
+
+        obj = BrandAssets.current()
+        self.assertFalse(obj.header_logo)
+        self.assertEqual(obj.footer_logo.name, antes)
+
+    def test_the_site_survives_a_removal(self):
+        """Tirar a logo devolve o espaço reservado, não uma imagem quebrada."""
+        self.config(header_logo=imagem("topo.png"))
+        self.enviar(**{"header_logo-clear": "on"})
+
+        resposta = self.client.get(reverse("home:index"))
+
+        self.assertEqual(resposta.status_code, 200)
+
+    # -- as medidas recomendadas -------------------------------------------
+
+    MEDIDAS = {
+        "header_logo": (600, "600 × 150 px", "158,75 × 39,69 mm"),
+        "footer_logo": (500, "500 × 150 px", "132,29 × 39,69 mm"),
+        "favicon": (512, "512 × 512 px", "135,47 × 135,47 mm"),
+        "product_placeholder": (1000, "1000 × 1000 px", "264,58 × 264,58 mm"),
+    }
+
+    def test_each_field_shows_its_recommended_size_in_px_and_mm(self):
+        corpo = self.corpo()
+
+        for campo, (_largura, px, mm) in self.MEDIDAS.items():
+            with self.subTest(campo=campo):
+                self.assertIn(px, corpo)
+                self.assertIn(mm, corpo)
+
+    def test_the_millimetres_are_the_conversion_at_96_dpi(self):
+        """25,4 mm por polegada; 96 px por polegada."""
+        for campo, (largura, _px, mm) in self.MEDIDAS.items():
+            with self.subTest(campo=campo):
+                esperado = ("%.2f" % round(largura * 25.4 / 96, 2)).replace(".", ",")
+                self.assertTrue(
+                    mm.startswith(esperado),
+                    "%s: %s não começa com %s" % (campo, mm, esperado),
+                )
+
+        self.assertIn("96 DPI", self.corpo())
+
+    def test_the_screen_says_the_sizes_are_a_recommendation(self):
+        corpo = self.corpo()
+
+        self.assertIn("Recomendação, não exigência", corpo)
+        self.assertIn("uma recomendação, não uma exigência", corpo)
+
+    def test_each_field_says_where_its_image_is_used(self):
+        """As quatro finalidades não se misturam."""
+        corpo = self.corpo()
+
+        self.assertIn("no cabeçalho de todas as páginas", corpo)
+        self.assertIn("no rodapé, e <b>só</b> nele", corpo)
+        self.assertIn("na aba do navegador", corpo)
+        self.assertIn("produtos que ainda não têm", corpo)
+
+    def test_the_help_text_renders_as_html(self):
+        """Escapado, o texto viraria uma parede de `&lt;b&gt;`."""
+        corpo = self.corpo()
+
+        self.assertIn("<b>Onde aparece:</b>", corpo)
+        self.assertNotIn("&lt;b&gt;Onde aparece", corpo)
+
+    # -- permissões --------------------------------------------------------
+
+    def olheiro(self):
+        pessoa = get_user_model().objects.create_user(
+            username="olheiro", email="olheiro@jdprint.test",
+            password=self.SENHA, is_staff=True,
+        )
+        pessoa.user_permissions.set(
+            Permission.objects.filter(
+                codename="view_brandassets", content_type__app_label="core"
+            )
+        )
+        return pessoa
+
+    def test_a_viewer_sees_the_images_but_cannot_change_them(self):
+        self.config(header_logo=imagem("topo.png"))
+        self.client.force_login(self.olheiro())
+
+        corpo = self.corpo()
+
+        self.assertIn(BrandAssets.current().header_logo.url, corpo)
+        self.assertNotIn('name="header_logo"', corpo)
+        self.assertNotIn('name="header_logo-clear"', corpo)
+
+    def test_a_viewer_cannot_upload_by_posting(self):
+        self.client.force_login(self.olheiro())
+
+        self.enviar(header_logo=imagem("topo.png"))
+
+        self.assertFalse(BrandAssets.load().header_logo)
+
+    def test_staff_without_any_permission_cannot_open_the_screen(self):
+        pessoa = get_user_model().objects.create_user(
+            username="recem", email="recem@jdprint.test",
+            password=self.SENHA, is_staff=True,
+        )
+        self.client.force_login(pessoa)
+
+        self.assertIn(self.client.get(self.url()).status_code, (302, 403))

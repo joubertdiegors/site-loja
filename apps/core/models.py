@@ -583,8 +583,15 @@ class BrandAssets(TimeStampedModel):
             validate_brand_image,
         ],
         help_text=(
-            "Aparece no cabeçalho, sobre fundo claro. Altura de exibição: 40 px "
-            "— envie com o dobro para telas retina. SVG é o formato preferido."
+            "<b>Onde aparece:</b> no cabeçalho de todas as páginas, sobre fundo "
+            "claro.<br>"
+            "<b>Tamanho recomendado:</b> 600 × 150 px (158,75 × 39,69 mm a 96 "
+            "DPI). É uma recomendação, não uma exigência — qualquer imagem é "
+            "aceita e o cabeçalho a ajusta para 40 px de altura.<br>"
+            "SVG é o formato preferido: vetor não borra em tela retina, e aí a "
+            "medida em pixels deixa de importar.<br>"
+            "<b>Em branco:</b> o cabeçalho mostra a marca tipográfica. O site "
+            "não quebra."
         ),
     )
     footer_logo = models.FileField(
@@ -596,8 +603,12 @@ class BrandAssets(TimeStampedModel):
             validate_brand_image,
         ],
         help_text=(
-            "Aparece no rodapé, sobre fundo escuro — normalmente é a versão "
-            "clara da logo. Em branco, o rodapé usa a marca tipográfica."
+            "<b>Onde aparece:</b> no rodapé, e <b>só</b> nele. É independente da "
+            "logo do topo: o rodapé tem fundo escuro, e a mesma marca costuma "
+            "sumir ali — normalmente se envia aqui a versão clara.<br>"
+            "<b>Tamanho recomendado:</b> 500 × 150 px (132,29 × 39,69 mm a 96 "
+            "DPI). Recomendação, não exigência.<br>"
+            "<b>Em branco:</b> o rodapé mostra a marca tipográfica."
         ),
     )
     favicon = models.FileField(
@@ -609,8 +620,16 @@ class BrandAssets(TimeStampedModel):
             validate_brand_image,
         ],
         help_text=(
-            "O ícone da aba do navegador. Quadrado, a partir de 48×48 px. "
-            "Em branco, a página sai sem ícone — o navegador mostra o dele."
+            "<b>Onde aparece:</b> na aba do navegador e nos favoritos "
+            "(<code>&lt;link rel=\"icon\"&gt;</code>), e no atalho "
+            "<code>/favicon.ico</code>. Independente das duas logos: num "
+            "quadrado de 32 px a marca completa não se lê, e o que funciona é o "
+            "símbolo sozinho.<br>"
+            "<b>Tamanho recomendado:</b> 512 × 512 px (135,47 × 135,47 mm a 96 "
+            "DPI), quadrado. Recomendação, não exigência — o navegador "
+            "redimensiona.<br>"
+            "<b>Em branco:</b> a página sai sem ícone e o navegador mostra o "
+            "dele."
         ),
     )
     product_placeholder = models.FileField(
@@ -622,9 +641,14 @@ class BrandAssets(TimeStampedModel):
             validate_brand_image,
         ],
         help_text=(
-            "Usada só onde o produto ainda não tem foto própria. Quadrada "
-            "(1:1). Em branco, aparece o espaço reservado com a inicial do "
-            "produto — nunca uma foto de outro produto."
+            "<b>Onde aparece:</b> <b>apenas</b> nos produtos que ainda não têm "
+            "foto própria. Nenhum produto com foto é afetado — esta imagem "
+            "nunca substitui uma existente.<br>"
+            "<b>Tamanho recomendado:</b> 1000 × 1000 px (264,58 × 264,58 mm a "
+            "96 DPI), quadrada, porque o card do produto é 1:1. Recomendação, "
+            "não exigência.<br>"
+            "<b>Em branco:</b> aparece o espaço reservado com a inicial do "
+            "produto — nunca a foto de outro produto."
         ),
     )
 
