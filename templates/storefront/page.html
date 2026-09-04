@@ -30,7 +30,7 @@ de `FooterSettings` — o mesmo cadastro do rodapé, não uma segunda cópia.
 {% block content %}
   <section class="container-page py-8 sm:py-12">
 
-    <nav class="mb-5 font-mono text-[11px] uppercase tracking-[0.08em] text-ink-muted"
+    <nav class="mb-5 font-mono text-[11px] uppercase tracking-label text-ink-muted"
          aria-label="{% translate 'Você está aqui' %}">
       <ol class="flex flex-wrap items-center gap-1.5" role="list">
         <li><a href="{% url 'home:index' %}" class="focus-ring rounded transition-colors hover:text-brand-700">{% translate "Início" %}</a></li>
@@ -42,7 +42,7 @@ de `FooterSettings` — o mesmo cadastro do rodapé, não uma segunda cópia.
     <div class="mx-auto max-w-3xl">
       <header>
         <p class="section-eyebrow">{% translate "Informações" %}</p>
-        <h1 class="section-title mt-2">{{ page_title }}</h1>
+        <h1 class="page-title mt-2">{{ page_title }}</h1>
         {% if page.intro %}
           <p class="section-subtitle">{{ page.intro }}</p>
         {% endif %}
@@ -60,7 +60,7 @@ de `FooterSettings` — o mesmo cadastro do rodapé, não uma segunda cópia.
       {% elif not form %}
         <div class="empty-state mt-8">
           <span class="empty-state-icon" aria-hidden="true">{% icon "clock" "h-6 w-6" %}</span>
-          <p class="font-display text-lg font-bold text-ink">{% translate "Conteúdo em preparação" %}</p>
+          <p class="card-title">{% translate "Conteúdo em preparação" %}</p>
           <p class="max-w-md text-sm text-ink-soft">
             {% translate "Esta informação está sendo escrita. Se precisar dela agora, fale com a gente." %}
           </p>
@@ -80,7 +80,7 @@ de `FooterSettings` — o mesmo cadastro do rodapé, não uma segunda cópia.
         {% endcomment %}
         {% if footer_settings.has_contact %}
           <div class="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-ink-soft">
-            <span class="font-mono text-[11px] uppercase tracking-[0.14em] text-ink-muted">
+            <span class="font-mono text-[11px] uppercase tracking-label text-ink-muted">
               {% translate "Ou fale direto" %}
             </span>
             {% if footer_settings.contact_email %}

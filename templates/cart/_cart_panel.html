@@ -1,158 +1,207 @@
 {% load i18n jdprint %}
 {% comment %}
-Linhas do carrinho + subtotal.
+Linhas do carrinho, resumo e relacionados.
 
 É o alvo das trocas do HTMX (id "cart-panel" no template pai). Sem JavaScript,
 os mesmos formulários funcionam por POST + redirecionamento.
+
+Cada linha é um card: foto, categoria, nome, as opções em pílulas (cor com a
+bolinha da cor cadastrada, tamanho, material, sob encomenda, personalização),
+o preço unitário, "Remover"; à direita o total da linha e a quantidade.
+
+O resumo é o cartão escuro da referência: subtotal, envio (calculado no
+checkout — depende do destino), prazo de produção (o maior entre as linhas,
+como o checkout calcula), total, o botão amarelo e as formas de pagamento
+disponíveis. Os dois cartões abaixo são as páginas de política de envios e de
+trocas, quando publicadas — cadastro do Admin, não texto escrito aqui.
 {% endcomment %}
 {% if cart.is_empty %}
 
-  <div class="empty-state">
-    <span class="empty-state-icon" aria-hidden="true">{% icon "cart" "h-6 w-6" %}</span>
-    <p class="font-display text-lg font-bold text-ink">{% translate "Seu carrinho está vazio" %}</p>
-    <p class="max-w-md text-sm text-ink-soft">
+  <div class="cart-empty">
+    <span class="cart-empty-icon" aria-hidden="true">{% icon "cart" "h-8 w-8" %}</span>
+    <p class="cart-empty-title">{% translate "Seu carrinho está vazio" %}</p>
+    <p class="cart-empty-text">
       {% translate "Escolha um modelo e ele aparece aqui." %}
     </p>
-    <a href="{% url 'catalog:models_shop' %}" class="btn-primary mt-1">
-      {% translate "Ver modelos" %}
-      {% icon "arrow-right" "h-4 w-4 rtl:rotate-180" %}
+    <a href="{% url 'catalog:models_shop' %}" class="cart-empty-cta">
+      {% translate "Ver modelos" %} <span aria-hidden="true">→</span>
     </a>
   </div>
 
 {% else %}
 
-  <div class="grid gap-6 lg:grid-cols-[1.6fr_1fr] lg:items-start">
+  <div class="cart-cols">
 
-    <div class="card overflow-hidden">
-      <table class="w-full text-sm max-sm:block">
-        <caption class="sr-only">{% translate "Produtos no carrinho" %}</caption>
-        <thead class="border-b border-surface-line bg-surface-soft text-left font-mono text-[11px] uppercase tracking-[0.12em] text-ink-muted max-sm:hidden">
-          <tr>
-            <th scope="col" class="px-4 py-3 font-medium">{% translate "Produto" %}</th>
-            <th scope="col" class="px-4 py-3 font-medium">{% translate "Quantidade" %}</th>
-            <th scope="col" class="px-4 py-3 text-end font-medium">{% translate "Preço" %}</th>
-            <th scope="col" class="px-4 py-3"><span class="sr-only">{% translate "Remover" %}</span></th>
-          </tr>
-        </thead>
-        <tbody class="max-sm:block">
-          {% for line in cart.lines %}
-            <tr class="border-b border-surface-line last:border-0 align-middle max-sm:relative max-sm:block max-sm:px-4 max-sm:py-4">
-              <td class="px-4 py-4 max-sm:block max-sm:px-0 max-sm:pb-3 max-sm:pe-10 max-sm:pt-0">
-                <div class="flex items-center gap-3">
-                  <a href="{{ line.product.get_absolute_url }}" class="focus-ring block h-16 w-16 shrink-0 overflow-hidden rounded-[12px] border border-surface-line">
-                    {% include "components/product_media.html" with media=line.display_media name=line.display_name compact=True %}
-                  </a>
-                  <div>
-                    <a href="{{ line.product.get_absolute_url }}"
-                       class="focus-ring rounded font-bold text-ink transition-colors hover:text-brand-700">
-                      {{ line.product.display_name }}
-                    </a>
-                    {% if line.variant_label %}
-                      <p class="font-mono text-[11px] uppercase tracking-[0.06em] text-ink-muted">{{ line.variant_label }}</p>
-                    {% endif %}
-                    <p class="text-xs text-ink-muted">
-                      {{ line.product.currency_symbol }}&nbsp;{{ line.unit_price|floatformat:2 }}
-                      {% translate "por unidade" %}
-                    </p>
+    <div class="cart-items">
+      {% for line in cart.lines %}
+        <article class="cart-item">
+          <a href="{{ line.product.get_absolute_url }}" class="cart-item-media focus-ring"
+             aria-label="{{ line.product.display_name }}" tabindex="-1">
+            {% include "components/product_media.html" with media=line.display_media name=line.display_name compact=True %}
+          </a>
 
-                    {% if line.has_customization %}
-                      <div class="mt-1.5 rounded-[8px] border border-magenta-500/20 bg-magenta-50 px-2.5 py-1.5 text-[11px] text-magenta-700">
-                        {% if line.customization_type == "photo" %}
-                          <span class="font-bold">{% translate "Foto enviada" %}</span>
-                          {% if line.upload %}
-                            <span class="opacity-80">— {{ line.upload.original_name|truncatechars:30 }}</span>
-                          {% endif %}
-                        {% else %}
-                          <span class="font-bold">{% translate "Texto" %}:</span>
-                          “{{ line.customization_text|truncatechars:60 }}”
-                        {% endif %}
-                        {% if line.customization_notes %}
-                          <p class="mt-0.5 opacity-80">
-                            {% translate "Observações" %}: {{ line.customization_notes|truncatechars:80 }}
-                          </p>
-                        {% endif %}
-                      </div>
-                    {% endif %}
+          <div class="cart-item-info">
+            {% if line.product.category %}
+              <p class="cart-item-cat">{{ line.product.category.name }}</p>
+            {% endif %}
 
-                    {# Sob encomenda e o teto de estoque sao da VARIANTE desta linha. #}
-                    {% if line.variant.made_to_order %}
-                      <p class="mt-1"><span class="badge-amber">{% translate "Sob encomenda" %}</span></p>
-                    {% endif %}
-                  </div>
-                </div>
-              </td>
+            <h2 class="cart-item-name">
+              <a href="{{ line.product.get_absolute_url }}">{{ line.product.display_name }}</a>
+            </h2>
 
-              <td class="px-4 py-4 max-sm:block max-sm:px-0 max-sm:py-0">
-                <div class="inline-flex items-center rounded-control border border-surface-line bg-white">
-                  <form method="post" action="{% url 'cart:update' %}" hx-post="{% url 'cart:update' %}" hx-swap="none">
-                    {% csrf_token %}
-                    <input type="hidden" name="line" value="{{ line.key }}">
-                    <input type="hidden" name="action" value="decrement">
-                    <button type="submit" class="focus-ring flex h-9 w-9 items-center justify-center rounded-s-control text-brand-700 transition-colors hover:bg-brand-50"
-                            aria-label="{% blocktranslate with name=line.product.display_name %}Diminuir quantidade de {{ name }}{% endblocktranslate %}">−</button>
-                  </form>
-
-                  <span class="w-8 text-center font-mono text-[13px] font-medium text-ink" aria-live="polite">{{ line.quantity }}</span>
-
-                  <form method="post" action="{% url 'cart:update' %}" hx-post="{% url 'cart:update' %}" hx-swap="none">
-                    {% csrf_token %}
-                    <input type="hidden" name="line" value="{{ line.key }}">
-                    <input type="hidden" name="action" value="increment">
-                    <button type="submit"
-                            class="focus-ring flex h-9 w-9 items-center justify-center rounded-e-control text-brand-700 transition-colors hover:bg-brand-50 disabled:cursor-not-allowed disabled:opacity-40"
-                            {% if line.at_maximum %}disabled title="{% translate 'Quantidade máxima disponível' %}"{% endif %}
-                            aria-label="{% blocktranslate with name=line.product.display_name %}Aumentar quantidade de {{ name }}{% endblocktranslate %}">+</button>
-                  </form>
-                </div>
-                {% if line.at_maximum and not line.variant.made_to_order and not line.variant.allow_backorder %}
-                  <p class="mt-1 font-mono text-[10.5px] text-ink-muted">{% translate "Máximo em estoque" %}</p>
+            {# As opções e o que mais é DESTA linha: tudo da variante, nada do produto. #}
+            <ul class="cart-chips" role="list">
+              {% if line.variant.color_id %}
+                <li class="cart-chip">
+                  <span class="cart-chip-dot" aria-hidden="true"
+                        {% if line.variant.color.hex_code %}style="background-color: {{ line.variant.color.hex_code }}"{% endif %}></span>
+                  {{ line.variant.color.display_name }}
+                </li>
+              {% endif %}
+              {% if line.variant.size %}
+                <li class="cart-chip">{{ line.variant.size }}</li>
+              {% endif %}
+              {% if line.variant.material_id %}
+                <li class="cart-chip">{{ line.variant.material.display_name }}</li>
+              {% endif %}
+              {% if line.variant.made_to_order %}
+                <li class="cart-chip cart-chip-warning">{% translate "Sob encomenda" %}</li>
+              {% endif %}
+              {% if line.has_customization %}
+                <li class="cart-chip cart-chip-custom">
+                  {% if line.customization_type == "photo" %}
+                    {% translate "Foto enviada" %}{% if line.upload %} · {{ line.upload.original_name|truncatechars:24 }}{% endif %}
+                  {% else %}
+                    {% translate "Texto" %}: “{{ line.customization_text|truncatechars:40 }}”
+                  {% endif %}
+                </li>
+                {% if line.customization_notes %}
+                  <li class="cart-chip cart-chip-custom">
+                    {% translate "Observações" %}: {{ line.customization_notes|truncatechars:50 }}
+                  </li>
                 {% endif %}
-              </td>
+              {% endif %}
+            </ul>
 
-              <td class="px-4 py-4 text-end font-display font-bold tabular-price text-ink max-sm:mt-2 max-sm:block max-sm:px-0 max-sm:py-0 max-sm:text-start max-sm:text-base">
-                {{ line.product.currency_symbol }}&nbsp;{{ line.total|floatformat:2 }}
-              </td>
+            <p class="cart-item-unit">
+              {{ line.product.currency_symbol }}&nbsp;{{ line.unit_price|floatformat:2 }}
+              {% translate "por unidade" %}
+            </p>
 
-              <td class="px-4 py-4 text-end max-sm:absolute max-sm:end-2 max-sm:top-3 max-sm:block max-sm:p-0">
-                <form method="post" action="{% url 'cart:remove' %}" hx-post="{% url 'cart:remove' %}" hx-swap="none">
-                  {% csrf_token %}
-                  <input type="hidden" name="line" value="{{ line.key }}">
-                  <button type="submit" class="focus-ring rounded-full p-2 text-ink-muted transition-colors hover:bg-state-error-soft hover:text-state-error"
-                          aria-label="{% blocktranslate with name=line.product.display_name %}Remover {{ name }} do carrinho{% endblocktranslate %}">
-                    {% icon "close" "h-4 w-4" %}
-                  </button>
-                </form>
-              </td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+            <form method="post" action="{% url 'cart:remove' %}" hx-post="{% url 'cart:remove' %}" hx-swap="none">
+              {% csrf_token %}
+              <input type="hidden" name="line" value="{{ line.key }}">
+              <button type="submit" class="cart-remove"
+                      aria-label="{% blocktranslate with name=line.product.display_name %}Remover {{ name }} do carrinho{% endblocktranslate %}">
+                {% translate "Remover" %}
+              </button>
+            </form>
+          </div>
+
+          <div class="cart-item-right">
+            <span class="cart-item-price tabular-price">
+              {{ line.product.currency_symbol }}&nbsp;{{ line.total|floatformat:2 }}
+            </span>
+
+            <div class="cart-qty">
+              <form method="post" action="{% url 'cart:update' %}" hx-post="{% url 'cart:update' %}" hx-swap="none">
+                {% csrf_token %}
+                <input type="hidden" name="line" value="{{ line.key }}">
+                <input type="hidden" name="action" value="decrement">
+                <button type="submit"
+                        aria-label="{% blocktranslate with name=line.product.display_name %}Diminuir quantidade de {{ name }}{% endblocktranslate %}">−</button>
+              </form>
+
+              <span aria-live="polite">{{ line.quantity }}</span>
+
+              <form method="post" action="{% url 'cart:update' %}" hx-post="{% url 'cart:update' %}" hx-swap="none">
+                {% csrf_token %}
+                <input type="hidden" name="line" value="{{ line.key }}">
+                <input type="hidden" name="action" value="increment">
+                <button type="submit"
+                        {% if line.at_maximum %}disabled title="{% translate 'Quantidade máxima disponível' %}"{% endif %}
+                        aria-label="{% blocktranslate with name=line.product.display_name %}Aumentar quantidade de {{ name }}{% endblocktranslate %}">+</button>
+              </form>
+            </div>
+            {% if line.at_maximum and not line.variant.made_to_order and not line.variant.allow_backorder %}
+              <p class="cart-qty-note">{% translate "Máximo em estoque" %}</p>
+            {% endif %}
+          </div>
+        </article>
+      {% endfor %}
     </div>
 
-    <aside class="card p-6" aria-labelledby="resumo-titulo">
-      <h2 id="resumo-titulo" class="font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-ink-muted">
-        {% translate "Resumo" %}
-      </h2>
+    <aside class="cart-aside" aria-labelledby="resumo-titulo">
+      <div class="cart-summary">
+        <h2 id="resumo-titulo" class="cart-summary-title">{% translate "Resumo" %}</h2>
 
-      <dl class="mt-4 space-y-2 text-sm">
-        <div class="flex items-center justify-between">
-          <dt class="text-ink-soft">{% translate "Subtotal" %}</dt>
-          <dd class="font-display text-2xl font-bold tabular-price text-brand-800">€&nbsp;{{ cart.subtotal|floatformat:2 }}</dd>
-        </div>
-        <div class="flex items-center justify-between">
-          <dt class="text-ink-soft">{% translate "Envio" %}</dt>
-          <dd class="text-ink-muted">{% translate "calculado no checkout" %}</dd>
-        </div>
-      </dl>
+        <dl class="cart-summary-rows">
+          <div class="cart-summary-row">
+            <dt>{% translate "Subtotal" %}</dt>
+            <dd class="tabular-price">€&nbsp;{{ cart.subtotal|floatformat:2 }}</dd>
+          </div>
+          <div class="cart-summary-row">
+            <dt>{% translate "Envio" %}</dt>
+            <dd>{% translate "calculado no checkout" %}</dd>
+          </div>
+          {% if production_days %}
+            <div class="cart-summary-row">
+              <dt>{% translate "Prazo de impressão" %}</dt>
+              <dd>{% blocktranslate with days=production_days %}{{ days }} dias úteis{% endblocktranslate %}</dd>
+            </div>
+          {% endif %}
+        </dl>
 
-      <a href="{% url 'cart:checkout' %}" class="btn-primary mt-6 w-full">
-        {% translate "Finalizar compra" %}
-        {% icon "arrow-right" "h-4 w-4 rtl:rotate-180" %}
-      </a>
-      <a href="{% url 'catalog:models_shop' %}" class="btn-secondary mt-3 w-full">
-        {% translate "Continuar comprando" %}
-      </a>
+        <div class="cart-summary-hr" aria-hidden="true"></div>
+
+        <div class="cart-summary-total">
+          <span>{% translate "Total" %}</span>
+          <b class="tabular-price">€&nbsp;{{ cart.subtotal|floatformat:2 }}</b>
+        </div>
+
+        <a href="{% url 'cart:checkout' %}" class="cart-checkout">
+          {% translate "Finalizar compra" %} <span aria-hidden="true">→</span>
+        </a>
+
+        {% if payment_methods %}
+          <p class="cart-pay">
+            <span class="sr-only">{% translate "Formas de pagamento" %}:</span>
+            {% for method in payment_methods %}
+              <span>{{ method.label }}</span>{% if not forloop.last %}<span aria-hidden="true">·</span>{% endif %}
+            {% endfor %}
+          </p>
+        {% endif %}
+      </div>
+
+      {% if policy_pages %}
+        <div class="cart-perks">
+          {% for page in policy_pages %}
+            <a href="{{ page.get_absolute_url }}" class="cart-perk">
+              <b>{{ page.title }}</b>
+              {% if page.intro %}<span>{{ page.intro|truncatechars:36 }}</span>{% endif %}
+            </a>
+          {% endfor %}
+        </div>
+      {% endif %}
     </aside>
   </div>
+
+  {% if recommended %}
+    {% comment %}
+      Sugestões com o card do catálogo — mesma moldura pastel, mesmo preço
+      "a partir de". Um card próprio aqui seria um segundo lugar para
+      corrigir quando o card mudar.
+    {% endcomment %}
+    <section class="cart-related" aria-labelledby="cart-recomendados-titulo">
+      <h2 id="cart-recomendados-titulo" class="product-related-title">
+        {% translate "Você também pode gostar" %}
+      </h2>
+      <ul class="product-grid product-related-grid" role="list">
+        {% for sugerido in recommended %}
+          <li>{% include "components/product_card.html" with product=sugerido %}</li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endif %}
 
 {% endif %}

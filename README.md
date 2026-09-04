@@ -466,8 +466,13 @@ Ordenar por nome usa o **nome traduzido**: como ele mora na tabela de
 traduções, entra por subconsulta (`Subquery` + `Coalesce` com o português como
 reserva) e é resolvido no banco — a paginação continua correta.
 
-A barra lateral mostra a árvore de categorias com a contagem de cada uma, e a
-seleção fica destacada. No celular ela vira um botão **Filtros**.
+A barra lateral mostra a árvore de categorias com a contagem de cada uma (a
+selecionada em navy) e o filtro de material em pílulas. No celular ela vira
+uma gaveta: um `popover` nativo, aberto pelo botão **Filtros** e fechado pelo
+✕, pelo "Ver N produtos", pelo Esc ou pelo toque fora — sem JavaScript. A
+anatomia da página (trilha, banner roxo, título com a contagem, filtros ativos
+em pílulas, cards com moldura pastel) segue o arquivo da direção visual; as
+medidas estão por extenso em `static/src/input.css`, bloco "O catálogo".
 
 ### HTMX
 
@@ -524,6 +529,68 @@ volta com a mensagem do Django.
 
 ---
 
+### Os quatro desenhos do banner
+
+`HomeBanner.layout` aceita **Hero editorial**, **Imagem completa**, **Poster
+Pop** (poster roxo de conteúdo centrado: palavra do título marcada em amarelo,
+selos menta e branco, três quadros de foto na base) e **Bento Criativo** (grade
+de cartões: texto no cartão branco com o selo coral, foto no cartão menta com o
+selo amarelo, e embaixo os cartões de cores e de avaliação). Os dois novos
+reaproveitam os campos do editorial (tarja, destaque, promessas, selos, dois
+botões) e acrescentam só o que não existia: os dois quadros laterais do Poster
+Pop (`image_tile_left`/`image_tile_right`, o do meio é a `image_desktop`) e,
+por idioma, `badge_coral`, `colors_note`, `rating_value`, `rating_note` e os
+textos alternativos dos quadros. O Admin mostra só os campos do desenho
+escolhido (`static/admin/js/home_banner_admin.js`); as medidas estão em
+`static/src/input.css`, bloco "Poster Pop e Bento Criativo". A seed cria os
+dois como banners inativos, para o Admin ver como ficam.
+
+### O carrossel de banners
+
+O banner mora num **quadro único** (`.hero-stage`, em
+`components/banner_carousel.html`): a largura do `container-page`, proporção
+1280×550 no desktop e 780px de altura até 1100px, raio de bloco e
+`overflow: hidden`. Os quatro desenhos preenchem o quadro e ajustam o miolo a
+ele (no desktop as medidas estão em `cqw`, encolhendo com o quadro), então
+todos têm a mesma largura, altura e posição, nenhum fundo passa da borda — a
+Imagem Completa não faz mais uma faixa roxa de ponta a ponta — e trocar de
+slide não move a página. Com **um** banner ativo, o hero sozinho no quadro;
+sem banner, o destaque tipográfico de sempre. Com **dois ou mais**, os banners
+ativos viram slides na ordem do campo *ordem*, empilhados no quadro. Só o
+primeiro slide tem o `<h1>`; os outros ficam `inert`, com o título em `<h2>` e
+as fotos em `loading="lazy"`. A configuração é global e mora em HOME › CARROSSEL DE
+BANNERS (`HomeBannerCarousel`, uma linha só): rotação automática (desligada
+por padrão), intervalo de 2 a 30 segundos, setas, indicadores, pausa ao passar
+o cursor e pausa após interação — tudo chega ao `app.js` por `data-*`. Setas,
+indicadores, ← → com o foco no carrossel e o deslize no celular navegam;
+`prefers-reduced-motion` desliga a rotação e o fade.
+
+O CSS e o JavaScript saem do `base.html` por `{% static_versioned %}`
+(`/static/js/app.js?v=<hash do conteúdo>`): a URL muda quando o arquivo muda e
+o navegador não reaproveita um `app.js` antigo do cache — foi assim que um
+carrossel com o HTML novo chegou a um navegador sem o script novo (setas na
+tela, clique sem efeito). Os testes de navegador
+(`apps/home/tests/test_banner_carousel_browser.py`, Playwright, tag `browser`)
+abrem a Home num Chromium e clicam de verdade: setas, indicadores, teclado,
+deslize, rotação automática, pausas e `prefers-reduced-motion`, nas cinco
+larguras. Sem o pacote (`requirements/dev.txt`) ou sem navegador, são pulados;
+`manage.py test --exclude-tag browser` os deixa de fora.
+
+### A página do carrinho
+
+`/carrinho/` segue o arquivo da direção visual (`Carrinho.html`): título com a
+contagem de itens e "Continuar comprando"; cada linha é um card com foto,
+categoria, nome, as opções em pílulas (cor com a bolinha, tamanho, material,
+sob encomenda, personalização), preço unitário, "Remover", o total da linha e a
+quantidade; à direita, o resumo escuro (subtotal, envio calculado no checkout,
+prazo de produção — o maior entre as linhas, como o checkout calcula —, total,
+o botão amarelo e as formas de pagamento disponíveis) com as páginas de envios
+e trocas como dois cartões embaixo; no fim, "Você também pode gostar" com o
+card do catálogo. A contagem do título volta por troca *out of band* a cada
+ação do HTMX. Cupom e limite de frete grátis, que o desenho mostra, não
+existem no backend e não foram desenhados. As medidas estão em
+`static/src/input.css`, bloco "O carrinho".
+
 ## F4. Página de produto e variantes
 
 `/produtos/<slug>/` — galeria, compra, descrição e ficha técnica.
@@ -543,6 +610,16 @@ geraria redirecionamento. É uma linha para mudar, se preferir.
   Produzido sob encomenda (com o prazo);
 * **ficha técnica da variante** — peso, dimensões e tempo de impressão são da
   unidade que o cliente vai receber, não do conceito.
+
+A anatomia segue o arquivo da direção visual (`Produto.html`): galeria à
+esquerda (moldura de 36px, miniaturas em quatro colunas), coluna de compra
+presa ao rolar à direita — etiquetas, título, preço com a referência, cores em
+bolinhas, tamanhos e materiais em pílulas, a linha quantidade + botão +
+coração, três cartões (impressão, envio, material) e um acordeão `<details>`
+com descrição, ficha e informações adicionais. As medidas estão por extenso em
+`static/src/input.css`, bloco "A página do produto". A linha de compra fica
+fora do `<form>` do carrinho (o coração é um formulário próprio) e aponta para
+ele por `form="add-to-cart"`.
 
 Trocar de opção atualiza a página inteira sem recarregar: preço,
 disponibilidade, teto de quantidade, foto (quando a variante tem uma) e a
@@ -1185,10 +1262,15 @@ Admin cadastrou, e apagar a coluna a faz sumir.
 
 ## G. Design System e identidade visual
 
-O conceito é **"Layered Craft"**: a peça impressa nasce camada por camada, e a
-página segue a mesma lógica — fundo lavanda, cartões brancos flutuando por
-cima, e um listrado fino de 7px (`.layers`) que aparece como assinatura da
-marca nas molduras e nos blocos escuros.
+A loja é **creme, roxa e arredondada**: fundo creme (nunca branco), cartões
+claros pousados por cima, cantos generosos e sombras que quase não se veem. O
+roxo é a cor de quem decide — só ele veste botão de ação. Amarelo, menta e
+coral entram como acento, sempre em fundo suave com texto escuro por cima.
+
+O listrado fino de 7px (`.layers`) continua sendo a assinatura da marca: a peça
+impressa nasce camada por camada, e ele aparece nas molduras e nos blocos
+escuros. O resultado pretendido é amigável e criativo sem deixar de ser
+profissional.
 
 ### Onde ficam os tokens
 
@@ -1198,36 +1280,86 @@ mexe num arquivo só e roda `npm run build:css`:
 
 | Grupo | Tokens | Uso no template |
 |---|---|---|
-| Marca | `--color-brand-50` … `--color-brand-950` | `bg-brand-600`, `text-brand-700` |
-| Texto | `--color-ink`, `--color-ink-soft`, `--color-ink-muted` | `text-ink-soft` |
-| Superfícies | `--color-surface`, `-soft`, `-brand`, `-deep`, `-line` | `bg-surface`, `border-surface-line` |
-| Apoio | `cyan`, `magenta`, `indigo` (100…700) | `bg-magenta-50` |
+| Marca | `--color-brand-50` … `--color-brand-950` (600 = `#4a1a8c`, a cor de ação) | `bg-brand-600`, `text-brand-700` |
+| Texto | `--color-ink`, `-soft`, `-muted`, `-on-deep` | `text-ink-soft` |
+| Superfícies | `--color-surface` (`#faf8f4`), `-soft`, `-brand`, `-deep` | `bg-surface` |
+| Borda | `--color-surface-line` (`#e8e3da`), `-strong`; `--border-hairline`, `--border-strong` | `border-surface-line` |
+| Acentos | `yellow`, `mint`, `coral` (50…700) | `bg-mint-100`, `text-coral-700` |
 | Estados | `--color-state-success \| warning \| error` (+ `-dark`, `-soft`) | `text-state-error` |
-| Tipografia | `--font-display`, `--font-sans`, `--font-mono` | `font-display` |
-| Forma | `--radius-control` (10px), `--radius-card` (18px), `--radius-block` (24px) | `rounded-card` |
+| Famílias | `--font-display`, `--font-sans`, `--font-mono` | `font-display` |
+| Pesos | `--font-weight-title-soft \| title \| title-strong \| ui \| ui-strong` | `font-title` |
+| Escala de título | `--text-display-sm \| display \| -lg \| -xl`, `--tracking-display` | `text-display-lg` |
+| Forma | `--radius-control` (12px), `-pill` (9999px), `-card` (22px), `-block` (28px), `-panel` (36px) | `rounded-card` |
 | Profundidade | `--shadow-card`, `--shadow-lift`, `--shadow-action` | `shadow-card` |
+| Transição | `--default-transition-duration/-timing-function`, `--ease-soft`, `--ease-entrance`, `--transition-fast \| base \| slow` | `transition` |
+
+O bloco é `@theme static`: o Tailwind publica **todas** as variáveis acima, e
+não só as que alguma classe já usa. Sem isso um token recém-criado existiria no
+código-fonte e não no CSS servido, e quem o consumisse fora de uma classe
+utilitária receberia vazio.
+
+Sobram dois apelidos, `cyan-100/700` e `magenta-100/700`, e por um motivo só:
+`HomeCard.accent` guarda a string `"cyan"` ou `"magenta"` **no banco**, e o
+template monta a classe com o valor gravado (`bg-{{ card.accent }}-100`). Trocar
+isso pede migração de esquema e de dados. `indigo` saiu por completo, e todo o
+resto do site usa `mint`, `coral` e `yellow`.
+
+O Tailwind varre `templates/`, `apps/` **e `static/js/`** — o seletor de
+variante remonta o selo de estoque pelo JavaScript, e sem varrer o JS aquelas
+classes não entrariam no CSS. E `@source not` exclui o próprio `tailwind.css`:
+sem isso o build lê a saída anterior, encontra ali uma classe já removida e a
+regera, para sempre.
 
 Um teste (`core/tests_templates.py::DesignTokenTests`) falha se alguém escrever
-`#rrggbb` num template da interface — as únicas exceções são os e-mails (não há
-CSS externo em e-mail) e a cor do filamento, que é dado vindo do banco.
+`#rrggbb` num template da interface. Há duas exceções, e as duas são exceções
+de verdade:
+
+* **Os e-mails** (`templates/emails/`). Caixa de entrada não carrega folha de
+  estilo externa, então ali a cor vai em atributo `style`, escrita à mão. É a
+  mesma paleta do `@theme` — creme, navy, roxo e os três acentos —, mas
+  duplicada por necessidade: não há como um e-mail ler a variável de lá. O
+  que sobrevive ao Outlook manda nessa pasta, não o que é elegante no site.
+* **A cor de uma variante**, que é dado do banco e entra num `style` inline. A
+  cor de reserva de quando não há `hex_code` cadastrado NÃO é exceção: mora no
+  utilitário `color-swatch`, no Design System.
 
 ### Componentes
 
 Declarados no mesmo arquivo, como `@utility` (quando precisam ser compostos com
 `@apply`) ou em `@layer components`: `btn-primary` / `-secondary` / `-ghost` /
-`-soft` / `-dark` / `-danger` (+ `btn-sm`, `btn-lg`), `card`, `card-hover`,
-`panel`, `badge-*`, `alert-*`, `chip`, `field-input`, `form-label` / `-help` /
-`-error`, `empty-state`, `account-link`, `shop-filter`, `page-link`,
+`-soft` / `-dark` / `-mint` / `-danger` (+ `btn-sm`, `btn-lg`), `card`,
+`card-hover`, `panel`, `alert-*`, `chip`, `field-input`, `form-label` /
+`-help` / `-error`, `empty-state`, `account-link`, `shop-filter`, `page-link`,
 `variant-option`, `product-grid`, `carousel-track`, `toast`, `layers`,
 `grid-mesh`, `focus-ring`.
 
+**Três degraus de título**, e um por papel: `page-title` (um por documento),
+`section-title` (a faixa) e `card-title` (o bloco dentro dela). Antes os dois
+primeiros dividiam uma classe só, e o `<h1>` da vitrine tinha o tamanho de um
+subtítulo de faixa.
+
+**As etiquetas dizem o papel, não a tinta**: `badge-success`, `-warning`,
+`-danger`, `-info`, `-accent` (+ `-accent-solid`), `badge-brand` / `-brand-soft`
+e `badge-tech`. Os nomes anteriores eram a cor de quando foram criadas —
+`badge-mint` era verde e `badge-muted` era vermelho —, então trocar a tinta de
+um estado obrigava a reescrever template. Agora não.
+
 ### Tipografia
 
-Três famílias, **hospedadas no próprio servidor** (`static/fonts/`, 134 KB no
-total, só os intervalos latin e latin-ext): **Space Grotesk** nos títulos e
-preços, **Manrope** no texto, **IBM Plex Mono** nas etiquetas, referências e
-números. Nada é buscado no Google em tempo de execução — uma requisição
-externa a menos e nenhum IP de cliente europeu entregue a terceiros.
+Três famílias, **hospedadas no próprio servidor** (`static/fonts/`, 187 KB no
+total, só os intervalos latin e latin-ext): **Baloo 2** nos títulos, **Nunito**
+no corpo e na interface, **IBM Plex Mono** nas etiquetas, referências e
+números. Nada é buscado no Google em tempo de execução — uma requisição externa
+a menos e nenhum IP de cliente europeu entregue a terceiros.
+
+Baloo 2 e Nunito são variáveis: **um** arquivo por subconjunto cobre de 400 a
+800, e sai mais leve que os pesos estáticos separados. Títulos vivem em
+600/700/800; corpo e interface, em 400/600/700/800 — o peso 500 não é usado de
+propósito, porque a diferença para o 400 não se lê.
+
+Quem baixa e gera é `scripts/fetch_fonts.py`, que reescreve
+`static/src/fonts.css` inteiro. Rode-o ao trocar de família e mande junto no
+commit os `.woff2` que ele gravar: o servidor não roda script de build.
 
 ### A logo
 

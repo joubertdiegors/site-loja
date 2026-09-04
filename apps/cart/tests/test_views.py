@@ -165,6 +165,170 @@ class UpdateAndRemoveTests(LanguageResetMixin, TestCase):
         self.assertContains(response, "Subtotal")
 
 
+class CartPageLayoutTests(LanguageResetMixin, TestCase):
+    """A anatomia da página — a da direção visual (`Carrinho.html`).
+
+    Título com a contagem, cards de linha com as opções em pílulas, o resumo
+    escuro com prazo, total e formas de pagamento, os dois cartões de política
+    e os relacionados. E a contagem do título acompanha cada troca do HTMX.
+    """
+
+    def setUp(self):
+        from apps.core.testing import make_category
+
+        super().setUp()
+        self.category = make_category(slug="modelos", name="Modelos")
+        self.product = make_product(
+            sku="GATO-01", name="Gato Pompom", category=self.category,
+            price=Decimal("8.90"), stock_quantity=10,
+        )
+        self.client.post(reverse("cart:add"), {"product_id": self.product.pk, "quantity": 2})
+
+    def page(self):
+        return self.client.get(reverse("cart:detail"))
+
+    def test_the_title_carries_the_count_and_the_continue_link(self):
+        html = self.page().content.decode()
+
+        self.assertIn('class="catalog-title"', html)
+        self.assertIn('id="cart-page-count"', html)
+        self.assertIn("2 itens", html)
+        self.assertIn('class="cart-continue"', html)
+        self.assertIn("Continuar comprando", html)
+
+    def test_the_lines_are_cards_and_the_summary_is_dark(self):
+        html = self.page().content.decode()
+
+        self.assertIn('class="cart-item"', html)
+        self.assertIn('class="cart-item-name"', html)
+        self.assertIn('class="cart-summary"', html)
+        self.assertIn('class="cart-checkout"', html)
+        self.assertIn("Total", html)
+        self.assertIn("17,80", html)
+        self.assertIn("calculado no checkout", html)
+
+    def test_the_options_become_chips_with_the_colour_dot(self):
+        from apps.catalog.models import Color
+
+        preto = Color.objects.create(name="Preto", hex_code="#000000")
+        variante = self.product.default_variant
+        variante.color = preto
+        variante.size = "25 cm"
+        variante.save()
+
+        html = self.page().content.decode()
+        linha = html.split('class="cart-chips"', 1)[1].split("</ul>", 1)[0]
+
+        self.assertIn('style="background-color: #000000"', linha)
+        self.assertIn("Preto", linha)
+        self.assertIn("25 cm", linha)
+
+    def test_the_summary_shows_the_production_lead_time_of_the_cart(self):
+        self.assertNotContains(self.page(), "Prazo de impressão")
+
+        variante = self.product.default_variant
+        variante.made_to_order = True
+        variante.production_lead_time_days = 5
+        variante.save()
+
+        response = self.page()
+        self.assertEqual(response.context["production_days"], 5)
+        self.assertContains(response, "Prazo de impressão")
+        self.assertContains(response, "5 dias úteis")
+
+    def test_the_summary_lists_the_available_payment_methods(self):
+        from apps.orders.payments import available_checkout_methods
+
+        response = self.page()
+
+        self.assertEqual(response.context["payment_methods"], available_checkout_methods())
+        for method in available_checkout_methods():
+            self.assertContains(response, str(method.label))
+
+    def test_the_policy_pages_become_the_two_cards(self):
+        """As páginas de envios e trocas — as da migração 0005, publicadas."""
+        from apps.storefront.models import InstitutionalPage, PageSlug
+
+        paginas = InstitutionalPage.objects.filter(slug__in=[PageSlug.SHIPPING, PageSlug.RETURNS])
+        self.assertEqual(paginas.count(), 2)
+
+        response = self.page()
+        html = response.content.decode()
+
+        self.assertEqual([p.slug for p in response.context["policy_pages"]], [PageSlug.SHIPPING, PageSlug.RETURNS])
+        self.assertEqual(html.count('class="cart-perk"'), 2)
+        for pagina in paginas:
+            self.assertIn(pagina.title, html)
+        self.assertIn(reverse("storefront:page_shipping"), html)
+        self.assertIn(reverse("storefront:page_returns"), html)
+
+    def test_an_unpublished_policy_page_loses_its_card(self):
+        from apps.storefront.models import InstitutionalPage, PageSlug
+
+        InstitutionalPage.objects.filter(slug=PageSlug.RETURNS).update(is_active=False)
+
+        response = self.page()
+
+        self.assertEqual([p.slug for p in response.context["policy_pages"]], [PageSlug.SHIPPING])
+        self.assertEqual(response.content.decode().count('class="cart-perk"'), 1)
+
+    def test_without_policy_pages_there_are_no_cards(self):
+        from apps.storefront.models import InstitutionalPage
+
+        InstitutionalPage.objects.update(is_active=False)
+
+        self.assertNotContains(self.page(), 'class="cart-perk"')
+
+    def test_related_products_reuse_the_catalogue_card(self):
+        outro = make_product(
+            sku="CAO-01", name="Cão Bola", category=self.category,
+            price=Decimal("12.00"), stock_quantity=3,
+        )
+
+        response = self.page()
+
+        self.assertEqual(response.context["recommended"], [outro])
+        self.assertContains(response, 'class="product-grid product-related-grid"')
+        self.assertContains(response, 'class="product-card"')
+        self.assertContains(response, "Cão Bola")
+
+    def test_the_htmx_update_brings_the_page_count_along(self):
+        line = list(self.client.session[CART_SESSION_KEY])[0]
+
+        response = self.client.post(
+            reverse("cart:update"), {"line": line, "action": "increment"}, **HTMX
+        )
+
+        self.assertContains(response, 'id="cart-page-count"')
+        self.assertContains(response, "3 itens")
+        self.assertContains(response, 'class="cart-summary"')
+        contagem = response.content.decode().split('id="cart-page-count"', 1)[1][:160]
+        self.assertIn('hx-swap-oob="true"', contagem)
+
+    def test_the_empty_state_keeps_its_call_to_action(self):
+        line = list(self.client.session[CART_SESSION_KEY])[0]
+        self.client.post(reverse("cart:remove"), {"line": line})
+
+        response = self.page()
+
+        self.assertContains(response, 'class="cart-empty"')
+        self.assertContains(response, "Seu carrinho está vazio")
+        self.assertContains(response, "Ver modelos")
+        self.assertContains(response, "0 itens")
+
+    def test_the_page_is_translated(self):
+        for prefixo, esperados in (
+            ("/fr", ("Votre panier", "Sous-total", "Passer commande", "Continuer les achats", "Retirer")),
+            ("/nl", ("Uw winkelwagen", "Subtotaal", "Verwijderen")),
+            ("/en", ("Your cart", "Subtotal", "Remove")),
+        ):
+            with self.subTest(idioma=prefixo):
+                response = self.client.get(f"{prefixo}/carrinho/")
+                self.assertEqual(response.status_code, 200)
+                for texto in esperados:
+                    self.assertContains(response, texto)
+
+
 class CartPageTests(LanguageResetMixin, TestCase):
     def setUp(self):
         self.product = make_product(

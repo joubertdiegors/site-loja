@@ -10,7 +10,9 @@ Nada aqui inventa um segundo mecanismo de tradução: é o mesmo
 """
 
 from django.contrib import admin, messages
+from django.utils.safestring import mark_safe
 
+from apps.core.colors import swatch
 from apps.core.admin_mixins import (
     PartialSafeModelForm,
     RequiredDefaultLanguageInlineFormSet,
@@ -68,7 +70,7 @@ class TopBarItemTranslationInline(admin.StackedInline):
 class TopBarItemAdmin(ActivateActionsMixin):
     inlines = [TopBarItemTranslationInline]
     form = PartialSafeModelForm
-    list_display = ("internal_name", "text_pt", "icon", "is_active", "sort_order", "updated_at")
+    list_display = ("internal_name", "text_pt", "icon", "cor", "is_active", "sort_order", "updated_at")
     list_display_links = ("internal_name", "text_pt")
     list_editable = ("is_active", "sort_order")
     list_filter = ("is_active",)
@@ -79,18 +81,33 @@ class TopBarItemAdmin(ActivateActionsMixin):
         (
             "IDENTIFICAÇÃO",
             {
-                "fields": ("internal_name", "icon", "is_active", "sort_order"),
+                "fields": ("internal_name", "is_active", "sort_order"),
                 "description": (
-                    "Aparece na faixa escura acima do cabeçalho <b>e</b> na lista do "
-                    "hero quando não há banner com imagem. O ícone é usado só no "
-                    "hero — a faixa é sempre só texto.<br>"
-                    "Do segundo item em diante a faixa vai escondendo nas telas "
-                    "estreitas: em 390 px não cabem três frases lado a lado."
+                    "Aparece na faixa escura acima do cabeçalho <b>e</b> na lista "
+                    "do hero quando não há banner com imagem.<br>"
+                    "Nas telas estreitas a faixa quebra em duas linhas — nenhuma "
+                    "promessa cadastrada deixa de ser lida."
+                ),
+            },
+        ),
+        (
+            "APARÊNCIA",
+            {
+                "fields": ("icon", "color", "link_url"),
+                "description": (
+                    "O desenho da marca alterna as cores dos itens — amarelo, "
+                    "menta e coral. A cor é conferida contra o fundo navy da "
+                    "faixa ao salvar: uma tinta que não se leria ali é recusada.<br>"
+                    "O ícone e o endereço são opcionais."
                 ),
             },
         ),
         ("AUDITORIA", {"classes": ("collapse",), "fields": ("created_at", "updated_at")}),
     )
+
+    @admin.display(description="cor")
+    def cor(self, obj):
+        return mark_safe(swatch(obj.color))
 
     def get_queryset(self, request):
         return super().get_queryset(request).prefetch_related("translations")
@@ -145,6 +162,19 @@ class FooterSettingsAdmin(admin.ModelAdmin):
                 "fields": ("contact_email", "contact_phone"),
                 "description": (
                     "Opcionais. Em branco, o bloco de contato não aparece no rodapé."
+                ),
+            },
+        ),
+        (
+            "CORES",
+            {
+                "fields": ("surface_color", "text_color", "heading_color", "accent_color"),
+                "description": (
+                    "Só a aparência: as colunas, os links e as páginas "
+                    "institucionais continuam vindo do cadastro abaixo e não são "
+                    "afetados.<br>"
+                    "Cada tinta é conferida contra o fundo ao salvar — não dá "
+                    "para configurar um rodapé ilegível."
                 ),
             },
         ),

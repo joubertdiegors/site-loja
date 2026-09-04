@@ -298,6 +298,159 @@ class ProductQueryTests(ProductPageBase):
         return len(captured)
 
 
+class ProductLayoutTests(ProductPageBase):
+    """A anatomia da página — a da direção visual (`Produto.html`).
+
+    Galeria de um lado, coluna de compra do outro; etiquetas, título, preço
+    com a referência, opções, a linha de compra com o coração, os três
+    cartões e o acordeão com a descrição e a ficha.
+    """
+
+    def html(self, product=None):
+        return self.get(product).content.decode()
+
+    def test_the_two_columns_and_the_gallery_frame(self):
+        html = self.html()
+
+        self.assertIn('class="product-cols"', html)
+        self.assertIn('class="product-gallery" data-gallery', html)
+        self.assertIn('class="product-info"', html)
+        # Sem foto, a moldura é o espaço reservado tracejado.
+        self.assertIn("product-gallery-main-empty", html)
+
+    def test_the_heart_sits_on_the_buy_row_outside_the_cart_form(self):
+        """Coração ao lado do botão, como na referência — em formulário próprio.
+
+        Sem conta é o link para o login; com conta, o POST do favorito. Nos
+        dois casos é o coração grande (`product-fav`), não o do card.
+        """
+        html = self.html()
+        linha = html.split('class="product-buy"', 1)[1].split("product-perks", 1)[0]
+
+        self.assertIn("product-fav-button", linha)
+        self.assertIn("data-favorite-login", linha)
+        self.assertNotIn("product-card-fav", linha)
+
+    def test_the_heart_stays_big_after_the_htmx_toggle(self):
+        """A resposta do HTMX troca o formulário inteiro: tem de voltar grande."""
+        from django.contrib.auth import get_user_model
+
+        ana = get_user_model().objects.create_user(
+            username="ana", email="ana@example.com", password="segredo-forte-1"
+        )
+        self.client.force_login(ana)
+
+        resposta = self.client.post(
+            "/favoritos/alternar/",
+            {"product_id": self.product.pk, "inline": "1"},
+            HTTP_HX_REQUEST="true",
+        )
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertContains(resposta, "product-fav-button product-fav-on")
+        self.assertContains(resposta, 'name="inline" value="1"')
+        self.assertNotContains(resposta, "product-card-fav")
+
+    def test_the_stock_is_a_tag_beside_the_title(self):
+        html = self.html()
+
+        self.assertIn('class="product-tag product-tag-stock"', html)
+        self.assertIn("product-title", html)
+
+    def test_the_reference_follows_the_variant_beside_the_price(self):
+        html = self.html()
+        preco = html.split('class="product-price-row"', 1)[1].split("</div>", 1)[0]
+
+        self.assertIn('data-spec="referencia"', preco)
+        self.assertIn(self.variant.sku, preco)
+
+    def test_the_perks_are_the_variant_and_the_top_bar(self):
+        from apps.storefront.models import TopBarItem
+
+        self.variant.material = Material.objects.create(name="PLA")
+        self.variant.print_time = timedelta(hours=2)
+        self.variant.save()
+        envio = TopBarItem.objects.create(internal_name="Envio", icon="truck")
+        envio.translations.create(language="pt", text="Envio para toda a Europa")
+
+        html = self.html()
+        cartoes = html.split('class="product-perks"', 1)[1].split("product-acc", 1)[0]
+
+        self.assertIn('data-spec="impressao"', cartoes)
+        self.assertIn("2h", cartoes)
+        self.assertIn("Envio para toda a Europa", cartoes)
+        self.assertIn('data-spec="material"', cartoes)
+        self.assertIn("PLA", cartoes)
+
+    def test_a_perk_without_a_value_is_born_hidden(self):
+        html = self.html()
+        cartoes = html.split('class="product-perks"', 1)[1].split("product-acc", 1)[0]
+
+        self.assertIn('data-spec="impressao" hidden', cartoes)
+        self.assertIn('data-spec="material" hidden', cartoes)
+
+    def test_the_description_and_the_specs_are_an_accordion(self):
+        from apps.catalog.models import ProductTranslation
+
+        ProductTranslation.objects.filter(master=self.product, language="pt").update(
+            description="Uma descrição longa.", extra_information="Lave à mão."
+        )
+
+        html = self.html()
+        acordeao = html.split('class="product-acc"', 1)[1].split("</section>", 1)[0]
+
+        self.assertEqual(acordeao.count("<details"), 3)
+        self.assertIn("<summary>Descrição</summary>", acordeao)
+        self.assertIn("<summary>Especificações</summary>", acordeao)
+        self.assertIn("<summary>Informações adicionais</summary>", acordeao)
+        self.assertIn("Uma descrição longa.", acordeao)
+        self.assertIn('data-spec="peso"', acordeao)
+
+    def test_colours_are_swatches_and_sizes_are_pills(self):
+        self.variant.delete()
+        preto = Color.objects.create(name="Preto", hex_code="#000000")
+        branco = Color.objects.create(name="Branco", hex_code="#FFFFFF")
+        ProductVariant.objects.create(
+            product=self.product, sku="V-P-15", color=preto, size="15 cm",
+            stock_quantity=4, sale_price=Decimal("8.90"),
+        )
+        ProductVariant.objects.create(
+            product=self.product, sku="V-B-20", color=branco, size="20 cm",
+            stock_quantity=2, sale_price=Decimal("12.90"),
+        )
+
+        html = self.html()
+        grupos = html.split("data-variant-groups", 1)[1].split("data-variant-message", 1)[0]
+
+        self.assertIn('class="variant-swatch" style="background-color: #000000"', grupos)
+        self.assertIn('<b data-variant-choice="color">Preto</b>', grupos)
+        self.assertIn('class="variant-option"', grupos)
+        self.assertIn("20 cm", grupos)
+        # O <select> sem JavaScript continua sendo a primeira escolha da página.
+        self.assertIn("data-variant-select", html.split("<select ", 1)[1].split("</select>", 1)[0])
+
+    def test_the_related_products_use_the_catalogue_card(self):
+        make_product(sku="CAO-01", name="Cão Bola", category=self.animals, price=Decimal("12.00"))
+
+        html = self.html()
+
+        self.assertIn('class="product-grid product-related-grid"', html)
+        self.assertIn('class="product-card"', html)
+
+    def test_the_drawer_strings_are_translated(self):
+        for prefixo, esperados in (
+            ("/fr", ("Impression", "Livraison", "Quantité")),
+            ("/nl", ("Printen", "Verzending", "Aantal")),
+            ("/en", ("Printing", "Shipping", "Quantity")),
+        ):
+            with self.subTest(idioma=prefixo):
+                self.variant.print_time = timedelta(hours=1)
+                self.variant.save()
+                html = self.client.get(f"{prefixo}/produtos/gato-pompom/").content.decode()
+                for texto in esperados:
+                    self.assertIn(texto, html)
+
+
 class PersonalizationPageTests(ProductPageBase):
     def test_normal_product_has_no_personalization_block(self):
         self.assertNotContains(self.get(), "Escolha sua personalização")

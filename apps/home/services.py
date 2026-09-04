@@ -227,15 +227,41 @@ def get_home_sections(tree: CategoryTree | None = None) -> list[ResolvedSection]
     return resolved
 
 
-def get_active_banner() -> HomeBanner | None:
-    """Primeiro banner ativo, ou ``None`` (a Home mostra o destaque tipográfico)."""
-    return (
+def get_active_banners() -> list[HomeBanner]:
+    """Todos os banners ativos, na ordem do cadastro — os slides do carrossel.
+
+    Uma consulta, com o que cada desenho precisa já carregado. Só os ativos: um
+    banner desligado no Admin não pode aparecer nem como segundo slide.
+    """
+    return list(
         HomeBanner.objects.filter(is_active=True)
         .select_related("cta_category", "cta_product")
         .prefetch_related("translations", "cta_category__translations", "cta_product__translations")
         .order_by("sort_order", "-created_at")
-        .first()
     )
+
+
+def get_active_banner() -> HomeBanner | None:
+    """Primeiro banner ativo, ou ``None`` (a Home mostra o destaque tipográfico)."""
+    banners = get_active_banners()
+    return banners[0] if banners else None
+
+
+def get_banner_carousel():
+    """Os banners ativos e a configuração do carrossel, para o topo da Home.
+
+    `banner` continua sendo o primeiro: é o que os templates e testes do hero
+    sempre leram. `banners` é a lista inteira e `banner_carousel` a
+    configuração — com um banner só, o template não desenha carrossel nenhum.
+    """
+    from apps.home.models import HomeBannerCarousel
+
+    banners = get_active_banners()
+    return {
+        "banner": banners[0] if banners else None,
+        "banners": banners,
+        "banner_carousel": HomeBannerCarousel.current(),
+    }
 
 
 @dataclass
@@ -333,14 +359,31 @@ def get_home_callout():
     }
 
 
+def get_category_blocks():
+    """Os blocos coloridos de categoria, na ordem cadastrada."""
+    from apps.home.models import HomeCategoryCard
+
+    return list(HomeCategoryCard.objects.for_display())
+
+
+def get_home_about():
+    """O bloco institucional, ou `None` quando não há o que mostrar."""
+    from apps.home.models import HomeAbout
+
+    linha = HomeAbout.current()
+    return {"home_about": linha if (linha and linha.has_content) else None}
+
+
 def get_home_context() -> dict:
     """Tudo que a Home precisa, compartilhando uma única árvore de categorias."""
     tree = CategoryTree.load()
     contexto = {
-        "banner": get_active_banner(),
         "sections": get_home_sections(tree),
         "category_cards": get_category_cards(tree),
+        "category_blocks": get_category_blocks(),
     }
+    contexto.update(get_banner_carousel())
     contexto.update(get_home_cards())
     contexto.update(get_home_callout())
+    contexto.update(get_home_about())
     return contexto

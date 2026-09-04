@@ -2312,3 +2312,86 @@ msgstr "We bekijken de aanvraag en antwoorden per e-mail. De bestelling is al on
 
 msgid "Analisamos o pedido e respondemos por e-mail assim que possível."
 msgstr "We bekijken de aanvraag en antwoorden zo snel mogelijk per e-mail."
+
+#
+# O catálogo redesenhado: a gaveta de filtros do celular, as pílulas de
+# filtro ativo, o título com a contagem e o card ("N cores", "Ver Filamentos").
+#
+
+msgid "Fechar filtros"
+msgstr "Filters sluiten"
+
+msgid "Limpar filtros"
+msgstr "Filters wissen"
+
+msgid "Filtros ativos"
+msgstr "Actieve filters"
+
+msgid "Ver %(total)s produto"
+msgid_plural "Ver %(total)s produtos"
+msgstr[0] "%(total)s product bekijken"
+msgstr[1] "%(total)s producten bekijken"
+
+msgid "%(total)s cor"
+msgid_plural "%(total)s cores"
+msgstr[0] "%(total)s kleur"
+msgstr[1] "%(total)s kleuren"
+
+msgid "Ver %(name)s"
+msgstr "%(name)s bekijken"
+
+#
+# O catálogo redesenhado: a gaveta de filtros do celular, as pílulas de
+# filtro ativo, o título com a contagem e o card ("N cores", "Ver Filamentos").
+#
+
+msgid "Impressão"
+msgstr "Printen"
+
+#
+# O catálogo redesenhado: a gaveta de filtros do celular, as pílulas de
+# filtro ativo, o título com a contagem e o card ("N cores", "Ver Filamentos").
+#
+
+msgid "Carrinho"
+msgstr "Winkelwagen"
+
+msgid "Prazo de impressão"
+msgstr "Printtijd"
+
+msgid "Formas de pagamento"
+msgstr "Betaalmethoden"
+
+#
+# O catálogo redesenhado: a gaveta de filtros do celular, as pílulas de
+# filtro ativo, o título com a contagem e o card ("N cores", "Ver Filamentos").
+#
+
+msgid "Fechar conta"
+msgstr "Afrekenen"
+
+#
+# O catálogo redesenhado: a gaveta de filtros do celular, as pílulas de
+# filtro ativo, o título com a contagem e o card ("N cores", "Ver Filamentos").
+#
+
+msgid "carrossel"
+msgstr "carrousel"
+
+msgid "slide"
+msgstr "slide"
+
+msgid "Destaques"
+msgstr "Uitgelicht"
+
+msgid "Banner %(number)s de %(total)s"
+msgstr "Banner %(number)s van %(total)s"
+
+msgid "Banner anterior"
+msgstr "Vorige banner"
+
+msgid "Próximo banner"
+msgstr "Volgende banner"
+
+msgid "Ir para o banner %(number)s"
+msgstr "Ga naar banner %(number)s"

@@ -32,7 +32,7 @@ qualquer site poderia disparar.
             <div class="min-w-0">
               <p class="font-display text-base font-bold text-ink">{{ address.display_label }}</p>
               {% if address.company_name %}
-                <p class="font-mono text-[10.5px] uppercase tracking-[0.06em] text-ink-muted">
+                <p class="font-mono text-[10.5px] uppercase tracking-label text-ink-muted">
                   {{ address.company_name }}
                 </p>
               {% endif %}
@@ -42,7 +42,7 @@ qualquer site poderia disparar.
                 <span class="badge-brand-soft whitespace-nowrap">{% translate "Entrega" %}</span>
               {% endif %}
               {% if address.is_default_billing %}
-                <span class="badge-cyan whitespace-nowrap">{% translate "Fatura" %}</span>
+                <span class="badge-info whitespace-nowrap">{% translate "Fatura" %}</span>
               {% endif %}
             </span>
           </div>
@@ -90,7 +90,7 @@ qualquer site poderia disparar.
     <div class="max-w-2xl">
       <div class="empty-state">
         <span class="empty-state-icon" aria-hidden="true">{% icon "map-pin" "h-6 w-6" %}</span>
-        <p class="font-display text-lg font-bold text-ink">{% translate "Nenhum endereço cadastrado" %}</p>
+        <p class="card-title">{% translate "Nenhum endereço cadastrado" %}</p>
         <p class="max-w-md text-sm text-ink-soft">
           {% translate "Cadastre para onde devemos enviar. Você pode ter quantos endereços quiser — casa, trabalho, presente." %}
         </p>

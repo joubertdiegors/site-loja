@@ -14,7 +14,7 @@
     <ul class="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4" role="list">
       <li>
         <a href="{% url 'accounts:orders' %}" class="card card-hover focus-ring flex h-full flex-col gap-2.5 p-5">
-          <span class="flex h-9 w-9 items-center justify-center rounded-[10px] bg-brand-100 text-brand-700" aria-hidden="true">
+          <span class="flex h-9 w-9 items-center justify-center rounded-control bg-brand-100 text-brand-700" aria-hidden="true">
             {% icon "cart" "h-4 w-4" %}
           </span>
           <strong class="text-[15px] text-ink">{% translate "Meus pedidos" %}</strong>
@@ -29,7 +29,7 @@
       </li>
       <li>
         <a href="{% url 'accounts:profile' %}" class="card card-hover focus-ring flex h-full flex-col gap-2.5 p-5">
-          <span class="flex h-9 w-9 items-center justify-center rounded-[10px] bg-cyan-100 text-cyan-700" aria-hidden="true">
+          <span class="flex h-9 w-9 items-center justify-center rounded-control bg-mint-100 text-mint-700" aria-hidden="true">
             {% icon "cube" "h-4 w-4" %}
           </span>
           <strong class="text-[15px] text-ink">{% translate "Meus dados" %}</strong>
@@ -44,7 +44,7 @@
       </li>
       <li>
         <a href="{% url 'accounts:addresses' %}" class="card card-hover focus-ring flex h-full flex-col gap-2.5 p-5">
-          <span class="flex h-9 w-9 items-center justify-center rounded-[10px] bg-indigo-100 text-indigo-700" aria-hidden="true">
+          <span class="flex h-9 w-9 items-center justify-center rounded-control bg-yellow-100 text-yellow-700" aria-hidden="true">
             {% icon "truck" "h-4 w-4" %}
           </span>
           <strong class="text-[15px] text-ink">{% translate "Endereços" %}</strong>
@@ -53,7 +53,7 @@
       </li>
       <li>
         <a href="{% url 'accounts:security' %}" class="card card-hover focus-ring flex h-full flex-col gap-2.5 p-5">
-          <span class="flex h-9 w-9 items-center justify-center rounded-[10px] bg-state-success-soft text-state-success-dark" aria-hidden="true">
+          <span class="flex h-9 w-9 items-center justify-center rounded-control bg-state-success-soft text-state-success-dark" aria-hidden="true">
             {% icon "shield" "h-4 w-4" %}
           </span>
           <strong class="text-[15px] text-ink">{% translate "Segurança" %}</strong>
@@ -67,7 +67,7 @@
       {# ---- Carrinho ---------------------------------------------------- #}
       <div class="card p-6">
         <div class="flex items-center justify-between gap-3">
-          <h2 class="font-display text-lg font-bold text-ink">{% translate "Meu carrinho" %}</h2>
+          <h2 class="card-title">{% translate "Meu carrinho" %}</h2>
           {% if not cart.is_empty %}
             <a class="link-brand text-sm" href="{% url 'cart:detail' %}">{% translate "Ver carrinho" %} &rarr;</a>
           {% endif %}
@@ -85,7 +85,7 @@
           <ul class="mt-4 divide-y divide-surface-line" role="list">
             {% for line in cart.lines|slice:":3" %}
               <li class="flex items-center gap-3 py-3">
-                <span class="block h-12 w-12 shrink-0 overflow-hidden rounded-[10px]">
+                <span class="block h-12 w-12 shrink-0 overflow-hidden rounded-control">
                   {% include "components/product_media.html" with media=line.product.display_media name=line.display_name compact=True %}
                 </span>
                 <span class="min-w-0 flex-1">
@@ -108,7 +108,7 @@
 
       {# ---- Acesso ----------------------------------------------------- #}
       <div class="card p-6">
-        <h2 class="font-display text-lg font-bold text-ink">{% translate "Acesso" %}</h2>
+        <h2 class="card-title">{% translate "Acesso" %}</h2>
         <dl class="mt-4 space-y-3 text-sm">
           <div class="flex items-baseline justify-between gap-3">
             <dt class="text-ink-muted">{% translate "Usuário" %}</dt>
@@ -116,7 +116,7 @@
           </div>
           <div class="flex items-baseline justify-between gap-3">
             <dt class="shrink-0 text-ink-muted">{% translate "E-mail" %}</dt>
-            <dd class="truncate font-medium text-ink">{{ user.email }}</dd>
+            <dd class="truncate font-ui text-ink">{{ user.email }}</dd>
           </div>
           <div class="flex items-baseline justify-between gap-3">
             <dt class="text-ink-muted">{% translate "Idioma dos e-mails" %}</dt>
@@ -124,7 +124,7 @@
           </div>
           <div class="flex items-baseline justify-between gap-3">
             <dt class="text-ink-muted">{% translate "Cliente desde" %}</dt>
-            <dd class="font-medium text-ink">{{ user.date_joined|date:"d/m/Y" }}</dd>
+            <dd class="font-ui text-ink">{{ user.date_joined|date:"d/m/Y" }}</dd>
           </div>
         </dl>
         <a class="link-brand mt-5 inline-block text-sm" href="{% url 'accounts:security' %}">

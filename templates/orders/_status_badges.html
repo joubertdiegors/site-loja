@@ -13,22 +13,22 @@ Espera `order`.
 {% if order.status == "confirmed" %}
   <span class="badge-brand">{{ order.get_status_display }}</span>
 {% elif order.status == "completed" %}
-  <span class="badge-mint">{{ order.get_status_display }}</span>
+  <span class="badge-success">{{ order.get_status_display }}</span>
 {% elif order.status == "cancelled" or order.status == "refunded" %}
-  <span class="badge-muted">{{ order.get_status_display }}</span>
+  <span class="badge-danger">{{ order.get_status_display }}</span>
 {% else %}
-  <span class="badge-amber">{{ order.get_status_display }}</span>
+  <span class="badge-warning">{{ order.get_status_display }}</span>
 {% endif %}
 
 {# ---- Pagamento ---- #}
 {% if order.payment_status == "paid" %}
-  <span class="badge-mint">{% translate "Pago" %}</span>
+  <span class="badge-success">{% translate "Pago" %}</span>
 {% elif order.payment_status == "failed" %}
-  <span class="badge-muted text-state-error">{% translate "Pagamento recusado" %}</span>
+  <span class="badge-danger">{% translate "Pagamento recusado" %}</span>
 {% elif order.payment_status == "pending" %}
-  <span class="badge-amber">{% translate "Aguardando pagamento" %}</span>
+  <span class="badge-warning">{% translate "Aguardando pagamento" %}</span>
 {% else %}
-  <span class="badge-muted">{{ order.get_payment_status_display }}</span>
+  <span class="badge-danger">{{ order.get_payment_status_display }}</span>
 {% endif %}
 
 {# ---- Produção e entrega ---- #}
@@ -37,16 +37,16 @@ Espera `order`.
   ao lado de "Cancelado" só levanta a pergunta "interrompido como?".
 {% endcomment %}
 {% if order.status != "cancelled" and order.fulfillment_status != "not_started" %}
-  <span class="badge-cyan">{{ order.get_fulfillment_status_display }}</span>
+  <span class="badge-info">{{ order.get_fulfillment_status_display }}</span>
 {% endif %}
 
 {# ---- Cancelamento pedido: é estado da solicitação, não do pedido ---- #}
 {% if order.cancellation_status == "requested" %}
-  <span class="badge-magenta-soft">{% translate "Cancelamento solicitado" %}</span>
+  <span class="badge-accent">{% translate "Cancelamento solicitado" %}</span>
 {% elif order.cancellation_status == "refused" %}
-  <span class="badge-muted">{% translate "Cancelamento recusado" %}</span>
+  <span class="badge-danger">{% translate "Cancelamento recusado" %}</span>
 {% endif %}
 
 {% if order.is_gift %}
-  <span class="badge-magenta-soft">{% translate "Presente" %}</span>
+  <span class="badge-accent">{% translate "Presente" %}</span>
 {% endif %}

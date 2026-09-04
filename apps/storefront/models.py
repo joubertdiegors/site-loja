@@ -30,7 +30,19 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
+from apps.core.colors import check_contrast, resolve, validate_color
 from apps.core.models import TimeStampedModel, TranslatableMixin, TranslationBase
+
+#: A frase que acompanha todo campo de cor no Admin.
+COLOR_HELP = (
+    "Uma cor da marca (creme, navy, purple, yellow, mint, coral, lavender…) "
+    "ou um hexadecimal como <code>#4A1A8C</code>."
+)
+
+
+def css_vars(pares: dict) -> str:
+    """Um `style` com variáveis CSS, para o bloco herdar as cores escolhidas."""
+    return ";".join("--%s:%s" % (nome, valor) for nome, valor in pares.items() if valor)
 
 
 class ActiveOrderedQuerySet(models.QuerySet):
@@ -95,7 +107,23 @@ class TopBarItem(TranslatableMixin, TimeStampedModel):
         choices=TOP_BAR_ICONS,
         blank=True,
         default="",
-        help_text="Usado só na lista do hero. A faixa do topo é sempre só texto.",
+        help_text="Opcional. Aparece antes do texto, na faixa e na lista do hero.",
+    )
+    color = models.CharField(
+        "cor do texto",
+        max_length=20,
+        default="yellow",
+        validators=[validate_color],
+        help_text=(
+            "A faixa alterna cores de propósito — amarelo, menta e coral no "
+            "desenho da marca. " + COLOR_HELP
+        ),
+    )
+    link_url = models.CharField(
+        "endereço",
+        max_length=500,
+        blank=True,
+        help_text="Opcional. Com um endereço, o item vira link.",
     )
     is_active = models.BooleanField("ativo", default=True)
     sort_order = models.PositiveIntegerField(
@@ -118,6 +146,18 @@ class TopBarItem(TranslatableMixin, TimeStampedModel):
     @property
     def text(self) -> str:
         return self.tr("text")
+
+    @property
+    def style(self) -> str:
+        return css_vars({"item-fg": resolve(self.color, "yellow")})
+
+    def clean(self):
+        super().clean()
+        # A faixa é sempre navy. Uma cor clara demais ali some; uma escura
+        # demais também — e quem cadastra não tem como saber sem medir.
+        erro = check_contrast(self.color, "navy", campo="color")
+        if erro:
+            raise ValidationError(erro)
 
 
 class TopBarItemTranslation(TranslationBase):
@@ -173,6 +213,27 @@ class FooterSettings(TranslatableMixin, TimeStampedModel):
         help_text="Desmarcado, o rodapé volta aos textos padrão do template.",
     )
 
+    # -- cores --------------------------------------------------------------
+    # A estrutura do rodapé (colunas, links, páginas institucionais) continua
+    # vindo de `FooterColumn`/`FooterLink`: aqui só se escolhe a tinta.
+    surface_color = models.CharField(
+        "fundo", max_length=20, default="navy",
+        validators=[validate_color], help_text=COLOR_HELP,
+    )
+    text_color = models.CharField(
+        "cor do texto", max_length=20, default="ink-on-deep",
+        validators=[validate_color], help_text=COLOR_HELP,
+    )
+    heading_color = models.CharField(
+        "cor dos títulos das colunas", max_length=20, default="white",
+        validators=[validate_color], help_text=COLOR_HELP,
+    )
+    accent_color = models.CharField(
+        "cor de destaque da logo", max_length=20, default="#b48cf0",
+        validators=[validate_color],
+        help_text="O \"Print\" do nome, no rodapé. " + COLOR_HELP,
+    )
+
     class Meta:
         verbose_name = "rodapé"
         verbose_name_plural = "RODAPÉ — textos e contato"
@@ -218,6 +279,29 @@ class FooterSettings(TranslatableMixin, TimeStampedModel):
     @property
     def has_contact(self) -> bool:
         return bool(self.contact_email or self.contact_phone)
+
+    @property
+    def style(self) -> str:
+        return css_vars({
+            "footer-surface": resolve(self.surface_color, "navy"),
+            "footer-fg": resolve(self.text_color, "ink-on-deep"),
+            "footer-heading": resolve(self.heading_color, "white"),
+            "footer-accent": resolve(self.accent_color, "purple"),
+        })
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        for tinta, campo in (
+            (self.text_color, "text_color"),
+            (self.heading_color, "heading_color"),
+            (self.accent_color, "accent_color"),
+        ):
+            erro = check_contrast(tinta, self.surface_color, campo=campo)
+            if erro:
+                errors.update(erro)
+        if errors:
+            raise ValidationError(errors)
 
 
 class FooterSettingsTranslation(TranslationBase):

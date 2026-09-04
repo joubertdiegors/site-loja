@@ -8,7 +8,7 @@ o painel com as linhas e o subtotal.
 {% include "components/cart_counter.html" with oob=True %}
 {% include "cart/_drawer_count.html" with oob=True %}
 
-<div id="cart-drawer-body" class="flex flex-1 flex-col overflow-hidden" hx-swap-oob="true">
+<div id="cart-drawer-body" class="flex min-h-0 flex-1 flex-col overflow-hidden" hx-swap-oob="true">
   {% include "cart/_drawer_body.html" %}
 </div>
 
@@ -20,4 +20,6 @@ o painel com as linhas e o subtotal.
   <div id="cart-panel" hx-swap-oob="true">
     {% include "cart/_cart_panel.html" %}
   </div>
+  {# A contagem do título fica fora do painel: vai junto, fora do alvo. #}
+  {% include "cart/_page_count.html" with oob=True %}
 {% endif %}

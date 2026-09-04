@@ -2,61 +2,319 @@
 {% comment %}
 Área de destaque do topo (hero).
 
-Quatro situações, todas previstas:
-  1. imagem + texto  -> imagem grande (desktop/mobile) com o texto sobreposto;
-  2. imagem sozinha  -> só a arte: sem gradiente, sem `<h1>` vazio, sem tarja;
-  3. sem imagem      -> destaque tipográfico sobre a malha da mesa;
-  4. sem banner      -> mesmo destaque, com o texto institucional.
+Quatro desenhos, escolhidos no cadastro (`HomeBanner.layout`):
 
-O caso 2 é o que motivou a etapa 16: um banner pode ser só arte, e cobrir o pé
-dela com uma faixa escura para exibir um título vazio era estragar o único
-conteúdo que existia.
+  EDITORIAL   -> a composição da direção visual: texto à esquerda e, à direita,
+                 a placa inclinada, o quadro da foto e os três selos soltos.
+                 A foto entra DENTRO do quadro, que continua visível em volta
+                 dela — o quadro é parte do desenho, não uma moldura à espera
+                 de ser substituída.
 
-Nenhuma imagem inventada, nenhum espaço quebrado: nos três casos o bloco tem a
-mesma altura e o mesmo peso, então cadastrar um banner depois não muda o
-layout. A moldura tracejada deixa claro onde a arte entra.
+  POSTER POP  -> o poster roxo: texto centrado, a palavra destacada do título
+                 marcada em amarelo, dois selos soltos (menta e branco) e três
+                 quadros de foto na base, meio enterrados. Os blobs
+                 translúcidos são decoração pura.
+
+  BENTO       -> a grade de cartões: o texto no cartão branco (com o selo coral
+                 no canto), a foto no cartão menta listrado (com o selo
+                 amarelo) e, embaixo dela, o cartão roxo das cores e o
+                 amarelo da avaliação.
+
+  IMAGEM CHEIA -> a arte ocupa o quadro inteiro, com o texto sobreposto
+                 quando houver.
+
+Os quatro vivem dentro do quadro único do banner (`.hero-stage`, ver
+`banner_carousel.html`): a raiz de cada um preenche o quadro (`inset: 0`) e o
+miolo se ajusta a ele — nenhum desenho define a própria altura, e nenhum
+fundo sai do quadro.
+
+E, sem banner cadastrado, o destaque tipográfico de sempre: uma instalação
+recém-migrada abre completa.
+
+Cada peça é opcional e só é desenhada se tiver conteúdo. Um hero editorial sem
+selos, sem promessas ou sem segundo botão continua de pé — o que não pode é
+sobrar um marcador colorido solto ou um botão sem destino.
 {% endcomment %}
-<section class="bg-surface-deep grid-mesh" aria-labelledby="hero-titulo">
-  {% if banner and banner.image_desktop %}
 
-    <div class="container-page py-6 sm:py-8">
-      <div class="relative overflow-hidden rounded-block">
-        <picture>
-          {% if banner.image_mobile %}
-            <source media="(max-width: 640px)" srcset="{{ banner.image_mobile.url }}">
+{% if banner and banner.is_editorial %}
+
+  {# ---- Hero editorial ---------------------------------------------------- #}
+  <section class="hero-editorial" style="{{ banner.hero_style }}" aria-labelledby="{% firstof hero_id 'hero-titulo' %}">
+    <div class="container-page hero-grid">
+
+      <div class="hero-text">
+        {% if banner.eyebrow %}
+          <p class="hero-eyebrow">{{ banner.eyebrow }}</p>
+        {% endif %}
+
+        <{% firstof hero_tag 'h1' %} id="{% firstof hero_id 'hero-titulo' %}" class="hero-title">
+          {% if banner.title %}{{ banner.title_html }}{% else %}{{ site_name }}{% endif %}
+        </{% firstof hero_tag 'h1' %}>
+
+        {% if banner.subtitle %}
+          <p class="hero-lead">{{ banner.subtitle }}</p>
+        {% endif %}
+
+        {% if banner.has_cta and banner.cta_label or banner.has_secondary_cta %}
+          <div class="hero-actions">
+            {% if banner.has_cta and banner.cta_label %}
+              <a href="{{ banner.cta_link }}" class="hero-btn hero-btn-primary focus-ring">
+                {{ banner.cta_label }}
+                {% icon "arrow-right" "h-4 w-4 rtl:rotate-180" %}
+              </a>
+            {% endif %}
+            {% if banner.has_secondary_cta %}
+              <a href="{{ banner.cta_secondary_url }}" class="hero-btn hero-btn-secondary focus-ring">
+                {{ banner.cta_secondary_label }}
+              </a>
+            {% endif %}
+          </div>
+        {% endif %}
+
+        {% if banner.perks %}
+          <ul class="hero-perks" role="list">
+            {% for perk in banner.perks %}<li>{{ perk }}</li>{% endfor %}
+          </ul>
+        {% endif %}
+      </div>
+
+      {% comment %}
+        A composição. `aria-hidden` na placa e nos selos: a placa é decoração
+        pura, e os selos repetem em desenho o que o texto ao lado já diz — um
+        leitor de tela não precisa ouvir "PLA 0.12 mm" solto no meio da página.
+        A foto, essa sim, leva o texto alternativo do cadastro.
+      {% endcomment %}
+      <div class="hero-art">
+        <div class="hero-plate" aria-hidden="true"></div>
+
+        <div class="hero-frame">
+          {% if banner.image_desktop %}
+            <img src="{{ banner.image_desktop.url }}" alt="{{ banner.image_alt }}"
+                 class="hero-photo" {% if hero_lazy %}loading="lazy"{% else %}fetchpriority="high"{% endif %}>
+          {% else %}
+            <span class="hero-frame-note" aria-hidden="true">
+              {% translate "Área da foto do banner" %}
+            </span>
           {% endif %}
-          <img src="{{ banner.image_desktop.url }}" alt="{{ banner.image_alt }}"
-               class="h-[26rem] w-full object-cover sm:h-[22rem] lg:h-[30rem]" fetchpriority="high">
-        </picture>
+        </div>
 
-        {% comment %}
-          Gradiente e texto só quando há texto. Sem isto, um banner que é só
-          arte ganhava uma tarja escura cobrindo o pé da imagem para exibir um
-          `<h1>` vazio.
-        {% endcomment %}
-        {% if banner.has_text %}
-          <div class="absolute inset-0 bg-gradient-to-t from-brand-950/90 via-brand-950/40 to-transparent"></div>
+        {% for badge in banner.badges %}
+          <span class="hero-badge hero-badge-{{ badge.tone }}" aria-hidden="true">{{ badge.text }}</span>
+        {% endfor %}
+      </div>
 
-          <div class="absolute inset-x-0 bottom-0 p-6 sm:p-10 lg:p-14">
-            <div class="max-w-xl">
-              {% if banner.title %}
-                <h1 id="hero-titulo" class="font-display text-3xl font-bold tracking-[-0.025em] text-white sm:text-4xl lg:text-5xl">
-                  {{ banner.title }}
-                </h1>
+    </div>
+  </section>
+
+{% elif banner and banner.is_poster %}
+
+  {# ---- Poster Pop -------------------------------------------------------- #}
+  {% comment %}
+    Os blobs, os selos e as fotos vazias levam `aria-hidden`: são desenho. As
+    fotos cadastradas levam o texto alternativo do cadastro — a do meio, o do
+    banner; as laterais, o de cada quadro.
+  {% endcomment %}
+  <section class="hero-poster-wrap" aria-labelledby="{% firstof hero_id 'hero-titulo' %}">
+    <div class="hero-slide">
+      <div class="hero-poster">
+        <span class="hero-poster-blob hero-poster-blob-1" aria-hidden="true"></span>
+        <span class="hero-poster-blob hero-poster-blob-2" aria-hidden="true"></span>
+        <span class="hero-poster-blob hero-poster-blob-3" aria-hidden="true"></span>
+
+        {% if banner.eyebrow %}
+          <p class="hero-eyebrow hero-poster-eyebrow">{{ banner.eyebrow }}</p>
+        {% endif %}
+
+        <{% firstof hero_tag 'h1' %} id="{% firstof hero_id 'hero-titulo' %}" class="hero-poster-title">
+          {% if banner.title %}{{ banner.title_html }}{% else %}{{ site_name }}{% endif %}
+        </{% firstof hero_tag 'h1' %}>
+
+        {% if banner.subtitle %}
+          <p class="hero-poster-lead">{{ banner.subtitle }}</p>
+        {% endif %}
+
+        {% if banner.has_cta and banner.cta_label or banner.has_secondary_cta %}
+          <div class="hero-actions hero-poster-actions">
+            {% if banner.has_cta and banner.cta_label %}
+              <a href="{{ banner.cta_link }}" class="hero-btn hero-btn-yellow focus-ring">
+                {{ banner.cta_label }}
+                {% icon "arrow-right" "h-4 w-4 rtl:rotate-180" %}
+              </a>
+            {% endif %}
+            {% if banner.has_secondary_cta %}
+              <a href="{{ banner.cta_secondary_url }}" class="hero-btn hero-btn-ghost-light focus-ring">
+                {{ banner.cta_secondary_label }}
+              </a>
+            {% endif %}
+          </div>
+        {% endif %}
+
+        {% if banner.badge_mint %}
+          <span class="hero-sticker hero-poster-sticker-mint" aria-hidden="true">{{ banner.badge_mint }}</span>
+        {% endif %}
+        {% if banner.badge_white %}
+          <span class="hero-sticker hero-poster-sticker-white" aria-hidden="true">{{ banner.badge_white }}</span>
+        {% endif %}
+
+        <div class="hero-poster-strip">
+          {% for tile in banner.tiles %}
+            <div class="hero-poster-tile"{% if not tile.image %} aria-hidden="true"{% endif %}>
+              {% if tile.image %}
+                <img src="{{ tile.image.url }}" alt="{{ tile.alt }}" class="hero-poster-photo"
+                     {% if forloop.counter == 2 %}{% if hero_lazy %}loading="lazy"{% else %}fetchpriority="high"{% endif %}{% else %}loading="lazy"{% endif %}>
+              {% else %}
+                <span class="hero-frame-note hero-poster-note">{% translate "Área da foto do banner" %}</span>
               {% endif %}
-              {% if banner.subtitle %}
-                <p class="mt-3 text-base leading-relaxed text-brand-100 sm:text-lg">{{ banner.subtitle }}</p>
-              {% endif %}
+            </div>
+          {% endfor %}
+        </div>
+
+        {% if banner.perks %}
+          <ul class="hero-perks hero-poster-perks" role="list">
+            {% for perk in banner.perks %}<li>{{ perk }}</li>{% endfor %}
+          </ul>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+
+{% elif banner and banner.is_bento %}
+
+  {# ---- Bento Criativo ---------------------------------------------------- #}
+  <section class="hero-bento-wrap" aria-labelledby="{% firstof hero_id 'hero-titulo' %}">
+    <div class="hero-slide">
+      <div class="hero-bento">
+
+        <div class="hero-bento-card hero-bento-main">
+          {% if banner.badge_coral %}
+            <span class="hero-sticker hero-bento-sticker-coral" aria-hidden="true">{{ banner.badge_coral }}</span>
+          {% endif %}
+
+          {% if banner.eyebrow %}
+            <p class="hero-eyebrow">{{ banner.eyebrow }}</p>
+          {% endif %}
+
+          <{% firstof hero_tag 'h1' %} id="{% firstof hero_id 'hero-titulo' %}" class="hero-bento-title">
+            {% if banner.title %}{{ banner.title_html }}{% else %}{{ site_name }}{% endif %}
+          </{% firstof hero_tag 'h1' %}>
+
+          {% if banner.subtitle %}
+            <p class="hero-bento-lead">{{ banner.subtitle }}</p>
+          {% endif %}
+
+          {% if banner.has_cta and banner.cta_label or banner.has_secondary_cta %}
+            <div class="hero-actions">
               {% if banner.has_cta and banner.cta_label %}
-                <a href="{{ banner.cta_link }}" class="btn-primary btn-lg mt-6">
+                <a href="{{ banner.cta_link }}" class="hero-btn hero-btn-primary focus-ring">
                   {{ banner.cta_label }}
                   {% icon "arrow-right" "h-4 w-4 rtl:rotate-180" %}
                 </a>
               {% endif %}
+              {% if banner.has_secondary_cta %}
+                <a href="{{ banner.cta_secondary_url }}" class="hero-btn hero-btn-secondary focus-ring">
+                  {{ banner.cta_secondary_label }}
+                </a>
+              {% endif %}
             </div>
+          {% endif %}
+
+          {% if banner.perks %}
+            <ul class="hero-perks" role="list">
+              {% for perk in banner.perks %}<li>{{ perk }}</li>{% endfor %}
+            </ul>
+          {% endif %}
+        </div>
+
+        <div class="hero-bento-card hero-bento-photo">
+          {% if banner.image_desktop %}
+            <img src="{{ banner.image_desktop.url }}" alt="{{ banner.image_alt }}"
+                 class="hero-bento-img" {% if hero_lazy %}loading="lazy"{% else %}fetchpriority="high"{% endif %}>
+          {% else %}
+            <span class="hero-frame-note hero-bento-note" aria-hidden="true">
+              {% translate "Área da foto do banner" %}
+            </span>
+          {% endif %}
+          {% if banner.badge_yellow %}
+            <span class="hero-sticker hero-bento-sticker-yellow" aria-hidden="true">{{ banner.badge_yellow }}</span>
+          {% endif %}
+        </div>
+
+        {% if banner.has_colors_card or banner.has_rating_card %}
+          <div class="hero-bento-split">
+            {% if banner.has_colors_card %}
+              <div class="hero-bento-card hero-bento-colors">
+                {# As bolinhas são desenho: a paleta da marca, não uma lista de cores à venda. #}
+                <span class="hero-bento-dots" aria-hidden="true">
+                  {% for dot in banner.bento_dots %}<i style="background-color: {{ dot }}"></i>{% endfor %}
+                </span>
+                <p>
+                  <b>{{ banner.badge_mint }}</b>
+                  {% if banner.colors_note %}<small>{{ banner.colors_note }}</small>{% endif %}
+                </p>
+              </div>
+            {% endif %}
+            {% if banner.has_rating_card %}
+              <div class="hero-bento-card hero-bento-rating">
+                <span class="hero-bento-stars" aria-hidden="true">★★★★★</span>
+                <p>
+                  <b>{{ banner.rating_value }}</b>
+                  {% if banner.rating_note %}<small>{{ banner.rating_note }}</small>{% endif %}
+                </p>
+              </div>
+            {% endif %}
           </div>
         {% endif %}
+
       </div>
+    </div>
+  </section>
+
+{% else %}
+
+  {% if banner and banner.image_desktop %}
+
+    {# ---- Imagem completa -------------------------------------------------- #}
+    {% comment %}
+      O roxo com a malha é o fundo do próprio slide, dentro do quadro — a
+      imagem cobre o quadro inteiro (`object-fit: cover`) e o gradiente e o
+      texto ficam por cima. Nada aqui é mais largo do que o quadro.
+    {% endcomment %}
+    <section class="hero-full bg-surface-deep grid-mesh" aria-labelledby="{% firstof hero_id 'hero-titulo' %}">
+      <picture>
+        {% if banner.image_mobile %}
+          <source media="(max-width: 640px)" srcset="{{ banner.image_mobile.url }}">
+        {% endif %}
+        <img src="{{ banner.image_desktop.url }}" alt="{{ banner.image_alt }}"
+             class="hero-full-img" {% if hero_lazy %}loading="lazy"{% else %}fetchpriority="high"{% endif %}>
+      </picture>
+
+      {% comment %}
+        Gradiente e texto só quando há texto. Sem isto, um banner que é só
+        arte ganhava uma tarja escura cobrindo o pé da imagem para exibir um
+        `<h1>` vazio.
+      {% endcomment %}
+      {% if banner.has_text %}
+        <div class="absolute inset-0 bg-gradient-to-t from-brand-950/90 via-brand-950/40 to-transparent"></div>
+
+        <div class="absolute inset-x-0 bottom-0 p-6 sm:p-10 lg:p-14">
+          <div class="max-w-xl">
+            {% if banner.title %}
+              <{% firstof hero_tag 'h1' %} id="{% firstof hero_id 'hero-titulo' %}" class="font-display text-display-lg font-title-strong tracking-display text-white lg:text-display-xl">
+                {{ banner.title }}
+              </{% firstof hero_tag 'h1' %}>
+            {% endif %}
+            {% if banner.subtitle %}
+              <p class="mt-3 text-base leading-relaxed text-ink-on-deep sm:text-lg">{{ banner.subtitle }}</p>
+            {% endif %}
+            {% if banner.has_cta and banner.cta_label %}
+              <a href="{{ banner.cta_link }}" class="btn-primary btn-lg mt-6">
+                {{ banner.cta_label }}
+                {% icon "arrow-right" "h-4 w-4 rtl:rotate-180" %}
+              </a>
+            {% endif %}
+          </div>
+        </div>
+      {% endif %}
 
       {% comment %}
         Toda página precisa de um `<h1>`. Quando o banner não tem título, ele
@@ -64,86 +322,92 @@ layout. A moldura tracejada deixa claro onde a arte entra.
         que a página trata, e a arte continua inteira.
       {% endcomment %}
       {% if not banner.title %}
-        <h1 id="hero-titulo" class="sr-only">{{ meta_title|default:site_name }}</h1>
+        <{% firstof hero_tag 'h1' %} id="{% firstof hero_id 'hero-titulo' %}" class="sr-only">{{ meta_title|default:site_name }}</{% firstof hero_tag 'h1' %}>
       {% endif %}
-    </div>
+    </section>
 
   {% else %}
 
-    <div class="container-page py-12 sm:py-16 lg:py-20">
-      <div class="grid items-center gap-10 lg:grid-cols-[1.1fr_1fr]">
+    {# Sem banner: fora do quadro, a faixa escura de sempre. #}
+    <section class="bg-surface-deep grid-mesh" aria-labelledby="{% firstof hero_id 'hero-titulo' %}">
 
-        <div>
-          <p class="inline-flex items-center rounded-full border border-brand-300/35 bg-brand-500/15 px-3 py-1.5 font-mono text-[11px] uppercase tracking-[0.14em] text-brand-200">
-            {% translate "Impressão 3D criativa" %}
-          </p>
+      {# ---- Sem banner: destaque tipográfico ------------------------------- #}
+      <div class="container-page py-12 sm:py-16 lg:py-20">
+        <div class="grid items-center gap-10 lg:grid-cols-[1.1fr_1fr]">
 
-          <h1 id="hero-titulo" class="mt-5 font-display text-3xl font-bold leading-[1.05] tracking-[-0.025em] text-white sm:text-4xl lg:text-5xl">
-            {% if banner.title %}{{ banner.title }}{% else %}{% translate "Peças únicas, impressas sob medida" %}{% endif %}
-          </h1>
+          <div>
+            <p class="inline-flex items-center rounded-pill border border-mint-500/30 bg-mint-500/10 px-3.5 py-1.5 font-mono text-[11px] uppercase tracking-label text-mint-500">
+              {% translate "Impressão 3D criativa" %}
+            </p>
 
-          <p class="mt-5 max-w-lg text-base leading-relaxed text-brand-100/90 sm:text-lg">
-            {% if banner and banner.subtitle %}
-              {{ banner.subtitle }}
-            {% else %}
-              {% translate "Modelos decorativos, acessórios e filamentos escolhidos com cuidado. Feitos na Bélgica, com acabamento e cor à sua escolha." %}
-            {% endif %}
-          </p>
+            <{% firstof hero_tag 'h1' %} id="{% firstof hero_id 'hero-titulo' %}" class="mt-5 font-display text-display-lg font-title-strong leading-[1.05] tracking-display text-white lg:text-display-xl">
+              {% if banner.title %}{{ banner.title }}{% else %}{% translate "Peças únicas, impressas sob medida" %}{% endif %}
+            </{% firstof hero_tag 'h1' %}>
 
-          <div class="mt-8 flex flex-wrap items-center gap-3">
-            {% if banner.has_cta and banner.cta_label %}
-              <a href="{{ banner.cta_link }}" class="btn-primary btn-lg">
-                {{ banner.cta_label }}
-                {% icon "arrow-right" "h-4 w-4 rtl:rotate-180" %}
-              </a>
-            {% else %}
-              <a href="{% url 'catalog:models_shop' %}" class="btn-primary btn-lg">
-                {% translate "Ver produtos" %}
-                {% icon "arrow-right" "h-4 w-4 rtl:rotate-180" %}
-              </a>
-            {% endif %}
+            <p class="mt-5 max-w-lg text-base leading-relaxed text-ink-on-deep sm:text-lg">
+              {% if banner and banner.subtitle %}
+                {{ banner.subtitle }}
+              {% else %}
+                {% translate "Modelos decorativos, acessórios e filamentos escolhidos com cuidado. Feitos na Bélgica, com acabamento e cor à sua escolha." %}
+              {% endif %}
+            </p>
+
+            <div class="mt-8 flex flex-wrap items-center gap-3">
+              {% if banner.has_cta and banner.cta_label %}
+                <a href="{{ banner.cta_link }}" class="btn-primary btn-lg">
+                  {{ banner.cta_label }}
+                  {% icon "arrow-right" "h-4 w-4 rtl:rotate-180" %}
+                </a>
+              {% else %}
+                <a href="{% url 'catalog:models_shop' %}" class="btn-primary btn-lg">
+                  {% translate "Ver produtos" %}
+                  {% icon "arrow-right" "h-4 w-4 rtl:rotate-180" %}
+                </a>
+              {% endif %}
+            </div>
+
+            {% comment %}
+              As mesmas promessas da faixa do topo (`storefront.TopBarItem`), e
+              não uma segunda lista escrita aqui: com duas cópias, mudar uma no
+              Admin deixava a outra dizendo o texto velho.
+
+              O ícone é o do item, quando houver. Sem itens cadastrados, o texto
+              de sempre — a Home não abre sem promessa nenhuma.
+            {% endcomment %}
+            <ul class="mt-9 flex flex-wrap items-center gap-x-6 gap-y-3 text-sm text-ink-on-deep" role="list">
+              {% for item in top_bar_items %}
+                {% if item.text %}
+                  <li class="flex items-center gap-2">
+                    {% if item.icon %}{% icon item.icon "h-4 w-4 text-mint-500" %}{% endif %}
+                    {{ item.text }}
+                  </li>
+                {% endif %}
+              {% empty %}
+                <li class="flex items-center gap-2">{% icon "palette" "h-4 w-4 text-mint-500" %}{% translate "Cores e materiais à escolha" %}</li>
+                <li class="flex items-center gap-2">{% icon "cube" "h-4 w-4 text-mint-500" %}{% translate "Produção sob encomenda" %}</li>
+                <li class="flex items-center gap-2">{% icon "truck" "h-4 w-4 text-mint-500" %}{% translate "Envio para toda a Europa" %}</li>
+              {% endfor %}
+            </ul>
           </div>
 
-          {% comment %}
-            As mesmas promessas da faixa do topo (`storefront.TopBarItem`), e
-            não uma segunda lista escrita aqui: com duas cópias, mudar uma no
-            Admin deixava a outra dizendo o texto velho.
-
-            O ícone é o do item, quando houver. Sem itens cadastrados, o texto
-            de sempre — a Home não abre sem promessa nenhuma.
-          {% endcomment %}
-          <ul class="mt-9 flex flex-wrap items-center gap-x-6 gap-y-3 text-sm text-brand-100/85" role="list">
-            {% for item in top_bar_items %}
-              {% if item.text %}
-                <li class="flex items-center gap-2">
-                  {% if item.icon %}{% icon item.icon "h-4 w-4 text-brand-300" %}{% endif %}
-                  {{ item.text }}
-                </li>
-              {% endif %}
-            {% empty %}
-              <li class="flex items-center gap-2">{% icon "palette" "h-4 w-4 text-brand-300" %}{% translate "Cores e materiais à escolha" %}</li>
-              <li class="flex items-center gap-2">{% icon "cube" "h-4 w-4 text-brand-300" %}{% translate "Produção sob encomenda" %}</li>
-              <li class="flex items-center gap-2">{% icon "truck" "h-4 w-4 text-brand-300" %}{% translate "Envio para toda a Europa" %}</li>
-            {% endfor %}
-          </ul>
+          {# Área da arte: reservada, nunca preenchida com foto inventada. #}
+          <div class="hidden aspect-[4/3] flex-col items-center justify-center gap-2 rounded-block border border-dashed border-brand-300/40 bg-white/5 layers-light lg:flex"
+               aria-hidden="true">
+            {% icon "cube" "h-12 w-12 text-ink-on-deep/50" %}
+            <span class="font-mono text-[11px] uppercase tracking-label text-ink-on-deep/75">
+              {% translate "Área de imagem do banner" %}
+            </span>
+          </div>
         </div>
 
-        {# Área da arte: reservada, nunca preenchida com foto inventada. #}
-        <div class="hidden aspect-[4/3] flex-col items-center justify-center gap-2 rounded-block border border-dashed border-brand-300/40 bg-white/5 layers-light lg:flex"
-             aria-hidden="true">
-          {% icon "cube" "h-12 w-12 text-brand-300/60" %}
-          <span class="font-mono text-[11px] uppercase tracking-[0.12em] text-brand-200/80">
-            {% translate "Área de imagem do banner" %}
-          </span>
-        </div>
+        {% if not banner %}
+          <p class="mt-8 rounded-control border border-ink-on-deep/20 bg-white/5 px-4 py-3 font-mono text-[11px] leading-relaxed text-ink-on-deep/75">
+            {% translate "Espaço reservado para o banner promocional. Cadastre um banner em Home › Banners da Home." %}
+          </p>
+        {% endif %}
       </div>
-
-      {% if not banner %}
-        <p class="mt-8 rounded-control border border-brand-300/25 bg-white/5 px-4 py-3 font-mono text-[11px] leading-relaxed text-brand-200/80">
-          {% translate "Espaço reservado para o banner promocional. Cadastre um banner em Home › Banners da Home." %}
-        </p>
-      {% endif %}
-    </div>
+    </section>
 
   {% endif %}
-</section>
+
+{% endif %}

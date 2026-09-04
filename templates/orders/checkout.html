@@ -21,7 +21,7 @@ com o resumo antes do botão de pagar — é o que o cliente confere por último
     <header class="flex flex-wrap items-end justify-between gap-4">
       <div>
         <p class="section-eyebrow">{% translate "Finalizar compra" %}</p>
-        <h1 class="section-title mt-2">{% translate "Checkout" %}</h1>
+        <h1 class="page-title mt-2">{% translate "Checkout" %}</h1>
       </div>
       <a href="{% url 'cart:detail' %}" class="link-brand text-sm">
         {% icon "chevron-left" "h-3.5 w-3.5 rtl:rotate-180" %}
@@ -35,7 +35,7 @@ com o resumo antes do botão de pagar — é o que o cliente confere por último
       <div class="mt-8 max-w-2xl">
         <div class="empty-state">
           <span class="empty-state-icon" aria-hidden="true">{% icon "cart" "h-6 w-6" %}</span>
-          <p class="font-display text-lg font-bold text-ink">{% translate "Não há nada para finalizar" %}</p>
+          <p class="card-title">{% translate "Não há nada para finalizar" %}</p>
           <p class="max-w-md text-sm text-ink-soft">
             {% translate "Escolha um modelo e ele aparece aqui." %}
           </p>
@@ -56,12 +56,12 @@ com o resumo antes do botão de pagar — é o que o cliente confere por último
           {# ---- Passo 1: identificação ---------------------------------- #}
           <section class="card p-5 sm:p-6" aria-labelledby="titulo-identificacao">
             <div class="flex items-center gap-3">
-              <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full font-mono text-[12px] font-medium
+              <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-pill font-mono text-[12px] font-medium
                            {% if is_authenticated %}bg-state-success-soft text-state-success-dark{% else %}bg-brand-100 text-brand-700{% endif %}"
                     aria-hidden="true">
                 {% if is_authenticated %}{% icon "check" "h-3.5 w-3.5" %}{% else %}1{% endif %}
               </span>
-              <h2 id="titulo-identificacao" class="font-display text-lg font-bold text-ink">
+              <h2 id="titulo-identificacao" class="card-title">
                 {% translate "Identificação" %}
               </h2>
             </div>
@@ -116,8 +116,8 @@ com o resumo antes do botão de pagar — é o que o cliente confere por último
               {# ---- Passo 4: pagamento ---------------------------------- #}
               <section class="card p-5 sm:p-6" aria-labelledby="titulo-pagamento">
                 <div class="flex items-center gap-3">
-                  <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-100 font-mono text-[12px] font-medium text-brand-700" aria-hidden="true">4</span>
-                  <h2 id="titulo-pagamento" class="font-display text-lg font-bold text-ink">
+                  <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-pill bg-brand-600 font-mono text-[12px] font-medium text-white" aria-hidden="true">4</span>
+                  <h2 id="titulo-pagamento" class="card-title">
                     {% translate "Pagamento" %}
                   </h2>
                 </div>
@@ -152,7 +152,7 @@ com o resumo antes do botão de pagar — é o que o cliente confere por último
                           <span class="flex flex-wrap items-center gap-2">
                             <strong class="text-sm text-ink">{{ metodo.label }}</strong>
                             {% if not metodo.is_available %}
-                              <span class="rounded-full bg-surface-soft px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.08em] text-ink-muted">
+                              <span class="rounded-pill bg-surface-soft px-2 py-0.5 font-mono text-[10px] uppercase tracking-label text-ink-muted">
                                 {% translate "Em breve" %}
                               </span>
                             {% endif %}
@@ -194,7 +194,7 @@ com o resumo antes do botão de pagar — é o que o cliente confere por último
                   </span>
                 </button>
 
-                <p class="mt-3 text-center font-mono text-[10.5px] uppercase tracking-[0.08em] text-ink-muted">
+                <p class="mt-3 text-center font-mono text-[10.5px] uppercase tracking-label text-ink-muted">
                   {% if payment_provider == "transfer" %}
                     {% translate "Os dados bancários chegam por e-mail na hora" %}
                   {% else %}

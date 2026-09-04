@@ -11,20 +11,43 @@ E-mail transacional da JD PRINT.
 Estilo em atributos `style` (nada de folha de estilo externa nem de classe:
 cliente de e-mail não carrega CSS externo) e nenhuma imagem remota — a marca é
 tipográfica, como no header enquanto a logo oficial não está no projeto.
+
+A identidade é a mesma da loja — creme, navy, roxo e os três acentos —, mas
+escrita do jeito que caixa de entrada entende: cor em `style`, canto em
+`border-radius` (o Outlook para Windows ignora e mostra o retângulo, o que
+está certo), largura em atributo, e a régua de acento como três células de uma
+tabela, porque gradiente não existe em metade dos clientes.
+
+Nenhum token e nenhuma classe do Tailwind aparecem aqui de propósito: o que
+vale nesta pasta é o que sobrevive ao Outlook, não o que é elegante no site.
+As cores são as mesmas do `@theme`, escritas à mão porque não há como um
+e-mail lê-las de lá.
 {% endcomment %}
-<body style="margin:0;padding:0;background-color:#f5f3fb;font-family:Helvetica,Arial,sans-serif;color:#1b1533;">
+<body style="margin:0;padding:0;background-color:#faf8f4;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1b1530;">
   <div style="display:none;max-height:0;overflow:hidden;opacity:0;">{% block email_preview %}{% endblock %}</div>
 
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f5f3fb;padding:24px 12px;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#faf8f4;padding:24px 12px;">
     <tr>
       <td align="center">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
-               style="max-width:520px;background-color:#ffffff;border-radius:16px;border:1px solid #e6e0f5;overflow:hidden;">
+               style="max-width:520px;background-color:#ffffff;border-radius:20px;border:1px solid #e8e3da;overflow:hidden;">
+
+          <tr>
+            <td style="padding:0;font-size:0;line-height:0;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td width="62%" height="4" style="background-color:#4a1a8c;font-size:0;line-height:0;">&nbsp;</td>
+                  <td width="23%" height="4" style="background-color:#f5b5a3;font-size:0;line-height:0;">&nbsp;</td>
+                  <td width="15%" height="4" style="background-color:#f5d547;font-size:0;line-height:0;">&nbsp;</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
 
           <tr>
             <td style="padding:24px 28px 8px 28px;">
-              <span style="display:inline-block;background-color:#1b1533;color:#ffffff;font-weight:bold;font-size:14px;letter-spacing:-0.5px;padding:8px 10px;border-radius:8px;">JD</span>
-              <span style="font-size:16px;font-weight:bold;letter-spacing:-0.3px;margin-left:8px;">JD <span style="color:#6d2ce0;">PRINT</span></span>
+              <span style="display:inline-block;background-color:#1b1530;color:#ffffff;font-weight:bold;font-size:14px;letter-spacing:-0.5px;padding:8px 10px;border-radius:10px;">JD</span>
+              <span style="font-size:16px;font-weight:bold;letter-spacing:-0.3px;margin-left:8px;">JD <span style="color:#4a1a8c;">PRINT</span></span>
             </td>
           </tr>
 
@@ -35,7 +58,7 @@ tipográfica, como no header enquanto a logo oficial não está no projeto.
           </tr>
 
           <tr>
-            <td style="padding:18px 28px;background-color:#fbfaff;border-top:1px solid #e6e0f5;font-size:12px;color:#6b6486;">
+            <td style="padding:18px 28px;background-color:#faf8f4;border-top:1px solid #e8e3da;font-size:12px;color:#6e6880;">
               {% comment %}
                 O aviso contra golpe. É bloco porque o e-mail que leva o IBAN da
                 loja precisa de outra frase: repetir "a JD PRINT nunca manda
@@ -48,7 +71,7 @@ tipográfica, como no header enquanto a logo oficial não está no projeto.
               </p>
               {% endblock %}
               <p style="margin:0;">
-                <a href="{{ site_url }}" style="color:#6d2ce0;text-decoration:none;">{{ site_url }}</a>
+                <a href="{{ site_url }}" style="color:#4a1a8c;text-decoration:none;">{{ site_url }}</a>
               </p>
             </td>
           </tr>

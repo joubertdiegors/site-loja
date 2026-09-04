@@ -469,7 +469,7 @@ class FavoriteCardTests(FavoriteBase):
     def test_the_button_is_not_inside_the_add_to_cart_form(self):
         """Senão, clicar no coração enviaria o formulário do carrinho."""
         html = self.client.get("/modelos/").content.decode()
-        card = html.split('class="card card-hover', 1)[1].split("</article>", 1)[0]
+        card = html.split('class="product-card"', 1)[1].split("</article>", 1)[0]
         antes_do_coracao = card.split("data-favorite-button", 1)[0]
 
         self.assertEqual(antes_do_coracao.count("<form"), 1)  # só o do favorito

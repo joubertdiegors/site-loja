@@ -26,7 +26,14 @@ class SeedDemoDataTests(TestCase):
         self.assertGreater(Product.objects.count(), 0)
         self.assertGreater(Category.objects.count(), 0)
         self.assertGreater(HomeSection.objects.count(), 0)
-        self.assertEqual(HomeBanner.objects.count(), 1)
+        # O de boas-vindas (ativo) e os dois outros desenhos (Poster Pop e
+        # Bento Criativo), inativos, para o Admin ver como ficam.
+        self.assertEqual(HomeBanner.objects.count(), 3)
+        self.assertEqual(HomeBanner.objects.filter(is_active=True).count(), 1)
+        self.assertEqual(
+            set(HomeBanner.objects.values_list("layout", flat=True)),
+            {"editorial", "poster_pop", "bento_criativo"},
+        )
 
     def test_products_are_active_and_named(self):
         self.seed()

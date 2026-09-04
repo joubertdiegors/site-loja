@@ -402,9 +402,18 @@ class HomeQueryTests(TestCase):
         # sem esse cuidado, a Home com oito produtos custaria oito consultas a
         # mais só para descobrir a imagem padrão.
         #
+        # E de 34 para 36 com os blocos da direção visual: uma consulta para a
+        # lista de blocos de categoria e uma para o registro único de "Sobre a
+        # loja". As duas são indexadas e **fixas** — cadastrar vinte blocos não
+        # acrescenta nenhuma, e é o teste abaixo que prova isso.
+        #
         # Fixas: `test_query_count_does_not_grow_with_more_content` continua
         # provando que cadastrar mais conteúdo não acrescenta nenhuma.
-        with self.assertNumQueries(34):
+        #
+        # E de 36 para 37 com o carrossel de banners: uma consulta para a linha
+        # única de configuração (rotação, setas, indicadores). Os banners em si
+        # já vinham numa consulta só — agora todos os ativos, não só o primeiro.
+        with self.assertNumQueries(37):
             self.client.get(HOME_PT)
 
     def test_query_count_does_not_grow_with_more_content(self):
@@ -413,7 +422,15 @@ class HomeQueryTests(TestCase):
         É o que separa "cinco consultas a mais" de um N+1 que só aparece
         quando a loja estiver cheia.
         """
-        from apps.home.models import HomeCard, HomeCardTranslation
+        from apps.home.models import (
+            HomeAbout,
+            HomeAboutBadge,
+            HomeAboutBadgeTranslation,
+            HomeCard,
+            HomeCardTranslation,
+            HomeCategoryCard,
+            HomeCategoryCardTranslation,
+        )
         from apps.storefront.models import (
             FooterColumn,
             FooterColumnTranslation,
@@ -428,6 +445,8 @@ class HomeQueryTests(TestCase):
             make_product(sku=f"P{index}", name=f"Produto {index}", category=category, is_featured=True)
         make_section(internal_name="Destaques", title="Destaques", product_limit=4)
 
+        sobre = HomeAbout.load()
+
         def povoar(quantidade):
             for index in range(quantidade):
                 item = TopBarItem.objects.create(internal_name=f"Topo {index}", sort_order=index)
@@ -440,6 +459,23 @@ class HomeQueryTests(TestCase):
                 FooterColumnTranslation.objects.create(master=coluna, language="pt", title=f"Col {index}")
                 link = FooterLink.objects.create(column=coluna, sort_order=index)
                 FooterLinkTranslation.objects.create(master=link, language="pt", label=f"L{index}")
+
+                # Os blocos da direção visual entram na mesma prova: eles
+                # trazem categoria (`select_related`) e tradução (`prefetch`),
+                # e é justamente esse par que um N+1 quebraria.
+                bloco = HomeCategoryCard.objects.create(
+                    internal_name=f"Bloco {index}", category=category, sort_order=index
+                )
+                HomeCategoryCardTranslation.objects.create(
+                    master=bloco, language="pt", title=f"B{index}"
+                )
+
+                pilula = HomeAboutBadge.objects.create(
+                    about=sobre, internal_name=f"Pill {index}", sort_order=index
+                )
+                HomeAboutBadgeTranslation.objects.create(
+                    master=pilula, language="pt", text=f"P{index}"
+                )
 
         povoar(2)
         base = self.count_queries()

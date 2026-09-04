@@ -174,3 +174,14 @@ logs/
 Thumbs.db
 desktop.ini
 Desktop.ini
+
+# ---------------------------------------------------------------------------
+# Referencias de design e utilitarios de maquina
+#
+# `layout_novo/` guarda os arquivos HTML da direcao visual (bundles do Claude
+# Design, ~1,7 MB) usados como referencia no redesenho de 2026-09; sao insumo
+# de trabalho, nao codigo do site. `scripts/fetch_fonts.py` baixou as fontes
+# uma vez para `static/fonts/` -- as fontes ja estao versionadas.
+# ---------------------------------------------------------------------------
+layout_novo/
+scripts/fetch_fonts.py

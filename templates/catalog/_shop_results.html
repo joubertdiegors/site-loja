@@ -1,228 +1,253 @@
 {% load i18n jdprint %}
 {% comment %}
-Barra de ferramentas + grade + paginação.
+A lista: título com a contagem, ordenação, filtros ativos, grade e paginação.
 
 É o alvo do HTMX (`#shop-results` no template pai): filtrar, ordenar e paginar
 trocam só este bloco. Todos os controles são links/formulários reais, então
 funcionam igual sem JavaScript.
+
+O título é o da categoria em foco — a escolhida na lateral ou a raiz da
+vitrine —, com a contagem ao lado, como na referência. Na busca o título já
+está no cabeçalho da página, e aqui fica só a contagem.
+
+O botão "Filtros" abre a gaveta do celular: aponta para o `id` da lateral,
+que é `#shop-categories` no catálogo e `#shop-materials` na busca (onde a
+lateral é só o filtro de material). Um `popover` nativo faz o resto.
 {% endcomment %}
 
-<div class="card flex flex-wrap items-center justify-between gap-x-4 gap-y-3 p-3.5">
-  <p class="ps-1 text-sm text-ink-soft" aria-live="polite">
-    {% if selected_category %}
-      <span class="font-bold text-ink">{{ selected_category.name }}</span>
-      <span aria-hidden="true" class="text-ink-muted">·</span>
-    {% endif %}
-    {% blocktranslate count total=result_count %}{{ total }} produto{% plural %}{{ total }} produtos{% endblocktranslate %}
-  </p>
+<div class="catalog-results">
 
-  <form method="get" class="flex flex-wrap items-center gap-x-3 gap-y-2"
-        hx-get="{{ results_url }}" hx-target="#shop-results" hx-push-url="true"
-        hx-trigger="change from:#ordenar, change from:#por-pagina" hx-indicator="#shop-results">
-    {% comment %}
-      Os links usam `querystring`, que preserva a URL sozinho; um `<form>` GET,
-      nao: ele envia so os proprios campos. Sem estes tres, trocar a ordenacao
-      perderia a busca, a categoria e o material de uma vez.
-    {% endcomment %}
-    {% if query %}<input type="hidden" name="q" value="{{ query }}">{% endif %}
-    {% if selected_category %}
-      <input type="hidden" name="categoria" value="{{ selected_category.slug }}">
-    {% endif %}
-    {% if selected_material %}
-      <input type="hidden" name="material" value="{{ selected_material.slug }}">
-    {% endif %}
-
-    <span class="flex items-center gap-2">
-      <label for="ordenar" class="hidden text-[13px] text-ink-muted sm:inline">{% translate "Ordenar" %}</label>
-      <select id="ordenar" name="ordenar"
-              class="focus-ring rounded-control border-[1.5px] border-surface-line bg-white px-3 py-2 text-[13px] font-semibold text-ink">
-        {% for key, label in sort_options %}
-          <option value="{{ key }}" {% if key == sort_key %}selected{% endif %}>{{ label }}</option>
-        {% endfor %}
-      </select>
-    </span>
-
-    <span class="flex items-center gap-2">
-      <label for="por-pagina" class="hidden text-[13px] text-ink-muted sm:inline">{% translate "Mostrar" %}</label>
-      <select id="por-pagina" name="per_page"
-              class="focus-ring rounded-control border-[1.5px] border-surface-line bg-white px-3 py-2 font-mono text-[13px] font-medium text-ink">
-        {% for option in page_size_options %}
-          <option value="{{ option }}" {% if option == page_size %}selected{% endif %}>{{ option }}</option>
-        {% endfor %}
-      </select>
-    </span>
-
-    {# Sem JavaScript os selects precisam de um botão para enviar. #}
-    <noscript>
-      <button type="submit" class="btn-secondary btn-sm">{% translate "Aplicar" %}</button>
-    </noscript>
-  </form>
-</div>
-
-{% if selected_category or selected_material %}
-  <div class="mt-4 flex flex-wrap items-center gap-2">
-    {% if selected_category %}
-      <a href="{% querystring categoria=None page=None %}"
-         hx-get="{% querystring categoria=None page=None %}"
-         hx-target="#shop-results" hx-push-url="true" hx-indicator="#shop-results"
-         class="chip focus-ring bg-brand-100 text-[13px] text-brand-800 transition-colors hover:bg-brand-200">
-        {{ selected_category.name }}
-        <span aria-hidden="true" class="text-brand-600">×</span>
-        <span class="sr-only">{% translate "Remover filtro" %}</span>
-      </a>
-    {% endif %}
-    {% if selected_material %}
-      <a href="{% querystring material=None page=None %}"
-         hx-get="{% querystring material=None page=None %}"
-         hx-target="#shop-results" hx-push-url="true" hx-indicator="#shop-results"
-         class="chip focus-ring bg-brand-100 text-[13px] text-brand-800 transition-colors hover:bg-brand-200">
-        {{ selected_material.display_name }}
-        <span aria-hidden="true" class="text-brand-600">×</span>
-        <span class="sr-only">{% translate "Remover filtro" %}</span>
-      </a>
-    {% endif %}
-  </div>
-{% endif %}
-
-{% if products %}
-
-  <ul class="product-grid mt-5" role="list">
-    {% for product in products %}
-      <li>{% include "components/product_card.html" %}</li>
-    {% endfor %}
-  </ul>
-
-  {% if page_obj.has_other_pages %}
-    <nav class="mt-10 flex items-center justify-center gap-1.5" aria-label="{% translate 'Paginação' %}">
-      {% if page_obj.has_previous %}
-        <a href="{% querystring page=page_obj.previous_page_number %}"
-           hx-get="{% querystring page=page_obj.previous_page_number %}"
-           hx-target="#shop-results" hx-push-url="true" hx-indicator="#shop-results"
-           class="page-link" rel="prev">
-          {% icon "chevron-left" "h-4 w-4 rtl:rotate-180" %}
-          <span class="hidden font-sans sm:inline">{% translate "Anterior" %}</span>
-        </a>
-      {% else %}
-        <span class="page-link page-link-disabled" aria-disabled="true">
-          {% icon "chevron-left" "h-4 w-4 rtl:rotate-180" %}
-          <span class="hidden font-sans sm:inline">{% translate "Anterior" %}</span>
-        </span>
-      {% endif %}
-
-      {% for number in paginator.page_range %}
-        {% if number == page_obj.number %}
-          <span class="page-link page-link-active" aria-current="page">{{ number }}</span>
-        {% elif number == 1 or number == paginator.num_pages or number|add:"-2" <= page_obj.number and number|add:"2" >= page_obj.number %}
-          <a href="{% querystring page=number %}"
-             hx-get="{% querystring page=number %}"
-             hx-target="#shop-results" hx-push-url="true" hx-indicator="#shop-results"
-             class="page-link"
-             aria-label="{% blocktranslate %}Página {{ number }}{% endblocktranslate %}">{{ number }}</a>
-        {% elif number == 2 or number|add:"1" == paginator.num_pages %}
-          <span class="px-1 text-ink-muted" aria-hidden="true">…</span>
-        {% endif %}
-      {% endfor %}
-
-      {% if page_obj.has_next %}
-        <a href="{% querystring page=page_obj.next_page_number %}"
-           hx-get="{% querystring page=page_obj.next_page_number %}"
-           hx-target="#shop-results" hx-push-url="true" hx-indicator="#shop-results"
-           class="page-link" rel="next">
-          <span class="hidden font-sans sm:inline">{% translate "Próximo" %}</span>
-          {% icon "chevron-right" "h-4 w-4 rtl:rotate-180" %}
-        </a>
-      {% else %}
-        <span class="page-link page-link-disabled" aria-disabled="true">
-          <span class="hidden font-sans sm:inline">{% translate "Próximo" %}</span>
-          {% icon "chevron-right" "h-4 w-4 rtl:rotate-180" %}
-        </span>
-      {% endif %}
-    </nav>
-  {% endif %}
-
-{% else %}
-
-  <div class="empty-state mt-5">
-    <span class="empty-state-icon" aria-hidden="true">{% icon "search" "h-6 w-6" %}</span>
-
-    {% if is_search and has_query %}
-      {% comment %}
-        Busca sem resultado é a única tela da loja em que o cliente já disse o
-        que quer e a loja não tem. Responder só "nenhum produto encontrado" o
-        deixa sem próximo passo — e a JD PRINT imprime sob encomenda, então
-        "não está no catálogo" não é o mesmo que "não dá para fazer".
-
-        Por isso o convite ao contato aparece **aqui e só aqui**: nas outras
-        listas vazias (categoria sem produto, filtro que não casou) o caminho
-        certo é continuar navegando, não escrever para a loja.
-      {% endcomment %}
-      <p class="font-display text-lg font-bold text-ink">
-        {% blocktranslate with termo=query %}Não encontramos nada para “{{ termo }}”.{% endblocktranslate %}
-      </p>
-      <p class="max-w-md text-sm text-ink-soft">
-        {% translate "Pode ser a grafia da palavra, ou a peça pode ainda não estar no catálogo." %}
-      </p>
-      <p class="max-w-md text-sm text-ink-soft">
-        {% translate "Se você procura algo específico, fale com a gente." %}
-      </p>
-    {% elif is_search %}
-      <p class="font-display text-lg font-bold text-ink">{% translate "O que você procura?" %}</p>
-      <p class="max-w-md text-sm text-ink-soft">
-        {% translate "Digite o nome de um produto, uma categoria ou um material." %}
+  <div class="catalog-head">
+    {% if is_search %}
+      <p class="catalog-count" aria-live="polite">
+        {% blocktranslate count total=result_count %}{{ total }} produto{% plural %}{{ total }} produtos{% endblocktranslate %}
       </p>
     {% else %}
-      <p class="font-display text-lg font-bold text-ink">{% translate "Nenhum produto por aqui ainda" %}</p>
-      <p class="max-w-md text-sm text-ink-soft">
-        {% if selected_material %}
-          {% translate "Nenhum produto disponível com este material no momento." %}
-        {% else %}
-          {% translate "Nenhum produto disponível nesta categoria no momento." %}
-        {% endif %}
-      </p>
+      <h1 class="catalog-title">
+        {% if selected_category %}{{ selected_category.name }}{% else %}{{ page_title }}{% endif %}
+        <span class="catalog-title-count" aria-live="polite">{% blocktranslate count total=result_count %}{{ total }} item{% plural %}{{ total }} itens{% endblocktranslate %}</span>
+      </h1>
     {% endif %}
 
-    <div class="mt-1 flex flex-wrap justify-center gap-2">
-      {% if selected_material %}
-        <a href="{% querystring material=None page=None %}"
-           hx-get="{% querystring material=None page=None %}"
-           hx-target="#shop-results" hx-push-url="true"
-           class="btn-secondary btn-sm">{% translate "Remover o filtro de material" %}</a>
+    <div class="catalog-tools">
+      {% if root_category or material_nodes %}
+        <button type="button" class="catalog-filters-button"
+                popovertarget="{% if root_category %}shop-categories{% else %}shop-materials{% endif %}">
+          {% icon "sliders" "h-4 w-4" %}
+          {% translate "Filtros" %}
+        </button>
       {% endif %}
-      {% if selected_category %}
-        <a href="{% querystring categoria=None page=None %}"
-           hx-get="{% querystring categoria=None page=None %}"
-           hx-target="#shop-results" hx-push-url="true"
-           class="btn-secondary btn-sm">{% translate "Ver todos os produtos" %}</a>
-      {% endif %}
-      {% comment %}
-        A ordem importa: o contato vem primeiro porque é a saída que o cliente
-        não tem como adivinhar sozinho. "Ver o catálogo" continua ao lado, em
-        secundário — quem só errou a palavra volta por ali.
-      {% endcomment %}
-      {% if is_search and has_query %}
-        <a href="{% url 'storefront:page_contact' %}" class="btn-primary btn-sm">
-          {% translate "Entrar em contato" %}
-        </a>
-      {% endif %}
-      {% if is_search %}
-        <a href="{% url 'catalog:models_shop' %}" class="btn-secondary btn-sm">
-          {% translate "Ver o catálogo" %}
-        </a>
-      {% endif %}
+
+      <form method="get" class="catalog-tools-form"
+            hx-get="{{ results_url }}" hx-target="#shop-results" hx-push-url="true"
+            hx-trigger="change from:#ordenar, change from:#por-pagina" hx-indicator="#shop-results">
+        {% comment %}
+          Os links usam `querystring`, que preserva a URL sozinho; um `<form>` GET,
+          nao: ele envia so os proprios campos. Sem estes tres, trocar a ordenacao
+          perderia a busca, a categoria e o material de uma vez.
+        {% endcomment %}
+        {% if query %}<input type="hidden" name="q" value="{{ query }}">{% endif %}
+        {% if selected_category %}
+          <input type="hidden" name="categoria" value="{{ selected_category.slug }}">
+        {% endif %}
+        {% if selected_material %}
+          <input type="hidden" name="material" value="{{ selected_material.slug }}">
+        {% endif %}
+
+        <label class="catalog-select" for="ordenar">
+          <span>{% translate "Ordenar" %}:</span>
+          <select id="ordenar" name="ordenar">
+            {% for key, label in sort_options %}
+              <option value="{{ key }}" {% if key == sort_key %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </label>
+
+        <label class="catalog-select" for="por-pagina">
+          <span>{% translate "Mostrar" %}:</span>
+          <select id="por-pagina" name="per_page">
+            {% for option in page_size_options %}
+              <option value="{{ option }}" {% if option == page_size %}selected{% endif %}>{{ option }}</option>
+            {% endfor %}
+          </select>
+        </label>
+
+        {# Sem JavaScript os selects precisam de um botão para enviar. #}
+        <noscript>
+          <button type="submit" class="catalog-chip">{% translate "Aplicar" %}</button>
+        </noscript>
+      </form>
     </div>
   </div>
 
-{% endif %}
+  {% if selected_category or selected_material %}
+    <ul class="catalog-pills" role="list" aria-label="{% translate 'Filtros ativos' %}">
+      {% if selected_category %}
+        <li>
+          <a href="{% querystring categoria=None page=None %}"
+             hx-get="{% querystring categoria=None page=None %}"
+             hx-target="#shop-results" hx-push-url="true" hx-indicator="#shop-results"
+             class="catalog-pill">
+            {{ selected_category.name }}
+            <span aria-hidden="true">✕</span>
+            <span class="sr-only">{% translate "Remover filtro" %}</span>
+          </a>
+        </li>
+      {% endif %}
+      {% if selected_material %}
+        <li>
+          <a href="{% querystring material=None page=None %}"
+             hx-get="{% querystring material=None page=None %}"
+             hx-target="#shop-results" hx-push-url="true" hx-indicator="#shop-results"
+             class="catalog-pill">
+            {{ selected_material.display_name }}
+            <span aria-hidden="true">✕</span>
+            <span class="sr-only">{% translate "Remover filtro" %}</span>
+          </a>
+        </li>
+      {% endif %}
+    </ul>
+  {% endif %}
+
+  {% if products %}
+
+    <ul class="product-grid product-grid-catalog" role="list">
+      {% for product in products %}
+        <li>{% include "components/product_card.html" %}</li>
+      {% endfor %}
+    </ul>
+
+    {% if page_obj.has_other_pages %}
+      <nav class="catalog-pagination" aria-label="{% translate 'Paginação' %}">
+        {% if page_obj.has_previous %}
+          <a href="{% querystring page=page_obj.previous_page_number %}"
+             hx-get="{% querystring page=page_obj.previous_page_number %}"
+             hx-target="#shop-results" hx-push-url="true" hx-indicator="#shop-results"
+             class="page-link" rel="prev">
+            {% icon "chevron-left" "h-4 w-4 rtl:rotate-180" %}
+            <span class="hidden sm:inline">{% translate "Anterior" %}</span>
+          </a>
+        {% else %}
+          <span class="page-link page-link-disabled" aria-disabled="true">
+            {% icon "chevron-left" "h-4 w-4 rtl:rotate-180" %}
+            <span class="hidden sm:inline">{% translate "Anterior" %}</span>
+          </span>
+        {% endif %}
+
+        {% for number in paginator.page_range %}
+          {% if number == page_obj.number %}
+            <span class="page-link page-link-active" aria-current="page">{{ number }}</span>
+          {% elif number == 1 or number == paginator.num_pages or number|add:"-2" <= page_obj.number and number|add:"2" >= page_obj.number %}
+            <a href="{% querystring page=number %}"
+               hx-get="{% querystring page=number %}"
+               hx-target="#shop-results" hx-push-url="true" hx-indicator="#shop-results"
+               class="page-link"
+               aria-label="{% blocktranslate %}Página {{ number }}{% endblocktranslate %}">{{ number }}</a>
+          {% elif number == 2 or number|add:"1" == paginator.num_pages %}
+            <span class="px-1 text-ink-muted" aria-hidden="true">…</span>
+          {% endif %}
+        {% endfor %}
+
+        {% if page_obj.has_next %}
+          <a href="{% querystring page=page_obj.next_page_number %}"
+             hx-get="{% querystring page=page_obj.next_page_number %}"
+             hx-target="#shop-results" hx-push-url="true" hx-indicator="#shop-results"
+             class="page-link" rel="next">
+            <span class="hidden sm:inline">{% translate "Próximo" %}</span>
+            {% icon "chevron-right" "h-4 w-4 rtl:rotate-180" %}
+          </a>
+        {% else %}
+          <span class="page-link page-link-disabled" aria-disabled="true">
+            <span class="hidden sm:inline">{% translate "Próximo" %}</span>
+            {% icon "chevron-right" "h-4 w-4 rtl:rotate-180" %}
+          </span>
+        {% endif %}
+      </nav>
+    {% endif %}
+
+  {% else %}
+
+    <div class="empty-state">
+      <span class="empty-state-icon" aria-hidden="true">{% icon "search" "h-6 w-6" %}</span>
+
+      {% if is_search and has_query %}
+        {% comment %}
+          Busca sem resultado é a única tela da loja em que o cliente já disse o
+          que quer e a loja não tem. Responder só "nenhum produto encontrado" o
+          deixa sem próximo passo — e a JD PRINT imprime sob encomenda, então
+          "não está no catálogo" não é o mesmo que "não dá para fazer".
+
+          Por isso o convite ao contato aparece **aqui e só aqui**: nas outras
+          listas vazias (categoria sem produto, filtro que não casou) o caminho
+          certo é continuar navegando, não escrever para a loja.
+        {% endcomment %}
+        <p class="card-title">
+          {% blocktranslate with termo=query %}Não encontramos nada para “{{ termo }}”.{% endblocktranslate %}
+        </p>
+        <p class="max-w-md text-sm text-ink-soft">
+          {% translate "Pode ser a grafia da palavra, ou a peça pode ainda não estar no catálogo." %}
+        </p>
+        <p class="max-w-md text-sm text-ink-soft">
+          {% translate "Se você procura algo específico, fale com a gente." %}
+        </p>
+      {% elif is_search %}
+        <p class="card-title">{% translate "O que você procura?" %}</p>
+        <p class="max-w-md text-sm text-ink-soft">
+          {% translate "Digite o nome de um produto, uma categoria ou um material." %}
+        </p>
+      {% else %}
+        <p class="card-title">{% translate "Nenhum produto por aqui ainda" %}</p>
+        <p class="max-w-md text-sm text-ink-soft">
+          {% if selected_material %}
+            {% translate "Nenhum produto disponível com este material no momento." %}
+          {% else %}
+            {% translate "Nenhum produto disponível nesta categoria no momento." %}
+          {% endif %}
+        </p>
+      {% endif %}
+
+      <div class="mt-1 flex flex-wrap justify-center gap-2">
+        {% if selected_material %}
+          <a href="{% querystring material=None page=None %}"
+             hx-get="{% querystring material=None page=None %}"
+             hx-target="#shop-results" hx-push-url="true"
+             class="btn-secondary btn-sm">{% translate "Remover o filtro de material" %}</a>
+        {% endif %}
+        {% if selected_category %}
+          <a href="{% querystring categoria=None page=None %}"
+             hx-get="{% querystring categoria=None page=None %}"
+             hx-target="#shop-results" hx-push-url="true"
+             class="btn-secondary btn-sm">{% translate "Ver todos os produtos" %}</a>
+        {% endif %}
+        {% comment %}
+          A ordem importa: o contato vem primeiro porque é a saída que o cliente
+          não tem como adivinhar sozinho. "Ver o catálogo" continua ao lado, em
+          secundário — quem só errou a palavra volta por ali.
+        {% endcomment %}
+        {% if is_search and has_query %}
+          <a href="{% url 'storefront:page_contact' %}" class="btn-primary btn-sm">
+            {% translate "Entrar em contato" %}
+          </a>
+        {% endif %}
+        {% if is_search %}
+          <a href="{% url 'catalog:models_shop' %}" class="btn-secondary btn-sm">
+            {% translate "Ver o catálogo" %}
+          </a>
+        {% endif %}
+      </div>
+    </div>
+
+  {% endif %}
+</div>
 
 {% comment %}
-Resposta parcial: a barra de categorias volta junto, fora do alvo da
-troca, para a categoria ativa não ficar congelada.
+Resposta parcial: a lateral volta junto, fora do alvo da troca, para a
+categoria ativa não ficar congelada — e para a gaveta do celular fechar
+depois da escolha, já que o nó trocado é o próprio popover.
 {% endcomment %}
 {% if is_partial and root_category %}
   {% include "catalog/_shop_sidebar.html" with oob=True %}
 {% elif is_partial and material_nodes %}
   {# A busca nao tem categorias, mas tem materiais: a lateral dela e so isso. #}
-  <div id="shop-materials" hx-swap-oob="true">
-    {% include "catalog/_material_filter.html" with standalone=True %}
-  </div>
+  {% include "catalog/_material_filter.html" with standalone=True oob=True %}
 {% endif %}

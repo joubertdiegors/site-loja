@@ -1,1 +1,6 @@
 -r base.txt
+
+# Testes de navegador (apps/home/tests/test_banner_carousel_browser.py):
+# usam o Edge ou o Chrome da maquina; sem eles, `python -m playwright install
+# chromium`. Sem o pacote, esses testes sao pulados.
+playwright==1.62.0

@@ -1,137 +1,114 @@
 {% load i18n jdprint %}
 {% comment %}
-Card de produto — usado na Home e no Shop.
+Card de produto — usado no catálogo, na Home e nos favoritos.
 
 Espera `product` (catalog.Product). Todo o conteúdo vem do banco: nome
 traduzido, preço, cores, disponibilidade e mídia.
 
-O card inteiro é clicável (link "esticado" no título). O formulário de
-"adicionar ao carrinho" fica acima dele (z-10), então clicar no botão adiciona
-ao carrinho em vez de abrir o produto.
+A anatomia é a da direção visual: moldura pastel com a foto, etiqueta navy no
+canto, coração branco no outro; abaixo, categoria em maiúsculas, nome em
+Baloo, preço roxo e quantas cores existem. O que a referência não desenha e a
+loja precisa continua aqui, no mesmo desenho: o prazo de quem é sob
+encomenda, o aviso de estoque baixo e o botão de comprar — um contorno navy
+que se enche ao passar o cursor, o botão secundário da referência.
 
-O botão nasce discreto (roxo claro) e ganha peso quando o cursor está no card:
-o protagonista é o produto, não o botão.
+O card inteiro é clicável (link "esticado" no título). O botão e o coração
+ficam acima dele (`z-index: 10`), então clicar neles faz o que dizem em vez
+de abrir o produto.
 
 O coração é `components/favorite_button.html`: para quem entrou é um POST
 que guarda o produto; para o visitante, um link para o login. O estado sai de
 `favorite_ids`, carregado uma vez por requisição — nunca uma consulta por card.
 {% endcomment %}
-<article class="card card-hover group relative flex h-full flex-col">
+<article class="product-card">
 
-  <div class="relative">
-    <a href="{{ product.get_absolute_url }}" class="focus-ring block overflow-hidden"
-       aria-label="{{ product.display_name }}">
-      {% include "components/product_media.html" with media=product.display_media name=product.display_name %}
-    </a>
+  <div class="product-card-media">
+    {% include "components/product_media.html" with media=product.display_media name=product.display_name %}
 
-    <div class="pointer-events-none absolute inset-x-3 top-3 z-10 flex items-start justify-between gap-2">
-      <div class="flex flex-wrap gap-1.5">
-        {% if product.made_to_order %}
-          <span class="badge-amber whitespace-nowrap">{% translate "Sob encomenda" %}</span>
-        {% elif not product.is_available %}
-          <span class="badge-muted whitespace-nowrap">{% translate "Esgotado" %}</span>
-        {% elif product.needs_personalization %}
-          <span class="badge-magenta-soft whitespace-nowrap">{% translate "Personalizável" %}</span>
-        {% elif product.is_featured %}
-          <span class="badge-brand whitespace-nowrap">{% translate "Destaque" %}</span>
-        {% endif %}
-      </div>
-
-      {% include "components/favorite_button.html" %}
-    </div>
-  </div>
-
-  <div class="flex flex-1 flex-col gap-2 p-4">
-    {% if product.category %}
-      <p class="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-muted">{{ product.category.name }}</p>
+    {% if product.made_to_order %}
+      <span class="product-card-badge">{% translate "Sob encomenda" %}</span>
+    {% elif not product.is_available %}
+      <span class="product-card-badge">{% translate "Esgotado" %}</span>
+    {% elif product.needs_personalization %}
+      <span class="product-card-badge">{% translate "Personalizável" %}</span>
+    {% elif product.is_featured %}
+      <span class="product-card-badge">{% translate "Destaque" %}</span>
     {% endif %}
 
-    <h3 class="text-sm font-bold leading-snug text-ink sm:text-[15px]">
-      <a href="{{ product.get_absolute_url }}" class="focus-ring rounded before:absolute before:inset-0 before:content-['']">
-        {{ product.display_name }}
-      </a>
+    {% include "components/favorite_button.html" %}
+  </div>
+
+  <div class="product-card-body">
+    {% if product.category %}
+      <p class="product-card-category">{{ product.category.name }}</p>
+    {% endif %}
+
+    <h3 class="product-card-name">
+      <a href="{{ product.get_absolute_url }}">{{ product.display_name }}</a>
     </h3>
 
-    <div class="mt-auto flex items-end justify-between gap-2 pt-1">
-      <div class="min-w-0">
-        {% comment %}
-          O preço vem SEMPRE de uma variante: é ela que se vende. Com preços
-          diferentes entre as opções, o card mostra o menor com "a partir de".
-        {% endcomment %}
+    <div class="product-card-row">
+      {% comment %}
+        O preço vem SEMPRE de uma variante: é ela que se vende. Com preços
+        diferentes entre as opções, o card mostra o menor com "a partir de".
+      {% endcomment %}
+      <p class="product-card-price tabular-price">
         {% if product.has_price_range %}
           {% with faixa=product.price_range %}
-            <p class="font-display text-base font-bold tabular-price text-ink sm:text-lg">
-              {{ product.currency_symbol }}&nbsp;{{ faixa.0|floatformat:2 }}
-              <span class="text-[11px] font-medium text-ink-muted">{% translate "a partir de" %}</span>
-            </p>
+            <span class="product-card-price-note">{% translate "a partir de" %}</span>
+            {{ product.currency_symbol }}&nbsp;{{ faixa.0|floatformat:2 }}
           {% endwith %}
         {% elif product.display_price %}
-          <p class="font-display text-base font-bold tabular-price text-ink sm:text-lg">
-            {{ product.currency_symbol }}&nbsp;{{ product.display_price|floatformat:2 }}
-          </p>
+          {{ product.currency_symbol }}&nbsp;{{ product.display_price|floatformat:2 }}
         {% else %}
-          <p class="text-sm font-semibold text-ink-muted">{% translate "Sob consulta" %}</p>
+          <span class="product-card-price-note">{% translate "Sob consulta" %}</span>
         {% endif %}
-
-        {% comment %}
-          O prazo tambem e da variante em exibicao: cada opcao tem o seu, e o
-          card mostra o da que abriria selecionada na pagina do produto.
-        {% endcomment %}
-        {% if product.stock_state == "made_to_order" %}
-          {% with prazo=product.default_variant.production_lead_time_days %}
-            <p class="mt-0.5 text-[11.5px] font-semibold text-state-warning-dark">
-              {% if prazo %}
-                {% blocktranslate count days=prazo %}Pronto em {{ days }} dia{% plural %}Pronto em {{ days }} dias{% endblocktranslate %}
-              {% else %}
-                {% translate "Sob encomenda" %}
-              {% endif %}
-            </p>
-          {% endwith %}
-        {% elif product.stock_state == "out" %}
-          <p class="mt-0.5 text-[11.5px] font-semibold text-state-error">{% translate "Sem estoque" %}</p>
-        {% elif product.stock_state == "low" %}
-          <p class="mt-0.5 text-[11.5px] font-semibold text-state-warning-dark">{% translate "Últimas unidades" %}</p>
-        {% else %}
-          <p class="mt-0.5 text-[11.5px] font-semibold text-state-success">{% translate "Em estoque" %}</p>
-        {% endif %}
-      </div>
+      </p>
 
       {% with colors=product.available_colors %}
         {% if colors %}
-          <ul class="flex shrink-0 items-center gap-1" role="list"
-              aria-label="{% translate 'Cores disponíveis' %}">
-            {% for color in colors|slice:":4" %}
-              <li>
-                <span class="block h-3.5 w-3.5 rounded-full border border-black/10"
-                      style="background-color: {{ color.hex_code|default:'#d4d4d8' }}"
-                      title="{{ color.display_name }}"></span>
-                <span class="sr-only">{{ color.display_name }}</span>
-              </li>
-            {% endfor %}
-            {% if colors|length > 4 %}
-              <li class="font-mono text-[10px] text-ink-muted">+{{ colors|length|add:"-4" }}</li>
-            {% endif %}
-          </ul>
+          <p class="product-card-colors">
+            {% blocktranslate count total=colors|length %}{{ total }} cor{% plural %}{{ total }} cores{% endblocktranslate %}
+            <span class="sr-only">: {% for color in colors %}{{ color.display_name }}{% if not forloop.last %}, {% endif %}{% endfor %}</span>
+          </p>
         {% endif %}
       {% endwith %}
     </div>
 
-    {# z-10: fica acima do link esticado do título, senão o clique abriria o produto. #}
-    <div class="relative z-10 mt-3">
+    {% comment %}
+      A disponibilidade que a etiqueta não conta: o prazo de quem é sob
+      encomenda (é da variante em exibição, cada opção tem o seu) e o
+      estoque baixo. "Em estoque" é o normal e não ganha linha.
+    {% endcomment %}
+    {% if product.stock_state == "made_to_order" %}
+      {% with prazo=product.default_variant.production_lead_time_days %}
+        {% if prazo %}
+          <p class="product-card-stock product-card-stock-warning">
+            {% blocktranslate count days=prazo %}Pronto em {{ days }} dia{% plural %}Pronto em {{ days }} dias{% endblocktranslate %}
+          </p>
+        {% endif %}
+      {% endwith %}
+    {% elif product.stock_state == "out" %}
+      <p class="product-card-stock product-card-stock-error">{% translate "Sem estoque" %}</p>
+    {% elif product.stock_state == "low" %}
+      <p class="product-card-stock product-card-stock-warning">{% translate "Últimas unidades" %}</p>
+    {% endif %}
+
+    <div class="product-card-action">
       {% if not product.is_available %}
-        <button type="button" class="btn-secondary btn-sm w-full cursor-not-allowed opacity-60" disabled>
+        <button type="button" class="product-card-button" disabled>
           {% translate "Esgotado" %}
         </button>
 
       {% elif product.needs_personalization %}
         {# Personalização pendente: a página do produto resolve. #}
-        <a href="{{ product.get_absolute_url }}" class="btn-dark btn-sm w-full">
+        <a href="{{ product.get_absolute_url }}" class="product-card-button">
           {% translate "Personalizar" %}
         </a>
 
       {% elif product.has_multiple_variants %}
         {# Mais de uma opção: quem escolhe é o cliente, na página do produto. #}
-        <a href="{{ product.get_absolute_url }}" class="btn-soft btn-sm w-full">
+        <a href="{{ product.get_absolute_url }}" class="product-card-button">
           {% translate "Escolher opções" %}
         </a>
 
@@ -147,8 +124,7 @@ que guarda o produto; para o visitante, um link para o login. O estado sai de
           <input type="hidden" name="product_id" value="{{ product.pk }}">
           <input type="hidden" name="variant_id" value="{{ product.default_variant.pk }}">
           <input type="hidden" name="next" value="{{ request.get_full_path }}">
-          {# Sem ícone: com o texto em português o botão caberia em duas linhas. #}
-          <button type="submit" class="btn-soft btn-sm w-full">
+          <button type="submit" class="product-card-button">
             {% translate "Adicionar ao carrinho" %}
           </button>
         </form>

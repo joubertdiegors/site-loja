@@ -112,7 +112,7 @@ HOME_CARDS = [
         },
     ),
     (
-        "cores-materiais", "palette", "cyan", 1,
+        "cores-materiais", "palette", "mint", 1,
         {
             "pt": ("Cores e materiais à escolha", "Cada peça sai na cor e no material que você escolher."),
             "fr": ("Couleurs et matériaux au choix", "Chaque pièce sort dans la couleur et la matière que vous choisissez."),
@@ -121,7 +121,7 @@ HOME_CARDS = [
         },
     ),
     (
-        "personalizacao", "sparkles", "magenta", 2,
+        "personalizacao", "sparkles", "coral", 2,
         {
             "pt": ("Personalização real", "Foto ou texto aplicados na peça antes da impressão."),
             "fr": ("Personnalisation réelle", "Photo ou texte appliqués sur la pièce avant l'impression."),
@@ -645,14 +645,171 @@ PRODUCTS = [
 
 # --- Home -------------------------------------------------------------------
 
+#: O hero editorial da direção visual, nos quatro idiomas.
+#:
+#: `highlight` é um trecho que precisa EXISTIR dentro do título daquele idioma:
+#: é ele que sai em roxo. Se a tradução mudar a palavra, o título continua
+#: inteiro, só sem o destaque.
 BANNER = {
     "internal_name": "Banner de boas-vindas (demonstração)",
+    "layout": "editorial",
+    "cta_secondary_url": "/contato/",
     "translations": {
-        "pt": ("Peças únicas, impressas sob medida", "Modelos decorativos, acessórios e filamentos — com cor e acabamento à sua escolha.", "Ver produtos"),
-        "fr": ("Des pièces uniques, imprimées sur mesure", "Modèles décoratifs, accessoires et filaments — couleur et finition au choix.", "Voir les produits"),
-        "en": ("Unique pieces, printed to order", "Decorative models, accessories and filaments — your colour, your finish.", "Browse products"),
+        "pt": {
+            "eyebrow": "Impressão 3D criativa",
+            "title": "Ideias que ganham forma, camada por camada.",
+            "title_highlight": "forma",
+            "subtitle": "Modelos decorativos, brinquedos, acessórios e filamentos — impressos na Bélgica com a cor e o acabamento que você escolher.",
+            "cta_label": "Ver produtos",
+            "cta_secondary_label": "Pedir orçamento",
+            "perks": ("Qualidade em cada detalhe", "Cores à escolha", "Envio em 3–5 dias"),
+            "badges": ("PLA · 0.12 mm", "+120 cores", "★ 4.9 · 300+ pedidos"),
+        },
+        "fr": {
+            "eyebrow": "Impression 3D créative",
+            "title": "Des idées qui prennent forme, couche après couche.",
+            "title_highlight": "forme",
+            "subtitle": "Modèles décoratifs, jouets, accessoires et filaments — imprimés en Belgique, dans la couleur et la finition de votre choix.",
+            "cta_label": "Voir les produits",
+            "cta_secondary_label": "Demander un devis",
+            "perks": ("Soin du détail", "Couleurs au choix", "Livraison en 3–5 jours"),
+            "badges": ("PLA · 0,12 mm", "+120 couleurs", "★ 4,9 · 300+ commandes"),
+        },
+        "nl": {
+            "eyebrow": "Creatief 3D-printen",
+            "title": "Ideeën die vorm krijgen, laag na laag.",
+            "title_highlight": "vorm",
+            "subtitle": "Decoratieve modellen, speelgoed, accessoires en filament — geprint in België, in de kleur en afwerking die u kiest.",
+            "cta_label": "Bekijk producten",
+            "cta_secondary_label": "Offerte aanvragen",
+            "perks": ("Oog voor detail", "Kleur naar keuze", "Levering in 3–5 dagen"),
+            "badges": ("PLA · 0,12 mm", "+120 kleuren", "★ 4,9 · 300+ orders"),
+        },
+        "en": {
+            "eyebrow": "Creative 3D printing",
+            "title": "Ideas that take shape, layer by layer.",
+            "title_highlight": "shape",
+            "subtitle": "Decorative models, toys, accessories and filament — printed in Belgium, in the colour and finish you choose.",
+            "cta_label": "Browse products",
+            "cta_secondary_label": "Request a quote",
+            "perks": ("Care in every detail", "Your colour", "Delivered in 3–5 days"),
+            "badges": ("PLA · 0.12 mm", "+120 colours", "★ 4.9 · 300+ orders"),
+        },
     },
 }
+
+#: Os outros dois desenhos do banner, para o Admin ver como ficam. Nascem
+#: INATIVOS: a Home mostra o primeiro banner ativo, e o de boas-vindas
+#: (editorial) continua sendo ele. Ativar um destes é uma decisão do Admin.
+#:
+#: Cada tradução é o dicionário de campos da `HomeBannerTranslation`, tal
+#: qual; `title_highlight` precisa existir dentro do `title` do idioma.
+EXTRA_BANNERS = [
+    {
+        "internal_name": "Poster Pop (demonstração)",
+        "layout": "poster_pop",
+        "sort_order": 2,
+        "cta_secondary_url": "/contato/",
+        "translations": {
+            "pt": {
+                "eyebrow": "Impressão 3D criativa",
+                "title": "Do arquivo à sua mesa, camada por camada.",
+                "title_highlight": "camada",
+                "subtitle": "Modelos decorativos, brinquedos, acessórios e filamentos — impressos na Bélgica com a cor e o acabamento que você escolher.",
+                "cta_label": "Ver produtos",
+                "cta_secondary_label": "Pedir orçamento",
+                "perk_1": "Qualidade em cada detalhe", "perk_2": "Cores à escolha", "perk_3": "Envio em 3–5 dias",
+                "badge_mint": "+120 cores", "badge_white": "★ 4.9 · 300+ pedidos",
+            },
+            "fr": {
+                "eyebrow": "Impression 3D créative",
+                "title": "Du fichier à votre table, couche après couche.",
+                "title_highlight": "couche",
+                "subtitle": "Modèles décoratifs, jouets, accessoires et filaments — imprimés en Belgique, dans la couleur et la finition de votre choix.",
+                "cta_label": "Voir les produits",
+                "cta_secondary_label": "Demander un devis",
+                "perk_1": "Soin du détail", "perk_2": "Couleurs au choix", "perk_3": "Livraison en 3–5 jours",
+                "badge_mint": "+120 couleurs", "badge_white": "★ 4,9 · 300+ commandes",
+            },
+            "nl": {
+                "eyebrow": "Creatief 3D-printen",
+                "title": "Van bestand tot tafel, laag na laag.",
+                "title_highlight": "laag",
+                "subtitle": "Decoratieve modellen, speelgoed, accessoires en filament — geprint in België, in de kleur en afwerking die u kiest.",
+                "cta_label": "Bekijk producten",
+                "cta_secondary_label": "Offerte aanvragen",
+                "perk_1": "Oog voor detail", "perk_2": "Kleur naar keuze", "perk_3": "Levering in 3–5 dagen",
+                "badge_mint": "+120 kleuren", "badge_white": "★ 4,9 · 300+ orders",
+            },
+            "en": {
+                "eyebrow": "Creative 3D printing",
+                "title": "From file to your table, layer by layer.",
+                "title_highlight": "layer",
+                "subtitle": "Decorative models, toys, accessories and filament — printed in Belgium, in the colour and finish you choose.",
+                "cta_label": "Browse products",
+                "cta_secondary_label": "Request a quote",
+                "perk_1": "Care in every detail", "perk_2": "Your colour", "perk_3": "Delivered in 3–5 days",
+                "badge_mint": "+120 colours", "badge_white": "★ 4.9 · 300+ orders",
+            },
+        },
+    },
+    {
+        "internal_name": "Bento Criativo (demonstração)",
+        "layout": "bento_criativo",
+        "sort_order": 3,
+        "cta_secondary_url": "/contato/",
+        "translations": {
+            "pt": {
+                "eyebrow": "Impressão 3D criativa",
+                "title": "Imprimimos o que você imagina.",
+                "title_highlight": "imagina",
+                "subtitle": "Modelos decorativos, brinquedos, acessórios e filamentos — com a cor e o acabamento que você escolher, a partir de 1 unidade.",
+                "cta_label": "Ver produtos",
+                "cta_secondary_label": "Pedir orçamento",
+                "perk_1": "Qualidade em cada detalhe", "perk_2": "Cores à escolha", "perk_3": "Envio em 3–5 dias",
+                "badge_coral": "Feito na Bélgica", "badge_yellow": "PLA · 0.12 mm",
+                "badge_mint": "+120 cores", "colors_note": "PLA · PETG · TPU",
+                "rating_value": "4.9", "rating_note": "300+ pedidos entregues",
+            },
+            "fr": {
+                "eyebrow": "Impression 3D créative",
+                "title": "Nous imprimons ce que vous imaginez.",
+                "title_highlight": "imaginez",
+                "subtitle": "Modèles décoratifs, jouets, accessoires et filaments — dans la couleur et la finition de votre choix, dès 1 pièce.",
+                "cta_label": "Voir les produits",
+                "cta_secondary_label": "Demander un devis",
+                "perk_1": "Soin du détail", "perk_2": "Couleurs au choix", "perk_3": "Livraison en 3–5 jours",
+                "badge_coral": "Fait en Belgique", "badge_yellow": "PLA · 0,12 mm",
+                "badge_mint": "+120 couleurs", "colors_note": "PLA · PETG · TPU",
+                "rating_value": "4,9", "rating_note": "300+ commandes livrées",
+            },
+            "nl": {
+                "eyebrow": "Creatief 3D-printen",
+                "title": "Wij printen wat u bedenkt.",
+                "title_highlight": "bedenkt",
+                "subtitle": "Decoratieve modellen, speelgoed, accessoires en filament — in de kleur en afwerking die u kiest, vanaf 1 stuk.",
+                "cta_label": "Bekijk producten",
+                "cta_secondary_label": "Offerte aanvragen",
+                "perk_1": "Oog voor detail", "perk_2": "Kleur naar keuze", "perk_3": "Levering in 3–5 dagen",
+                "badge_coral": "Gemaakt in België", "badge_yellow": "PLA · 0,12 mm",
+                "badge_mint": "+120 kleuren", "colors_note": "PLA · PETG · TPU",
+                "rating_value": "4,9", "rating_note": "300+ bestellingen geleverd",
+            },
+            "en": {
+                "eyebrow": "Creative 3D printing",
+                "title": "We print what you imagine.",
+                "title_highlight": "imagine",
+                "subtitle": "Decorative models, toys, accessories and filament — in the colour and finish you choose, from 1 unit.",
+                "cta_label": "Browse products",
+                "cta_secondary_label": "Request a quote",
+                "perk_1": "Care in every detail", "perk_2": "Your colour", "perk_3": "Delivered in 3–5 days",
+                "badge_coral": "Made in Belgium", "badge_yellow": "PLA · 0.12 mm",
+                "badge_mint": "+120 colours", "colors_note": "PLA · PETG · TPU",
+                "rating_value": "4.9", "rating_note": "300+ orders delivered",
+            },
+        },
+    },
+]
 
 SECTIONS = [
     {
@@ -876,18 +1033,51 @@ class Command(BaseCommand):
             defaults={
                 "is_active": True,
                 "sort_order": 1,
+                "layout": BANNER["layout"],
+                "cta_secondary_url": BANNER["cta_secondary_url"],
                 "cta_target": CtaTarget.CATEGORY,
                 "cta_category": categories["modelos"],
             },
         )
-        for language, (title, subtitle, cta) in BANNER["translations"].items():
+        for language, texto in BANNER["translations"].items():
+            perk_1, perk_2, perk_3 = texto["perks"]
+            amarelo, menta, branco = texto["badges"]
             HomeBannerTranslation.objects.get_or_create(
                 master=banner,
                 language=language,
-                defaults={"title": title, "subtitle": subtitle, "cta_label": cta},
+                defaults={
+                    "eyebrow": texto["eyebrow"],
+                    "title": texto["title"],
+                    "title_highlight": texto["title_highlight"],
+                    "subtitle": texto["subtitle"],
+                    "cta_label": texto["cta_label"],
+                    "cta_secondary_label": texto["cta_secondary_label"],
+                    "perk_1": perk_1, "perk_2": perk_2, "perk_3": perk_3,
+                    "badge_yellow": amarelo, "badge_mint": menta, "badge_white": branco,
+                },
             )
         if was_created:
             self.stdout.write("  banner de demonstração")
+
+        # Os outros dois desenhos, inativos — ver `EXTRA_BANNERS`.
+        for data in EXTRA_BANNERS:
+            extra, was_created = HomeBanner.objects.get_or_create(
+                internal_name=data["internal_name"],
+                defaults={
+                    "is_active": False,
+                    "sort_order": data["sort_order"],
+                    "layout": data["layout"],
+                    "cta_secondary_url": data["cta_secondary_url"],
+                    "cta_target": CtaTarget.CATEGORY,
+                    "cta_category": categories["modelos"],
+                },
+            )
+            for language, campos in data["translations"].items():
+                HomeBannerTranslation.objects.get_or_create(
+                    master=extra, language=language, defaults=campos
+                )
+            if was_created:
+                self.stdout.write(f"  banner de demonstração ({data['layout']}, inativo)")
 
     def create_sections(self, categories, products):
         for data in SECTIONS:
@@ -1100,7 +1290,8 @@ class Command(BaseCommand):
     def remove_demo_data(self):
         section_names = [data["internal_name"] for data in SECTIONS]
         sections = HomeSection.objects.filter(internal_name__in=section_names)
-        banners = HomeBanner.objects.filter(internal_name=BANNER["internal_name"])
+        banner_names = [BANNER["internal_name"]] + [d["internal_name"] for d in EXTRA_BANNERS]
+        banners = HomeBanner.objects.filter(internal_name__in=banner_names)
         demo_products = Product.objects.filter(sku__startswith=DEMO_PREFIX)
 
         counts = (sections.count(), banners.count(), demo_products.count())

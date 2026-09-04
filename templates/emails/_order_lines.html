@@ -8,17 +8,17 @@ não vive sem. Tudo aqui vem do snapshot gravado na compra.
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;">
   {% for item in items %}
     <tr>
-      <td style="padding:10px 0;border-bottom:1px solid #e6e0f5;vertical-align:top;">
-        <strong style="color:#1b1533;">{{ item.quantity }} × {{ item.product_name }}</strong>
+      <td style="padding:10px 0;border-bottom:1px solid #e8e3da;vertical-align:top;">
+        <strong style="color:#1b1530;">{{ item.quantity }} × {{ item.product_name }}</strong>
         {% if item.variant_label %}
-          <span style="display:block;color:#6b6486;font-size:13px;">{{ item.variant_label }}</span>
+          <span style="display:block;color:#6e6880;font-size:13px;">{{ item.variant_label }}</span>
         {% endif %}
         {% if show_sku and item.sku %}
-          <span style="display:block;color:#6b6486;font-size:12px;font-family:monospace;">{{ item.sku }}</span>
+          <span style="display:block;color:#6e6880;font-size:12px;font-family:monospace;">{{ item.sku }}</span>
         {% endif %}
 
         {% if item.has_personalization %}
-          <span style="display:block;margin-top:4px;padding:6px 8px;background-color:#fde7f1;border-radius:6px;font-size:13px;color:#a3175c;">
+          <span style="display:block;margin-top:4px;padding:6px 8px;background-color:#fde6de;border-radius:6px;font-size:13px;color:#9b4322;">
             {% if item.personalization_type == "photo" %}
               <strong>{% translate "Foto enviada" %}</strong>
               {% if item.personalization_upload %}— {{ item.personalization_upload.original_name }}{% endif %}
@@ -37,7 +37,7 @@ não vive sem. Tudo aqui vem do snapshot gravado na compra.
         {% endif %}
 
         {% if show_sku %}
-          <span style="display:block;margin-top:4px;color:#6b6486;font-size:12px;">
+          <span style="display:block;margin-top:4px;color:#6e6880;font-size:12px;">
             {{ item.get_fulfillment_type_display }}
             {% if item.production_days %}
               · {% blocktranslate with days=item.production_days %}produção {{ days }} dia(s) útil(eis){% endblocktranslate %}
@@ -45,14 +45,14 @@ não vive sem. Tudo aqui vem do snapshot gravado na compra.
           </span>
         {% endif %}
       </td>
-      <td style="padding:10px 0;border-bottom:1px solid #e6e0f5;text-align:right;vertical-align:top;white-space:nowrap;color:#1b1533;">
+      <td style="padding:10px 0;border-bottom:1px solid #e8e3da;text-align:right;vertical-align:top;white-space:nowrap;color:#1b1530;">
         {{ order.currency_symbol }} {{ item.total|floatformat:2 }}
       </td>
     </tr>
   {% endfor %}
 </table>
 
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:14px;font-size:14px;color:#4a4266;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:14px;font-size:14px;color:#4b4560;">
   <tr>
     <td style="padding:3px 0;">{% translate "Subtotal" %}</td>
     <td style="padding:3px 0;text-align:right;">{{ order.currency_symbol }} {{ order.subtotal|floatformat:2 }}</td>
@@ -69,19 +69,19 @@ não vive sem. Tudo aqui vem do snapshot gravado na compra.
   </tr>
   {% if order.tax_total %}
     <tr>
-      <td style="padding:3px 0;color:#6b6486;font-size:13px;">
+      <td style="padding:3px 0;color:#6e6880;font-size:13px;">
         {% blocktranslate with rate=order.tax_rate|floatformat:"-2" %}TVA {{ rate }}% (incluída){% endblocktranslate %}
       </td>
-      <td style="padding:3px 0;text-align:right;color:#6b6486;font-size:13px;">
+      <td style="padding:3px 0;text-align:right;color:#6e6880;font-size:13px;">
         {{ order.currency_symbol }} {{ order.tax_total|floatformat:2 }}
       </td>
     </tr>
   {% endif %}
   <tr>
-    <td style="padding:10px 0 0 0;border-top:1px solid #e6e0f5;font-weight:bold;color:#1b1533;font-size:16px;">
+    <td style="padding:10px 0 0 0;border-top:1px solid #e8e3da;font-weight:bold;color:#1b1530;font-size:16px;">
       {% translate "Total" %}
     </td>
-    <td style="padding:10px 0 0 0;border-top:1px solid #e6e0f5;text-align:right;font-weight:bold;color:#6d2ce0;font-size:18px;">
+    <td style="padding:10px 0 0 0;border-top:1px solid #e8e3da;text-align:right;font-weight:bold;color:#4a1a8c;font-size:18px;">
       {{ order.currency_symbol }} {{ order.total|floatformat:2 }}
     </td>
   </tr>

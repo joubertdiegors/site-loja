@@ -5,6 +5,19 @@
 @source "../../templates";
 @source "../../apps";
 
+/* O JavaScript também escreve classe: o seletor de variante remonta o selo de
+   estoque. Sem varrer daqui, essas classes não entram no CSS e o selo sai sem
+   estilo nenhum — foi o que aconteceu ao renomear os badges. */
+@source "../js";
+
+/* E onde ele NAO deve procurar: o proprio arquivo que ele gera.
+
+   Sem esta linha o build se alimenta da saida anterior — encontra ali
+   `bg-indigo-100` de uma versao passada, decide que a classe esta em uso e a
+   regera. Uma cor apagada do tema volta sozinha no build seguinte e nunca
+   mais sai. Foi o que aconteceu ao remover os apelidos. */
+@source not "../css/tailwind.css";
+
 /* As cores do ícone dos cards da Home são montadas no template a partir do
    campo `HomeCard.accent` (`bg-{{ card.accent }}-100`). O Tailwind lê o
    HTML como texto e não enxerga classe montada em tempo de execução — sem
@@ -12,75 +25,132 @@
 
    A lista é fechada de propósito: são as três cores que `CARD_ACCENTS`
    oferece, e não um seletor de cor livre. */
-@source inline("{bg,text}-{brand,cyan,magenta}-{100,700}");
+@source inline("{bg,text}-{brand,mint,coral}-{100,700}");
 
 /* ===========================================================================
    JD PRINT — Design System
 
-   Conceito: "Layered Craft" — precisão técnica, resultado criativo.
+   ESTE BLOCO É A FONTE ÚNICA DA LINGUAGEM VISUAL DA LOJA.
 
-   Três ideias sustentam tudo:
+   Cor, tipografia, raio, borda, sombra e transição saem daqui e de mais
+   nenhum lugar. Nenhum template e nenhum componente carrega valor literal:
+   fora deste arquivo não existe um `#hex` sequer, e é assim que se troca a
+   aparência do site inteiro sem abrir uma página.
 
-   1. O fundo NÃO é branco. É lavanda (--color-surface). Os cards brancos
-      flutuam sobre ele; sem isso a loja parece painel administrativo.
-   2. O ritmo das seções alterna três fundos e só três: claro, lavanda e
-      profundo (roxo-índigo). Nada de gradiente pesado.
-   3. A assinatura gráfica é a LINHA DE CAMADA — listras de 1px a cada 7px
-      (`.layers`). Aparece em faixas e espaços reservados de imagem, e some
-      quando a foto real entra. É a única "referência a impressão 3D".
+   -- A linguagem ----------------------------------------------------------
 
-   O roxo governa: só ele veste botão de ação. Ciano, magenta e âmbar
-   identificam categoria e estado, sempre em fundo suave com texto escuro.
+   O fundo NÃO é branco: é creme (`--color-surface`). Os cards claros pousam
+   sobre ele. Branco puro na página inteira deixaria a loja com cara de
+   painel administrativo — o creme é o que a faz parecer feita por alguém.
 
-   >>> AJUSTE AQUI quando a logo oficial estiver no projeto: troque
-   --color-brand-600 pelo roxo exato da logo e ajuste a escala ao redor.
-   Nenhum template precisa mudar.
+   O roxo governa a ação: só ele veste botão que decide alguma coisa. Amarelo,
+   menta e coral são acentos — vestem categoria e estado, sempre em fundo
+   suave com texto escuro por cima, nunca uma superfície inteira.
+
+   Os cantos são redondos e as sombras são discretas. Uma sombra que se nota
+   já está pesada demais: elas separam plano, não desenham caixa.
+
+   -- Tipografia -----------------------------------------------------------
+
+   Baloo 2 nos títulos, Nunito no corpo e na interface, IBM Plex Mono só nos
+   números que precisam alinhar (SKU, código de pedido, rastreio).
+
+   Títulos vivem em 600/700/800; interface e corpo, em 400/600/700/800.
+   Peso 500 não é usado nessas duas — a diferença para o 400 não se lê, e duas
+   opções vizinhas viram inconsistência. Nem 900: as duas famílias variáveis
+   param em 800, e pedir mais faz o navegador engrossar o desenho por conta
+   própria.
+
+   A exceção é a IBM Plex Mono, que só tem 400 e 500: ali o 500 é o peso forte
+   e continua em uso.
+
+   -- Compatibilidade ------------------------------------------------------
+
+   Os acentos se chamam `mint`, `coral` e `yellow`, e só isso — não há mais
+   apelido de compatibilidade nenhum. Os nomes antigos (`cyan`, `magenta`,
+   `indigo`) saíram do tema; o último a resistir era o que `HomeCard.accent`
+   gravava no banco, e a migração 0004 renomeou o dado.
 =========================================================================== */
-@theme {
-  /* -- Roxo da marca ----------------------------------------------------- */
-  --color-brand-50: #f5f1ff;
-  --color-brand-100: #efe9ff;
-  --color-brand-200: #dccbff;
-  --color-brand-300: #b794f8;
-  --color-brand-400: #a17bf7;
-  --color-brand-500: #8b5cf6;
-  --color-brand-600: #6d2ce0;
-  --color-brand-700: #5a1fc4;
-  --color-brand-800: #40158c;
-  --color-brand-900: #2a0e5e;
-  --color-brand-950: #17102b;
 
-  /* -- Texto ------------------------------------------------------------- */
-  --color-ink: #1b1533;
-  --color-ink-soft: #4a4266;
-  --color-ink-muted: #6b6486;
+/* `static` obriga o Tailwind a publicar TODAS as variaveis abaixo, e nao so as
+   que alguma classe ja usa. Sem isso, um token recem-criado existe no
+   codigo-fonte e nao existe no CSS servido -- e quem o consome fora de uma
+   classe utilitaria (CSS proprio, tela do Admin) recebe vazio. */
+@theme static {
+  /* ==========================================================================
+     1. COR
+     ====================================================================== */
 
-  /* -- Superfícies ------------------------------------------------------- */
-  --color-surface: #f5f3fb;         /* fundo da página (lavanda 2%) */
-  --color-surface-soft: #fbfaff;    /* áreas internas dentro do card */
-  --color-surface-brand: #efe9ff;   /* faixas e blocos de destaque */
-  --color-surface-deep: #17102b;    /* hero, rodapé, blocos escuros */
-  --color-surface-line: #e6e0f5;
-  --color-surface-line-strong: #d3c9ec;
+  /* -- Roxo da marca ------------------------------------------------------
+     600 é o Primary Purple e a única cor de botão de ação. 800 é o Primary
+     Dark (estado pressionado, texto sobre claro). 100 é o Light Purple das
+     faixas de destaque. O resto da escala é interpolado entre eles. */
+  --color-brand-50: #f8f4fe;
+  --color-brand-100: #efe8fa;   /* Light Purple */
+  --color-brand-200: #ddd0f4;
+  --color-brand-300: #c3aeea;
+  --color-brand-400: #9c7eda;
+  --color-brand-500: #7449c4;
+  --color-brand-600: #4a1a8c;   /* Primary Purple — a cor de ação */
+  --color-brand-700: #3b1470;
+  --color-brand-800: #2a0f52;   /* Primary Dark */
+  --color-brand-900: #200b3e;
+  --color-brand-950: #1b1530;   /* o mesmo navy de --color-ink */
 
-  /* -- Cores de categoria (chips, ícones, etiquetas) --------------------- */
-  --color-cyan-50: #f0fbfe;
-  --color-cyan-100: #e1f6fc;
-  --color-cyan-500: #10b4de;
-  --color-cyan-600: #0a9bc1;
-  --color-cyan-700: #0a7e9b;
+  /* -- Tinta (texto) ------------------------------------------------------
+     `ink-muted` NÃO é o #8a8399 da paleta original: aquele dava 3,4:1 sobre o
+     creme, abaixo dos 4,5:1 que a WCAG AA pede para texto corrido, e ele
+     veste 91 trechos de legenda, ajuda de formulário e texto de apoio. Este
+     valor dá 4,9:1 sobre o creme e 5,3:1 sobre o branco do card, mantendo o
+     degrau de hierarquia entre `ink-soft` e ele.
 
-  --color-magenta-50: #fef4f9;
-  --color-magenta-100: #fde7f1;
-  --color-magenta-500: #ee3d96;
-  --color-magenta-600: #d32a7f;
-  --color-magenta-700: #b32271;
+     Ele só é usado como COR DE TEXTO — não há fundo nem decoração que dependa
+     do tom claro, então escurecer não tira contraste de lugar nenhum. */
+  --color-ink: #1b1530;         /* Text / Navy */
+  --color-ink-soft: #4b4560;    /* Secondary Text */
+  --color-ink-muted: #6e6880;   /* Muted Text — corrigido, ver acima */
+  --color-ink-on-deep: #c9c3d6; /* Footer Text — texto sobre bloco escuro */
 
-  --color-indigo-100: #e7eafe;
-  --color-indigo-500: #4a56d2;
-  --color-indigo-700: #303a9e;
+  /* -- Superfície ---------------------------------------------------------
+     Três fundos e só três: creme (a página), claro (o card) e profundo (o
+     rodapé e os blocos escuros). */
+  --color-surface: #faf8f4;             /* Background — a página */
+  --color-surface-soft: #fffdf9;        /* áreas internas dentro do card */
+  --color-surface-brand: #efe8fa;       /* faixas e blocos de destaque */
+  --color-surface-deep: #1b1530;        /* rodapé, blocos escuros */
 
-  /* -- Estados ----------------------------------------------------------- */
+  /* -- Borda --------------------------------------------------------------
+     `surface-line` É a cor de borda do design system (o "Border" da paleta).
+     Não existe um `--color-border` separado: seriam dois nomes para a mesma
+     tinta, e um deles sairia de sincronia. */
+  --color-surface-line: #e8e3da;        /* Border */
+  --color-surface-line-strong: #d6cfc2;
+
+  /* -- Acento: amarelo ---------------------------------------------------- */
+  --color-yellow-50: #fffbee;
+  --color-yellow-100: #fff3d6;  /* Light Yellow */
+  --color-yellow-500: #f5d547;  /* Yellow */
+  --color-yellow-600: #d4b01f;
+  --color-yellow-700: #8a6a05;  /* legível sobre o 100 */
+
+  /* -- Acento: menta ------------------------------------------------------ */
+  --color-mint-50: #f2fbfa;
+  --color-mint-100: #e3f7f6;    /* Light Mint */
+  --color-mint-500: #7edcd8;    /* Mint */
+  --color-mint-600: #38b5b0;
+  --color-mint-700: #116e6a;    /* legível sobre o 100 */
+
+  /* -- Acento: coral ------------------------------------------------------ */
+  --color-coral-50: #fef6f3;
+  --color-coral-100: #fde6de;   /* Light Coral */
+  --color-coral-500: #f5b5a3;   /* Coral */
+  --color-coral-600: #e28060;
+  --color-coral-700: #9b4322;   /* legível sobre o 100 */
+
+  /* -- Estado -------------------------------------------------------------
+     Verde, âmbar e vermelho ficam fora da paleta de marca de propósito: quem
+     lê "pago", "aguardando" e "recusado" precisa da convenção universal, não
+     da identidade da loja. */
   --color-state-success: #12a65a;
   --color-state-success-dark: #0b5c34;
   --color-state-success-soft: #e3f7ec;
@@ -91,23 +161,120 @@
   --color-state-error-dark: #8e1631;
   --color-state-error-soft: #fde9ee;
 
-  /* -- Tipografia -------------------------------------------------------- */
-  --font-sans: "Manrope", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+  /* ==========================================================================
+     2. TIPOGRAFIA
+     ====================================================================== */
+
+  /* -- Famílias -----------------------------------------------------------
+     Servidas pelo próprio site (ver static/src/fonts.css). Baloo 2 e Nunito
+     são variáveis: um arquivo por subconjunto cobre 400 a 800. */
+  --font-sans: "Nunito", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
     Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
-  --font-display: "Space Grotesk", "Manrope", ui-sans-serif, system-ui,
-    -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Baloo 2", "Nunito", ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas,
     "Liberation Mono", monospace;
 
-  /* -- Raio -------------------------------------------------------------- */
-  --radius-control: 10px;   /* botões, campos, selects */
-  --radius-card: 18px;      /* cards */
-  --radius-block: 24px;     /* blocos de seção */
+  /* -- Pesos --------------------------------------------------------------
+     Nomes de papel, não de número: `font-title` é o peso de um título, e
+     quando a marca decidir que título é 800 muda-se aqui, não em cada
+     página. (Cuidado com a leitura: `font-display` escolhe a FAMÍLIA,
+     `font-title` escolhe o PESO.) */
+  --font-weight-title-soft: 600;   /* título de bloco interno */
+  --font-weight-title: 700;        /* título corrente */
+  --font-weight-title-strong: 800; /* título de abertura */
+  --font-weight-ui: 600;           /* botão, aba, rótulo */
+  --font-weight-ui-strong: 700;    /* botão principal, preço */
 
-  /* -- Sombra ------------------------------------------------------------ */
-  --shadow-card: 0 1px 2px rgb(27 21 51 / 0.04), 0 12px 28px -18px rgb(45 25 95 / 0.25);
-  --shadow-lift: 0 1px 2px rgb(27 21 51 / 0.04), 0 18px 34px -20px rgb(45 25 95 / 0.4);
-  --shadow-action: 0 6px 16px -8px rgb(109 44 224 / 0.7);
+  /* -- Escala de título ---------------------------------------------------
+     Acrescenta uma escala para os títulos; a escala de corpo do Tailwind
+     (text-sm … text-xl) continua valendo para o resto. */
+  --text-display-sm: 1.5rem;
+  --text-display-sm--line-height: 1.25;
+  --text-display: 2rem;
+  --text-display--line-height: 1.2;
+  --text-display-lg: 2.5rem;
+  --text-display-lg--line-height: 1.15;
+  --text-display-xl: 3.25rem;
+  --text-display-xl--line-height: 1.08;
+
+  /* Baloo 2 já é uma fonte larga e arredondada; o aperto forte que a família
+     anterior pedia deixaria os títulos apinhados. */
+  --tracking-display: -0.01em;
+
+  /* Maiúscula pede ar entre as letras, senão vira um bloco. Eram sete valores
+     diferentes espalhados pelos templates (0.03 a 0.16em) para o mesmo tipo de
+     rótulo; agora são dois: o sobretítulo de seção, mais aberto, e todo o
+     resto. */
+  --tracking-eyebrow: 0.16em;
+  --tracking-label: 0.12em;
+
+  /* ==========================================================================
+     3. RAIO
+     ====================================================================== */
+  --radius-control: 12px;   /* campos, selects */
+  --radius-pill: 9999px;    /* botões, badges, chips */
+  --radius-media: 18px;     /* a moldura da foto DENTRO do card */
+  --radius-card: 26px;      /* cards */
+  --radius-block: 32px;     /* blocos de seção */
+  --radius-panel: 40px;     /* cabeçalho, faixas, peças de destaque */
+
+  /* ==========================================================================
+     4. BORDA
+
+     A cor está em `--color-surface-line` (seção 1). Aqui ficam só as
+     espessuras — o Tailwind não tem espaço de tema para elas, então são
+     variáveis a usar em CSS próprio e em `@apply border-[length:…]`.
+     ====================================================================== */
+  --border-hairline: 1px;   /* o padrão: separar sem pesar */
+  --border-strong: 2px;     /* item selecionado, foco, destaque */
+
+  /* ==========================================================================
+     5. SOMBRA
+
+     Suaves de propósito. A opacidade baixa e o deslocamento negativo grande
+     dão profundidade sem contorno visível: o card parece pousado, não
+     recortado.
+     ====================================================================== */
+  --shadow-card: 0 1px 2px rgb(27 21 48 / 0.05), 0 14px 30px -18px rgb(42 15 82 / 0.26);
+  --shadow-lift: 0 2px 4px rgb(27 21 48 / 0.05), 0 26px 48px -22px rgb(42 15 82 / 0.42);
+  --shadow-action: 0 6px 16px -8px rgb(74 26 140 / 0.45);
+
+  /* ==========================================================================
+     6. TRANSIÇÃO
+
+     `--default-transition-*` é o que o utilitário `transition` do Tailwind
+     usa quando ninguém pede outra coisa. Defini-los aqui faz o site inteiro
+     herdar o mesmo tempo e a mesma curva sem tocar em nenhuma classe.
+     ====================================================================== */
+  --default-transition-duration: 180ms;
+  --default-transition-timing-function: cubic-bezier(0.22, 0.75, 0.3, 1);
+
+  --ease-soft: cubic-bezier(0.22, 0.75, 0.3, 1);   /* o padrão */
+  --ease-entrance: cubic-bezier(0.34, 1.28, 0.64, 1); /* entra passando um pouco */
+
+  --transition-fast: 120ms;   /* cor, opacidade — precisa acompanhar o dedo */
+  --transition-base: 180ms;   /* o padrão */
+  --transition-slow: 280ms;   /* algo que muda de tamanho */
+}
+
+/* ---------------------------------------------------------------------------
+   Base
+
+   O mínimo que vale para o documento inteiro. Tudo o mais é componente.
+--------------------------------------------------------------------------- */
+@layer base {
+  /* Título é Baloo 2, esteja onde estiver. Antes disso a família só chegava
+     via `.section-title` e `.prose-jd h2`, e todo `<h3>` de página interna
+     saía em Nunito — a mesma página com duas vozes de título.
+
+     É `@layer base`, então qualquer utilitário no HTML continua ganhando: um
+     `font-sans` explícito num título segue valendo. */
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+    font-weight: var(--font-weight-title);
+    letter-spacing: var(--tracking-display);
+  }
 }
 
 /* ---------------------------------------------------------------------------
@@ -116,25 +283,28 @@
    Precisam ser @utility (e não .classe dentro de @layer components) para
    poderem ser reutilizados com @apply.
 --------------------------------------------------------------------------- */
+/* O foco é um CONTORNO, não um anel.
+
+   O anel precisava de `ring-offset-white` para se descolar do fundo, e num
+   site de fundo creme aquilo desenhava um halo branco em volta de cada botão.
+   `outline` com deslocamento deixa o fundo real aparecer no vão, então o mesmo
+   foco funciona sobre creme, sobre o branco do card e sobre o navy do rodapé.
+
+   Roxo 600 sobre creme dá 10:1 — ninguém perde de vista onde está o teclado. */
 @utility focus-ring {
-  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white;
-}
-
-/* A grade "lateral + resultados" da vitrine, da categoria e da busca.
-
-   Um lugar só, e não uma cópia por template: enquanto eram duas, a busca
-   divergiu do catálogo sem ninguém notar — e o card saía com 49 px em vez de
-   219 px.
-
-   Cuidado com a coluna lateral: `display: none` tira o item da grade, e os
-   resultados caem na coluna de 254 px. Uma lateral vazia no desktop tem que
-   continuar sendo um item (ver `hidden lg:block` em `search.html`). */
-@utility shop-layout {
-  @apply mt-7 grid gap-6 lg:grid-cols-[254px_1fr] lg:gap-7;
+  @apply focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600;
 }
 
 @utility btn {
-  @apply focus-ring inline-flex items-center justify-center gap-2 rounded-control px-5 py-3 text-sm font-bold transition-colors duration-150;
+  /* Pílula: é a forma que a marca usa em tudo que se clica.
+
+     Sem `duration-*`: o tempo e a curva vêm de `--default-transition-*`, no
+     tema. Escrever 150ms aqui seria criar um segundo lugar para mudar. */
+  @apply focus-ring inline-flex items-center justify-center gap-2 rounded-pill px-5 py-3 text-sm font-ui-strong transition-colors;
+
+  /* Afunda um fio ao ser pressionado. É o retorno que diz "recebi o clique"
+     antes de a página responder. */
+  @apply active:translate-y-px;
 
   /* Botão desabilitado tem que parecer desabilitado. Apareceu na etapa 7: o
      "Pagar" do checkout fica bloqueado enquanto falta frete ou meio de
@@ -142,23 +312,54 @@
   @apply disabled:cursor-not-allowed disabled:opacity-45;
 }
 
+/* Etiqueta: pílula, não retângulo.
+
+   Saiu do monoespaçado: a IBM Plex Mono é para número que precisa alinhar
+   (SKU, rastreio), e etiqueta é palavra. Em Nunito 700 a mesma altura de 11px
+   fica mais legível e combina com o resto da interface. O peso 500 que estava
+   aqui não existe na política tipográfica da marca. */
 @utility badge {
-  @apply inline-flex items-center gap-1 rounded-[7px] px-2.5 py-1.5 font-mono text-[11px] font-medium uppercase tracking-[0.08em];
+  @apply inline-flex items-center gap-1 rounded-pill px-3 py-1 font-sans text-[11px] font-ui-strong uppercase tracking-label;
+}
+
+/* Título de um card ou bloco — o terceiro degrau, abaixo do de seção. Estava
+   copiado à mão em oito lugares, com dois tamanhos diferentes para o mesmo
+   papel.
+
+   É `@utility` e não `.classe` porque o corpo das páginas institucionais o
+   reaproveita com `@apply` (ver `.prose-jd h2`), e `@apply` só enxerga
+   utilitários. */
+/* A amostra de cor de uma variante.
+
+   O fundo do componente É o "sem cor registrada": quando o cadastro tem
+   `hex_code`, o template o sobrepõe com um `style` — que é o único lugar do
+   site onde uma cor literal no HTML é legítima, porque ali ela é DADO, não
+   decisão de design.
+
+   O que estava errado era a cor de reserva: um `#d4d4d8` escrito no template,
+   cinza-azulado de uma paleta que não existe mais. Agora ela é um token, e é
+   quente como o resto da marca. */
+@utility color-swatch {
+  @apply block shrink-0 rounded-pill border border-ink/10 bg-surface-line-strong;
+}
+
+@utility card-title {
+  @apply font-display text-lg font-title tracking-display text-ink sm:text-xl;
 }
 
 @utility alert {
-  @apply flex items-start gap-3 rounded-[14px] px-4 py-3.5 text-sm;
+  @apply flex items-start gap-3 rounded-card px-4 py-3.5 text-sm;
 }
 
 @utility chip {
-  @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold;
+  @apply inline-flex items-center gap-1.5 rounded-pill px-3 py-1.5 text-sm font-ui;
 }
 
 /* A assinatura da marca: camadas de 1px a cada 7px. */
 @utility layers {
   background-image: repeating-linear-gradient(
     180deg,
-    rgb(109 44 224 / 0.13) 0 1px,
+    color-mix(in srgb, var(--color-brand-600) 13%, transparent) 0 1px,
     transparent 1px 7px
   );
   background-color: var(--color-brand-50);
@@ -175,8 +376,8 @@
 /* Malha da mesa de impressão — fundo dos blocos escuros. */
 @utility grid-mesh {
   background-image:
-    linear-gradient(rgb(139 92 246 / 0.09) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(139 92 246 / 0.09) 1px, transparent 1px);
+    linear-gradient(color-mix(in srgb, var(--color-brand-500) 10%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--color-brand-500) 10%, transparent) 1px, transparent 1px);
   background-size: 28px 28px;
 }
 
@@ -185,51 +386,72 @@
     @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
   }
 
+  /* A barra do cabeçalho: uma placa que FLUTUA, e não uma faixa colada no
+     topo com um fio embaixo.
+
+     A faixa branca de ponta a ponta com `border-b` é a forma que toda loja
+     feita com Tailwind tem; trocar a cor dela não muda isso. Aqui ela vira
+     uma peça com raio grande, sombra e o creme da página aparecendo em volta
+     — a mesma linguagem dos cards, aplicada ao topo. */
+  .header-bar {
+    @apply flex items-center justify-between gap-4 rounded-panel border border-surface-line
+           bg-white/85 px-4 shadow-card backdrop-blur-md sm:px-6 lg:px-7;
+  }
+
+  /* O bloco de abertura de uma página interna: o título pousa numa placa
+     lavanda em vez de flutuar solto sobre o creme. */
+  .page-header {
+    @apply rounded-block border border-surface-line bg-surface-brand px-6 py-9 sm:px-10 sm:py-12;
+  }
+
   /* ---- Botões --------------------------------------------------------- */
   .btn-primary {
-    @apply btn bg-brand-600 text-white shadow-action hover:bg-brand-700;
+    @apply btn bg-brand-600 text-white shadow-action hover:bg-brand-700 active:bg-brand-800;
   }
 
   .btn-secondary {
-    @apply btn border-[1.5px] border-surface-line-strong bg-white text-brand-700 hover:border-brand-600 hover:bg-brand-50;
+    @apply btn border border-surface-line-strong bg-white text-brand-700 hover:border-brand-600 hover:bg-brand-50 active:bg-brand-100;
   }
 
-  .btn-cyan {
-    @apply btn bg-cyan-500 text-white hover:bg-cyan-600;
+  /* Acento menta. O menta é claro: o texto por cima é a tinta escura, nunca
+     branco — em branco o rótulo desaparece no fundo. */
+  .btn-mint {
+    @apply btn bg-mint-500 text-ink hover:bg-mint-600 active:bg-mint-700 active:text-white;
   }
 
   .btn-dark {
-    @apply btn bg-surface-deep text-white hover:bg-brand-800;
+    @apply btn bg-surface-deep text-white hover:bg-brand-800 active:bg-brand-900;
   }
 
   /* Botão do card: discreto em repouso, cheio quando o cursor está no card.
      O protagonista é o produto, não o botão. */
   .btn-soft {
-    @apply btn bg-brand-50 text-brand-700 group-hover:bg-brand-600 group-hover:text-white hover:bg-brand-600 hover:text-white;
+    @apply btn border border-brand-200 bg-brand-50 text-brand-700 group-hover:border-brand-600 group-hover:bg-brand-600 group-hover:text-white hover:border-brand-600 hover:bg-brand-600 hover:text-white active:bg-brand-800;
   }
 
   .btn-ghost {
-    @apply btn text-brand-700 hover:bg-brand-50;
+    @apply btn text-brand-700 hover:bg-brand-50 active:bg-brand-100;
   }
 
   .btn-danger {
-    @apply btn bg-state-error text-white hover:bg-state-error-dark;
+    @apply btn bg-state-error text-white hover:bg-state-error-dark active:bg-state-error-dark;
   }
 
   .btn-sm {
-    @apply gap-1.5 rounded-[8px] px-3.5 py-2.5 text-[13px];
+    @apply gap-1.5 rounded-pill px-4 py-2.5 text-[13px];
   }
 
   .btn-lg {
-    @apply rounded-xl px-7 py-4 text-base;
+    @apply rounded-pill px-7 py-4 text-base;
   }
 
+  /* Botão de ícone: círculo. */
   .icon-button {
-    @apply focus-ring inline-flex h-10 w-10 items-center justify-center rounded-control text-ink-soft transition-colors duration-150 hover:bg-brand-50 hover:text-brand-700;
+    @apply focus-ring inline-flex h-10 w-10 items-center justify-center rounded-pill text-ink-soft transition-colors hover:bg-brand-50 hover:text-brand-700 active:bg-brand-100;
   }
 
   .nav-link {
-    @apply focus-ring rounded-lg px-3 py-2 text-sm font-semibold text-ink-soft transition-colors duration-150 hover:text-brand-700;
+    @apply focus-ring rounded-pill px-3 py-2 text-sm font-ui text-ink-soft transition-colors hover:bg-brand-50 hover:text-brand-700;
   }
 
   .nav-link-active {
@@ -242,11 +464,27 @@
 
   /* ---- Cards ---------------------------------------------------------- */
   .card {
-    @apply overflow-hidden rounded-card border border-surface-line bg-white shadow-card transition duration-200;
+    @apply overflow-hidden rounded-card border border-surface-line bg-white shadow-card transition;
   }
 
   .card-hover {
-    @apply hover:-translate-y-1 hover:border-surface-line-strong hover:shadow-lift;
+    @apply hover:-translate-y-1.5 hover:border-brand-200 hover:shadow-lift;
+  }
+
+  /* A moldura da foto DENTRO do card.
+
+     Era a foto ocupando o card de ponta a ponta, encostada nas quatro bordas —
+     o desenho padrão de vitrine. Agora ela pousa numa placa lavanda com
+     folga em volta: o card passa a ter uma composição (placa + texto) em vez
+     de ser uma foto com uma tira embaixo, e o espaço reservado de quem ainda
+     não tem foto deixa de parecer um buraco. */
+  .card-media {
+    @apply relative overflow-hidden rounded-media bg-surface-brand;
+    background-image: repeating-linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-brand-600) 5%, transparent) 0 1px,
+      transparent 1px 9px
+    );
   }
 
   /* Bloco de seção: mais largo que um card, sem sombra. */
@@ -263,51 +501,77 @@
     @apply badge bg-brand-100 text-brand-700;
   }
 
-  .badge-magenta {
-    @apply badge bg-magenta-500 text-white;
+  /* -- por SIGNIFICADO, não por cor ------------------------------------
+     Os nomes antigos diziam a tinta (`badge-mint` era verde, `badge-muted`
+     era vermelho) e mentiam sobre o papel. Agora dizem o papel, e trocar a
+     tinta de um estado não obriga a reescrever template nenhum. */
+
+  /* Coral é um tom claro: por cima dele vai a tinta escura. Branco sobre
+     coral dava 1,9:1 — o rótulo sumia. */
+  .badge-accent-solid {
+    @apply badge bg-coral-500 text-ink;
   }
 
-  .badge-magenta-soft {
-    @apply badge bg-magenta-100 text-magenta-700;
+  /* Especial, e não um estado: personalizável, presente, pedido de
+     cancelamento. Coral é o acento de "olhe para isto". */
+  .badge-accent {
+    @apply badge bg-coral-100 text-coral-700;
   }
 
-  .badge-cyan {
-    @apply badge bg-cyan-100 text-cyan-700;
+  /* Informação neutra: tipo de endereço, fase de produção. */
+  .badge-info {
+    @apply badge bg-mint-100 text-mint-700;
   }
 
-  .badge-mint {
+  /* Os três estados. Verde, âmbar e vermelho ficam fora da paleta da marca de
+     propósito: quem lê "pago" e "esgotado" precisa da convenção universal. */
+  .badge-success {
     @apply badge bg-state-success-soft text-state-success-dark;
   }
 
-  .badge-amber {
+  .badge-warning {
     @apply badge bg-state-warning-soft text-state-warning-dark;
   }
 
-  .badge-muted {
+  .badge-danger {
     @apply badge bg-state-error-soft text-state-error-dark;
   }
 
   /* Etiqueta técnica: fundo escuro, para especificações. */
+  /* A única etiqueta que continua monoespaçada: ela veste especificação
+     técnica, que é justamente o caso da IBM Plex Mono. */
   .badge-tech {
-    @apply badge bg-surface-deep text-brand-200;
+    @apply badge bg-surface-deep font-mono text-ink-on-deep;
   }
 
   /* ---- Cabeçalhos de seção -------------------------------------------- */
   .section-eyebrow {
-    @apply font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-brand-700;
+    @apply font-mono text-[11px] font-ui uppercase tracking-eyebrow text-brand-700;
   }
 
+  /* Título de PÁGINA — o maior da tela, um por documento. */
+  .page-title {
+    @apply font-display text-display font-title-strong tracking-display text-ink sm:text-display-lg;
+  }
+
+  /* Título de SEÇÃO — um degrau abaixo do da página. Enquanto os dois
+     dividiam esta classe, abrir a vitrine dava a impressão de que "Modelos"
+     e "Destaques de Modelos" tinham a mesma importância. */
   .section-title {
-    @apply font-display text-2xl font-bold tracking-[-0.02em] text-ink sm:text-3xl;
+    @apply font-display text-display-sm font-title tracking-display text-ink sm:text-display;
   }
 
   .section-subtitle {
     @apply mt-2 max-w-2xl text-sm text-ink-soft sm:text-base;
   }
 
-  /* Mobile 2 colunas, tablet 3, desktop 4. */
+  /* Mobile 2, tablet 3, e só na tela larga 4.
+
+     Eram 4 colunas já a partir de 1024px, o que dava 219px de card com a
+     lateral do catálogo ao lado — estreito demais para a foto valer alguma
+     coisa. O produto é o assunto da página; ele precisa de tamanho. */
   .product-grid {
-    @apply grid grid-cols-2 gap-4 sm:gap-5 md:grid-cols-3 lg:grid-cols-4;
+    @apply grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-3 xl:grid-cols-4;
   }
 
   .carousel-track {
@@ -334,14 +598,17 @@
   }
 
   .skip-link {
-    @apply sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-control focus:bg-brand-700 focus:px-4 focus:py-2 focus:text-sm focus:font-bold focus:text-white;
+    @apply sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-pill focus:bg-brand-700 focus:px-4 focus:py-2 focus:text-sm focus:font-ui-strong focus:text-white;
   }
 
   /* ---- Formulários ---------------------------------------------------- */
+  /* Borda de um fio (`--border-hairline`). A anterior tinha 1,5px, que não é
+     nenhuma das duas espessuras do sistema; e "bordas suaves" pede a fina. O
+     campo se destaca pelo fundo branco sobre o creme, não pela moldura. */
   .form-input,
   .form-select,
   .form-textarea {
-    @apply focus-ring w-full rounded-control border-[1.5px] border-surface-line bg-white px-3.5 py-3 text-sm text-ink placeholder:text-ink-muted;
+    @apply focus-ring w-full rounded-control border border-surface-line bg-white px-3.5 py-3 text-sm text-ink placeholder:text-ink-muted;
   }
 
   .form-input:focus,
@@ -358,7 +625,7 @@
   }
 
   .form-label {
-    @apply block text-[13.5px] font-semibold text-ink-soft;
+    @apply block text-[13.5px] font-ui text-ink-soft;
   }
 
   .form-help {
@@ -371,7 +638,7 @@
   }
 
   .form-error {
-    @apply text-xs font-semibold text-state-error;
+    @apply text-xs font-ui text-state-error-dark;
   }
 
   .form-alert {
@@ -380,7 +647,7 @@
 
   /* Campo de busca do header (ícone à esquerda). */
   .field-input {
-    @apply focus-ring w-full rounded-full border-[1.5px] border-surface-line bg-surface-soft py-2.5 pl-10 pr-4 text-sm text-ink placeholder:text-ink-muted;
+    @apply focus-ring w-full rounded-pill border border-surface-line bg-surface-soft py-2.5 pl-10 pr-4 text-sm text-ink placeholder:text-ink-muted;
   }
 
   /* ---- Avisos --------------------------------------------------------- */
@@ -401,41 +668,72 @@
   }
 
   /* ---- Shop ----------------------------------------------------------- */
-  .shop-filter {
-    @apply focus-ring flex items-center justify-between gap-2 rounded-[11px] px-3 py-2.5 text-sm text-ink-soft transition-colors duration-150 hover:bg-brand-50 hover:text-brand-700;
-  }
-
-  .shop-filter-active {
-    @apply bg-brand-100 font-bold text-brand-800;
-  }
-
-  .shop-filter-count {
-    @apply font-mono text-[11px] text-ink-muted;
-  }
-
-  .page-link {
-    @apply focus-ring inline-flex h-10 min-w-10 items-center justify-center gap-1 rounded-control border-[1.5px] border-surface-line bg-white px-3 font-mono text-[13px] text-ink-soft transition-colors duration-150 hover:border-brand-300 hover:text-brand-700;
-  }
-
-  .page-link-active {
-    @apply border-brand-600 bg-brand-600 text-white hover:border-brand-600 hover:text-white;
-  }
-
-  .page-link-disabled {
-    @apply cursor-not-allowed opacity-40 hover:border-surface-line hover:text-ink-soft;
-  }
+  /* A lateral de filtros, o cabeçalho da lista, o card e a paginação vivem
+     no bloco "O catálogo", no fim deste arquivo, escritos por extenso com as
+     medidas da referência visual. */
 
   /* ---- Página do produto ---------------------------------------------- */
+  /* A opção de tamanho/material: a pílula de contorno navy da referência.
+     A escolhida fica cheia. Os valores (2px, 800/14px, 10px 18px) são os do
+     desenho; o restante da página mora no bloco "A página do produto". */
   .variant-option {
-    @apply inline-flex cursor-pointer items-center gap-2 rounded-control border-[1.5px] border-surface-line bg-white px-3.5 py-2.5 text-sm font-semibold text-ink-soft transition-colors duration-150 hover:border-brand-300 hover:text-brand-700;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border: 2px solid var(--color-ink);
+    border-radius: var(--radius-pill);
+    background: #fff;
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 14px;
+    line-height: normal;
+    cursor: pointer;
+    transition: background-color var(--transition-fast), color var(--transition-fast), opacity var(--transition-fast);
   }
 
-  .variant-option:has(input:checked) {
-    @apply border-brand-600 bg-brand-50 text-brand-800;
+  .variant-option:hover {
+    background: var(--color-brand-100);
+  }
+
+  .variant-option:has(input:checked),
+  .variant-option:has(input:checked):hover {
+    background: var(--color-ink);
+    color: #fff;
   }
 
   .variant-option:has(input:focus-visible) {
-    @apply ring-2 ring-brand-500 ring-offset-2;
+    outline: 2px solid var(--color-brand-600);
+    outline-offset: 2px;
+  }
+
+  /* A cor: uma bolinha de 40px com a cor cadastrada no fundo, borda branca
+     de 3px e, quando escolhida, um anel navy por fora. */
+  .variant-swatch {
+    display: block;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border: 3px solid #fff;
+    border-radius: var(--radius-pill);
+    background: var(--color-surface-line-strong);
+    box-shadow: 0 0 0 3px transparent;
+    cursor: pointer;
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast);
+  }
+
+  .variant-swatch:hover {
+    transform: scale(1.1);
+  }
+
+  .variant-swatch:has(input:checked) {
+    box-shadow: 0 0 0 3px var(--color-ink);
+  }
+
+  .variant-swatch:has(input:focus-visible) {
+    outline: 2px solid var(--color-brand-600);
+    outline-offset: 5px;
   }
 
   /* Nao combina com a selecao atual: riscada, mais fraca -- e CLICAVEL.
@@ -448,7 +746,20 @@
   }
 
   .variant-option-unavailable:hover {
-    @apply border-brand-300 opacity-80;
+    @apply opacity-80;
+  }
+
+  /* Na bolinha não há texto para riscar: o risco é um traço diagonal por
+     cima da cor. */
+  .variant-swatch.variant-option-unavailable {
+    opacity: 0.45;
+    background-image: linear-gradient(
+      135deg,
+      transparent calc(50% - 2px),
+      var(--color-ink) calc(50% - 2px),
+      var(--color-ink) calc(50% + 2px),
+      transparent calc(50% + 2px)
+    );
   }
 
   /* Trava a rolagem do fundo enquanto a lupa esta aberta. */
@@ -484,11 +795,11 @@
   }
 
   .jd-lightbox-close {
-    @apply focus-ring absolute -top-2 end-0 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-2xl leading-none text-ink shadow-lg sm:-top-4;
+    @apply focus-ring absolute -top-2 end-0 z-10 flex h-10 w-10 items-center justify-center rounded-pill bg-white/90 text-2xl leading-none text-ink shadow-lift sm:-top-4;
   }
 
   .jd-lightbox-nav {
-    @apply focus-ring z-10 flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/90 text-3xl leading-none text-ink shadow-lg;
+    @apply focus-ring z-10 flex h-11 w-11 shrink-0 items-center justify-center rounded-pill bg-white/90 text-3xl leading-none text-ink shadow-lift;
   }
 
   .jd-lightbox-counter {
@@ -497,7 +808,7 @@
 
   /* ---- Área do cliente ------------------------------------------------- */
   .account-link {
-    @apply focus-ring flex items-center gap-2.5 rounded-[11px] border-l-[3px] border-transparent px-3.5 py-3 text-sm font-semibold text-ink-soft transition-colors duration-150 hover:bg-brand-50 hover:text-brand-700;
+    @apply focus-ring flex items-center gap-2.5 rounded-control border-l-[3px] border-transparent px-3.5 py-3 text-sm font-ui text-ink-soft transition-colors hover:bg-brand-50 hover:text-brand-700;
   }
 
   .account-link-active {
@@ -505,7 +816,7 @@
   }
 
   .menu-item {
-    @apply focus-ring flex items-center gap-2.5 rounded-[11px] px-3 py-2.5 text-sm font-semibold text-ink-soft transition-colors hover:bg-brand-50 hover:text-brand-700;
+    @apply focus-ring flex items-center gap-2.5 rounded-control px-3 py-2.5 text-sm font-ui text-ink-soft transition-colors hover:bg-brand-50 hover:text-brand-700;
   }
 
   .auth-card {
@@ -518,7 +829,7 @@
   }
 
   .empty-state-icon {
-    @apply layers flex h-14 w-14 items-center justify-center rounded-[14px] text-brand-600;
+    @apply layers flex h-14 w-14 items-center justify-center rounded-control text-brand-600;
   }
 
   /* ---- Avisos curtos (toast) ------------------------------------------ */
@@ -527,7 +838,7 @@
   }
 
   .toast {
-    @apply flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-bold shadow-lg shadow-brand-900/20;
+    @apply flex items-center gap-2 rounded-pill px-4 py-2.5 text-sm font-ui-strong shadow-lift;
     animation: jd-toast 4.5s forwards;
   }
 
@@ -536,7 +847,7 @@
   }
 
   .toast-warning {
-    @apply bg-state-warning text-white;
+    @apply bg-state-warning-dark text-white;
   }
 
   .toast-error {
@@ -564,17 +875,12 @@
 }
 
 @layer utilities {
-  /* Espaço reservado de imagem: as camadas da marca. */
-  .placeholder-mesh {
-    @apply layers;
-  }
-
   .marker-line {
     background-image: linear-gradient(
       90deg,
       var(--color-brand-600),
-      var(--color-magenta-500) 55%,
-      var(--color-state-warning)
+      var(--color-coral-500) 55%,
+      var(--color-yellow-500)
     );
   }
 
@@ -597,6 +903,1442 @@
 }
 
 /* ---------------------------------------------------------------------------
+   O hero editorial
+
+   As medidas abaixo vieram do arquivo da direção visual, uma a uma: 68px de
+   título, 1.05fr/1fr de grade, 520px de altura da arte, `inset 20px 20px 40px
+   40px` da placa, `rotate(3deg)`, os 44px de raio, os selos em 18px com sombra
+   sólida de 4px. Não são valores "inspirados" — são os do desenho.
+
+   Por isso este bloco é CSS explícito e não `@apply`: são posições absolutas,
+   rotações e sombras sólidas que não existem como utilitário, e escrevê-las
+   por extenso é o que permite conferir número a número contra a referência.
+
+   As cores vêm do cadastro, por variável, com o valor da marca como reserva —
+   ver `HomeBanner.hero_style`.
+--------------------------------------------------------------------------- */
+@layer components {
+  .hero-editorial {
+    background-color: var(--hero-surface, var(--color-surface));
+  }
+
+  /* A grade ocupa o quadro inteiro (ver "O palco do banner"): o que antes
+     era padding vertical virou centralização, e título, arte e respiro
+     estão em `cqw` para encolherem junto com o quadro até 1101px. */
+  .hero-grid {
+    display: grid;
+    grid-template-columns: 1.05fr 1fr;
+    gap: 48px;
+    align-items: center;
+    height: 100%;
+  }
+
+  .hero-text {
+    display: flex;
+    flex-direction: column;
+    gap: calc(18cqw / 12.16);
+  }
+
+  /* A tarja inclinada. `align-self: flex-start` para ela não esticar na coluna. */
+  .hero-eyebrow {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--color-yellow-500);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 13px;
+    line-height: normal;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 8px 14px;
+    border-radius: var(--radius-pill);
+    transform: rotate(-2deg);
+  }
+
+  .hero-title {
+    margin: 0;
+    font-family: var(--font-display);
+    font-weight: 800;
+    /* 60 (a referência marca 68): o título cabe no quadro de 550 com o
+       texto em francês, o mais longo dos quatro idiomas. */
+    font-size: calc(60cqw / 12.16);
+    line-height: 1.02;
+    letter-spacing: -0.02em;
+    text-wrap: pretty;
+  }
+
+  .hero-title em {
+    font-style: normal;
+    color: var(--color-brand-600);
+  }
+
+  .hero-lead {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: calc(18cqw / 12.16);
+    line-height: 1.5;
+    color: var(--color-ink-soft);
+    max-width: 560px;
+    text-wrap: pretty;
+  }
+
+  .hero-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 6px;
+  }
+
+  /* A sombra sólida é a assinatura do desenho: o botão tem espessura, e ao ser
+     pressionado ele afunda os 2px que a sombra perde. */
+  .hero-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 17px;
+    /* 25px de caixa de linha: e a altura que a Nunito em 17px da a um `<a>`
+       comum, que e o que a referencia usa. Como aqui o botao e `inline-flex`
+       (para o icone ficar alinhado), a caixa nasceria 2px menor e o botao
+       sairia com 55px em vez dos 57px do desenho. */
+    line-height: 25px;
+    border-radius: var(--radius-pill);
+    text-decoration: none;
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast),
+      background-color var(--transition-fast), color var(--transition-fast);
+  }
+
+  .hero-btn-primary {
+    background: var(--color-brand-600);
+    color: #fff;
+    padding: 16px 28px;
+    box-shadow: 0 6px 0 var(--color-brand-800);
+  }
+
+  .hero-btn-primary:hover {
+    transform: translateY(2px);
+    box-shadow: 0 4px 0 var(--color-brand-800);
+  }
+
+  .hero-btn-primary:active {
+    transform: translateY(4px);
+    box-shadow: 0 2px 0 var(--color-brand-800);
+  }
+
+  .hero-btn-secondary {
+    background: #fff;
+    color: var(--color-ink);
+    border: 2px solid var(--color-ink);
+    padding: 14px 26px;
+  }
+
+  .hero-btn-secondary:hover {
+    background: var(--color-ink);
+    color: #fff;
+  }
+
+  .hero-perks {
+    display: flex;
+    gap: 28px;
+    margin-top: 10px;
+    font-family: var(--font-sans);
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--color-ink-soft);
+  }
+
+  .hero-perks li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* O quadradinho de canto arredondado que marca cada promessa — um por acento. */
+  .hero-perks li::before {
+    content: "";
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+    background: var(--hero-perk, var(--color-mint-500));
+    flex: none;
+  }
+
+  .hero-perks li:nth-child(2)::before { background: var(--color-yellow-500); }
+  .hero-perks li:nth-child(3)::before { background: var(--color-coral-500); }
+
+  /* ---- a composição gráfica ------------------------------------------- */
+
+  .hero-art {
+    position: relative;
+    height: calc(420cqw / 12.16);
+  }
+
+  /* A placa de trás, inclinada: é ela que dá profundidade à cena. */
+  .hero-plate {
+    position: absolute;
+    inset: 20px 20px 40px 40px;
+    background: var(--hero-plate, var(--color-brand-600));
+    border-radius: 44px;
+    transform: rotate(3deg);
+  }
+
+  /* O quadro da foto. Listrado a 135°, tracejado, e com folga por dentro —
+     a foto entra AQUI, sem cobrir a moldura. */
+  .hero-frame {
+    position: absolute;
+    inset: 0 40px 60px 0;
+    border-radius: 44px;
+    background: repeating-linear-gradient(
+      135deg,
+      var(--hero-frame-a, var(--color-brand-100)) 0 14px,
+      var(--hero-frame-b, #e4daf6) 14px 28px
+    );
+    border: 2px dashed var(--hero-frame-line, #c9b8ea);
+    display: grid;
+    place-items: center;
+    padding: 14px;
+    overflow: hidden;
+  }
+
+  .hero-photo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 32px;
+    display: block;
+  }
+
+  .hero-frame-note {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-brand-700);
+    text-align: center;
+    padding: 0 24px;
+  }
+
+  /* ---- os três selos --------------------------------------------------- */
+
+  .hero-badge {
+    position: absolute;
+    padding: 12px 18px;
+    border-radius: 18px;
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 15px;
+    /* `normal`, e nao um numero: a Baloo 2 tem metrica vertical alta, e e ela
+       que da ao selo os 57px de altura do desenho. Fixar 1.15 encolhia 7px. */
+    line-height: normal;
+    color: var(--color-ink);
+    white-space: nowrap;
+  }
+
+  .hero-badge-yellow {
+    right: 0;
+    top: 56px;
+    background: var(--color-yellow-500);
+    box-shadow: 0 4px 0 #c9ab1f;
+    transform: rotate(4deg);
+  }
+
+  .hero-badge-mint {
+    left: -16px;
+    bottom: 96px;
+    background: var(--color-mint-500);
+    box-shadow: 0 4px 0 #3fa8a3;
+    transform: rotate(-5deg);
+  }
+
+  .hero-badge-white {
+    right: 60px;
+    bottom: 20px;
+    background: #fff;
+    border: 2px solid var(--color-ink);
+    box-shadow: 0 4px 0 var(--color-ink);
+  }
+
+  /* ---- responsivo ------------------------------------------------------
+     Os mesmos dois pontos de quebra da referência (1100px e 640px), e o mesmo
+     resultado: uma coluna, título menor, arte mais baixa, promessas em duas
+     linhas e botões empilhados. */
+  @media (max-width: 1100px) {
+    /* Uma coluna, centrada no quadro de altura fixa (780px). */
+    .hero-grid {
+      grid-template-columns: 1fr;
+      align-content: center;
+      gap: 20px;
+      padding: 24px 0;
+    }
+
+    .hero-text { gap: 18px; }
+    .hero-title { font-size: 52px; }
+    .hero-lead { font-size: 20px; }
+    .hero-art { height: 260px; }
+  }
+
+  @media (max-width: 640px) {
+    .hero-text { gap: 14px; }
+    .hero-title { font-size: 40px; }
+    .hero-lead { font-size: 17px; }
+    .hero-art { height: 200px; }
+
+    .hero-perks {
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .hero-actions { flex-direction: column; }
+    .hero-actions .hero-btn { text-align: center; }
+
+    /* Nas telas estreitas a placa e os selos encolhem junto, senão a
+       composição sai do quadro em vez de ficar apertada dentro dele. */
+    .hero-plate { inset: 14px 14px 28px 28px; border-radius: 32px; }
+    .hero-frame { inset: 0 28px 42px 0; border-radius: 32px; padding: 10px; }
+    .hero-photo { border-radius: 24px; }
+
+    .hero-badge { padding: 9px 13px; font-size: 13px; border-radius: 14px; }
+    .hero-badge-yellow { top: 28px; }
+    .hero-badge-mint { left: -8px; bottom: 62px; }
+    .hero-badge-white { right: 34px; bottom: 12px; }
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Poster Pop e Bento Criativo — os outros dois desenhos do banner
+
+   Medidas de `Banner - modelos.html`, uma a uma. Os dois moram na mesma caixa
+   (`.hero-slide`), que preenche o quadro único do banner (`.hero-stage`, ver
+   "O palco do banner"): no desktop as medidas estão em `cqw` — "72px no
+   quadro de 1216px" é `calc(72cqw / 12.16)` — para o miolo encolher junto
+   com o quadro; até 1100px valem medidas fixas, para o quadro de 780px.
+
+   Poster Pop: poster roxo de raio 44 com 56px/64px de padding, título 72px
+   centrado com a palavra marcada em amarelo (raio 22, -2°), três blobs
+   translúcidos, dois selos inclinados, faixa de três quadros de 200px
+   meio enterrados na base e as promessas por cima deles.
+
+   Bento: grade 1.15fr/.85fr com 20px, cartões de raio 36; o principal branco
+   com borda de 2px e 40px/48px de padding, título 56px com a palavra em roxo
+   sublinhada de menta (8px); o da foto listrado em menta com borda
+   tracejada; os dois pequenos (roxo e amarelo) com 24px de padding e 180px
+   de altura mínima.
+
+   Tarja, botões roxo/contorno e promessas são os do hero editorial acima.
+--------------------------------------------------------------------------- */
+@layer components {
+  .hero-poster-wrap,
+  .hero-bento-wrap {
+    background-color: var(--color-surface);
+  }
+
+  .hero-slide {
+    display: flex;
+    align-items: stretch;
+    height: 100%;
+  }
+
+  .hero-slide > * {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* O selo solto: o mesmo dos três do hero editorial. */
+  .hero-sticker {
+    position: absolute;
+    padding: 12px 18px;
+    border-radius: 18px;
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 15px;
+    line-height: normal;
+    color: var(--color-ink);
+    white-space: nowrap;
+    z-index: 2;
+  }
+
+  /* O botão amarelo com sombra sólida (o primário do poster). */
+  .hero-btn-yellow {
+    background: var(--color-yellow-500);
+    color: var(--color-ink);
+    padding: 16px 28px;
+    box-shadow: 0 6px 0 #c9ab1f;
+  }
+
+  .hero-btn-yellow:hover {
+    transform: translateY(2px);
+    box-shadow: 0 4px 0 #c9ab1f;
+  }
+
+  .hero-btn-yellow:active {
+    transform: translateY(4px);
+    box-shadow: 0 2px 0 #c9ab1f;
+  }
+
+  /* O contorno branco sobre o roxo. */
+  .hero-btn-ghost-light {
+    background: transparent;
+    color: #fff;
+    border: 2px solid #fff;
+    padding: 14px 26px;
+  }
+
+  .hero-btn-ghost-light:hover {
+    background: #fff;
+    color: var(--color-brand-600);
+  }
+
+  /* ---- 1. Poster Pop ---------------------------------------------------- */
+
+  .hero-poster {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: calc(14cqw / 12.16);
+    height: 100%;
+    /* O padding de baixo reserva a faixa de quadros, que é absoluta. */
+    padding: calc(32cqw / 12.16) calc(64cqw / 12.16) calc(130cqw / 12.16);
+    /* O raio é o do quadro (`.hero-stage`), que recorta o poster. */
+    border-radius: 0;
+    background: var(--color-brand-600);
+    color: #fff;
+    text-align: center;
+  }
+
+  .hero-poster-blob {
+    position: absolute;
+    border-radius: var(--radius-pill);
+    pointer-events: none;
+    opacity: 0.18;
+  }
+
+  .hero-poster-blob-1 {
+    left: -120px;
+    top: -120px;
+    width: 320px;
+    height: 320px;
+    background: var(--color-mint-500);
+  }
+
+  .hero-poster-blob-2 {
+    right: -60px;
+    top: 40px;
+    width: 220px;
+    height: 220px;
+    border-radius: 60px;
+    background: var(--color-yellow-500);
+    transform: rotate(20deg);
+  }
+
+  .hero-poster-blob-3 {
+    right: 18%;
+    bottom: -140px;
+    width: 260px;
+    height: 260px;
+    background: var(--color-coral-500);
+  }
+
+  .hero-poster-eyebrow {
+    align-self: center;
+    transform: rotate(2deg);
+    position: relative;
+  }
+
+  .hero-poster-title {
+    position: relative;
+    margin: 0;
+    max-width: 980px;
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: calc(62cqw / 12.16);
+    line-height: 0.98;
+    letter-spacing: -0.025em;
+    color: #fff;
+    text-wrap: balance;
+  }
+
+  /* A palavra marcada: a pílula amarela inclinada dentro do título. */
+  .hero-poster-title em {
+    display: inline-block;
+    padding: 0 18px;
+    border-radius: 22px;
+    background: var(--color-yellow-500);
+    color: var(--color-ink);
+    font-style: normal;
+    line-height: 1.05;
+    transform: rotate(-2deg);
+  }
+
+  .hero-poster-lead {
+    position: relative;
+    margin: 0;
+    max-width: 600px;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: calc(18cqw / 12.16);
+    line-height: 1.5;
+    color: var(--color-brand-200);
+    text-wrap: pretty;
+  }
+
+  .hero-poster-actions {
+    position: relative;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .hero-poster-sticker-mint {
+    right: 14%;
+    top: 64px;
+    background: var(--color-mint-500);
+    box-shadow: 0 4px 0 #3fa8a3;
+    transform: rotate(6deg);
+  }
+
+  .hero-poster-sticker-white {
+    left: 12%;
+    top: 40%;
+    background: #fff;
+    border: 2px solid var(--color-ink);
+    box-shadow: 0 4px 0 var(--color-ink);
+    transform: rotate(-5deg);
+  }
+
+  /* A faixa de quadros: três, meio enterrados na base do poster. */
+  .hero-poster-strip {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    gap: 20px;
+    height: calc(130cqw / 12.16);
+  }
+
+  .hero-poster-tile {
+    position: relative;
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: calc(180cqw / 12.16);
+    height: calc(180cqw / 12.16);
+    overflow: hidden;
+    border: 2px dashed rgb(255 255 255 / 0.5);
+    border-radius: 32px;
+    background: rgb(255 255 255 / 0.12);
+    color: #fff;
+  }
+
+  .hero-poster-tile:nth-child(1) { transform: rotate(-6deg) translateY(50px); }
+  .hero-poster-tile:nth-child(2) { transform: translateY(26px); background: rgb(255 255 255 / 0.2); }
+  .hero-poster-tile:nth-child(3) { transform: rotate(5deg) translateY(48px); }
+
+  .hero-poster-photo {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .hero-poster-note {
+    color: #fff;
+    padding: 0 16px;
+  }
+
+  .hero-poster-perks {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 18px;
+    z-index: 2;
+    justify-content: center;
+    margin: 0;
+    padding: 0 16px;
+    color: #fff;
+  }
+
+  /* ---- 2. Bento Criativo ------------------------------------------------ */
+
+  .hero-bento {
+    display: grid;
+    grid-template-columns: 1.15fr 0.85fr;
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: calc(20cqw / 12.16);
+    height: 100%;
+  }
+
+  .hero-bento-card {
+    position: relative;
+    overflow: hidden;
+    border-radius: 36px;
+  }
+
+  .hero-bento-main {
+    grid-row: 1 / 3;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: calc(22cqw / 12.16);
+    padding: calc(40cqw / 12.16) calc(48cqw / 12.16);
+    border: 2px solid var(--color-surface-line);
+    background: #fff;
+  }
+
+  .hero-bento-title {
+    margin: 0;
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: calc(56cqw / 12.16);
+    line-height: 1.02;
+    letter-spacing: -0.02em;
+    color: var(--color-ink);
+    text-wrap: pretty;
+  }
+
+  /* A palavra destacada: roxa, sublinhada de menta. */
+  .hero-bento-title em {
+    font-style: normal;
+    color: var(--color-brand-600);
+    text-decoration: underline;
+    text-decoration-color: var(--color-mint-500);
+    text-decoration-thickness: 8px;
+    text-underline-offset: 6px;
+  }
+
+  .hero-bento-lead {
+    margin: 0;
+    max-width: 520px;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 19px;
+    line-height: 1.5;
+    color: var(--color-ink-soft);
+    text-wrap: pretty;
+  }
+
+  .hero-bento-sticker-coral {
+    right: 32px;
+    top: 32px;
+    background: var(--color-coral-500);
+    box-shadow: 0 4px 0 #d9836c;
+    transform: rotate(6deg);
+  }
+
+  /* O cartão da foto: listrado em menta, tracejado, a foto por dentro. */
+  .hero-bento-photo {
+    display: grid;
+    place-items: center;
+    min-height: 0;
+    border: 2px dashed var(--color-mint-500);
+    background: repeating-linear-gradient(135deg, var(--color-mint-100) 0 14px, #cff0ee 14px 28px);
+    color: var(--color-mint-700);
+  }
+
+  .hero-bento-img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .hero-bento-note {
+    color: var(--color-mint-700);
+  }
+
+  .hero-bento-sticker-yellow {
+    left: 20px;
+    bottom: 20px;
+    background: var(--color-yellow-500);
+    box-shadow: 0 4px 0 #c9ab1f;
+    transform: rotate(-4deg);
+  }
+
+  .hero-bento-split {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+
+  .hero-bento-colors,
+  .hero-bento-rating {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: calc(180cqw / 12.16);
+    padding: 24px;
+    transition: transform 0.2s;
+  }
+
+  .hero-bento-colors:hover,
+  .hero-bento-rating:hover {
+    transform: translateY(-4px) rotate(-1deg);
+  }
+
+  .hero-bento-colors {
+    gap: 16px;
+    background: var(--color-brand-600);
+    color: #fff;
+  }
+
+  .hero-bento-colors p,
+  .hero-bento-rating p {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .hero-bento-dots {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .hero-bento-dots i {
+    display: inline-block;
+    width: 26px;
+    height: 26px;
+    border: 2px solid rgb(255 255 255 / 0.35);
+    border-radius: var(--radius-pill);
+  }
+
+  .hero-bento-colors b {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 26px;
+    line-height: 1;
+  }
+
+  .hero-bento-colors small {
+    font-family: var(--font-sans);
+    font-weight: 700;
+    font-size: 13px;
+    line-height: normal;
+    opacity: 0.75;
+  }
+
+  .hero-bento-rating {
+    gap: 10px;
+    background: var(--color-yellow-500);
+    color: var(--color-ink);
+  }
+
+  .hero-bento-stars {
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 18px;
+    line-height: normal;
+    letter-spacing: 2px;
+  }
+
+  .hero-bento-rating b {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 44px;
+    line-height: 1;
+  }
+
+  .hero-bento-rating small {
+    font-family: var(--font-sans);
+    font-weight: 700;
+    font-size: 13px;
+    line-height: normal;
+    color: var(--color-ink-soft);
+  }
+
+  /* ---- 3. Responsivo ----------------------------------------------------
+     Os pontos de quebra do quadro: 1100px (altura fixa de 780px) e 640px. */
+  @media (max-width: 1100px) {
+    .hero-poster { gap: 16px; padding: 32px 28px 140px; }
+    .hero-poster-title { font-size: 52px; }
+    .hero-poster-lead { font-size: 19px; }
+    .hero-poster-tile { width: 150px; height: 150px; }
+    .hero-poster-strip { height: 140px; }
+    .hero-poster .hero-sticker { display: none; }
+
+    .hero-bento {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: minmax(0, 1fr) auto auto;
+      gap: 20px;
+    }
+    .hero-bento-main { grid-row: auto; gap: 18px; padding: 24px 28px; }
+    .hero-bento-title { font-size: 42px; }
+    .hero-bento-photo { min-height: 140px; }
+    .hero-bento-colors,
+    .hero-bento-rating { min-height: 130px; }
+  }
+
+  @media (max-width: 640px) {
+    .hero-poster { padding-bottom: 100px; }
+    .hero-poster-title { font-size: 42px; }
+    .hero-poster-title em { padding: 0 10px; border-radius: 14px; }
+    .hero-poster-lead { font-size: 17px; }
+    .hero-poster-tile { width: 100px; height: 100px; border-radius: 22px; }
+    .hero-poster-strip { height: 100px; gap: 10px; }
+    .hero-poster-perks { display: none; }
+
+    .hero-bento-title { font-size: 34px; }
+    .hero-bento-lead { font-size: 16px; }
+    .hero-bento-photo { display: none; }
+
+    .hero-poster-actions,
+    .hero-bento-main .hero-actions { flex-direction: column; }
+    .hero-poster-actions .hero-btn,
+    .hero-bento-main .hero-btn { text-align: center; }
+    .hero-poster .hero-perks,
+    .hero-bento .hero-perks { flex-wrap: wrap; gap: 12px; }
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   O palco do banner e o carrossel
+
+   Um quadro só para os quatro desenhos. `.hero-stage` tem a largura do
+   `.container-page` (como o resto da Home), proporção 1280×550 no desktop,
+   raio de bloco e `overflow: hidden`; até 1100px a proporção dá lugar a uma
+   altura fixa (780px), a mesma para os quatro. Cada hero preenche o quadro
+   (`inset: 0`) e ajusta o miolo — nunca o quadro. Por isso trocar de slide
+   não muda a altura da página, e nenhum fundo (o roxo da Imagem Completa, a
+   cor do editorial) passa da borda do quadro.
+
+   Dentro do quadro as medidas do desktop estão em `cqw` — centésimos da
+   largura do quadro, que é `container-type: inline-size`. `calc(68cqw / 12.16)`
+   lê-se "68px no quadro de 1216px" (o quadro em telas de 1280px ou mais) e
+   encolhe junto com ele até 1101px, onde o quadro mede 1037×445.
+
+   O carrossel é uma camada em volta: slides empilhados no quadro, fade de
+   450ms, escondidos `inert` (sem foco, sem clique, mas no HTML). Setas em
+   círculos brancos com contorno navy (o mesmo ✕ da gaveta) meio para fora
+   das bordas do quadro — o container tem 24px ou mais de margem até 640px —,
+   sem cobrir o miolo; no celular, onde a margem é de 16px, elas descem para
+   a linha dos indicadores, abaixo do quadro.
+--------------------------------------------------------------------------- */
+@layer components {
+  .hero-stage-wrap {
+    padding-top: 24px;
+    padding-bottom: 40px;
+  }
+
+  .hero-stage-shell {
+    position: relative;
+  }
+
+  .hero-stage {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1280 / 550;
+    overflow: hidden;
+    border-radius: var(--radius-block);
+    background-color: var(--color-surface);
+    container-type: inline-size;
+  }
+
+  /* O que está no quadro preenche o quadro: o slide, e o hero dentro dele. */
+  .hero-stage > *,
+  .hero-carousel-slide > * {
+    position: absolute;
+    inset: 0;
+  }
+
+  /* A imagem completa cobre o quadro; o roxo com a malha fica atrás dela. */
+  .hero-full-img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .hero-carousel-slide {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.45s ease, visibility 0s linear 0.45s;
+  }
+
+  .hero-carousel-slide[data-active] {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transition-delay: 0s;
+  }
+
+  .hero-carousel-arrow {
+    position: absolute;
+    top: 50%;
+    z-index: 3;
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    margin-top: -22px;
+    border: 2px solid var(--color-ink);
+    border-radius: var(--radius-pill);
+    background: #fff;
+    color: var(--color-ink);
+    box-shadow: 0 4px 0 var(--color-ink);
+    cursor: pointer;
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast), background-color var(--transition-fast);
+  }
+
+  .hero-carousel-arrow:hover {
+    background: var(--color-yellow-500);
+    transform: translateY(2px);
+    box-shadow: 0 2px 0 var(--color-ink);
+  }
+
+  .hero-carousel-arrow svg {
+    stroke-width: 2.4;
+  }
+
+  .hero-carousel-arrow-prev {
+    left: -22px;
+  }
+
+  .hero-carousel-arrow-next {
+    right: -22px;
+  }
+
+  .hero-carousel-dots {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    padding: 16px 16px 0;
+  }
+
+  .hero-carousel-dot {
+    width: 12px;
+    height: 12px;
+    padding: 0;
+    border: 2px solid var(--color-ink);
+    border-radius: var(--radius-pill);
+    background: #fff;
+    cursor: pointer;
+    transition: width var(--transition-base), background-color var(--transition-fast);
+  }
+
+  .hero-carousel-dot:hover {
+    background: var(--color-brand-100);
+  }
+
+  .hero-carousel-dot[aria-current="true"] {
+    width: 32px;
+    background: var(--color-brand-600);
+    border-color: var(--color-brand-600);
+  }
+
+  @media (max-width: 1100px) {
+    .hero-stage {
+      aspect-ratio: auto;
+      height: 780px;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .hero-stage-wrap {
+      padding-top: 16px;
+      padding-bottom: 32px;
+    }
+
+    /* A linha de controles abaixo do quadro: seta, indicadores, seta. */
+    .hero-carousel.hero-stage-wrap {
+      padding-bottom: 56px;
+    }
+
+    .hero-carousel-arrow {
+      top: auto;
+      bottom: -48px;
+      width: 40px;
+      height: 40px;
+      margin-top: 0;
+    }
+
+    .hero-carousel-arrow-prev { left: 0; }
+    .hero-carousel-arrow-next { right: 0; }
+
+    .hero-carousel-dots {
+      padding-top: 22px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hero-carousel-slide {
+      transition: none;
+    }
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Os blocos da Home
+
+   Mesmo critério do hero: as medidas saíram do arquivo da direção visual, uma
+   a uma, e estão escritas por extenso para poderem ser conferidas contra ele.
+
+   Toda cor aqui é `var(--…)`. Quem as define é o atributo `style` que o
+   template escreve a partir do cadastro (ver `css_vars` nos modelos); o valor
+   depois do vírgula é a reserva da marca, para o bloco nunca ficar sem cor.
+--------------------------------------------------------------------------- */
+@layer components {
+
+  /* ---- 1. A faixa do topo -------------------------------------------- */
+
+  .topbar {
+    background: var(--topbar-surface, var(--color-surface-deep));
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 36px;
+    padding: 10px 24px;
+    font-family: var(--font-sans);
+    font-weight: 700;
+    font-size: 12px;
+    line-height: 1;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .topbar-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    color: var(--item-fg, var(--color-yellow-500));
+    white-space: nowrap;
+  }
+
+  a.topbar-item {
+    text-decoration: none;
+    transition: opacity var(--transition-fast);
+  }
+
+  a.topbar-item:hover {
+    opacity: 0.75;
+  }
+
+  /* ---- 2. Os blocos de categoria -------------------------------------- */
+
+  .category-block {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 18px;
+    min-height: 190px;
+    padding: 28px;
+    border-radius: 32px;
+    background: var(--card-bg, var(--color-brand-600));
+    color: var(--card-fg, #fff);
+    text-decoration: none;
+    transition: transform var(--transition-base), box-shadow var(--transition-base);
+  }
+
+  /* A inclinação alterna de bloco para bloco: é o detalhe que faz a fileira
+     parecer feita à mão em vez de gerada. */
+  .category-block:hover {
+    transform: translateY(-4px) rotate(-1deg);
+    box-shadow: var(--shadow-lift);
+  }
+
+  .category-block:nth-child(even):hover {
+    transform: translateY(-4px) rotate(1deg);
+  }
+
+  .category-block-eyebrow {
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 13px;
+    line-height: 1.3;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    opacity: 0.75;
+  }
+
+  .category-block-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 34px;
+    line-height: 1;
+  }
+
+  .category-block-title svg {
+    color: var(--card-accent, currentColor);
+    flex: none;
+  }
+
+  .category-block-text {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 14px;
+    line-height: 1.5;
+    opacity: 0.85;
+  }
+
+  .category-block-media {
+    width: 44px;
+    height: 44px;
+    color: var(--card-accent, currentColor);
+  }
+
+  .category-block-photo {
+    width: 56px;
+    height: 56px;
+    object-fit: cover;
+    border-radius: 16px;
+  }
+
+  /* ---- 3. A chamada final --------------------------------------------- */
+
+  .callout {
+    background: var(--callout-surface, var(--color-surface-deep));
+    padding: 88px 0;
+  }
+
+  .callout-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 64px;
+    align-items: center;
+  }
+
+  .callout-text {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .callout-eyebrow {
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 13px;
+    line-height: normal;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--callout-eyebrow, var(--color-yellow-500));
+  }
+
+  .callout-title {
+    margin: 0;
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 54px;
+    line-height: 1.05;
+    color: var(--callout-title, #fff);
+    text-wrap: pretty;
+  }
+
+  .callout-lead {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 18px;
+    line-height: 1.55;
+    color: var(--callout-text, var(--color-ink-on-deep));
+    max-width: 480px;
+  }
+
+  /* O botão da faixa escura: mesma pílula com sombra sólida do hero, na cor
+     escolhida. A sombra é a mesma cor 30% mais escura, calculada aqui para o
+     cadastro não precisar escolher duas. */
+  .callout-cta {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--callout-cta-bg, var(--color-yellow-500));
+    color: var(--callout-cta-fg, var(--color-ink));
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 17px;
+    line-height: 25px;
+    padding: 16px 28px;
+    border-radius: var(--radius-pill);
+    text-decoration: none;
+    box-shadow: 0 6px 0 color-mix(in srgb, var(--callout-cta-bg, var(--color-yellow-500)) 70%, #000);
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  }
+
+  .callout-cta:hover {
+    transform: translateY(2px);
+    box-shadow: 0 4px 0 color-mix(in srgb, var(--callout-cta-bg, var(--color-yellow-500)) 70%, #000);
+  }
+
+  .callout-steps {
+    display: grid;
+    gap: 14px;
+  }
+
+  .callout-step {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+    background: var(--callout-step-bg, #2a1f47);
+    border-radius: 24px;
+    padding: 22px 24px;
+  }
+
+  .callout-step-number {
+    flex: none;
+    width: 48px;
+    height: 48px;
+    border-radius: 16px;
+    display: grid;
+    place-items: center;
+    background: var(--step-accent, var(--color-mint-500));
+    color: var(--color-ink);
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 22px;
+  }
+
+  .callout-step-title {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 19px;
+    line-height: 1.2;
+    color: var(--callout-title, #fff);
+  }
+
+  .callout-step-text {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 14px;
+    line-height: 1.45;
+    color: var(--callout-text, var(--color-ink-on-deep));
+  }
+
+  /* ---- 4. O bloco "Sobre a loja" -------------------------------------- */
+
+  .about {
+    background: var(--about-surface, var(--color-surface));
+  }
+
+  .about-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 64px;
+    align-items: center;
+    padding-top: 88px;
+    padding-bottom: 88px;
+  }
+
+  /* O mesmo conceito do quadro do hero: a moldura listrada É o desenho, e a
+     foto entra dentro dela. */
+  .about-frame {
+    height: 420px;
+    border-radius: 40px;
+    background: repeating-linear-gradient(
+      135deg,
+      var(--about-frame-a, var(--color-yellow-100)) 0 14px,
+      var(--about-frame-b, #fbe7b8) 14px 28px
+    );
+    border: 2px dashed var(--about-frame-line, #e3c76a);
+    display: grid;
+    place-items: center;
+    padding: 14px;
+    overflow: hidden;
+  }
+
+  .about-photo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 28px;
+    display: block;
+  }
+
+  .about-frame-note {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-ink-muted);
+    text-align: center;
+    padding: 0 24px;
+  }
+
+  .about-text {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .about-eyebrow {
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 13px;
+    line-height: normal;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-brand-600);
+  }
+
+  .about-title {
+    margin: 0;
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 48px;
+    line-height: 1.05;
+    color: var(--color-ink);
+    text-wrap: pretty;
+  }
+
+  .about-lead {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 18px;
+    line-height: 1.55;
+    color: var(--about-fg, var(--color-ink-soft));
+  }
+
+  .about-pills {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .about-pill {
+    background: var(--pill-bg, var(--color-brand-100));
+    color: var(--pill-fg, var(--color-brand-600));
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 14px;
+    line-height: normal;
+    padding: 10px 16px;
+    border-radius: var(--radius-pill);
+  }
+
+  /* ---- 5. O rodapé ----------------------------------------------------- */
+
+  .site-footer {
+    background: var(--footer-surface, var(--color-surface-deep));
+    color: var(--footer-fg, var(--color-ink-on-deep));
+    padding: 56px 0 32px;
+    margin-top: auto;
+  }
+
+  .footer-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr;
+    gap: 40px;
+  }
+
+  .footer-brand {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 26px;
+    line-height: 1;
+    color: var(--footer-heading, #fff);
+  }
+
+  .footer-brand em {
+    font-style: normal;
+    color: var(--footer-accent, var(--color-brand-300));
+  }
+
+  .footer-about {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 14px;
+    line-height: 1.6;
+    max-width: 300px;
+  }
+
+  .footer-col-title {
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 14px;
+    line-height: normal;
+    color: var(--footer-heading, #fff);
+  }
+
+  .footer-link {
+    font-family: var(--font-sans);
+    font-weight: 700;
+    font-size: 14px;
+    line-height: normal;
+    color: var(--footer-fg, var(--color-ink-on-deep));
+    text-decoration: none;
+    transition: color var(--transition-fast);
+  }
+
+  .footer-link:hover {
+    color: var(--footer-heading, #fff);
+  }
+
+  .footer-bar {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 40px;
+    padding-top: 20px;
+    border-top: 1px solid color-mix(in srgb, var(--footer-heading, #fff) 14%, transparent);
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 13px;
+  }
+
+  /* ---- responsivo ------------------------------------------------------
+     Os pontos de quebra da referência: 1100px e 640px. */
+  @media (max-width: 1100px) {
+    .callout-grid,
+    .about-grid {
+      grid-template-columns: 1fr;
+      gap: 36px;
+    }
+
+    .callout-title { font-size: 40px; }
+    .about-title { font-size: 40px; }
+    .about-frame { height: 400px; }
+    .footer-grid { grid-template-columns: 1fr 1fr; }
+  }
+
+  @media (max-width: 640px) {
+    .topbar {
+      gap: 14px;
+      font-size: 10px;
+      padding: 9px 16px;
+    }
+
+    .callout { padding: 56px 0; }
+    .callout-title { font-size: 32px; }
+    .about-grid { padding-top: 56px; padding-bottom: 56px; }
+    .about-title { font-size: 32px; }
+    .about-frame { height: 300px; border-radius: 28px; }
+    .about-photo { border-radius: 20px; }
+
+    .category-block {
+      min-height: 150px;
+      padding: 22px;
+      border-radius: 26px;
+    }
+
+    .category-block-title { font-size: 27px; }
+
+    .callout-step { padding: 18px 18px; gap: 14px; }
+    .callout-step-number { width: 40px; height: 40px; border-radius: 13px; font-size: 19px; }
+
+    .footer-grid { grid-template-columns: 1fr; gap: 28px; }
+    .footer-bar { flex-direction: column; gap: 8px; }
+  }
+}
+
+/* ---------------------------------------------------------------------------
    Páginas institucionais (etapa 18)
 --------------------------------------------------------------------------- */
 
@@ -614,7 +2356,7 @@
   }
 
   .prose-jd h2 {
-    @apply mt-8 font-display text-lg font-bold tracking-[-0.01em] text-ink sm:text-xl;
+    @apply card-title mt-8;
   }
 
   .prose-jd ul {
@@ -627,5 +2369,2664 @@
      HTML) nem para o teclado (`tabindex="-1"`). */
   .jd-hp-wrap {
     @apply absolute -left-[9999px] h-px w-px overflow-hidden;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   O catálogo
+
+   Trilha, banner, lateral de filtros, cabeçalho da lista, card de produto e
+   paginação. Como no hero, as medidas vieram do arquivo da direção visual
+   (`Catalogo.html`), uma a uma: 260px de lateral com 40px de vão, 22px entre
+   cards, 28px de raio no card e 20px na moldura da foto, 48px de título, 2px
+   de borda em tudo o que se clica. Estão por extenso para poderem ser
+   conferidas número a número contra a referência.
+
+   Os pontos de quebra também são os dela: em 1100px a lateral vira gaveta e
+   a grade cai para duas colunas; em 640px, uma coluna.
+
+   Toda cor é token. Onde a referência usa o cinza #8A8399 entra
+   `--color-ink-muted` — o mesmo papel, com o contraste corrigido.
+
+   A gaveta do celular é um `popover` nativo: abre, fecha, prende o foco,
+   responde ao Esc e escurece o fundo (`::backdrop`) sem uma linha de
+   JavaScript. Num navegador sem `popover`, a lateral fica em coluna acima da
+   lista e o botão "Filtros" nem aparece — ver os `@supports` no fim.
+
+   Os `line-height: normal` não são descuido: a referência escreve toda
+   tipografia com o atalho `font`, que zera a altura de linha, e é isso que dá
+   aos botões e às pílulas a altura que têm lá.
+--------------------------------------------------------------------------- */
+@layer components {
+  .catalog-page {
+    padding-top: 40px;
+    padding-bottom: 88px;
+  }
+
+  /* ---- 1. A trilha ----------------------------------------------------- */
+
+  .catalog-crumbs {
+    margin-bottom: 12px;
+    font-family: var(--font-sans);
+    font-weight: 700;
+    font-size: 13px;
+    line-height: normal;
+    color: var(--color-ink-muted);
+  }
+
+  .catalog-crumbs ol {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .catalog-crumbs a {
+    @apply focus-ring rounded;
+    color: var(--color-brand-600);
+    text-decoration: none;
+    transition: color var(--transition-fast);
+  }
+
+  .catalog-crumbs a:hover {
+    color: var(--color-brand-800);
+  }
+
+  .catalog-crumbs [aria-current="page"] {
+    color: var(--color-ink);
+  }
+
+  /* ---- 2. O banner ----------------------------------------------------- */
+
+  .catalog-banner {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 16px 24px;
+    border-radius: 22px;
+    background: var(--color-brand-600);
+    color: #fff;
+  }
+
+  /* As duas formas de fundo: o círculo menta e o quadrado amarelo inclinado.
+     `z-index: -1` dentro do contexto isolado do banner: ficam atrás do texto
+     e do botão, e na frente do roxo. */
+  .catalog-banner::before,
+  .catalog-banner::after {
+    content: "";
+    position: absolute;
+    z-index: -1;
+  }
+
+  .catalog-banner::before {
+    right: -30px;
+    top: -40px;
+    width: 140px;
+    height: 140px;
+    border-radius: var(--radius-pill);
+    background: var(--color-mint-500);
+    opacity: 0.25;
+  }
+
+  .catalog-banner::after {
+    right: 120px;
+    bottom: -60px;
+    width: 110px;
+    height: 110px;
+    border-radius: 30px;
+    background: var(--color-yellow-500);
+    opacity: 0.2;
+    transform: rotate(20deg);
+  }
+
+  .catalog-banner-text {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+  }
+
+  .catalog-banner-tag {
+    flex: none;
+    padding: 6px 12px;
+    border-radius: var(--radius-pill);
+    background: var(--color-yellow-500);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 12px;
+    line-height: normal;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .catalog-banner-title {
+    margin: 0;
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 18px;
+    line-height: normal;
+    text-wrap: pretty;
+  }
+
+  .catalog-banner-cta {
+    @apply focus-ring;
+    flex: none;
+    padding: 10px 18px;
+    border-radius: var(--radius-pill);
+    background: #fff;
+    color: var(--color-brand-600);
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 14px;
+    line-height: normal;
+    white-space: nowrap;
+    text-decoration: none;
+    transition: background-color var(--transition-fast), color var(--transition-fast);
+  }
+
+  .catalog-banner-cta:hover {
+    background: var(--color-yellow-500);
+    color: var(--color-ink);
+  }
+
+  /* ---- 3. A grade "lateral + lista" ------------------------------------
+     Um lugar só, e não uma cópia por template: enquanto eram duas, a busca
+     divergiu do catálogo sem ninguém notar. A busca sem lateral não usa esta
+     classe — uma coluna vazia de 260px empurraria tudo para a direita. */
+
+  .shop-layout {
+    display: grid;
+    grid-template-columns: 260px minmax(0, 1fr);
+    gap: 40px;
+    align-items: start;
+    margin-top: 28px;
+  }
+
+  /* ---- 4. A lateral ---------------------------------------------------- */
+
+  /* Leva o atributo `popover` por causa do celular. No desktop, o que a
+     folha do navegador dá a um popover (posição fixa, margem automática,
+     borda, fundo) é desfeito aqui: ela é uma coluna comum, presa ao rolar. */
+  .catalog-aside {
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+    position: sticky;
+    inset: auto;
+    top: 96px;
+    width: auto;
+    height: auto;
+    max-height: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    overflow: visible;
+  }
+
+  /* O cabeçalho da gaveta e o "Ver N produtos" só existem no celular. */
+  .catalog-aside-head {
+    display: none;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+  }
+
+  .catalog-aside-title {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 24px;
+    line-height: normal;
+    color: var(--color-ink);
+  }
+
+  .catalog-aside-close {
+    @apply focus-ring;
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border: 2px solid var(--color-ink);
+    border-radius: var(--radius-pill);
+    background: #fff;
+    color: var(--color-ink);
+    cursor: pointer;
+  }
+
+  .catalog-aside-close svg {
+    stroke-width: 2.4;
+  }
+
+  .catalog-filter-title {
+    margin: 0 0 12px;
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 13px;
+    line-height: normal;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-ink-muted);
+  }
+
+  .catalog-cats {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  /* Uma categoria. A ativa é navy cheio — é a única linha escura da
+     lateral, e é isso que a faz ser encontrada de longe. A indentação vem
+     de `--depth`, escrita pelo template a partir do nível na árvore. */
+  .shop-filter {
+    @apply focus-ring;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    padding-inline-start: calc(16px + var(--depth, 0) * 14px);
+    border-radius: 14px;
+    background: transparent;
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 16px;
+    line-height: normal;
+    text-decoration: none;
+    transition: background-color var(--transition-fast), color var(--transition-fast);
+  }
+
+  .shop-filter:hover {
+    background: var(--color-brand-100);
+    color: var(--color-brand-600);
+  }
+
+  .shop-filter-active,
+  .shop-filter-active:hover {
+    background: var(--color-ink);
+    color: #fff;
+  }
+
+  .shop-filter-count {
+    font-weight: 700;
+    font-size: 13px;
+    opacity: 0.6;
+  }
+
+  .catalog-divider {
+    height: 2px;
+    background: var(--color-surface-line);
+  }
+
+  /* Materiais: pílulas com borda de 2px; a escolhida fica amarela. */
+  .catalog-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .catalog-chip {
+    @apply focus-ring;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border: 2px solid var(--color-surface-line);
+    border-radius: var(--radius-pill);
+    background: #fff;
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 13px;
+    line-height: normal;
+    text-decoration: none;
+    cursor: pointer;
+    transition: border-color var(--transition-fast), background-color var(--transition-fast);
+  }
+
+  .catalog-chip:hover {
+    border-color: var(--color-ink);
+  }
+
+  .catalog-chip-active,
+  .catalog-chip-active:hover {
+    border-color: var(--color-ink);
+    background: var(--color-yellow-500);
+  }
+
+  .catalog-chip-count {
+    font-weight: 700;
+    opacity: 0.6;
+  }
+
+  /* "Limpar filtros": o botão secundário da referência — contorno navy que
+     se enche ao passar o cursor. */
+  .catalog-clear {
+    @apply focus-ring;
+    display: flex;
+    justify-content: center;
+    padding: 12px;
+    border: 2px solid var(--color-ink);
+    border-radius: var(--radius-pill);
+    background: #fff;
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 14px;
+    line-height: normal;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background-color var(--transition-fast), color var(--transition-fast);
+  }
+
+  .catalog-clear:hover {
+    background: var(--color-ink);
+    color: #fff;
+  }
+
+  /* "Ver N produtos": fecha a gaveta. A sombra sólida é a mesma do hero. */
+  .catalog-apply {
+    @apply focus-ring;
+    display: none;
+    width: 100%;
+    padding: 14px;
+    border: 0;
+    border-radius: var(--radius-pill);
+    background: var(--color-brand-600);
+    color: #fff;
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 16px;
+    line-height: normal;
+    box-shadow: 0 5px 0 var(--color-brand-800);
+    cursor: pointer;
+  }
+
+  /* ---- 5. O cabeçalho da lista ------------------------------------------ */
+
+  .catalog-results {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  /* `flex-wrap`: com um nome de categoria comprido e as três pílulas (a
+     referência tem duas), o título ficaria espremido em duas linhas nas
+     larguras médias. Assim as pílulas descem para baixo dele antes disso. */
+  .catalog-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .catalog-title {
+    margin: 0;
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 48px;
+    line-height: 1;
+    letter-spacing: normal;
+    color: var(--color-ink);
+    overflow-wrap: anywhere;
+  }
+
+  .catalog-title-count {
+    margin-inline-start: 6px;
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 20px;
+    color: var(--color-ink-muted);
+    white-space: nowrap;
+  }
+
+  /* Na busca o título fica no cabeçalho da página; aqui só a contagem. */
+  .catalog-count {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 20px;
+    line-height: normal;
+    color: var(--color-ink-muted);
+  }
+
+  .catalog-tools,
+  .catalog-tools-form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+  }
+
+  /* O botão que abre a gaveta: amarelo com contorno navy, só no celular. */
+  .catalog-filters-button {
+    @apply focus-ring;
+    display: none;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border: 2px solid var(--color-ink);
+    border-radius: var(--radius-pill);
+    background: var(--color-yellow-500);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 14px;
+    line-height: normal;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .catalog-filters-button svg {
+    stroke-width: 2.5;
+  }
+
+  /* Ordenação e quantidade: uma pílula com rótulo, `<select>` sem a
+     aparência nativa e a setinha da referência. */
+  .catalog-select {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 18px;
+    border: 2px solid var(--color-surface-line);
+    border-radius: var(--radius-pill);
+    background: #fff;
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-weight: 700;
+    font-size: 14px;
+    line-height: normal;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: border-color var(--transition-fast);
+  }
+
+  .catalog-select:hover {
+    border-color: var(--color-ink);
+  }
+
+  .catalog-select:focus-within {
+    border-color: var(--color-brand-600);
+    outline: 2px solid var(--color-brand-600);
+    outline-offset: 2px;
+  }
+
+  .catalog-select select {
+    appearance: none;
+    margin: 0;
+    padding: 0 18px 0 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+    outline: none;
+  }
+
+  .catalog-select::after {
+    content: "▼";
+    position: absolute;
+    inset-inline-end: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 11px;
+    pointer-events: none;
+  }
+
+  /* Os filtros ativos, em pílulas navy. Cada uma é o link que a remove. */
+  .catalog-pills {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .catalog-pill {
+    @apply focus-ring;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 12px;
+    border-radius: var(--radius-pill);
+    background: var(--color-ink);
+    color: #fff;
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 13px;
+    line-height: normal;
+    text-decoration: none;
+    transition: background-color var(--transition-fast);
+  }
+
+  .catalog-pill:hover {
+    background: var(--color-brand-600);
+  }
+
+  /* ---- 6. A grade ------------------------------------------------------ */
+
+  /* Três colunas ao lado da lateral; quatro quando a lista ocupa a largura
+     toda (a busca sem filtro) — os cards medem o mesmo nos dois casos. */
+  .product-grid-catalog {
+    gap: 22px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .shop-layout .product-grid-catalog {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .catalog-pagination {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 6px;
+    margin-top: 16px;
+  }
+
+  .page-link {
+    @apply focus-ring;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    height: 42px;
+    min-width: 42px;
+    padding: 0 14px;
+    border: 2px solid var(--color-surface-line);
+    border-radius: var(--radius-pill);
+    background: #fff;
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 14px;
+    line-height: normal;
+    text-decoration: none;
+    transition: border-color var(--transition-fast), background-color var(--transition-fast), color var(--transition-fast);
+  }
+
+  .page-link:hover {
+    border-color: var(--color-ink);
+  }
+
+  .page-link-active,
+  .page-link-active:hover {
+    border-color: var(--color-ink);
+    background: var(--color-ink);
+    color: #fff;
+  }
+
+  .page-link-disabled,
+  .page-link-disabled:hover {
+    border-color: var(--color-surface-line);
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  /* ---- 7. O card ------------------------------------------------------- */
+
+  .product-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    height: 100%;
+    padding: 12px;
+    border: 2px solid var(--color-surface-line);
+    border-radius: 28px;
+    background: #fff;
+    color: var(--color-ink);
+    transition: border-color var(--transition-base), transform var(--transition-base);
+  }
+
+  .product-card:hover {
+    border-color: var(--color-brand-600);
+    transform: translateY(-4px);
+  }
+
+  /* A moldura da foto: pastel, e um pastel diferente a cada card. A
+     rotação é pela posição na lista (`nth-child`), não por dado do produto
+     — é ritmo de página, como na referência. */
+  .product-card-media {
+    position: relative;
+    overflow: hidden;
+    border-radius: 20px;
+    background: var(--color-brand-100);
+  }
+
+  li:nth-child(4n + 2) > .product-card .product-card-media {
+    background: var(--color-mint-100);
+  }
+
+  li:nth-child(4n + 3) > .product-card .product-card-media {
+    background: var(--color-yellow-100);
+  }
+
+  li:nth-child(4n) > .product-card .product-card-media {
+    background: var(--color-coral-100);
+  }
+
+  .product-card-badge {
+    position: absolute;
+    top: 12px;
+    inset-inline-start: 12px;
+    z-index: 10;
+    padding: 6px 10px;
+    border-radius: var(--radius-pill);
+    background: var(--color-ink);
+    color: #fff;
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 11px;
+    line-height: normal;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .product-card-fav {
+    position: absolute;
+    top: 10px;
+    inset-inline-end: 10px;
+    z-index: 10;
+    pointer-events: auto;
+  }
+
+  .product-card-fav-button {
+    @apply focus-ring;
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border: 2px solid var(--color-surface-line);
+    border-radius: var(--radius-pill);
+    background: #fff;
+    color: var(--color-ink);
+    cursor: pointer;
+    transition: border-color var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
+  }
+
+  .product-card-fav-button:hover {
+    border-color: var(--color-ink);
+    transform: scale(1.06);
+  }
+
+  .product-card-fav-button svg {
+    stroke-width: 2.2;
+  }
+
+  .product-card-fav-on,
+  .product-card-fav-on:hover {
+    border-color: var(--color-coral-500);
+    color: var(--color-coral-700);
+  }
+
+  .product-card-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 0 8px 8px;
+  }
+
+  .product-card-category {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 12px;
+    line-height: normal;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-ink-muted);
+  }
+
+  .product-card-name {
+    margin: 0;
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 20px;
+    line-height: 1.2;
+    letter-spacing: normal;
+    color: var(--color-ink);
+  }
+
+  .product-card-name a {
+    @apply focus-ring rounded;
+    color: inherit;
+    text-decoration: none;
+  }
+
+  /* O link "esticado": o card inteiro abre o produto. Quem precisa ficar
+     clicável por cima dele (coração, botão) leva `z-index: 10`. */
+  .product-card-name a::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+  }
+
+  .product-card-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin-top: 4px;
+  }
+
+  .product-card-price {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 18px;
+    line-height: normal;
+    color: var(--color-brand-600);
+  }
+
+  .product-card-price-note {
+    font-weight: 700;
+    font-size: 11px;
+    color: var(--color-ink-muted);
+  }
+
+  .product-card-colors {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-weight: 700;
+    font-size: 13px;
+    line-height: normal;
+    color: var(--color-ink-soft);
+    white-space: nowrap;
+  }
+
+  .product-card-stock {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-weight: 700;
+    font-size: 12px;
+    line-height: normal;
+  }
+
+  .product-card-stock-warning {
+    color: var(--color-state-warning-dark);
+  }
+
+  .product-card-stock-error {
+    color: var(--color-state-error-dark);
+  }
+
+  .product-card-action {
+    position: relative;
+    z-index: 10;
+    margin-top: auto;
+    padding-top: 8px;
+  }
+
+  .product-card-button {
+    @apply focus-ring;
+    display: flex;
+    width: 100%;
+    justify-content: center;
+    padding: 9px 14px;
+    border: 2px solid var(--color-ink);
+    border-radius: var(--radius-pill);
+    background: #fff;
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 14px;
+    line-height: normal;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background-color var(--transition-fast), color var(--transition-fast);
+  }
+
+  .product-card-button:hover {
+    background: var(--color-ink);
+    color: #fff;
+  }
+
+  .product-card-button:disabled,
+  .product-card-button:disabled:hover {
+    background: #fff;
+    color: var(--color-ink);
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  /* ---- 8. A imagem do produto (ou o espaço reservado) ------------------- */
+
+  .product-media {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    overflow: hidden;
+    background: var(--color-surface-soft);
+  }
+
+  /* Dentro do card a moldura pastel é o fundo: nada por cima dela. */
+  .product-card-media .product-media {
+    background: transparent;
+  }
+
+  .product-media-img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform var(--transition-slow);
+  }
+
+  .product-card:hover .product-media-img {
+    transform: scale(1.03);
+  }
+
+  .product-media-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 100%;
+  }
+
+  .product-media-initial {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 40px;
+    line-height: 1;
+    color: var(--color-ink);
+    opacity: 0.28;
+  }
+
+  .product-media-compact .product-media-initial {
+    font-size: 18px;
+  }
+
+  .product-media-note {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: 11px;
+    line-height: normal;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-ink);
+  }
+
+  /* ---- 9. Responsivo --------------------------------------------------- */
+
+  @media (max-width: 1100px) {
+    .shop-layout {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 20px;
+    }
+
+    .product-grid-catalog,
+    .shop-layout .product-grid-catalog {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 640px) {
+    .product-grid-catalog,
+    .shop-layout .product-grid-catalog {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .catalog-head {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 14px;
+    }
+
+    .catalog-title {
+      font-size: 40px;
+    }
+
+    .catalog-tools {
+      width: 100%;
+    }
+
+    .catalog-filters-button {
+      flex: 1;
+      justify-content: center;
+    }
+
+    .catalog-banner {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 16px 18px;
+    }
+
+    .catalog-banner-text {
+      flex-wrap: wrap;
+    }
+  }
+
+  /* A gaveta. Só onde existe `popover`: sem ele a lateral fica em coluna
+     acima da lista e o botão "Filtros" não aparece. */
+  @supports selector(:popover-open) {
+    @media (max-width: 1100px) {
+      .catalog-filters-button {
+        display: inline-flex;
+      }
+
+      .catalog-aside-head {
+        display: grid;
+      }
+
+      .catalog-apply {
+        display: block;
+      }
+
+      .catalog-aside {
+        display: none;
+        position: fixed;
+        inset: 0 auto 0 0;
+        width: min(320px, 86vw);
+        padding: 20px 20px 32px;
+        background: var(--color-surface);
+        color: var(--color-ink);
+        overflow-y: auto;
+        box-shadow: 8px 0 32px rgb(27 21 48 / 0.18);
+        transform: translateX(-105%);
+        transition:
+          transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1),
+          display 0.3s allow-discrete,
+          overlay 0.3s allow-discrete;
+      }
+
+      .catalog-aside:popover-open {
+        display: flex;
+        transform: none;
+      }
+
+      @starting-style {
+        .catalog-aside:popover-open {
+          transform: translateX(-105%);
+        }
+      }
+
+      .catalog-aside::backdrop {
+        background: rgb(27 21 48 / 0.45);
+        opacity: 1;
+        transition:
+          opacity 0.3s,
+          display 0.3s allow-discrete,
+          overlay 0.3s allow-discrete;
+      }
+
+      @starting-style {
+        .catalog-aside::backdrop {
+          opacity: 0;
+        }
+      }
+    }
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   A página do produto
+
+   Medidas de `Produto.html`, uma a uma: colunas 1.1fr/1fr com 56px de vão,
+   moldura da foto com 36px de raio, miniaturas em quatro colunas com 14px,
+   título de 52px, preço de 36px, bolinhas de cor de 40px, linha de compra de
+   56px de altura com sombra sólida de 6px no botão, cartões de 18px de raio,
+   acordeão com fios de 2px. Os pontos de quebra são os da referência: 1100px
+   (uma coluna, título de 40px, a coluna de compra solta) e 640px (o botão de
+   comprar desce para uma linha própria; um cartão por linha).
+
+   A trilha, a página (`catalog-page`) e as pílulas de opção (`variant-option`,
+   acima) são compartilhadas com o catálogo.
+--------------------------------------------------------------------------- */
+@layer components {
+  .product-page .catalog-crumbs {
+    margin-bottom: 28px;
+  }
+
+  .product-cols {
+    display: grid;
+    grid-template-columns: 1.1fr 1fr;
+    gap: 56px;
+    align-items: start;
+  }
+
+  /* ---- 1. A galeria ---------------------------------------------------- */
+
+  .product-gallery {
+    display: grid;
+    gap: 14px;
+  }
+
+  .product-gallery-main {
+    position: relative;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    border-radius: 36px;
+    background: var(--color-brand-100);
+  }
+
+  /* Sem foto: o tracejado da referência diz "espaço reservado". */
+  .product-gallery-main-empty {
+    border: 2px dashed color-mix(in srgb, var(--color-ink) 20%, transparent);
+  }
+
+  .product-gallery-main .product-media {
+    background: transparent;
+  }
+
+  .product-thumbs {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .product-thumb {
+    @apply focus-ring;
+    display: block;
+    aspect-ratio: 1 / 1;
+    overflow: hidden;
+    border: 2px solid var(--color-surface-line);
+    border-radius: 20px;
+    background: var(--color-brand-100);
+    transition: border-color var(--transition-fast);
+  }
+
+  .product-thumb:hover {
+    border-color: color-mix(in srgb, var(--color-ink) 45%, transparent);
+  }
+
+  .product-thumb-on,
+  .product-thumb-on:hover {
+    border-color: var(--color-ink);
+  }
+
+  /* O mesmo ritmo pastel das miniaturas da referência. */
+  li:nth-child(4n + 2) > .product-thumb { background: var(--color-mint-100); }
+  li:nth-child(4n + 3) > .product-thumb { background: var(--color-yellow-100); }
+  li:nth-child(4n) > .product-thumb { background: var(--color-coral-100); }
+
+  .product-thumb-video {
+    display: grid;
+    place-items: center;
+    height: 100%;
+    color: var(--color-brand-600);
+  }
+
+  /* ---- 2. A coluna de compra ------------------------------------------- */
+
+  .product-info {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    position: sticky;
+    top: 96px;
+    min-width: 0;
+  }
+
+  /* O formulário não tem caixa: os filhos entram na coluna com o mesmo
+     respiro, e um produto de opção única (só campos ocultos) não deixa vão. */
+  .product-form {
+    display: contents;
+  }
+
+  .product-tags {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .product-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 12px;
+    border-radius: var(--radius-pill);
+    background: var(--color-yellow-500);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 12px;
+    line-height: normal;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .product-tag-stock {
+    background: var(--color-mint-100);
+    color: var(--color-mint-700);
+  }
+
+  /* Os dois estados que a referência não desenha, na convenção universal. */
+  .product-tag-warning {
+    background: var(--color-state-warning-soft);
+    color: var(--color-state-warning-dark);
+  }
+
+  .product-tag-danger {
+    background: var(--color-state-error-soft);
+    color: var(--color-state-error-dark);
+  }
+
+  .product-tag-note {
+    font-family: var(--font-sans);
+    font-weight: 700;
+    font-size: 13px;
+    line-height: normal;
+    color: var(--color-ink-muted);
+  }
+
+  .product-title {
+    margin: 0;
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 52px;
+    line-height: 1.05;
+    letter-spacing: normal;
+    color: var(--color-ink);
+    text-wrap: pretty;
+    overflow-wrap: anywhere;
+  }
+
+  .product-price-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 14px;
+  }
+
+  .product-price {
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 36px;
+    line-height: normal;
+    color: var(--color-brand-600);
+  }
+
+  .product-price-meta {
+    font-family: var(--font-sans);
+    font-weight: 700;
+    font-size: 14px;
+    line-height: normal;
+    color: var(--color-ink-muted);
+  }
+
+  .product-desc {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 17px;
+    line-height: 1.55;
+    color: var(--color-ink-soft);
+  }
+
+  /* ---- 3. As opções ---------------------------------------------------- */
+
+  .product-opts {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+  }
+
+  .product-opt {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    min-width: 0;
+  }
+
+  /* `float: left` tira a `<legend>` do lugar especial que o navegador lhe
+     dá na `<fieldset>` e a torna um filho comum — é o que faz o `gap` de
+     10px valer entre ela e as opções. */
+  .product-opt-label {
+    float: left;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 14px;
+    line-height: normal;
+    color: var(--color-ink);
+  }
+
+  .product-opt-label b {
+    font-weight: 800;
+    color: var(--color-brand-600);
+  }
+
+  .product-opt-list {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .product-select {
+    align-self: flex-start;
+  }
+
+  .product-variant-message {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-weight: 700;
+    font-size: 14px;
+    line-height: normal;
+    color: var(--color-state-warning-dark);
+  }
+
+  /* A personalização: um cartão branco no mesmo desenho dos três cartões
+     de vantagens, com os campos do sistema dentro. */
+  .product-personalization {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+    padding: 16px;
+    border: 2px solid var(--color-surface-line);
+    border-radius: 18px;
+    background: #fff;
+  }
+
+  /* ---- 4. A linha de compra -------------------------------------------- */
+
+  .product-buy {
+    display: flex;
+    gap: 12px;
+    margin-top: 6px;
+  }
+
+  .product-qty {
+    flex: none;
+    display: flex;
+    align-items: center;
+    height: 56px;
+    overflow: hidden;
+    border: 2px solid var(--color-ink);
+    border-radius: var(--radius-pill);
+    background: #fff;
+  }
+
+  .product-qty button {
+    width: 48px;
+    height: 100%;
+    border: 0;
+    background: #fff;
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+    transition: background-color var(--transition-fast);
+  }
+
+  .product-qty button:hover {
+    background: var(--color-brand-100);
+  }
+
+  .product-qty button:focus-visible {
+    outline: 2px solid var(--color-brand-600);
+    outline-offset: -4px;
+  }
+
+  .product-qty input {
+    width: 36px;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 17px;
+    text-align: center;
+    appearance: textfield;
+    -moz-appearance: textfield;
+    outline: none;
+  }
+
+  .product-qty input::-webkit-outer-spin-button,
+  .product-qty input::-webkit-inner-spin-button {
+    appearance: none;
+    margin: 0;
+  }
+
+  /* O botão de comprar: a pílula roxa com sombra sólida do hero. Afunda
+     2px ao passar o cursor e 4px ao ser pressionada. */
+  .product-add {
+    @apply focus-ring;
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 56px;
+    padding: 0 20px;
+    border: 0;
+    border-radius: var(--radius-pill);
+    background: var(--color-brand-600);
+    color: #fff;
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 17px;
+    line-height: normal;
+    box-shadow: 0 6px 0 var(--color-brand-800);
+    cursor: pointer;
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast);
+  }
+
+  .product-add:hover {
+    transform: translateY(2px);
+    box-shadow: 0 4px 0 var(--color-brand-800);
+  }
+
+  .product-add:active {
+    transform: translateY(4px);
+    box-shadow: 0 2px 0 var(--color-brand-800);
+  }
+
+  .product-add:disabled,
+  .product-add:disabled:hover {
+    transform: none;
+    box-shadow: 0 6px 0 var(--color-brand-800);
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .product-add svg {
+    stroke-width: 2.2;
+  }
+
+  .product-fav {
+    flex: none;
+  }
+
+  .product-fav-button {
+    @apply focus-ring;
+    display: grid;
+    place-items: center;
+    width: 56px;
+    height: 56px;
+    border: 2px solid var(--color-ink);
+    border-radius: var(--radius-pill);
+    background: #fff;
+    color: var(--color-ink);
+    cursor: pointer;
+    transition: background-color var(--transition-fast), color var(--transition-fast);
+  }
+
+  .product-fav-button:hover {
+    background: var(--color-coral-100);
+  }
+
+  .product-fav-button svg {
+    stroke-width: 2.2;
+  }
+
+  .product-fav-on,
+  .product-fav-on:hover {
+    border-color: var(--color-coral-500);
+    background: var(--color-coral-50);
+    color: var(--color-coral-700);
+  }
+
+  /* ---- 5. Os três cartões ---------------------------------------------- */
+
+  .product-perks {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 8px;
+  }
+
+  .product-perk {
+    min-width: 0;
+    padding: 14px;
+    border: 2px solid var(--color-surface-line);
+    border-radius: 18px;
+    background: #fff;
+  }
+
+  .product-perk b {
+    display: block;
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 13px;
+    line-height: normal;
+    color: var(--color-ink);
+  }
+
+  .product-perk span,
+  .product-perk-link {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 13px;
+    line-height: normal;
+    color: var(--color-ink-soft);
+    overflow-wrap: anywhere;
+  }
+
+  .product-perk-link {
+    @apply focus-ring rounded;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .product-perk-link:hover {
+    color: var(--color-brand-600);
+  }
+
+  /* ---- 6. O acordeão --------------------------------------------------- */
+
+  .product-acc {
+    display: flex;
+    flex-direction: column;
+    border-top: 2px solid var(--color-surface-line);
+  }
+
+  .product-acc-item {
+    border-bottom: 2px solid var(--color-surface-line);
+  }
+
+  .product-acc-item summary {
+    @apply focus-ring rounded;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 18px 0;
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 16px;
+    /* 24px de caixa: é o que a linha do acordeão mede na referência (60px
+       com os 18px de cada lado). */
+    line-height: 24px;
+    color: var(--color-ink);
+    cursor: pointer;
+    list-style: none;
+  }
+
+  .product-acc-item summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .product-acc-item summary::after {
+    content: "+";
+    flex: none;
+    font-weight: 800;
+    font-size: 18px;
+    line-height: 1;
+  }
+
+  .product-acc-item[open] summary::after {
+    content: "−";
+  }
+
+  .product-acc-body {
+    margin: 0;
+    padding: 0 0 18px;
+  }
+
+  .product-acc-text {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 15px;
+    line-height: 1.6;
+    color: var(--color-ink-soft);
+    white-space: pre-line;
+  }
+
+  .product-specs {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .product-spec {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 16px;
+    padding: 10px 0;
+  }
+
+  .product-spec + .product-spec {
+    border-top: 1px solid var(--color-surface-line);
+  }
+
+  .product-spec dt {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 14px;
+    line-height: normal;
+    color: var(--color-ink-muted);
+  }
+
+  .product-spec dd {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-weight: 700;
+    font-size: 14px;
+    line-height: normal;
+    text-align: end;
+    color: var(--color-ink);
+  }
+
+  /* ---- 7. Relacionados ------------------------------------------------- */
+
+  .product-related {
+    margin-top: 80px;
+  }
+
+  .product-related-title {
+    margin: 0 0 24px;
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 40px;
+    line-height: 1;
+    letter-spacing: normal;
+    color: var(--color-ink);
+  }
+
+  .product-related-grid {
+    gap: 20px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  /* ---- 8. Responsivo --------------------------------------------------- */
+
+  @media (max-width: 1100px) {
+    .product-cols {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 36px;
+    }
+
+    .product-info {
+      position: static;
+    }
+
+    .product-title {
+      font-size: 40px;
+    }
+
+    .product-related-title {
+      font-size: 32px;
+    }
+
+    .product-related-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 640px) {
+    .product-buy {
+      flex-wrap: wrap;
+    }
+
+    .product-add {
+      flex: 1 1 100%;
+      order: 3;
+    }
+
+    .product-perks {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .product-related-grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   O carrinho
+
+   Medidas de `Carrinho.html`, uma a uma: colunas 1fr/400px com 40px de vão,
+   cards de linha com 110px de foto, 24px de raio e 2px de borda, pílulas de
+   opção de 12px, quantidade de 44px, resumo escuro com 28px de raio e 28px de
+   padding, total de 32px em amarelo, botão amarelo com sombra sólida de 6px,
+   dois cartões de 18px de raio. Os pontos de quebra são os da referência:
+   1100px (uma coluna, resumo solto) e 640px (foto de 80px e o preço e a
+   quantidade numa linha própria embaixo).
+
+   A trilha, a página (`catalog-page`), o título com a contagem
+   (`catalog-title`) e a grade de relacionados (`product-related-grid`) são
+   compartilhados com o catálogo e a página do produto.
+--------------------------------------------------------------------------- */
+@layer components {
+  .cart-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+
+  .cart-continue {
+    @apply focus-ring rounded;
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 15px;
+    line-height: normal;
+    color: var(--color-brand-600);
+    text-decoration: underline;
+    text-underline-offset: 4px;
+    white-space: nowrap;
+  }
+
+  .cart-continue:hover {
+    color: var(--color-brand-800);
+  }
+
+  .cart-cols {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 400px;
+    gap: 40px;
+    align-items: start;
+  }
+
+  /* ---- 1. As linhas ---------------------------------------------------- */
+
+  .cart-items {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .cart-item {
+    display: grid;
+    grid-template-columns: 110px minmax(0, 1fr) auto;
+    gap: 20px;
+    align-items: center;
+    padding: 16px;
+    border: 2px solid var(--color-surface-line);
+    border-radius: 24px;
+    background: #fff;
+  }
+
+  /* A foto, na mesma moldura pastel do card — e no mesmo ritmo. */
+  .cart-item-media {
+    display: block;
+    aspect-ratio: 1 / 1;
+    overflow: hidden;
+    border-radius: 16px;
+    background: var(--color-brand-100);
+  }
+
+  .cart-item:nth-child(4n + 2) .cart-item-media { background: var(--color-mint-100); }
+  .cart-item:nth-child(4n + 3) .cart-item-media { background: var(--color-yellow-100); }
+  .cart-item:nth-child(4n) .cart-item-media { background: var(--color-coral-100); }
+
+  .cart-item-media .product-media {
+    background: transparent;
+  }
+
+  .cart-item-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .cart-item-cat {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 12px;
+    line-height: normal;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-ink-muted);
+  }
+
+  .cart-item-name {
+    margin: 0;
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 20px;
+    line-height: 1.2;
+    letter-spacing: normal;
+    color: var(--color-ink);
+    overflow-wrap: anywhere;
+  }
+
+  .cart-item-name a {
+    @apply focus-ring rounded;
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .cart-item-name a:hover {
+    color: var(--color-brand-600);
+  }
+
+  .cart-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .cart-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border: 2px solid var(--color-surface-line);
+    border-radius: var(--radius-pill);
+    font-family: var(--font-sans);
+    font-weight: 700;
+    font-size: 12px;
+    line-height: normal;
+    color: var(--color-ink);
+  }
+
+  .cart-chip-dot {
+    width: 12px;
+    height: 12px;
+    flex: none;
+    border: 1px solid var(--color-ink);
+    border-radius: var(--radius-pill);
+    background: var(--color-surface-line-strong);
+  }
+
+  /* O que a referência não desenha, no mesmo molde: a personalização em
+     coral (é o acento de "olhe para isto") e o sob encomenda em âmbar. */
+  .cart-chip-custom {
+    border-color: var(--color-coral-500);
+    background: var(--color-coral-50);
+    color: var(--color-coral-700);
+  }
+
+  .cart-chip-warning {
+    border-color: var(--color-state-warning);
+    background: var(--color-state-warning-soft);
+    color: var(--color-state-warning-dark);
+  }
+
+  .cart-item-unit {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-weight: 700;
+    font-size: 12px;
+    line-height: normal;
+    color: var(--color-ink-muted);
+  }
+
+  .cart-remove {
+    @apply focus-ring rounded;
+    margin-top: 2px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    font-family: var(--font-sans);
+    font-weight: 700;
+    font-size: 13px;
+    line-height: normal;
+    color: var(--color-ink-muted);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+    transition: color var(--transition-fast);
+  }
+
+  .cart-remove:hover {
+    color: var(--color-state-error);
+  }
+
+  .cart-item-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 12px;
+  }
+
+  .cart-item-price {
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 20px;
+    line-height: normal;
+    color: var(--color-brand-600);
+    white-space: nowrap;
+  }
+
+  .cart-qty {
+    display: flex;
+    align-items: center;
+    height: 44px;
+    overflow: hidden;
+    border: 2px solid var(--color-ink);
+    border-radius: var(--radius-pill);
+    background: #fff;
+  }
+
+  /* Cada botão é um formulário próprio (− e +): o `<form>` some do layout. */
+  .cart-qty form {
+    display: contents;
+  }
+
+  .cart-qty button {
+    width: 40px;
+    height: 40px;
+    border: 0;
+    background: #fff;
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    transition: background-color var(--transition-fast);
+  }
+
+  .cart-qty button:hover {
+    background: var(--color-brand-100);
+  }
+
+  .cart-qty button:focus-visible {
+    outline: 2px solid var(--color-brand-600);
+    outline-offset: -4px;
+  }
+
+  .cart-qty button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    background: #fff;
+  }
+
+  .cart-qty span {
+    width: 32px;
+    text-align: center;
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 15px;
+    line-height: normal;
+    color: var(--color-ink);
+  }
+
+  .cart-qty-note {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-weight: 700;
+    font-size: 11px;
+    line-height: normal;
+    color: var(--color-ink-muted);
+  }
+
+  /* ---- 2. O resumo ----------------------------------------------------- */
+
+  .cart-aside {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    position: sticky;
+    top: 96px;
+  }
+
+  .cart-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 28px;
+    border-radius: 28px;
+    background: var(--color-surface-deep);
+    color: #fff;
+  }
+
+  .cart-summary-title {
+    margin: 0;
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 26px;
+    line-height: normal;
+    letter-spacing: normal;
+    color: #fff;
+  }
+
+  .cart-summary-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin: 0;
+  }
+
+  .cart-summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 16px;
+    font-family: var(--font-sans);
+    font-weight: 700;
+    font-size: 15px;
+    line-height: normal;
+    color: var(--color-ink-on-deep);
+  }
+
+  .cart-summary-row dd {
+    margin: 0;
+    text-align: end;
+    color: #fff;
+  }
+
+  .cart-summary-hr {
+    height: 2px;
+    background: #2a1f47;
+  }
+
+  .cart-summary-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 16px;
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 16px;
+    line-height: normal;
+  }
+
+  .cart-summary-total b {
+    font-weight: 800;
+    font-size: 32px;
+    color: var(--color-yellow-500);
+  }
+
+  /* O botão amarelo com sombra sólida — o mesmo do "Pedir orçamento" da
+     Home. Afunda 2px ao passar o cursor. */
+  .cart-checkout {
+    @apply focus-ring;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    padding: 16px;
+    border: 0;
+    border-radius: var(--radius-pill);
+    background: var(--color-yellow-500);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 17px;
+    line-height: normal;
+    text-decoration: none;
+    box-shadow: 0 6px 0 var(--color-yellow-600);
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  }
+
+  .cart-checkout:hover {
+    transform: translateY(2px);
+    box-shadow: 0 4px 0 var(--color-yellow-600);
+  }
+
+  .cart-checkout:active {
+    transform: translateY(4px);
+    box-shadow: 0 2px 0 var(--color-yellow-600);
+  }
+
+  .cart-pay {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    margin: 0;
+    font-family: var(--font-sans);
+    font-weight: 700;
+    font-size: 12px;
+    line-height: normal;
+    color: var(--color-ink-on-deep);
+  }
+
+  .cart-perks {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .cart-perk {
+    @apply focus-ring;
+    display: block;
+    min-width: 0;
+    padding: 14px;
+    border: 2px solid var(--color-surface-line);
+    border-radius: 18px;
+    background: #fff;
+    color: var(--color-ink);
+    text-decoration: none;
+    transition: border-color var(--transition-fast);
+  }
+
+  .cart-perk:hover {
+    border-color: var(--color-ink);
+  }
+
+  .cart-perk b {
+    display: block;
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 13px;
+    line-height: normal;
+  }
+
+  .cart-perk span {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 13px;
+    line-height: normal;
+    color: var(--color-ink-soft);
+  }
+
+  /* ---- 3. Relacionados e o carrinho vazio ------------------------------ */
+
+  .cart-related {
+    margin-top: 72px;
+  }
+
+  .cart-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    padding: 64px 32px;
+    border: 2px dashed var(--color-surface-line);
+    border-radius: 32px;
+    background: #fff;
+    text-align: center;
+  }
+
+  .cart-empty-icon {
+    display: grid;
+    place-items: center;
+    width: 72px;
+    height: 72px;
+    border-radius: var(--radius-pill);
+    background: var(--color-brand-100);
+    color: var(--color-brand-600);
+  }
+
+  .cart-empty-title {
+    margin: 0;
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 28px;
+    line-height: normal;
+    letter-spacing: normal;
+    color: var(--color-ink);
+  }
+
+  .cart-empty-text {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 16px;
+    line-height: normal;
+    color: var(--color-ink-soft);
+  }
+
+  .cart-empty-cta {
+    @apply focus-ring;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+    padding: 14px 26px;
+    border-radius: var(--radius-pill);
+    background: var(--color-brand-600);
+    color: #fff;
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 16px;
+    line-height: normal;
+    text-decoration: none;
+    box-shadow: 0 5px 0 var(--color-brand-800);
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  }
+
+  .cart-empty-cta:hover {
+    transform: translateY(2px);
+    box-shadow: 0 3px 0 var(--color-brand-800);
+  }
+
+  /* ---- 4. Responsivo --------------------------------------------------- */
+
+  @media (max-width: 1100px) {
+    .cart-cols {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 28px;
+    }
+
+    .cart-aside {
+      position: static;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .cart-head {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 14px;
+    }
+
+    .cart-item {
+      grid-template-columns: 80px minmax(0, 1fr);
+    }
+
+    .cart-item-right {
+      grid-column: 1 / -1;
+      flex-direction: row;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+    }
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   A gaveta do carrinho
+
+   Medidas de `sidebar.html`, uma a uma: 440px (ou 92vw) presos à direita,
+   cabeçalho 20px 24px com fio de 2px, título 26px + contagem 15px, botão
+   contornado 13px/2px e ✕ de 40px; corpo 20px 24px com 12px entre blocos,
+   aviso menta de raio 14, cards de 72px de foto, raio 20 e padding 12,
+   nome 16px, quantidade de 34px, preço 16px roxo; rodapé branco fixo com
+   fio de 2px, total de 26px roxo e botão roxo com sombra sólida de 5px.
+
+   Quem abre e fecha é o app.js, ligando `translate-x-full` no painel e
+   `opacity-0` no fundo: aqui ficam só as transições e o desenho.
+--------------------------------------------------------------------------- */
+@layer components {
+  .cart-drawer-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgb(27 21 48 / 0.45);
+    transition: opacity 0.25s;
+  }
+
+  .cart-drawer-panel {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    inset-inline-end: 0;
+    display: flex;
+    flex-direction: column;
+    width: min(440px, 92vw);
+    background: var(--color-surface);
+    box-shadow: -8px 0 32px rgb(27 21 48 / 0.18);
+    transition: translate 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  /* ---- cabeçalho ------------------------------------------------------- */
+
+  .cd-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 20px 24px;
+    border-bottom: 2px solid var(--color-surface-line);
+  }
+
+  .cd-title {
+    margin: 0;
+    min-width: 0;
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 26px;
+    line-height: normal;
+    letter-spacing: normal;
+    color: var(--color-ink);
+    white-space: nowrap;
+  }
+
+  .cd-title-count {
+    margin-inline-start: 4px;
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 15px;
+    color: var(--color-ink-muted);
+  }
+
+  .cd-actions {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .cd-link-sm {
+    @apply focus-ring;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 9px 14px;
+    border: 2px solid var(--color-ink);
+    border-radius: var(--radius-pill);
+    background: #fff;
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 13px;
+    line-height: normal;
+    white-space: nowrap;
+    text-decoration: none;
+    transition: background-color var(--transition-fast);
+  }
+
+  .cd-link-sm:hover {
+    background: var(--color-yellow-500);
+  }
+
+  .cd-close {
+    @apply focus-ring;
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border: 2px solid var(--color-ink);
+    border-radius: var(--radius-pill);
+    background: #fff;
+    color: var(--color-ink);
+    cursor: pointer;
+    transition: background-color var(--transition-fast);
+  }
+
+  .cd-close:hover {
+    background: var(--color-brand-100);
+  }
+
+  .cd-close svg {
+    stroke-width: 2.4;
+  }
+
+  /* ---- corpo rolável --------------------------------------------------- */
+
+  .cd-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 20px 24px;
+  }
+
+  .cd-ship {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0;
+    padding: 10px 14px;
+    border-radius: 14px;
+    background: var(--color-mint-100);
+    color: var(--color-mint-700);
+    font-family: var(--font-sans);
+    font-weight: 700;
+    font-size: 13px;
+    line-height: normal;
+  }
+
+  .cd-ship i {
+    flex: none;
+    width: 8px;
+    height: 8px;
+    border-radius: var(--radius-pill);
+    background: var(--color-mint-700);
+  }
+
+  .cd-items {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .cd-item {
+    display: grid;
+    grid-template-columns: 72px minmax(0, 1fr);
+    gap: 14px;
+    padding: 12px;
+    border: 2px solid var(--color-surface-line);
+    border-radius: 20px;
+    background: #fff;
+  }
+
+  .cd-thumb {
+    display: block;
+    aspect-ratio: 1 / 1;
+    overflow: hidden;
+    border-radius: 14px;
+    background: var(--color-brand-100);
+  }
+
+  .cd-item:nth-child(4n + 2) .cd-thumb { background: var(--color-mint-100); }
+  .cd-item:nth-child(4n + 3) .cd-thumb { background: var(--color-yellow-100); }
+  .cd-item:nth-child(4n) .cd-thumb { background: var(--color-coral-100); }
+
+  .cd-thumb .product-media {
+    background: transparent;
+  }
+
+  .cd-info {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .cd-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .cd-name {
+    @apply focus-ring rounded;
+    min-width: 0;
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 16px;
+    line-height: 1.2;
+    color: var(--color-ink);
+    text-decoration: none;
+    overflow-wrap: anywhere;
+  }
+
+  .cd-name:hover {
+    color: var(--color-brand-600);
+  }
+
+  .cd-remove {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--color-ink-muted);
+    cursor: pointer;
+    transition: color var(--transition-fast);
+  }
+
+  .cd-remove svg {
+    stroke-width: 2.4;
+  }
+
+  .cd-remove:hover {
+    color: var(--color-state-error);
+  }
+
+  .cd-meta {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-weight: 700;
+    font-size: 12px;
+    line-height: normal;
+    color: var(--color-ink-muted);
+  }
+
+  .cd-meta-custom {
+    color: var(--color-coral-700);
+  }
+
+  .cd-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin-top: 2px;
+  }
+
+  .cd-qty {
+    display: flex;
+    align-items: center;
+    height: 34px;
+    overflow: hidden;
+    border: 2px solid var(--color-ink);
+    border-radius: var(--radius-pill);
+    background: #fff;
+  }
+
+  .cd-qty form {
+    display: contents;
+  }
+
+  .cd-qty button {
+    width: 32px;
+    height: 30px;
+    border: 0;
+    background: #fff;
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    transition: background-color var(--transition-fast);
+  }
+
+  .cd-qty button:hover {
+    background: var(--color-brand-100);
+  }
+
+  .cd-qty button:focus-visible {
+    outline: 2px solid var(--color-brand-600);
+    outline-offset: -4px;
+  }
+
+  .cd-qty button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    background: #fff;
+  }
+
+  .cd-qty span {
+    width: 26px;
+    text-align: center;
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 13px;
+    line-height: normal;
+    color: var(--color-ink);
+  }
+
+  .cd-price {
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 16px;
+    line-height: normal;
+    color: var(--color-brand-600);
+    white-space: nowrap;
+  }
+
+  /* O convite para criar conta, no mesmo molde dos cards. */
+  .cd-invite {
+    padding: 12px 14px;
+    border: 2px solid var(--color-brand-200);
+    border-radius: 14px;
+    background: var(--color-brand-50);
+  }
+
+  .cd-invite-title {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 13px;
+    line-height: normal;
+    color: var(--color-ink);
+  }
+
+  .cd-invite-text {
+    margin: 4px 0 0;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 12px;
+    line-height: 1.45;
+    color: var(--color-ink-soft);
+  }
+
+  .cd-invite-links {
+    display: flex;
+    gap: 8px;
+    margin: 6px 0 0;
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 13px;
+    line-height: normal;
+    color: var(--color-ink-muted);
+  }
+
+  .cd-invite-links a {
+    @apply focus-ring rounded;
+    color: var(--color-brand-600);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  /* ---- vazio ----------------------------------------------------------- */
+
+  .cd-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 48px 16px;
+    text-align: center;
+  }
+
+  .cd-empty-icon {
+    display: grid;
+    place-items: center;
+    width: 64px;
+    height: 64px;
+    border-radius: var(--radius-pill);
+    background: var(--color-brand-100);
+    color: var(--color-brand-600);
+  }
+
+  .cd-empty-title {
+    margin: 0;
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 22px;
+    line-height: normal;
+    letter-spacing: normal;
+    color: var(--color-ink);
+  }
+
+  .cd-empty-link {
+    @apply focus-ring rounded;
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 15px;
+    line-height: normal;
+    color: var(--color-brand-600);
+    text-decoration: underline;
+    text-underline-offset: 4px;
+  }
+
+  /* ---- rodapé fixo ----------------------------------------------------- */
+
+  .cd-foot {
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 20px 24px 24px;
+    border-top: 2px solid var(--color-surface-line);
+    background: #fff;
+  }
+
+  .cd-line {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    font-family: var(--font-sans);
+    font-weight: 700;
+    font-size: 14px;
+    line-height: normal;
+    color: var(--color-ink-soft);
+  }
+
+  .cd-line b {
+    font-weight: 800;
+    color: var(--color-ink);
+  }
+
+  .cd-line-note {
+    font-weight: 800;
+    color: var(--color-mint-700);
+  }
+
+  .cd-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 16px;
+    line-height: normal;
+    color: var(--color-ink);
+  }
+
+  .cd-total b {
+    font-weight: 800;
+    font-size: 26px;
+    color: var(--color-brand-600);
+  }
+
+  .cd-checkout {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 6px;
+    padding: 15px;
+    border-radius: var(--radius-pill);
+    background: var(--color-brand-600);
+    color: #fff;
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 16px;
+    line-height: normal;
+    text-decoration: none;
+    box-shadow: 0 5px 0 var(--color-brand-800);
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  }
+
+  .cd-checkout:hover {
+    transform: translateY(2px);
+    box-shadow: 0 3px 0 var(--color-brand-800);
+  }
+
+  .cd-continue {
+    align-self: center;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 14px;
+    line-height: normal;
+    color: var(--color-brand-600);
+    text-decoration: underline;
+    text-underline-offset: 4px;
+    cursor: pointer;
+  }
+
+  .cd-continue:hover {
+    color: var(--color-brand-800);
   }
 }

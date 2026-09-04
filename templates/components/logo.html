@@ -26,14 +26,14 @@ fica claro que aquele é o espaço da logo, e não uma logo inventada.
     <span class="flex items-center gap-2.5 rounded-control border border-dashed {% if dark %}border-brand-300/50 bg-brand-600/15{% else %}border-brand-200 bg-brand-50{% endif %} px-2.5 py-1.5"
           title="{% translate 'Espaço reservado à logo oficial' %}">
       <span aria-hidden="true"
-            class="flex h-7 w-7 items-center justify-center rounded-[8px] bg-gradient-to-br from-brand-500 to-brand-600 font-display text-[13px] font-bold text-white">
+            class="flex h-7 w-7 items-center justify-center rounded-control bg-gradient-to-br from-brand-500 to-brand-600 font-display text-[13px] font-bold text-white">
         JD
       </span>
       <span class="flex flex-col leading-none">
-        <span class="font-display text-[15px] font-bold tracking-[0.03em] {% if dark %}text-white{% else %}text-ink{% endif %}">
+        <span class="font-display text-[15px] font-bold tracking-label {% if dark %}text-white{% else %}text-ink{% endif %}">
           JD <span class="{% if dark %}text-brand-300{% else %}text-brand-600{% endif %}">PRINT</span>
         </span>
-        <span class="mt-0.5 font-mono text-[9px] uppercase tracking-[0.1em] {% if dark %}text-brand-200/70{% else %}text-ink-muted{% endif %}">3D</span>
+        <span class="mt-0.5 font-mono text-[9px] uppercase tracking-label {% if dark %}text-brand-200/70{% else %}text-ink-muted{% endif %}">3D</span>
       </span>
     </span>
   {% endif %}

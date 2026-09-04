@@ -14,16 +14,17 @@
   <meta property="og:title" content="{% block og_title %}{{ meta_title|default:site_name }}{% endblock %}">
   <meta property="og:description" content="{{ meta_description|default:'' }}">
   <meta property="og:locale" content="{{ LANGUAGE_CODE }}">
-  <meta name="theme-color" content="#6d2ce0">
+  <meta name="theme-color" content="#4a1a8c">
 
   {% comment %}
     As fontes são servidas pelo próprio site (nada de CDN externo: RGPD e uma
     requisição a menos). Pré-carregar o latin evita o texto piscar.
   {% endcomment %}
-  <link rel="preload" href="{% static 'fonts/manrope-400-800-latin.woff2' %}" as="font" type="font/woff2" crossorigin>
-  <link rel="preload" href="{% static 'fonts/space-grotesk-500-700-latin.woff2' %}" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="{% static 'fonts/nunito-400-800-latin.woff2' %}" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="{% static 'fonts/baloo2-400-800-latin.woff2' %}" as="font" type="font/woff2" crossorigin>
 
-  <link rel="stylesheet" href="{% static 'css/tailwind.css' %}">
+  {# static_versioned: a URL muda quando o arquivo muda; o navegador não fica com CSS/JS antigo em cache. #}
+  <link rel="stylesheet" href="{% static_versioned 'css/tailwind.css' %}">
   {% brand_favicon_url as favicon_url %}
   {% if favicon_url %}<link rel="icon" href="{{ favicon_url }}">{% endif %}
   {% block extra_head %}{% endblock %}
@@ -55,8 +56,8 @@
     {% endif %}
   </div>
 
-  <script src="{% static 'vendor/htmx.min.js' %}" defer></script>
-  <script src="{% static 'js/app.js' %}" defer></script>
+  <script src="{% static_versioned 'vendor/htmx.min.js' %}" defer></script>
+  <script src="{% static_versioned 'js/app.js' %}" defer></script>
   {% block extra_scripts %}{% endblock %}
 </body>
 </html>

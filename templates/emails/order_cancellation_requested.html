@@ -16,34 +16,34 @@
 {% block email_preview %}{% blocktranslate with number=order.number %}O pedido {{ number }} aguarda uma decisão da equipe.{% endblocktranslate %}{% endblock %}
 
 {% block email_body %}
-  <h1 style="margin:0 0 12px 0;font-size:19px;line-height:1.3;color:#1b1533;">
+  <h1 style="margin:0 0 12px 0;font-size:19px;line-height:1.3;color:#1b1530;">
     {% translate "Cancelamento solicitado" %}
   </h1>
 
-  <p style="margin:0 0 18px 0;padding:12px 14px;background-color:#fdf3d7;border-radius:10px;font-size:14px;line-height:1.6;color:#3b3357;">
+  <p style="margin:0 0 18px 0;padding:12px 14px;background-color:#fff3d6;border-radius:10px;font-size:14px;line-height:1.6;color:#4b4560;">
     <strong>{% translate "É necessária uma ação da equipe." %}</strong><br>
     {% translate "Um cliente pediu o cancelamento e está esperando a decisão. Nada foi cancelado ainda." %}
   </p>
 
-  <p style="margin:0 0 18px 0;font-size:14px;line-height:1.8;color:#3b3357;">
-    <strong style="color:#1b1533;">{{ order.number }}</strong> · {{ order.created_at|date:"d/m/Y H:i" }}<br>
-    {% translate "Total" %}: <strong style="color:#1b1533;">{{ order.currency_symbol }} {{ order.total|floatformat:2 }}</strong><br>
+  <p style="margin:0 0 18px 0;font-size:14px;line-height:1.8;color:#4b4560;">
+    <strong style="color:#1b1530;">{{ order.number }}</strong> · {{ order.created_at|date:"d/m/Y H:i" }}<br>
+    {% translate "Total" %}: <strong style="color:#1b1530;">{{ order.currency_symbol }} {{ order.total|floatformat:2 }}</strong><br>
     {% translate "Situação" %}: {{ order.get_status_display }} · {{ order.get_payment_status_display }} · {{ order.get_fulfillment_status_display }}<br>
     {{ customer.full_name|default:user.username }} · {{ user.email }}
   </p>
 
-  <h2 style="margin:0 0 8px 0;font-size:15px;color:#1b1533;">{% translate "Motivo informado pelo cliente" %}</h2>
-  <p style="margin:0 0 20px 0;padding:12px 14px;background-color:#f5f2fd;border-radius:10px;font-size:14px;line-height:1.6;color:#3b3357;">
+  <h2 style="margin:0 0 8px 0;font-size:15px;color:#1b1530;">{% translate "Motivo informado pelo cliente" %}</h2>
+  <p style="margin:0 0 20px 0;padding:12px 14px;background-color:#efe8fa;border-radius:10px;font-size:14px;line-height:1.6;color:#4b4560;">
     {{ reason|default:"(não informado)"|linebreaksbr }}
   </p>
 
   <p style="margin:0 0 8px 0;">
     <a href="{{ admin_url }}"
-       style="display:inline-block;padding:12px 22px;background-color:#6d2ce0;border-radius:10px;color:#ffffff;font-weight:700;text-decoration:none;">
+       style="display:inline-block;padding:12px 22px;background-color:#4a1a8c;border-radius:10px;color:#ffffff;font-weight:700;text-decoration:none;">
       {% translate "Decidir no Admin" %}
     </a>
   </p>
-  <p style="margin:0;font-size:13px;line-height:1.6;color:#6b6386;">
+  <p style="margin:0;font-size:13px;line-height:1.6;color:#6e6880;">
     {% translate "Aprovar o cancelamento avisa o cliente automaticamente. Recusar também fica registrado no pedido." %}
   </p>
 {% endblock %}

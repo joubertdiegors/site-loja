@@ -13,14 +13,14 @@ abertos ao clicar em outro lugar). Sair é POST com CSRF, nunca um link.
 {% if user.is_authenticated %}
 
   <details class="relative" data-dropdown data-account-menu>
-    <summary class="focus-ring flex cursor-pointer list-none items-center gap-1.5 rounded-full px-2 py-2 text-sm font-semibold text-ink-soft transition-colors hover:text-brand-700"
+    <summary class="focus-ring flex cursor-pointer list-none items-center gap-1.5 rounded-pill px-2 py-2 text-sm font-semibold text-ink-soft transition-colors hover:text-brand-700"
              aria-label="{% translate 'Minha conta' %}">
       {% icon "user" %}
       <span class="hidden max-w-24 truncate sm:inline">{{ user.display_name }}</span>
       {% icon "chevron-down" "h-3.5 w-3.5" %}
     </summary>
 
-    <div class="absolute end-0 z-40 mt-2 w-56 overflow-hidden rounded-2xl border border-surface-line bg-white p-1.5 shadow-xl shadow-brand-900/10">
+    <div class="absolute end-0 z-40 mt-2 w-56 overflow-hidden rounded-card border border-surface-line bg-white p-1.5 shadow-lift">
       <p class="truncate px-3 py-2 text-xs text-ink-muted">{{ user.username }}</p>
 
       <a class="menu-item" href="{% url 'accounts:dashboard' %}">

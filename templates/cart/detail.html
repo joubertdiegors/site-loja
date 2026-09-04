@@ -1,12 +1,40 @@
 {% extends "base.html" %}
 {% load i18n jdprint %}
 
+{% comment %}
+A página do carrinho.
+
+A anatomia é a da direção visual (`Carrinho.html`): trilha, título com a
+contagem de itens e o link "Continuar comprando"; à esquerda os cards das
+linhas, à direita o resumo escuro (preso ao rolar) com os dois cartões de
+política embaixo; no fim, os produtos relacionados.
+
+O que muda com o carrinho — as linhas, o resumo, os relacionados — mora em
+`_cart_panel.html`, o alvo das trocas do HTMX. A contagem do título fica fora
+dele, então volta por troca *out of band* (`_page_count.html`). Sem
+JavaScript, a página inteira recarrega.
+{% endcomment %}
+
 {% block content %}
-  <section class="container-page py-10 sm:py-14">
-    <header class="mb-8">
-      <p class="section-eyebrow">{% translate "Sua seleção" %}</p>
-      <h1 class="section-title mt-2">{% translate "Meu carrinho" %}</h1>
-    </header>
+  <section class="container-page catalog-page cart-page">
+
+    <nav class="catalog-crumbs" aria-label="{% translate 'Você está aqui' %}">
+      <ol role="list">
+        <li><a href="{% url 'home:index' %}">{% translate "Início" %}</a></li>
+        <li aria-hidden="true">/</li>
+        <li aria-current="page">{% translate "Carrinho" %}</li>
+      </ol>
+    </nav>
+
+    <div class="cart-head">
+      <h1 class="catalog-title">
+        {% translate "Seu carrinho" %}
+        {% include "cart/_page_count.html" %}
+      </h1>
+      <a href="{% url 'catalog:models_shop' %}" class="cart-continue">
+        <span aria-hidden="true">←</span> {% translate "Continuar comprando" %}
+      </a>
+    </div>
 
     {# Alvo das trocas do HTMX. Sem JavaScript, a página inteira recarrega. #}
     <div id="cart-panel">

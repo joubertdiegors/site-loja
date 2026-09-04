@@ -16,54 +16,47 @@ fingirem funcionar.
 {% endcomment %}
 
 {% if top_bar_items %}
-  {# Faixa de camadas: a assinatura gráfica da marca abre a página. #}
-  <div class="bg-surface-deep layers-light" data-top-bar>
-    <div class="container-page">
-      <ul class="flex items-center justify-center gap-x-6 gap-y-1 overflow-hidden py-2.5 font-mono text-[10.5px] uppercase tracking-[0.1em] text-brand-200 sm:text-[11px]" role="list">
-        {% comment %}
-          Do segundo item em diante a faixa vai escondendo nas telas estreitas,
-          como já fazia: em 390 px não cabem três frases lado a lado. Quem
-          cadastrar seis vê três no celular — é o comportamento de antes, agora
-          com a lista vindo do banco.
+  {% comment %}
+    A faixa do topo, no desenho da referência: fundo navy, texto pequeno em
+    maiúsculas com bastante entreletra, e cada promessa numa cor diferente —
+    amarelo, menta e coral. A cor é do cadastro (`TopBarItem.color`), validada
+    contra o navy no `clean()` do modelo, e chega aqui como variável CSS.
 
-          O ponto separador é `aria-hidden`: é desenho, não conteúdo.
+    Sem separador: o que separa é o espaço de 36px e a troca de cor. O ponto
+    que havia antes existia porque tudo era da mesma tinta.
 
-          O ícone é o do próprio item (`TopBarItem.icon`), quando houver —
-          o mesmo campo que o hero já usava. Item sem ícone continua
-          aparecendo só com o texto.
-        {% endcomment %}
-        {% for item in top_bar_items %}
-          {% if item.text %}
-            {% if not forloop.first %}
-              <li class="hidden whitespace-nowrap {% if forloop.counter == 2 %}sm:list-item{% else %}lg:list-item{% endif %}" aria-hidden="true">·</li>
-            {% endif %}
-            <li class="{% if not forloop.first %}hidden {% if forloop.counter == 2 %}sm:list-item{% else %}lg:list-item{% endif %} {% endif %}whitespace-nowrap">
-              {% comment %}
-                `inline-flex` e não `flex`: o `<li>` continua sendo um item
-                de lista dentro de uma linha, e o alinhamento vertical do
-                ícone com a maiúscula do texto sai do `items-center`.
-              {% endcomment %}
-              <span class="inline-flex items-center gap-1.5 align-middle">
-                {% if item.icon %}{% icon item.icon "h-3.5 w-3.5 shrink-0 text-brand-300" %}{% endif %}
-                {{ item.text }}
-              </span>
-            </li>
-          {% endif %}
-        {% endfor %}
-      </ul>
-    </div>
+    Nas telas estreitas a faixa quebra em duas linhas em vez de esconder itens:
+    a promessa cadastrada é para ser lida, e `flex-wrap` custa menos do que
+    decidir qual delas o cliente não precisa ver.
+  {% endcomment %}
+  <div class="topbar" data-top-bar>
+    {% for item in top_bar_items %}
+      {% if item.text %}
+        {% if item.link_url %}
+          <a class="topbar-item focus-ring" style="{{ item.style }}" href="{{ item.link_url }}">
+            {% if item.icon %}{% icon item.icon "h-3.5 w-3.5 shrink-0" %}{% endif %}
+            {{ item.text }}
+          </a>
+        {% else %}
+          <span class="topbar-item" style="{{ item.style }}">
+            {% if item.icon %}{% icon item.icon "h-3.5 w-3.5 shrink-0" %}{% endif %}
+            {{ item.text }}
+          </span>
+        {% endif %}
+      {% endif %}
+    {% endfor %}
   </div>
 {% endif %}
 
-<header class="sticky top-0 z-30 border-b border-surface-line bg-white/95 backdrop-blur">
+<header class="sticky top-0 z-30 pt-3 sm:pt-4">
   <div class="container-page">
-    <div class="flex h-16 items-center justify-between gap-4 sm:h-18">
+    <div class="header-bar h-16 sm:h-20">
 
-      <div class="flex items-center gap-6">
+      <div class="flex items-center gap-5 lg:gap-8">
         {% include "components/logo.html" %}
 
         <nav class="hidden lg:block" aria-label="{% translate 'Navegação principal' %}">
-          <ul class="flex items-center gap-1" role="list">
+          <ul class="flex items-center gap-1.5" role="list">
             {% for category in nav_categories %}
               <li>
                 {# Ativo = a URL da categoria é a página atual. Sem contexto novo. #}
@@ -94,7 +87,7 @@ fingirem funcionar.
           </span>
           <label class="sr-only" for="busca">{% translate "Buscar produtos" %}</label>
           <input id="busca" type="search" name="q" value="{{ query|default:"" }}"
-                 class="field-input w-44 ps-10 lg:w-60"
+                 class="field-input w-52 ps-10 lg:w-72"
                  placeholder="{% translate 'Buscar produtos' %}"
                  autocomplete="off">
           <button type="submit" class="sr-only">{% translate "Buscar" %}</button>
@@ -118,8 +111,9 @@ fingirem funcionar.
   </div>
 
   {# Menu mobile #}
-  <div id="menu-mobile" class="hidden border-t border-surface-line bg-white lg:hidden" data-menu-panel>
-    <nav class="container-page py-4" aria-label="{% translate 'Navegação principal (celular)' %}">
+  <div id="menu-mobile" class="hidden lg:hidden" data-menu-panel>
+    <nav class="container-page pt-2" aria-label="{% translate 'Navegação principal (celular)' %}">
+      <div class="rounded-block border border-surface-line bg-white p-4 shadow-lift">
       <form action="{% url 'catalog:search' %}" method="get" role="search"
             class="relative mb-4 md:hidden">
         <span class="pointer-events-none absolute inset-y-0 start-0 flex items-center ps-3.5 text-ink-muted">
@@ -136,7 +130,7 @@ fingirem funcionar.
       <ul class="space-y-1" role="list">
         {% for category in nav_categories %}
           <li>
-            <a class="focus-ring flex items-center justify-between rounded-[11px] px-3 py-3 text-sm font-semibold text-ink transition-colors hover:bg-brand-50 hover:text-brand-700"
+            <a class="focus-ring flex items-center justify-between rounded-control px-3 py-3 text-sm font-semibold text-ink transition-colors hover:bg-brand-50 hover:text-brand-700"
                href="{{ category.get_absolute_url }}">
               {{ category.name }}
               {% icon "chevron-right" "h-4 w-4 rtl:rotate-180" %}
@@ -144,7 +138,7 @@ fingirem funcionar.
           </li>
         {% empty %}
           <li>
-            <a class="focus-ring flex rounded-[11px] px-3 py-3 text-sm font-semibold text-ink hover:bg-brand-50"
+            <a class="focus-ring flex rounded-control px-3 py-3 text-sm font-semibold text-ink hover:bg-brand-50"
                href="{% url 'catalog:models_shop' %}">{% translate "Produtos" %}</a>
           </li>
         {% endfor %}
@@ -153,15 +147,15 @@ fingirem funcionar.
       {# Conta no menu do celular: o menu suspenso do desktop não cabe aqui. #}
       <div class="mt-4 border-t border-surface-line pt-4">
         {% if user.is_authenticated %}
-          <p class="px-3 pb-2 font-mono text-[11px] uppercase tracking-[0.12em] text-ink-muted">{{ user.display_name }}</p>
-          <a class="focus-ring flex rounded-[11px] px-3 py-3 text-sm font-semibold text-ink hover:bg-brand-50"
+          <p class="px-3 pb-2 font-mono text-[11px] uppercase tracking-label text-ink-muted">{{ user.display_name }}</p>
+          <a class="focus-ring flex rounded-control px-3 py-3 text-sm font-semibold text-ink hover:bg-brand-50"
              href="{% url 'accounts:dashboard' %}">{% translate "Minha conta" %}</a>
-          <a class="focus-ring flex rounded-[11px] px-3 py-3 text-sm font-semibold text-ink hover:bg-brand-50"
+          <a class="focus-ring flex rounded-control px-3 py-3 text-sm font-semibold text-ink hover:bg-brand-50"
              href="{% url 'accounts:profile' %}">{% translate "Meus dados" %}</a>
           <form method="post" action="{% url 'accounts:logout' %}">
             {% csrf_token %}
             <button type="submit"
-                    class="focus-ring flex w-full rounded-[11px] px-3 py-3 text-start text-sm font-semibold text-ink hover:bg-brand-50">
+                    class="focus-ring flex w-full rounded-control px-3 py-3 text-start text-sm font-semibold text-ink hover:bg-brand-50">
               {% translate "Sair" %}
             </button>
           </form>
@@ -169,6 +163,7 @@ fingirem funcionar.
           <a class="btn-primary w-full" href="{% url 'accounts:login' %}">{% translate "Entrar" %}</a>
           <a class="btn-secondary mt-2 w-full" href="{% url 'accounts:register' %}">{% translate "Criar conta" %}</a>
         {% endif %}
+      </div>
       </div>
     </nav>
   </div>

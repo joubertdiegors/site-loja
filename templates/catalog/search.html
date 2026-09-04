@@ -16,20 +16,19 @@ pessoa de volta ao topo para isso é atrito à toa.
 {% endcomment %}
 
 {% block content %}
-  <section class="container-page py-6 sm:py-10">
+  <section class="container-page catalog-page">
 
-    <nav class="mb-5 font-mono text-[11px] uppercase tracking-[0.08em] text-ink-muted"
-         aria-label="{% translate 'Você está aqui' %}">
-      <ol class="flex flex-wrap items-center gap-1.5" role="list">
-        <li><a href="{% url 'home:index' %}" class="focus-ring rounded transition-colors hover:text-brand-700">{% translate "Início" %}</a></li>
+    <nav class="catalog-crumbs" aria-label="{% translate 'Você está aqui' %}">
+      <ol role="list">
+        <li><a href="{% url 'home:index' %}">{% translate "Início" %}</a></li>
         <li aria-hidden="true">/</li>
-        <li class="text-brand-700">{% translate "Busca" %}</li>
+        <li aria-current="page">{% translate "Busca" %}</li>
       </ol>
     </nav>
 
-    <header class="max-w-2xl">
+    <header class="page-header mx-auto max-w-2xl">
       <p class="section-eyebrow">{% translate "Catálogo" %}</p>
-      <h1 class="section-title mt-2">{{ page_title }}</h1>
+      <h1 class="page-title mt-2.5 max-w-3xl">{{ page_title }}</h1>
       {% if has_query %}
         <p class="section-subtitle" aria-live="polite">
           {% blocktranslate count total=result_count %}{{ total }} produto encontrado{% plural %}{{ total }} produtos encontrados{% endblocktranslate %}
@@ -68,9 +67,9 @@ pessoa de volta ao topo para isso é atrito à toa.
 
       A grade de duas colunas é a do catálogo (`shop-layout`), e lá a primeira
       coluna é ocupada pelas categorias. Aqui ela só tem o filtro de material;
-      quando não há material para filtrar, reservar os 254 px empurrava a barra
-      e os cards 282 px para a direita, enquanto o título e o campo ficavam na
-      borda esquerda. O bloco de resultados virava uma ilha no meio da página.
+      quando não há material para filtrar, reservar os 260 px empurrava a barra
+      e os cards para a direita, enquanto o título e o campo ficavam na borda
+      esquerda. O bloco de resultados virava uma ilha no meio da página.
 
       Não havia o que alinhar: sem lateral, os resultados ocupam a largura
       inteira do container, que é o mesmo container do catálogo.
@@ -80,14 +79,13 @@ pessoa de volta ao topo para isso é atrito à toa.
       {% comment %}
         Com filtro de material: exatamente o layout do catálogo.
 
-        O cartão é desenhado pelo próprio `_material_filter.html` (standalone),
-        e não aqui: a resposta parcial do HTMX troca este `#shop-materials`
-        inteiro, e o que os dois lados não compartilham, eles perdem.
+        A lateral (`<aside id="shop-materials">`, gaveta no celular) é
+        desenhada pelo próprio `_material_filter.html` (standalone), e não
+        aqui: a resposta parcial do HTMX troca o nó inteiro, e o que os dois
+        lados não compartilham, eles perdem.
       {% endcomment %}
       <div class="shop-layout">
-        <div id="shop-materials">
-          {% include "catalog/_material_filter.html" with standalone=True %}
-        </div>
+        {% include "catalog/_material_filter.html" with standalone=True %}
 
         <div id="shop-results">
           {% include "catalog/_shop_results.html" %}

@@ -1,5 +1,8 @@
 """Tags de template da interface pública."""
 
+import hashlib
+import os
+
 from django import template
 from django.conf import settings
 from django.contrib.staticfiles import finders
@@ -155,9 +158,9 @@ def initial(value: str) -> str:
 #: encontra o que está literal.
 CATEGORY_ACCENTS = (
     "bg-brand-100 text-brand-700",
-    "bg-cyan-100 text-cyan-700",
-    "bg-indigo-100 text-indigo-700",
-    "bg-magenta-100 text-magenta-700",
+    "bg-mint-100 text-mint-700",
+    "bg-yellow-100 text-yellow-700",
+    "bg-coral-100 text-coral-700",
     "bg-state-warning-soft text-state-warning-dark",
     "bg-state-success-soft text-state-success-dark",
 )
@@ -231,3 +234,57 @@ def rich_text(value: str):
         fechar_lista()
 
     return mark_safe("".join(partes))
+
+
+# ---------------------------------------------------------------------------
+# Estáticos com versão na URL
+#
+# `{% static 'js/app.js' %}` devolve sempre a mesma URL. O servidor de
+# estáticos (o do Django em desenvolvimento, o da hospedagem em produção)
+# responde só com `Last-Modified`, sem `Cache-Control`, e aí o navegador aplica
+# a regra heurística: um arquivo que não mudava há dias é tido como "fresco"
+# por horas e sai do cache sem consulta ao servidor — inclusive num F5, que
+# revalida a página, não os arquivos que ela puxa. Foi assim que o carrossel de
+# banners chegou a um navegador com o HTML novo e o app.js antigo: setas na
+# tela, clique sem efeito.
+#
+# Com `?v=<hash do conteúdo>` a URL muda quando o arquivo muda e o cache
+# antigo nem é consultado. O hash é do conteúdo, não da data: um deploy que não
+# altera o arquivo mantém a URL — e o cache — do visitante.
+
+#: Hash por arquivo, reaproveitado enquanto o arquivo não muda em disco
+#: (caminho, mtime e tamanho iguais). Um `stat` por arquivo por página.
+_STATIC_VERSIONS: dict[tuple[str, int, int], str] = {}
+
+
+def static_version(path: str) -> str:
+    """Os dez primeiros dígitos do SHA-256 do arquivo; ``""`` se não existir."""
+    encontrado = finders.find(path)
+    if not encontrado:
+        return ""
+    try:
+        estado = os.stat(encontrado)
+    except OSError:
+        return ""
+    chave = (encontrado, estado.st_mtime_ns, estado.st_size)
+    versao = _STATIC_VERSIONS.get(chave)
+    if versao is None:
+        with open(encontrado, "rb") as arquivo:
+            versao = hashlib.sha256(arquivo.read()).hexdigest()[:10]
+        # Versões antigas do mesmo arquivo não voltam: só a atual fica.
+        for antiga in [k for k in _STATIC_VERSIONS if k[0] == encontrado]:
+            del _STATIC_VERSIONS[antiga]
+        _STATIC_VERSIONS[chave] = versao
+    return versao
+
+
+@register.simple_tag
+def static_versioned(path: str) -> str:
+    """``{% static_versioned 'js/app.js' %}`` → ``/static/js/app.js?v=3f9a1c…``.
+
+    Para o CSS e o JavaScript do site. Sem o arquivo, cai na URL do
+    ``{% static %}`` de sempre.
+    """
+    url = static(path)
+    versao = static_version(path)
+    return f"{url}?v={versao}" if versao else url

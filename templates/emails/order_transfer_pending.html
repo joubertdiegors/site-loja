@@ -15,18 +15,18 @@ Sempre em português: quem lê é a equipe.
 {% block email_preview %}{{ order.number }} · {{ order.currency_symbol }} {{ order.total|floatformat:2 }} · {% translate "enviar dados bancários" %}{% endblock %}
 
 {% block email_body %}
-  <h1 style="margin:16px 0 12px 0;font-size:20px;line-height:1.3;color:#1b1533;">
+  <h1 style="margin:16px 0 12px 0;font-size:20px;line-height:1.3;color:#1b1530;">
     {% translate "Pedido aguardando transferência" %}
   </h1>
 
-  <p style="margin:0 0 20px 0;padding:12px 14px;background-color:#fdf3d7;border-radius:10px;font-size:15px;color:#1b1533;">
+  <p style="margin:0 0 20px 0;padding:12px 14px;background-color:#fff3d6;border-radius:10px;font-size:15px;color:#1b1530;">
     {% translate "O pedido foi registrado e está esperando o pagamento. Envie os dados bancários ao cliente." %}
   </p>
 
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px 0;font-size:14px;color:#3b3357;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px 0;font-size:14px;color:#4b4560;">
     <tr>
       <td style="padding:6px 0;">{% translate "Pedido" %}</td>
-      <td style="padding:6px 0;text-align:right;font-weight:700;color:#1b1533;">{{ order.number }}</td>
+      <td style="padding:6px 0;text-align:right;font-weight:700;color:#1b1530;">{{ order.number }}</td>
     </tr>
     <tr>
       <td style="padding:6px 0;">{% translate "Data" %}</td>
@@ -37,33 +37,33 @@ Sempre em português: quem lê é a equipe.
       <td style="padding:6px 0;text-align:right;">{% translate "Transferência bancária" %}</td>
     </tr>
     <tr>
-      <td style="padding:6px 0;border-top:1px solid #e6e1f5;font-weight:700;color:#1b1533;">{% translate "Total a receber" %}</td>
-      <td style="padding:6px 0;border-top:1px solid #e6e1f5;text-align:right;font-weight:700;color:#1b1533;">
+      <td style="padding:6px 0;border-top:1px solid #e8e3da;font-weight:700;color:#1b1530;">{% translate "Total a receber" %}</td>
+      <td style="padding:6px 0;border-top:1px solid #e8e3da;text-align:right;font-weight:700;color:#1b1530;">
         {{ order.currency_symbol }} {{ order.total|floatformat:2 }}
       </td>
     </tr>
   </table>
 
-  <h2 style="margin:0 0 8px 0;font-size:15px;color:#1b1533;">{% translate "Cliente" %}</h2>
-  <p style="margin:0 0 20px 0;font-size:14px;line-height:1.6;color:#3b3357;">
+  <h2 style="margin:0 0 8px 0;font-size:15px;color:#1b1530;">{% translate "Cliente" %}</h2>
+  <p style="margin:0 0 20px 0;font-size:14px;line-height:1.6;color:#4b4560;">
     {{ customer.full_name|default:user.username }}<br>
-    <a href="mailto:{{ user.email }}" style="color:#6d2ce0;">{{ user.email }}</a>
+    <a href="mailto:{{ user.email }}" style="color:#4a1a8c;">{{ user.email }}</a>
     {% if customer.phone %}<br>{{ customer.phone }}{% endif %}
     {% if customer.company_name %}<br>{{ customer.company_name }}{% if customer.vat_number %} · {{ customer.vat_number }}{% endif %}{% endif %}
     <br>{% translate "Idioma" %}: {{ order.language|default:"pt-br" }}
   </p>
 
   {% if shipping_address %}
-    <h2 style="margin:0 0 8px 0;font-size:15px;color:#1b1533;">{% translate "Entrega" %}</h2>
-    <p style="margin:0 0 20px 0;font-size:14px;line-height:1.6;color:#3b3357;">
+    <h2 style="margin:0 0 8px 0;font-size:15px;color:#1b1530;">{% translate "Entrega" %}</h2>
+    <p style="margin:0 0 20px 0;font-size:14px;line-height:1.6;color:#4b4560;">
       {% for line in shipping_address.lines %}{{ line }}<br>{% endfor %}
       {% if shipping_address.phone %}{{ shipping_address.phone }}{% endif %}
     </p>
   {% endif %}
 
   {% if billing_address %}
-    <h2 style="margin:0 0 8px 0;font-size:15px;color:#1b1533;">{% translate "Faturamento" %}</h2>
-    <p style="margin:0 0 20px 0;font-size:14px;line-height:1.6;color:#3b3357;">
+    <h2 style="margin:0 0 8px 0;font-size:15px;color:#1b1530;">{% translate "Faturamento" %}</h2>
+    <p style="margin:0 0 20px 0;font-size:14px;line-height:1.6;color:#4b4560;">
       {% for line in billing_address.lines %}{{ line }}<br>{% endfor %}
       {% if billing_address.vat_number %}{{ billing_address.vat_number }}{% endif %}
     </p>
@@ -76,24 +76,24 @@ Sempre em português: quem lê é a equipe.
     outro.
   {% endcomment %}
   {% if accounts %}
-    <h2 style="margin:0 0 8px 0;font-size:15px;color:#1b1533;">{% translate "Contas disponíveis" %}</h2>
-    <p style="margin:0 0 20px 0;padding:12px 14px;background-color:#f5f2fd;border-radius:10px;font-size:14px;line-height:1.6;color:#3b3357;">
+    <h2 style="margin:0 0 8px 0;font-size:15px;color:#1b1530;">{% translate "Contas disponíveis" %}</h2>
+    <p style="margin:0 0 20px 0;padding:12px 14px;background-color:#efe8fa;border-radius:10px;font-size:14px;line-height:1.6;color:#4b4560;">
       {% for conta in accounts %}{{ conta }}<br>{% endfor %}
-      <span style="color:#6b6386;">{% translate "Abra o pedido no Admin, escolha a conta e use a ação “Enviar dados bancários ao cliente”." %}</span>
+      <span style="color:#6e6880;">{% translate "Abra o pedido no Admin, escolha a conta e use a ação “Enviar dados bancários ao cliente”." %}</span>
     </p>
   {% else %}
-    <p style="margin:0 0 20px 0;padding:12px 14px;background-color:#fdf3d7;border-radius:10px;font-size:14px;color:#3b3357;">
+    <p style="margin:0 0 20px 0;padding:12px 14px;background-color:#fff3d6;border-radius:10px;font-size:14px;color:#4b4560;">
       {% translate "Nenhuma conta bancária cadastrada no Admin (Pedidos › contas bancárias). Sem ela não há o que enviar ao cliente." %}
     </p>
   {% endif %}
 
   <p style="margin:0 0 8px 0;">
     <a href="{{ admin_url }}"
-       style="display:inline-block;padding:12px 22px;background-color:#6d2ce0;border-radius:10px;color:#ffffff;font-weight:700;text-decoration:none;">
+       style="display:inline-block;padding:12px 22px;background-color:#4a1a8c;border-radius:10px;color:#ffffff;font-weight:700;text-decoration:none;">
       {% translate "Abrir no Admin" %}
     </a>
   </p>
-  <p style="margin:0;font-size:13px;color:#6b6386;">
+  <p style="margin:0;font-size:13px;color:#6e6880;">
     {% translate "O pedido só fica pago quando alguém confirmar o recebimento no Admin." %}
   </p>
 {% endblock %}

@@ -390,6 +390,103 @@ class ShopHtmxTests(ShopBase):
         self.assertNotContains(response, 'hx-swap-oob="true"')
 
 
+class ShopLayoutTests(ShopBase):
+    """A anatomia do catálogo — a da direção visual (`Catalogo.html`).
+
+    Trilha, banner, lateral com categorias e materiais, título com a contagem,
+    filtros ativos em pílulas. E, no celular, a lateral vira gaveta: um
+    `popover` que o botão "Filtros" abre — sem JavaScript.
+    """
+
+    def setUp(self):
+        super().setUp()
+        make_product(
+            sku="GATO-01", name="Gato Pompom", category=self.cats,
+            price=Decimal("8.90"), stock_quantity=5,
+        )
+
+    def test_the_filters_button_opens_the_sidebar_as_a_popover(self):
+        html = self.client.get(SHOP).content.decode()
+
+        self.assertIn('<aside id="shop-categories" class="catalog-aside" popover', html)
+        self.assertIn('popovertarget="shop-categories"', html)
+        # Fechar: o ✕ do cabeçalho da gaveta e o "Ver N produtos".
+        self.assertIn('popovertargetaction="hide"', html)
+        self.assertIn("Ver 1 produto", html)
+
+    def test_the_title_is_the_category_in_focus_with_the_count(self):
+        html = self.client.get(SHOP, {"categoria": "gatos"}).content.decode()
+        titulo = html.split('<h1 class="catalog-title">', 1)[1].split("</h1>", 1)[0]
+
+        self.assertIn("Gatos", titulo)
+        self.assertIn("1 item", titulo)
+        self.assertNotIn("Modelos", titulo)
+
+    def test_without_a_filter_the_title_is_the_shop_front(self):
+        html = self.client.get(SHOP).content.decode()
+        titulo = html.split('<h1 class="catalog-title">', 1)[1].split("</h1>", 1)[0]
+
+        self.assertIn("Modelos", titulo)
+
+    def test_the_banner_invites_to_another_shop_front(self):
+        """"Ver filamentos →": a primeira raiz que não é esta, nunca esta."""
+        response = self.client.get(SHOP)
+
+        self.assertEqual(response.context["banner_link"], self.filaments)
+        self.assertContains(response, "catalog-banner")
+        self.assertContains(response, self.filaments.get_absolute_url())
+        self.assertContains(response, "Ver Filamentos")
+
+    def test_the_banner_of_a_nested_category_still_points_elsewhere(self):
+        response = self.client.get(SHOP, {"categoria": "gatos"})
+
+        self.assertEqual(response.context["banner_link"], self.filaments)
+
+    def test_the_banner_text_is_the_category_description(self):
+        """Nada de promoção escrita à mão: o texto é o da categoria, do Admin."""
+        from apps.categories.models import CategoryTranslation
+
+        CategoryTranslation.objects.filter(master=self.models, language="pt").update(
+            description="Peças impressas com carinho."
+        )
+
+        self.assertContains(self.client.get(SHOP), "Peças impressas com carinho.")
+
+    def test_the_search_has_no_banner(self):
+        self.assertNotContains(self.client.get("/buscar/", {"q": "gato"}), "catalog-banner")
+
+    def test_active_filters_become_pills_and_a_clear_button(self):
+        response = self.client.get(SHOP, {"categoria": "gatos"})
+
+        self.assertContains(response, 'class="catalog-pill"')
+        self.assertContains(response, "Limpar filtros")
+
+    def test_without_filters_there_is_nothing_to_clear(self):
+        response = self.client.get(SHOP)
+
+        self.assertNotContains(response, "catalog-pill")
+        self.assertNotContains(response, "Limpar filtros")
+
+    def test_the_sidebar_indents_by_depth_without_inline_measures(self):
+        """A indentação é `--depth`, que o CSS transforma em medida."""
+        html = self.client.get(SHOP).content.decode()
+
+        self.assertIn('style="--depth: 1"', html)  # Gatos, dentro de Animais
+        self.assertNotIn("padding-inline-start:", html)
+
+    def test_the_drawer_is_translated(self):
+        for prefixo, filtros, fechar in (
+            ("/fr", "Filtres", "Fermer les filtres"),
+            ("/nl", "Filters", "Filters sluiten"),
+            ("/en", "Filters", "Close filters"),
+        ):
+            with self.subTest(idioma=prefixo):
+                response = self.client.get(f"{prefixo}/modelos/")
+
+                self.assertContains(response, filtros)
+                self.assertContains(response, fechar)
+
+
 class ShopQueryTests(ShopBase):
     def test_query_count_does_not_grow_with_the_catalogue(self):
         for index in range(4):

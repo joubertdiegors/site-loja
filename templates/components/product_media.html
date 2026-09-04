@@ -2,13 +2,15 @@
 {% comment %}
 Imagem do produto (ou o espaço reservado).
 
-Parâmetros: `media` (ProductMedia ou vazio) e `name` (nome já traduzido).
+Parâmetros: `media` (ProductMedia ou vazio), `name` (nome já traduzido) e
+`compact` (a miniatura do resumo do pedido: só a inicial).
 
 Sem imagem própria, há dois caminhos, nesta ordem:
 
 1. a **imagem padrão** cadastrada no Admin (CONFIGURAÇÕES DA LOJA → LOGOS E
    IMAGENS), quando existir;
-2. um bloco com a inicial do produto sobre o padrão da marca.
+2. a inicial do produto, grande e apagada, com "Foto em breve" embaixo, sobre
+   o fundo de quem incluiu — no card, a moldura pastel.
 
 O segundo é claramente um espaço reservado — nunca uma foto inventada — e os
 dois ocupam exatamente a mesma área, então a grade não muda de altura.
@@ -17,27 +19,23 @@ A imagem padrão **não** substitui foto nenhuma: ela só aparece onde não há
 `media`. Produto com foto própria continua exatamente como estava.
 {% endcomment %}
 {% product_placeholder_url as placeholder_url %}
-<div class="aspect-square w-full overflow-hidden bg-surface-soft">
+<div class="product-media{% if compact %} product-media-compact{% endif %}">
   {% if media %}
     <img src="{{ media.file.url }}"
          alt="{{ media.alt_text|default:name }}"
          loading="lazy" decoding="async"
-         class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]">
+         class="product-media-img">
   {% elif placeholder_url %}
     <img src="{{ placeholder_url }}"
          alt="{% blocktranslate %}Imagem de {{ name }} ainda não cadastrada{% endblocktranslate %}"
          loading="lazy" decoding="async"
-         class="h-full w-full object-cover">
+         class="product-media-img">
   {% else %}
-    <div class="placeholder-mesh flex h-full w-full flex-col items-center justify-center gap-2"
+    <div class="product-media-placeholder"
          role="img" aria-label="{% blocktranslate %}Imagem de {{ name }} ainda não cadastrada{% endblocktranslate %}">
-      <span aria-hidden="true" class="flex items-center justify-center rounded-2xl bg-white/80 font-black text-brand-600 shadow-sm {% if compact %}h-8 w-8 text-sm{% else %}h-14 w-14 text-xl{% endif %}">
-        {{ name|initial }}
-      </span>
+      <span aria-hidden="true" class="product-media-initial">{{ name|initial }}</span>
       {% if not compact %}
-        <span aria-hidden="true" class="text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-muted">
-          {% translate "Foto em breve" %}
-        </span>
+        <span aria-hidden="true" class="product-media-note">{% translate "Foto em breve" %}</span>
       {% endif %}
     </div>
   {% endif %}

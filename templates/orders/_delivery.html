@@ -13,8 +13,8 @@ Espera: `addresses`, `selected_address`, `draft`, `form`.
   {# ---- Passo 2: entrega ------------------------------------------------ #}
   <section class="card p-5 sm:p-6" aria-labelledby="titulo-entrega">
     <div class="flex items-center gap-3">
-      <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-100 font-mono text-[12px] font-medium text-brand-700" aria-hidden="true">2</span>
-      <h2 id="titulo-entrega" class="font-display text-lg font-bold text-ink">
+      <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-pill bg-brand-600 font-mono text-[12px] font-medium text-white" aria-hidden="true">2</span>
+      <h2 id="titulo-entrega" class="card-title">
         {% translate "Endereço de entrega" %}
       </h2>
     </div>
@@ -23,7 +23,7 @@ Espera: `addresses`, `selected_address`, `draft`, `form`.
       <ul class="mt-4 grid gap-2.5 sm:grid-cols-2" role="list">
         {% for address in addresses %}
           <li>
-            <label class="flex h-full cursor-pointer gap-3 rounded-card border-[1.5px] p-3.5 transition-colors
+            <label class="flex h-full cursor-pointer gap-3 rounded-card border p-3.5 transition-colors
                           {% if selected_address and address.pk == selected_address.pk %}border-brand-600 bg-brand-50{% else %}border-surface-line hover:border-brand-300{% endif %}">
               <input type="radio" name="shipping_address" value="{{ address.pk }}"
                      class="mt-0.5 h-4 w-4 shrink-0 accent-brand-600"
@@ -39,7 +39,7 @@ Espera: `addresses`, `selected_address`, `draft`, `form`.
                   {{ address.postal_code }} {{ address.city }} · {{ address.country.name }}
                 </span>
                 {% if not address.country.is_active %}
-                  <span class="mt-1.5 inline-flex items-center gap-1 font-mono text-[10.5px] uppercase tracking-[0.06em] text-state-error">
+                  <span class="mt-1.5 inline-flex items-center gap-1 font-mono text-[10.5px] uppercase tracking-label text-state-error">
                     {% icon "alert" "h-3 w-3" %}{% translate "país indisponível" %}
                   </span>
                 {% endif %}
@@ -113,8 +113,8 @@ Espera: `addresses`, `selected_address`, `draft`, `form`.
   {# ---- Passo 3: forma de entrega --------------------------------------- #}
   <section class="card p-5 sm:p-6" aria-labelledby="titulo-metodo">
     <div class="flex items-center gap-3">
-      <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-100 font-mono text-[12px] font-medium text-brand-700" aria-hidden="true">3</span>
-      <h2 id="titulo-metodo" class="font-display text-lg font-bold text-ink">
+      <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-pill bg-brand-600 font-mono text-[12px] font-medium text-white" aria-hidden="true">3</span>
+      <h2 id="titulo-metodo" class="card-title">
         {% translate "Forma de entrega" %}
       </h2>
     </div>
@@ -123,7 +123,7 @@ Espera: `addresses`, `selected_address`, `draft`, `form`.
       <ul class="mt-4 space-y-2.5" role="list">
         {% for option in draft.options %}
           <li>
-            <label class="flex cursor-pointer items-center gap-3 rounded-card border-[1.5px] p-3.5 transition-colors
+            <label class="flex cursor-pointer items-center gap-3 rounded-card border p-3.5 transition-colors
                           {% if draft.shipping_option and option.method.pk == draft.shipping_option.method.pk %}border-brand-600 bg-brand-50{% else %}border-surface-line hover:border-brand-300{% endif %}">
               <input type="radio" name="shipping_method" value="{{ option.method.pk }}"
                      class="h-4 w-4 shrink-0 accent-brand-600"

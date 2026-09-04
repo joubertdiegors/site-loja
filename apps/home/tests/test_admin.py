@@ -287,12 +287,17 @@ class HomeBannerAdminTests(TestCase):
     def test_creates_a_banner(self):
         payload = {
             "internal_name": "Boas-vindas",
+            "layout": "editorial",
             "is_active": "on",
             "sort_order": "1",
             "cta_target": CtaTarget.NONE,
             "cta_category": "",
             "cta_product": "",
             "cta_url": "",
+            "cta_secondary_url": "",
+            "plate_color": "purple",
+            "frame_color": "lavender",
+            "surface_color": "cream",
         }
         payload.update(
             inline_payload(

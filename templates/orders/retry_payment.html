@@ -38,7 +38,7 @@ com uma tentativa de pagamento a mais.
         </div>
         <div class="flex items-baseline justify-between gap-4">
           <dt class="text-ink-soft">{% translate "Valor" %}</dt>
-          <dd class="font-display text-lg font-bold text-ink">
+          <dd class="card-title">
             {{ order.currency_symbol }} {{ order.total|floatformat:2 }}
           </dd>
         </div>
@@ -57,7 +57,7 @@ com uma tentativa de pagamento a mais.
       {# 2a. Não dá para pagar: diga o quê, e não ofereça um botão que mente. #}
       <div class="card p-6 sm:p-7">
         <div class="flex items-start gap-3">
-          <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-state-error-soft text-state-error" aria-hidden="true">
+          <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-pill bg-state-error-soft text-state-error" aria-hidden="true">
             {% icon "alert" "h-5 w-5" %}
           </span>
           <div class="min-w-0">
@@ -123,7 +123,7 @@ com uma tentativa de pagamento a mais.
                 <span class="flex flex-wrap items-center gap-2">
                   <strong class="text-sm text-ink">{{ metodo.label }}</strong>
                   {% if not metodo.is_available %}
-                    <span class="rounded-full bg-surface-soft px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.08em] text-ink-muted">
+                    <span class="rounded-pill bg-surface-soft px-2 py-0.5 font-mono text-[10px] uppercase tracking-label text-ink-muted">
                       {% translate "Em breve" %}
                     </span>
                   {% endif %}

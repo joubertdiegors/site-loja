@@ -66,19 +66,111 @@ def _get_product(request) -> Product:
     )
 
 
+def cart_page_context(cart: Cart) -> dict:
+    """O que a página do carrinho mostra além das linhas.
+
+    Vale para a página inteira e para a resposta parcial do HTMX que redesenha
+    o painel — um lugar só, senão o resumo trocado por um clique divergiria do
+    resumo com que a página abriu.
+
+    Nada aqui é conta nova: o prazo é o do checkout (`production_days`, o
+    maior entre as linhas), as formas de pagamento são as do checkout e os
+    dois cartões são as páginas de política publicadas no Admin.
+    """
+    from apps.orders.payments import available_checkout_methods
+    from apps.shipping.services import production_days
+    from apps.storefront.models import InstitutionalPage, PageSlug
+
+    lines = cart.lines()
+    if not lines:
+        return {"production_days": 0, "payment_methods": (), "policy_pages": [], "recommended": []}
+
+    ordem = [PageSlug.SHIPPING, PageSlug.RETURNS]
+    paginas = {
+        page.slug: page
+        for page in InstitutionalPage.objects.for_display()
+        .filter(slug__in=ordem)
+        .prefetch_related("translations")
+    }
+    return {
+        "production_days": production_days(lines),
+        "payment_methods": available_checkout_methods(),
+        "policy_pages": [paginas[slug] for slug in ordem if slug in paginas],
+        "recommended": recommended_for(lines),
+    }
+
+
+#: Quantos cards a faixa "Você também pode gostar" mostra. Quatro fecha a
+#: grade do desktop e as duas colunas do tablet sem sobrar linha pela metade.
+RECOMMENDED_LIMIT = 4
+
+
+def recommended_for(lines, limit: int = RECOMMENDED_LIMIT) -> list:
+    """Outros produtos para quem já tem estes no carrinho.
+
+    O mesmo critério da página do produto, sobre o carrinho inteiro: primeiro
+    as categorias do que está no carrinho, depois os destaques, depois o mais
+    recente — sem repetir e sem o que já está lá. `sellable()` em todas: um
+    card sem preço não convida ninguém a clicar.
+    """
+    from django.db.models import Prefetch
+
+    from apps.catalog.models import ProductVariant
+
+    no_carrinho = {line.product.pk for line in lines}
+    categorias = {line.product.category_id for line in lines if line.product.category_id}
+
+    base = (
+        Product.objects.sellable()
+        .exclude(pk__in=no_carrinho)
+        .select_related("category")
+        .prefetch_related(
+            "translations",
+            "media",
+            "category__translations",
+            Prefetch(
+                "variants",
+                queryset=ProductVariant.objects.filter(is_active=True)
+                .select_related("color", "material")
+                .prefetch_related("color__translations")
+                .order_by("sort_order", "id"),
+            ),
+        )
+    )
+
+    passadas = []
+    if categorias:
+        passadas.append(base.filter(category_id__in=categorias).order_by("-created_at"))
+    passadas.append(base.filter(is_featured=True).order_by("featured_order", "-created_at"))
+    passadas.append(base.order_by("-created_at"))
+
+    escolhidos = []
+    vistos = set(no_carrinho)
+    for passada in passadas:
+        if len(escolhidos) >= limit:
+            break
+        for candidato in passada[: limit * 2]:
+            if candidato.pk in vistos:
+                continue
+            vistos.add(candidato.pk)
+            escolhidos.append(candidato)
+            if len(escolhidos) >= limit:
+                break
+    return escolhidos
+
+
 def _respond(request, cart: Cart, result, *, render_panel: bool = False, open_drawer: bool = False):
     """Resposta HTMX (pedaços) ou redirecionamento com mensagem."""
     if _is_htmx(request):
-        response = render(
-            request,
-            "cart/_update.html",
-            {
-                "cart": cart,
-                "toast_message": result.message,
-                "toast_level": result.level,
-                "render_panel": render_panel,
-            },
-        )
+        contexto = {
+            "cart": cart,
+            "toast_message": result.message,
+            "toast_level": result.level,
+            "render_panel": render_panel,
+        }
+        if render_panel:
+            contexto.update(cart_page_context(cart))
+        response = render(request, "cart/_update.html", contexto)
         if open_drawer and result.ok:
             # O JavaScript da gaveta escuta este evento e a abre.
             response["HX-Trigger"] = json.dumps({"jd:cart-open": True})
@@ -232,4 +324,10 @@ class CartDetailView(TemplateView):
         context = super().get_context_data(**kwargs)
         context["meta_title"] = _("Meu carrinho — JD PRINT")
         context["meta_description"] = _("Produtos selecionados no seu carrinho.")
+        # A instância vai para o contexto da view (e não só para o context
+        # processor, que só entra na hora de renderizar): as linhas são lidas
+        # uma vez aqui e ficam em cache para o template.
+        cart = Cart(self.request)
+        context["cart"] = cart
+        context.update(cart_page_context(cart))
         return context

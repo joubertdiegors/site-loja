@@ -49,7 +49,7 @@ conveniência: sem ele a tela continua funcionando, só sem a prévia.
         </div>
         <div class="flex items-baseline justify-between gap-4">
           <dt class="text-ink-soft">{% translate "Valor" %}</dt>
-          <dd class="font-display text-lg font-bold text-ink">
+          <dd class="card-title">
             {{ order.currency_symbol }} {{ order.total|floatformat:2 }}
           </dd>
         </div>
@@ -70,7 +70,7 @@ conveniência: sem ele a tela continua funcionando, só sem a prévia.
       {# 2a. Já chegou: nada a fazer, e a tela diz isso. #}
       <div class="card p-6 sm:p-7">
         <div class="flex items-start gap-3">
-          <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-state-success-soft text-state-success-dark" aria-hidden="true">
+          <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-pill bg-state-success-soft text-state-success-dark" aria-hidden="true">
             {% icon "check" "h-5 w-5" %}
           </span>
           <div class="min-w-0">
@@ -85,7 +85,7 @@ conveniência: sem ele a tela continua funcionando, só sem a prévia.
 
         <div class="mt-5 flex flex-wrap items-baseline justify-between gap-2 rounded-card border border-surface-line bg-surface-soft px-4 py-3 text-sm">
           <span class="min-w-0 break-all text-ink">{{ proof.original_name|default:proof.extension }}</span>
-          <span class="font-mono text-[11px] uppercase tracking-[0.06em] text-ink-muted">
+          <span class="font-mono text-[11px] uppercase tracking-label text-ink-muted">
             {{ proof.size_display }} · {{ proof.created_at|date:"d/m/Y H:i" }}
           </span>
         </div>

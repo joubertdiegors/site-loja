@@ -359,10 +359,29 @@ class UntrustedInputTests(FlowBase):
 
 class ProductPageFlowTests(FlowBase):
     def test_the_add_button_is_disabled_while_the_request_is_in_flight(self):
-        """Dois cliques rápidos mandavam dois POST."""
+        """Dois cliques rápidos mandavam dois POST.
+
+        Por seletor, e não por `find`: o botão fica na linha de compra, fora
+        do formulário (ver `test_the_buy_row_belongs_to_the_form_by_attribute`).
+        """
         html = self.page().content.decode()
 
-        self.assertIn('hx-disabled-elt="find [data-add-button]"', html)
+        self.assertIn('hx-disabled-elt="[data-add-button]"', html)
+        self.assertIn("data-add-button", html)
+
+    def test_the_buy_row_belongs_to_the_form_by_attribute(self):
+        """Quantidade e botão vivem fora do `<form>` (o coração é outro
+        formulário, e formulário dentro de formulário não existe) e apontam
+        para ele por `form="add-to-cart"` — para o navegador e para o HTMX
+        eles continuam sendo do formulário."""
+        html = self.page().content.decode()
+
+        self.assertIn('id="add-to-cart"', html)
+        self.assertIn('name="quantity" form="add-to-cart"', html)
+        self.assertIn('form="add-to-cart" class="product-add"', html)
+        formulario = html.split('id="add-to-cart"', 1)[1].split("</form>", 1)[0]
+        self.assertNotIn('class="product-add"', formulario)
+        self.assertNotIn('id="quantity"', formulario)
 
     def test_the_quantity_starts_at_one_and_is_capped_by_the_stock(self):
         response = self.page()

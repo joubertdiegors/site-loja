@@ -1,0 +1,94 @@
+{% load i18n jdprint %}
+{% comment %}
+O topo da Home: um banner, ou o carrossel deles — sempre no mesmo quadro.
+
+`.hero-stage` é o quadro único do banner: a largura do `.container-page` (como
+o resto da Home), proporção 1280×550 no desktop e uma altura fixa nas telas
+menores, raio de bloco, `overflow: hidden`. Cada hero preenche o quadro e
+adapta o seu miolo a ele — o quadro nunca cresce por causa de um desenho.
+Assim os quatro modelos (editorial, imagem completa, Poster Pop e Bento
+Criativo) ocupam a mesma largura, a mesma altura e a mesma posição, e nenhum
+fundo passa da borda do quadro.
+
+* **Um banner ativo**: o `hero.html` sozinho dentro do quadro. Sem setas, sem
+  indicadores, sem JavaScript de troca.
+* **Nenhum banner**: o destaque tipográfico de sempre, sem quadro.
+* **Dois ou mais**: os slides ficam empilhados no quadro (`inset: 0`), então
+  trocar de slide não muda a altura da página. Só o slide atual é visível; os
+  outros ficam `inert` (sem foco, sem clique) e escondidos — mas no HTML, para
+  o buscador.
+
+Só o primeiro slide leva o `<h1>` e o `id="hero-titulo"`: os demais escrevem o
+mesmo título como `<h2>`, com ids próprios — uma página tem um `<h1>`. As
+fotos dos slides escondidos carregam com `loading="lazy"`; a do primeiro, com
+prioridade, como antes.
+
+Os controles vêm da configuração global (`HomeBannerCarousel`, HOME ›
+CARROSSEL DE BANNERS): setas, indicadores, rotação e pausas chegam ao
+JavaScript por `data-*` — nenhum número fica escrito no script. As setas ficam
+dentro das bordas do quadro e os indicadores logo abaixo dele.
+{% endcomment %}
+{% if banners|length < 2 %}
+
+  {% if banner %}
+    <div class="container-page hero-stage-wrap">
+      <div class="hero-stage">
+        {% include "components/hero.html" %}
+      </div>
+    </div>
+  {% else %}
+    {% include "components/hero.html" %}
+  {% endif %}
+
+{% else %}
+
+  <section class="hero-carousel container-page hero-stage-wrap" data-banner-carousel
+           data-autoplay="{{ banner_carousel.autoplay|yesno:'true,false' }}"
+           data-interval="{{ banner_carousel.interval_ms }}"
+           data-pause-hover="{{ banner_carousel.pause_on_hover|yesno:'true,false' }}"
+           data-pause-interaction="{{ banner_carousel.pause_on_interaction|yesno:'true,false' }}"
+           aria-roledescription="{% translate 'carrossel' %}"
+           aria-label="{% translate 'Destaques' %}">
+
+    <div class="hero-stage-shell">
+      <div class="hero-stage" data-banner-track aria-live="polite">
+        {% for slide in banners %}
+          <div class="hero-carousel-slide" data-banner-slide
+               role="group" aria-roledescription="{% translate 'slide' %}"
+               aria-label="{% blocktranslate with number=forloop.counter total=banners|length %}Banner {{ number }} de {{ total }}{% endblocktranslate %}"
+               {% if forloop.first %}data-active{% else %}inert{% endif %}>
+            {% if forloop.first %}
+              {% include "components/hero.html" with banner=slide %}
+            {% else %}
+              {% with numero=forloop.counter|stringformat:"d" %}
+                {% include "components/hero.html" with banner=slide hero_tag="h2" hero_id="hero-titulo-"|add:numero hero_lazy=True %}
+              {% endwith %}
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+
+      {% if banner_carousel.show_arrows %}
+        <button type="button" class="hero-carousel-arrow hero-carousel-arrow-prev focus-ring"
+                data-banner-prev aria-label="{% translate 'Banner anterior' %}">
+          {% icon "chevron-left" "h-5 w-5 rtl:rotate-180" %}
+        </button>
+        <button type="button" class="hero-carousel-arrow hero-carousel-arrow-next focus-ring"
+                data-banner-next aria-label="{% translate 'Próximo banner' %}">
+          {% icon "chevron-right" "h-5 w-5 rtl:rotate-180" %}
+        </button>
+      {% endif %}
+    </div>
+
+    {% if banner_carousel.show_dots %}
+      <div class="hero-carousel-dots" data-banner-dots>
+        {% for slide in banners %}
+          <button type="button" class="hero-carousel-dot focus-ring" data-banner-dot
+                  {% if forloop.first %}aria-current="true"{% endif %}
+                  aria-label="{% blocktranslate with number=forloop.counter %}Ir para o banner {{ number }}{% endblocktranslate %}"></button>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </section>
+
+{% endif %}

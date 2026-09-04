@@ -13,6 +13,7 @@ from django.test import TestCase
 from apps.categories.models import CategoryTranslation
 from apps.core.testing import LanguageResetMixin, make_category, make_product
 from apps.home.models import (
+    BannerLayout,
     CtaTarget,
     HomeBanner,
     HomeBannerTranslation,
@@ -143,20 +144,20 @@ class HomeCardTests(HomeBlocksBase):
         self.assertNotIn("titulo-como", html)
 
     def test_the_icon_and_accent_come_from_the_record(self):
-        self.card(titulo="Envio", icon="truck", accent="cyan")
+        self.card(titulo="Envio", icon="truck", accent="mint")
 
         html = self.html()
 
-        self.assertIn("bg-cyan-100", html)
-        self.assertIn("text-cyan-700", html)
+        self.assertIn("bg-mint-100", html)
+        self.assertIn("text-mint-700", html)
 
     def test_the_accent_classes_survive_the_css_build(self):
         """Classe montada no template (`bg-{{ accent }}-100`) o Tailwind não vê."""
         with open("static/css/tailwind.css", encoding="utf-8") as arquivo:
             css = arquivo.read()
 
-        for classe in ("bg-brand-100", "bg-cyan-100", "bg-magenta-100",
-                       "text-brand-700", "text-cyan-700", "text-magenta-700"):
+        for classe in ("bg-brand-100", "bg-mint-100", "bg-coral-100",
+                       "text-brand-700", "text-mint-700", "text-coral-700"):
             with self.subTest(classe=classe):
                 self.assertIn(f".{classe}", css)
 
@@ -299,6 +300,11 @@ class BannerWithoutTitleTests(HomeBlocksBase):
     def banner(self, com_imagem=True, **traducoes):
         banner = HomeBanner.objects.create(
             internal_name="Campanha",
+            # O desenho em teste aqui e o de IMAGEM CHEIA -- e dele a tarja
+            # escura e o titulo sobreposto. Sem dizer isto, o banner nasceria
+            # editorial (o padrao dos cadastros novos) e metade destes testes
+            # passaria por nao encontrar algo que aquele desenho nem desenha.
+            layout=BannerLayout.FULL_IMAGE,
             image_desktop="banners/arte.jpg" if com_imagem else "",
         )
         for idioma, valores in traducoes.items():

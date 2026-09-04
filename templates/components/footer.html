@@ -2,79 +2,71 @@
 {% comment %}
 Rodapé.
 
-Fundo profundo com a listra de camada: fecha a página no mesmo tom em que a
-faixa do topo a abre.
+Fecha a página no mesmo tom em que a faixa do topo a abre, no desenho da
+direção visual: quatro colunas (a marca ocupando duas), títulos brancos,
+links em texto sobre escuro e uma barra fina embaixo com o copyright de um
+lado e o selo do outro.
+
+## Cor
+
+`FooterSettings` guarda fundo, texto, títulos e o destaque da marca, e o
+`style` do `<footer>` os entrega como variáveis CSS. O `clean()` do modelo
+recusa qualquer combinação abaixo de 4,5:1 — não dá para configurar um rodapé
+ilegível. Sem cadastro, valem as cores da marca.
+
+## Estrutura
 
 Tudo o que é texto vem de `storefront.FooterSettings` e `storefront.FooterColumn`
 (contexto `footer_settings` e `footer_columns`) — o administrador cadastra,
-traduz e reordena sem tocar aqui. A coluna de informações, com as quatro
-páginas da loja, é cadastrada pela migration de conteúdo da etapa 18.
+traduz e reordena sem tocar aqui. As páginas institucionais chegam pela coluna
+cadastrada na migration de conteúdo da etapa 18, e continuam intactas: a
+personalização mexe em APRESENTAÇÃO e CONTEÚDO, nunca no destino dos links.
 
 ## O padrão continua existindo
 
-Cada bloco cai no texto de sempre quando não houver cadastro. Não é
-duplicação: é o rodapé que a loja já tinha, e é o que impede uma instalação
-recém-migrada de mostrar um rodapé vazio. Configurar passa a ser opcional, não
-obrigatório.
+Cada bloco cai no texto de sempre quando não houver cadastro. É o que impede
+uma instalação recém-migrada de mostrar um rodapé vazio.
 
 ## Nada de caixa vazia
 
 Campo em branco não vira bloco vazio: coluna sem link não aparece, link sem
 texto não aparece, contato sem e-mail nem telefone não aparece. É a diferença
 entre "ainda não configurei" e "está quebrado".
-
-As categorias continuam vindo do banco — só o título da coluna é cadastrado.
-Lista manual seria trocar algo que se atualiza sozinho por algo que alguém
-precisa lembrar de atualizar.
 {% endcomment %}
-<footer class="mt-16 bg-surface-deep layers-light text-brand-100">
-  <div class="container-page py-14">
+<footer class="site-footer layers-light" style="{{ footer_settings.style }}">
+  <div class="container-page">
 
-    {% comment %}
-      Três colunas no desktop, e não quatro: a de categorias saiu, e o que
-      restou (logo ocupando duas + a coluna cadastrada) preenche exatamente
-      três. Com quatro sobrava um vão de ~300 px à direita.
-    {% endcomment %}
-    <div class="grid gap-10 sm:grid-cols-2 lg:grid-cols-3">
-      <div class="lg:col-span-2">
+    <div class="footer-grid">
+      <div class="sm:col-span-2">
         {% include "components/logo.html" with dark=True %}
-        <p class="mt-5 max-w-sm text-sm leading-relaxed text-brand-200/85">
+
+        <p class="footer-about mt-5">
           {% if footer_settings.about_text %}
             {{ footer_settings.about_text }}
           {% else %}
             {% translate "Produtos criativos feitos com impressão 3D. Peças decorativas, acessórios e filamentos — com opção de personalização e produção sob encomenda." %}
           {% endif %}
         </p>
-        <div class="marker-line mt-6 h-1 w-24 rounded-full"></div>
+
+        <div class="marker-line mt-6 h-1 w-24 rounded-pill" aria-hidden="true"></div>
 
         {% if footer_settings.has_contact %}
           <div class="mt-6 space-y-1.5">
             {% if footer_settings.contact_title %}
-              <h2 class="font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-white">
-                {{ footer_settings.contact_title }}
-              </h2>
+              <h2 class="footer-col-title">{{ footer_settings.contact_title }}</h2>
             {% endif %}
             {% if footer_settings.contact_email %}
               <p>
-                <a class="focus-ring rounded text-sm text-brand-200/85 transition-colors hover:text-white"
+                <a class="footer-link focus-ring rounded"
                    href="mailto:{{ footer_settings.contact_email }}">{{ footer_settings.contact_email }}</a>
               </p>
             {% endif %}
             {% if footer_settings.contact_phone %}
-              <p class="text-sm text-brand-200/85">{{ footer_settings.contact_phone }}</p>
+              <p class="footer-link">{{ footer_settings.contact_phone }}</p>
             {% endif %}
           </div>
         {% endif %}
       </div>
-
-      {% comment %}
-        A coluna automática de categorias foi retirada do rodapé.
-
-        As categorias continuam no banco e no menu do cabeçalho — o que saiu
-        foi só a repetição no rodapé. `nav_categories` continua no contexto
-        (o cabeçalho usa), e `FooterSettings.categories_title` continua
-        cadastrável: voltar é reinserir este bloco.
-      {% endcomment %}
 
       {% comment %}
         As colunas cadastradas. Link com destino vira `<a>`; sem destino, vira
@@ -82,26 +74,23 @@ precisa lembrar de atualizar.
         link.
 
         `link.href` resolve as duas origens: a página da loja (que sabe o
-        idioma do visitante) ou o endereço digitado. Sem coluna cadastrada o
-        rodapé não desenha esta parte — e a migration de conteúdo da etapa 18
-        garante que exista uma desde a instalação.
+        idioma do visitante) ou o endereço digitado.
       {% endcomment %}
       {% for column in footer_columns %}
         {% with links=column.visible_links %}
           {% if links %}
             <div>
               {% if column.title %}
-                <h2 class="font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-white">{{ column.title }}</h2>
+                <h2 class="footer-col-title">{{ column.title }}</h2>
               {% endif %}
-              <ul class="mt-4 space-y-2.5 text-sm" role="list">
+              <ul class="mt-4 flex flex-col gap-2.5" role="list">
                 {% for link in links %}
                   {% if link.label %}
                     <li>
                       {% if link.href %}
-                        <a class="focus-ring rounded text-brand-200/85 transition-colors hover:text-white"
-                           href="{{ link.href }}">{{ link.label }}</a>
+                        <a class="footer-link focus-ring rounded" href="{{ link.href }}">{{ link.label }}</a>
                       {% else %}
-                        <span class="text-brand-200/60">{{ link.label }}</span>
+                        <span class="footer-link opacity-75">{{ link.label }}</span>
                       {% endif %}
                     </li>
                   {% endif %}
@@ -113,8 +102,8 @@ precisa lembrar de atualizar.
       {% endfor %}
     </div>
 
-    <div class="mt-12 flex flex-col gap-3 border-t border-white/10 pt-6 sm:flex-row sm:items-center sm:justify-between">
-      <p class="font-mono text-[11px] text-brand-200/60">
+    <div class="footer-bar">
+      <p>
         {% if footer_settings.copyright_text %}
           {{ footer_settings.copyright_text }}
         {% else %}
@@ -122,8 +111,8 @@ precisa lembrar de atualizar.
           {% blocktranslate %}© {{ current_year }} {{ site_name }}. Todos os direitos reservados.{% endblocktranslate %}
         {% endif %}
       </p>
-      <p class="flex items-center gap-2 font-mono text-[11px] text-brand-200/60">
-        {% icon "shield" "h-4 w-4 text-brand-300" %}
+      <p class="flex items-center gap-2">
+        {% icon "shield" "h-4 w-4" %}
         {% if footer_settings.badge_text %}
           {{ footer_settings.badge_text }}
         {% else %}

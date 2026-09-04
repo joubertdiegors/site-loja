@@ -573,24 +573,31 @@ class SearchLayoutTests(SearchBase):
 
         self.assertEqual(bloco(), bloco(HTTP_HX_REQUEST="true"))
 
-    def test_the_side_card_survives_the_htmx_swap(self):
-        """O cartão tem de estar nos dois lados, não só na página cheia."""
+    def test_the_side_column_survives_the_htmx_swap(self):
+        """A lateral tem de estar nos dois lados, não só na página cheia.
+
+        É a `<aside>` do catálogo — a mesma classe, o mesmo `popover` que a
+        transforma em gaveta no celular. Uma resposta parcial sem eles
+        devolveria uma lista de materiais solta no lugar da lateral.
+        """
         for extra in ({}, {"HTTP_HX_REQUEST": "true"}):
             with self.subTest(htmx=bool(extra)):
                 html = self.html("/buscar/", q="gato", material=self.pla.slug, **extra)
                 depois = html.split('id="shop-materials"', 1)[1][:160]
 
-                self.assertIn("card p-3", depois)
-                self.assertIn("lg:sticky", depois)
+                self.assertIn("catalog-aside", depois)
+                self.assertIn("popover", depois)
 
-    def test_the_catalogue_filter_keeps_its_separator_and_no_card(self):
-        """No catálogo o filtro fica DENTRO do cartão das categorias.
+    def test_the_catalogue_filter_lives_inside_the_category_sidebar(self):
+        """No catálogo o filtro fica DENTRO da lateral das categorias.
 
-        Ele não pode ganhar um cartão próprio: seriam dois cartões aninhados.
+        Ele não pode ganhar uma lateral própria: seriam duas gavetas, e o
+        botão "Filtros" só abre uma.
         """
         html = self.html("/categorias/filamentos/")
 
-        self.assertNotIn("card p-3 lg:sticky lg:top-28", html)
+        self.assertNotIn('id="shop-materials"', html)
+        self.assertEqual(html.count('class="catalog-aside"'), 1)
 
     def test_the_shop_still_needs_two_options(self):
         """A vitrine não muda: lá "Todos + PLA" seria a lista inteira duas vezes."""
@@ -650,7 +657,8 @@ class SearchLayoutTests(SearchBase):
 
         self.assertIn("max-w-2xl", bloco)
         # A mesma medida do cabecalho da pagina -- e nao um numero inventado.
-        self.assertIn('<header class="max-w-2xl">', html)
+        cabecalho = html.split("<header", 2)[2].split(">", 1)[0]
+        self.assertIn("max-w-2xl", cabecalho)
 
     def test_without_results_but_with_a_material_filter_the_grid_stays(self):
         """O filtro precisa continuar alcançável para o cliente alargar a busca.

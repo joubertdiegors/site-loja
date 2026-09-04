@@ -18,7 +18,7 @@ clique, do mesmo jeito que o contador do carrinho.
     {% icon "heart" %}
     {% if favorite_ids %}
       <span data-favorites-count="{{ favorite_ids|length }}"
-            class="absolute -end-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-magenta-500 px-1 font-mono text-[10.5px] font-medium text-white ring-2 ring-white">
+            class="absolute -end-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-pill bg-coral-500 px-1 font-mono text-[10.5px] font-medium text-ink ring-2 ring-white">
         {{ favorite_ids|length }}
       </span>
     {% endif %}

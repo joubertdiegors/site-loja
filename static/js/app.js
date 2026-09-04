@@ -109,34 +109,224 @@
     });
   }
 
-  /* ---- Filtros do Shop ------------------------------------------------ */
-  /* O <details> vem aberto no HTML para funcionar sem JavaScript. Com
-     JavaScript, fecha no celular (onde ocuparia meia tela) e fica aberto do
-     desktop para cima. */
+  /* ---- Carrossel de banners --------------------------------------------- */
+  /* Uma camada em volta dos heros da Home. Só existe no HTML quando há dois
+     ou mais banners ativos; com um, o template nem o desenha. Tudo o que é
+     configuração — rotação, intervalo, pausas — vem dos `data-*` que o
+     cadastro (HOME › CARROSSEL DE BANNERS) escreveu: nenhum número aqui.
+
+     Anterior/próximo, indicadores, ← → com o foco dentro do carrossel e o
+     deslize no celular fazem a mesma coisa: `go()`. A rotação automática só
+     roda para quem não pediu menos movimento ao navegador e para na hora em
+     que a aba deixa de estar visível.
+
+     Idempotente: `data-carousel-ready` impede um segundo conjunto de
+     ouvintes se a Home for trocada pelo HTMX e o setup rodar de novo. */
+  function setupBannerCarousels() {
+    document.querySelectorAll("[data-banner-carousel]").forEach(function (root) {
+      if (root.hasAttribute("data-banner-ready")) {
+        return;
+      }
+      root.setAttribute("data-banner-ready", "");
+
+      var slides = Array.prototype.slice.call(root.querySelectorAll("[data-banner-slide]"));
+      if (slides.length < 2) {
+        return;
+      }
+      var dots = Array.prototype.slice.call(root.querySelectorAll("[data-banner-dot]"));
+      var track = root.querySelector("[data-banner-track]");
+      var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+      var autoplay = root.getAttribute("data-autoplay") === "true" && !reduceMotion;
+      var interval = Math.max(1000, Number(root.getAttribute("data-interval")) || 5000);
+      var pauseOnHover = root.getAttribute("data-pause-hover") === "true";
+      var pauseOnInteraction = root.getAttribute("data-pause-interaction") === "true";
+
+      var current = Math.max(0, slides.findIndex(function (slide) {
+        return slide.hasAttribute("data-active");
+      }));
+      var timer = null;
+      var resumeTimer = null;
+      var hovering = false;
+      /* Até quando a rotação fica em pausa depois de uma interação. O mouse
+         sair do carrossel não pode atropelar essa espera. */
+      var pausedUntil = 0;
+
+      function go(index) {
+        var next = (index + slides.length) % slides.length;
+        if (next === current) {
+          return;
+        }
+        slides[current].removeAttribute("data-active");
+        slides[current].setAttribute("inert", "");
+        slides[next].setAttribute("data-active", "");
+        slides[next].removeAttribute("inert");
+        dots.forEach(function (dot, i) {
+          if (i === next) {
+            dot.setAttribute("aria-current", "true");
+          } else {
+            dot.removeAttribute("aria-current");
+          }
+        });
+        current = next;
+      }
+
+      /* Enquanto roda sozinho, a região não anuncia cada troca — um leitor de
+         tela seria interrompido a cada cinco segundos. Parado, anuncia. */
+      function announce(on) {
+        if (track) {
+          track.setAttribute("aria-live", on ? "polite" : "off");
+        }
+      }
+
+      function start() {
+        if (!autoplay || timer || hovering || document.hidden) {
+          return;
+        }
+        var wait = pausedUntil - Date.now();
+        if (wait > 0) {
+          window.clearTimeout(resumeTimer);
+          resumeTimer = window.setTimeout(start, wait);
+          return;
+        }
+        announce(false);
+        timer = window.setInterval(function () {
+          go(current + 1);
+        }, interval);
+      }
+
+      function stop() {
+        if (timer) {
+          window.clearInterval(timer);
+          timer = null;
+        }
+        announce(true);
+      }
+
+      /* Depois de uma interação a rotação espera dois intervalos e volta —
+         se o cadastro pediu a pausa; senão só reinicia a contagem. */
+      function interacted() {
+        if (!autoplay) {
+          return;
+        }
+        stop();
+        pausedUntil = Date.now() + (pauseOnInteraction ? interval * 2 : interval);
+        window.clearTimeout(resumeTimer);
+        resumeTimer = window.setTimeout(start, pausedUntil - Date.now());
+      }
+
+      var previous = root.querySelector("[data-banner-prev]");
+      var next = root.querySelector("[data-banner-next]");
+      if (previous) {
+        previous.addEventListener("click", function () { go(current - 1); interacted(); });
+      }
+      if (next) {
+        next.addEventListener("click", function () { go(current + 1); interacted(); });
+      }
+      dots.forEach(function (dot, i) {
+        dot.addEventListener("click", function () { go(i); interacted(); });
+      });
+
+      root.addEventListener("keydown", function (event) {
+        var rtl = document.documentElement.dir === "rtl";
+        if (event.key === "ArrowLeft") {
+          event.preventDefault();
+          go(current + (rtl ? 1 : -1));
+          interacted();
+        } else if (event.key === "ArrowRight") {
+          event.preventDefault();
+          go(current + (rtl ? -1 : 1));
+          interacted();
+        }
+      });
+
+      /* Deslize: 40px na horizontal, mais horizontal que vertical, para não
+         confundir com a rolagem da página. */
+      var startX = 0, startY = 0, tracking = false;
+      root.addEventListener("pointerdown", function (event) {
+        if (event.pointerType === "mouse") {
+          return;
+        }
+        tracking = true;
+        startX = event.clientX;
+        startY = event.clientY;
+      }, { passive: true });
+      root.addEventListener("pointerup", function (event) {
+        if (!tracking) {
+          return;
+        }
+        tracking = false;
+        var dx = event.clientX - startX;
+        var dy = event.clientY - startY;
+        if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy)) {
+          return;
+        }
+        go(current + (dx < 0 ? 1 : -1));
+        interacted();
+      }, { passive: true });
+      root.addEventListener("pointercancel", function () { tracking = false; });
+
+      if (pauseOnHover) {
+        root.addEventListener("mouseenter", function () { hovering = true; stop(); });
+        root.addEventListener("mouseleave", function () { hovering = false; start(); });
+        root.addEventListener("focusin", function () { hovering = true; stop(); });
+        root.addEventListener("focusout", function (event) {
+          if (!root.contains(event.relatedTarget)) {
+            hovering = false;
+            start();
+          }
+        });
+      }
+
+      document.addEventListener("visibilitychange", function () {
+        if (document.hidden) {
+          stop();
+        } else {
+          start();
+        }
+      });
+
+      announce(true);
+      start();
+    });
+  }
+
+  /* ---- Filtros do catálogo -------------------------------------------- */
+  /* A gaveta do celular é um `popover` nativo: abre, fecha, prende o foco e
+     responde ao Esc sem uma linha daqui. O que o navegador não faz sozinho é
+     fechá-la quando a janela cresce e a lateral volta a ser coluna — ficaria
+     uma gaveta aberta por cima de uma coluna que já está na tela. */
   function setupShopFilters() {
-    var filters = document.querySelector("[data-shop-filters]");
-    if (!filters || !window.matchMedia) {
+    if (!window.matchMedia || !("hidePopover" in HTMLElement.prototype)) {
       return;
     }
 
-    var wide = window.matchMedia("(min-width: 1024px)");
-    function sync() {
-      filters.open = wide.matches;
-    }
-
-    sync();
-    wide.addEventListener("change", sync);
+    var wide = window.matchMedia("(min-width: 1101px)");
+    wide.addEventListener("change", function () {
+      if (!wide.matches) {
+        return;
+      }
+      document.querySelectorAll(".catalog-aside:popover-open").forEach(function (aside) {
+        aside.hidePopover();
+      });
+    });
   }
 
   /* ---- HTMX ----------------------------------------------------------- */
   /* Depois de trocar a grade de produtos, leva a página de volta ao topo da
-     lista — senão o visitante fica olhando para o rodapé. */
+     lista — senão o visitante fica olhando para o rodapé — e põe o foco no
+     título: o link que foi clicado pode ter sido trocado junto (a lateral
+     volta na mesma resposta), e um foco perdido volta para o começo da página. */
   function setupHtmx() {
     document.body.addEventListener("htmx:afterSwap", function (event) {
       if (event.target && event.target.id === "shop-results") {
         var heading = document.querySelector("h1");
         if (heading) {
           heading.scrollIntoView({ behavior: "smooth", block: "start" });
+          if (!heading.hasAttribute("tabindex")) {
+            heading.setAttribute("tabindex", "-1");
+          }
+          heading.focus({ preventScroll: true });
         }
         setupCarousels();
       }
@@ -323,9 +513,7 @@
 
     function highlight(url) {
       thumbs.forEach(function (other) {
-        var igual = other.getAttribute("href") === url;
-        other.classList.toggle("border-brand-600", igual);
-        other.classList.toggle("border-surface-line", !igual);
+        other.classList.toggle("product-thumb-on", other.getAttribute("href") === url);
       });
     }
 
@@ -546,16 +734,18 @@
     }
 
     var price = document.querySelector("[data-price]");
-    var addButton = form.querySelector("[data-add-button]");
-    var quantityInput = form.querySelector("[data-quantity-input]");
+    /* Na página, e não no formulário: a linha de compra (quantidade, botão,
+       coração) fica fora dele e aponta para ele por `form="add-to-cart"`. */
+    var addButton = document.querySelector("[data-add-button]");
+    var quantityInput = document.querySelector("[data-quantity-input]");
     var stockState = document.querySelector("[data-stock-state]");
 
     /* Mesmos selos que o template usa no primeiro desenho. */
     var STOCK_BADGE = {
-      made_to_order: "badge-amber",
-      out: "badge-muted",
-      low: "badge-amber",
-      in: "badge-mint"
+      made_to_order: "product-tag product-tag-warning",
+      out: "product-tag product-tag-danger",
+      low: "product-tag product-tag-warning",
+      in: "product-tag product-tag-stock"
     };
 
     var axes = [];
@@ -648,7 +838,8 @@
           var combina = fitsCurrent(axis, input.value, chosen);
           input.disabled = false;
           input.setAttribute("aria-disabled", combina ? "false" : "true");
-          var label = input.closest(".variant-option");
+          /* A pílula OU a bolinha de cor: as duas são o `<label>` do radio. */
+          var label = input.closest("label");
           if (label) {
             label.classList.toggle("variant-option-unavailable", !combina);
             label.title = combina
@@ -696,7 +887,7 @@
       if (stockState) {
         stockState.innerHTML = "";
         var badge = document.createElement("span");
-        badge.className = STOCK_BADGE[variant.stockState] || "badge-mint";
+        badge.className = STOCK_BADGE[variant.stockState] || "product-tag product-tag-stock";
         badge.textContent = variant.stockLabel;
         stockState.appendChild(badge);
       }
@@ -710,6 +901,11 @@
       updateSpec("dimensoes", variant.dimensions);
       updateSpec("impressao", variant.printTime);
       updateSpec("referencia", variant.sku);
+      /* O nome da cor escolhida no rótulo do grupo ("Cor: Roxo"): as
+         bolinhas não têm texto, e é aqui que ele aparece. */
+      updateChoice("color", variant.colorLabel);
+      updateChoice("size", variant.sizeLabel);
+      updateChoice("material", variant.materialLabel);
 
       /* A foto da variante, quando alguem vinculou uma. Sem foto propria,
          `mediaUrl` vem vazio e a galeria volta para a foto de abertura --
@@ -719,17 +915,26 @@
       }
     }
 
-    /* A ficha técnica acompanha a variante; linha sem valor some. */
+    /* A ficha técnica acompanha a variante; linha sem valor some.
+
+       TODAS as ocorrências da chave, e não só a primeira: a mesma referência
+       aparece ao lado do preço e na ficha, o mesmo material no cartão de
+       vantagens e na ficha. Um lugar esquecido seria uma tela falando de
+       duas variantes ao mesmo tempo. */
     function updateSpec(key, value) {
-      var row = document.querySelector('[data-spec="' + key + '"]');
-      if (!row) {
-        return;
-      }
-      var target = row.querySelector("[data-spec-value]");
-      if (target) {
-        target.textContent = value;
-      }
-      row.hidden = !value;
+      document.querySelectorAll('[data-spec="' + key + '"]').forEach(function (row) {
+        var target = row.querySelector("[data-spec-value]");
+        if (target) {
+          target.textContent = value;
+        }
+        row.hidden = !value;
+      });
+    }
+
+    function updateChoice(key, value) {
+      document.querySelectorAll('[data-variant-choice="' + key + '"]').forEach(function (node) {
+        node.textContent = value || "";
+      });
     }
 
     /* Passa a seleção inteira para esta variante: botões, `<select>`, preço,
@@ -906,6 +1111,7 @@
     setupMobileMenu();
     setupDropdowns();
     setupCarousels();
+    setupBannerCarousels();
     setupShopFilters();
     setupHtmx();
     setupCartDrawer();
@@ -920,6 +1126,9 @@
       if (event.target && event.target.id === "checkout-delivery") {
         setupCheckout();
       }
+      // Se um carrossel de banners chegar por troca, ele nasce sem ouvintes;
+      // os que já existiam ficam como estão (`data-carousel-ready`).
+      setupBannerCarousels();
     });
   });
 })();

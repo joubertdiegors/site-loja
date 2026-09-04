@@ -17,38 +17,38 @@
 {% block email_preview %}{% blocktranslate with number=order.number %}A sua solicitação de cancelamento da encomenda {{ number }} chegou até nós.{% endblocktranslate %}{% endblock %}
 
 {% block email_body %}
-  <h1 style="margin:0 0 12px 0;font-size:19px;line-height:1.3;color:#1b1533;">
+  <h1 style="margin:0 0 12px 0;font-size:19px;line-height:1.3;color:#1b1530;">
     {% translate "Recebemos o seu pedido de cancelamento" %}
   </h1>
 
-  <p style="margin:0 0 16px 0;font-size:15px;line-height:1.7;color:#3b3357;">
+  <p style="margin:0 0 16px 0;font-size:15px;line-height:1.7;color:#4b4560;">
     {% blocktranslate with number=order.number %}Recebemos a sua solicitação de cancelamento da encomenda {{ number }}. Vamos analisá-la e informamos o resultado assim que possível.{% endblocktranslate %}
   </p>
 
-  <p style="margin:0 0 20px 0;font-size:15px;line-height:1.7;color:#3b3357;">
+  <p style="margin:0 0 20px 0;font-size:15px;line-height:1.7;color:#4b4560;">
     {% translate "Ainda não há nada decidido: avisamos por e-mail assim que houver uma resposta." %}
   </p>
 
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
-         style="margin:0 0 20px 0;background-color:#f5f2fd;border-radius:12px;">
+         style="margin:0 0 20px 0;background-color:#efe8fa;border-radius:12px;">
     <tr>
-      <td style="padding:14px 18px;font-size:14px;line-height:1.7;color:#3b3357;">
-        <span style="color:#6b6386;">{% translate "Seu pedido" %}</span><br>
-        <strong style="color:#1b1533;">{{ order.number }}</strong> · {{ order.created_at|date:"d/m/Y" }}<br>
-        <span style="color:#6b6386;">{% translate "Valor" %}</span>
-        <strong style="color:#1b1533;">{{ order.currency_symbol }} {{ order.total|floatformat:2 }}</strong>
+      <td style="padding:14px 18px;font-size:14px;line-height:1.7;color:#4b4560;">
+        <span style="color:#6e6880;">{% translate "Seu pedido" %}</span><br>
+        <strong style="color:#1b1530;">{{ order.number }}</strong> · {{ order.created_at|date:"d/m/Y" }}<br>
+        <span style="color:#6e6880;">{% translate "Valor" %}</span>
+        <strong style="color:#1b1530;">{{ order.currency_symbol }} {{ order.total|floatformat:2 }}</strong>
       </td>
     </tr>
   </table>
 
   <p style="margin:0 0 22px 0;">
     <a href="{{ order_url }}"
-       style="display:inline-block;padding:12px 22px;background-color:#6d2ce0;border-radius:10px;color:#ffffff;font-weight:700;text-decoration:none;">
+       style="display:inline-block;padding:12px 22px;background-color:#4a1a8c;border-radius:10px;color:#ffffff;font-weight:700;text-decoration:none;">
       {% translate "Acompanhar o pedido" %}
     </a>
   </p>
 
-  <p style="margin:0;font-size:13px;line-height:1.6;color:#6b6386;">
+  <p style="margin:0;font-size:13px;line-height:1.6;color:#6e6880;">
     {% translate "Qualquer dúvida, é só responder a este e-mail." %}
   </p>
 {% endblock %}

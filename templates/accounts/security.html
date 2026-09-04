@@ -13,7 +13,7 @@
 
     {# ---- Senha ------------------------------------------------------- #}
     <div class="card p-6 sm:p-7">
-      <h2 class="font-display text-lg font-bold text-ink">{% translate "Alterar senha" %}</h2>
+      <h2 class="card-title">{% translate "Alterar senha" %}</h2>
       <p class="mt-1 text-sm text-ink-soft">
         {% translate "Pedimos a senha atual para garantir que é você." %}
       </p>
@@ -38,7 +38,7 @@
 
     {# ---- E-mail ------------------------------------------------------ #}
     <div class="card p-6 sm:p-7">
-      <h2 class="font-display text-lg font-bold text-ink">{% translate "Alterar e-mail" %}</h2>
+      <h2 class="card-title">{% translate "Alterar e-mail" %}</h2>
       <p class="mt-1 text-sm text-ink-soft">
         {% blocktranslate with email=user.email %}Hoje: {{ email }}.{% endblocktranslate %}
         {% translate "Ao trocar, o novo endereço precisa ser confirmado de novo." %}

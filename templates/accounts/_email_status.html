@@ -19,7 +19,7 @@ etapa 5, com a mesma trava de tempo.
       </div>
       <form method="post" action="{% url 'accounts:resend_verification' %}" class="shrink-0">
         {% csrf_token %}
-        <button type="submit" class="btn-sm rounded-[9px] border-[1.5px] border-state-warning/40 bg-white font-bold text-state-warning-dark transition-colors hover:bg-state-warning-soft focus-ring"
+        <button type="submit" class="btn-sm rounded-control border border-state-warning/40 bg-white font-bold text-state-warning-dark transition-colors hover:bg-state-warning-soft focus-ring"
                 {% if seconds_until_resend %}disabled title="{% translate 'Aguarde alguns instantes antes de pedir um novo e-mail.' %}"{% endif %}>
           {% translate "Reenviar confirmação" %}
         </button>

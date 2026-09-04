@@ -12,12 +12,12 @@ sem migration. Quando existir `Category.image`, basta trocar este bloco.
 <a href="{{ card.url }}"
    class="card card-hover focus-ring group/cat flex h-full flex-col items-center gap-3 p-5 text-center">
   <span aria-hidden="true"
-        class="flex h-12 w-12 items-center justify-center rounded-[12px] font-display text-lg font-bold transition-transform duration-200 group-hover/cat:scale-105 {{ card.category.slug|category_accent }}">
+        class="flex h-12 w-12 items-center justify-center rounded-control font-display text-lg font-bold transition-transform duration-(--transition-base) group-hover/cat:scale-105 {{ card.category.slug|category_accent }}">
     {{ card.name|initial }}
   </span>
   <span class="flex flex-col gap-0.5">
     <span class="text-sm font-bold text-ink">{{ card.name }}</span>
-    <span class="font-mono text-[10.5px] uppercase tracking-[0.06em] text-ink-muted">
+    <span class="font-mono text-[10.5px] uppercase tracking-label text-ink-muted">
       {% blocktranslate count total=card.product_count %}{{ total }} produto{% plural %}{{ total }} produtos{% endblocktranslate %}
     </span>
   </span>

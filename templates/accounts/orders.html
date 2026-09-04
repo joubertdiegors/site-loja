@@ -24,7 +24,7 @@ que o cliente quer saber: "já pagou?" e "já saiu?" são perguntas diferentes.
           <div class="flex flex-wrap items-start justify-between gap-4">
             <div>
               <a href="{{ order.get_absolute_url }}"
-                 class="focus-ring rounded font-mono text-sm font-medium tracking-[0.06em] text-brand-800 transition-colors hover:text-brand-600">
+                 class="focus-ring rounded font-mono text-sm font-medium tracking-label text-brand-800 transition-colors hover:text-brand-600">
                 {{ order.number }}
               </a>
               <p class="mt-0.5 text-[13px] text-ink-muted">
@@ -56,7 +56,7 @@ que o cliente quer saber: "já pagou?" e "já saiu?" são perguntas diferentes.
               </form>
             {% endif %}
             {% if order.tracking_number %}
-              <span class="ms-auto font-mono text-[11px] uppercase tracking-[0.06em] text-ink-muted">
+              <span class="ms-auto font-mono text-[11px] uppercase tracking-label text-ink-muted">
                 {% translate "Rastreio" %}: {{ order.tracking_number }}
               </span>
             {% endif %}
@@ -70,7 +70,7 @@ que o cliente quer saber: "já pagou?" e "já saiu?" são perguntas diferentes.
     <div class="max-w-2xl">
       <div class="empty-state">
         <span class="empty-state-icon" aria-hidden="true">{% icon "receipt" "h-6 w-6" %}</span>
-        <p class="font-display text-lg font-bold text-ink">{% translate "Ainda não há pedidos" %}</p>
+        <p class="card-title">{% translate "Ainda não há pedidos" %}</p>
         <p class="max-w-md text-sm text-ink-soft">
           {% translate "Quando você finalizar uma compra, ela aparece aqui com o histórico completo." %}
         </p>

@@ -660,6 +660,10 @@ def _favorite_htmx_response(request, product, esta_favoritado, mensagem):
         "favorite_ids": frozenset(
             Favorite.objects.for_user(request.user).visible().values_list("product_id", flat=True)
         ),
+        # O coração grande da página do produto pede para voltar grande: o
+        # alvo do swap é o próprio botão, e um coração de card no lugar dele
+        # seria um salto na tela. É apresentação, não regra — ver o template.
+        "inline": bool(request.POST.get("inline")),
     }
     if request.POST.get("from_list"):
         contexto["favorites"] = _favorite_products(request.user)

@@ -87,8 +87,10 @@ def load_variants(items: dict) -> dict:
         ProductVariant.objects.filter(pk__in=ids, is_active=True)
         .select_related("color", "material", "product")
         # A foto vinculada à variante (etapa 13). Sem isto, `display_media`
-        # custaria uma consulta por linha do carrinho.
-        .prefetch_related("media")
+        # custaria uma consulta por linha do carrinho. As traduções de cor e
+        # material, pelo mesmo motivo: a página do carrinho escreve o nome de
+        # cada uma no idioma do cliente.
+        .prefetch_related("media", "color__translations", "material__translations")
     )
     return {variant.pk: variant for variant in queryset}
 

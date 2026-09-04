@@ -5,36 +5,43 @@ Gaveta lateral do carrinho (mini-cart).
 Fica em todas as páginas, fechada. O ícone do carrinho no header a abre; sem
 JavaScript, o mesmo ícone continua sendo um link para /carrinho/.
 
+A anatomia é a da direção visual (`sidebar.html`): 440px presos à direita,
+cabeçalho com o título e a contagem à esquerda e, à direita, o botão
+contornado para o carrinho e o ✕; corpo rolável por dentro; rodapé branco
+fixo com subtotal, envio, total, o botão roxo e "Continuar comprando". O
+rodapé mora em `_drawer_body.html` porque só existe quando há itens.
+
 Acessibilidade: `inert` quando fechada (o conteúdo sai da ordem de foco e da
 árvore de acessibilidade), `role="dialog"` + `aria-modal` quando aberta, ESC
-fecha, o foco volta para o botão do carrinho e o Tab circula dentro dela.
+fecha, o foco volta para o botão do carrinho e o Tab circula dentro dela. O
+JavaScript (app.js) só liga e desliga `translate-x-full` e `opacity-0`.
 {% endcomment %}
 <div id="cart-drawer" data-cart-drawer class="pointer-events-none fixed inset-0 z-50" inert>
 
   {# Fundo: clicar fora fecha. #}
-  <div data-cart-overlay
-       class="absolute inset-0 bg-brand-950/50 opacity-0 backdrop-blur-[2px] transition-opacity duration-200"
-       tabindex="-1" aria-hidden="true"></div>
+  <div data-cart-overlay class="cart-drawer-overlay opacity-0" tabindex="-1" aria-hidden="true"></div>
 
   <aside data-cart-panel
-         class="absolute inset-y-0 end-0 flex w-full max-w-md translate-x-full flex-col bg-white shadow-2xl transition-transform duration-200 ease-out rtl:-translate-x-full"
+         class="cart-drawer-panel translate-x-full rtl:-translate-x-full"
          role="dialog" aria-modal="true" aria-labelledby="cart-drawer-title">
 
-    <header class="bg-surface-deep layers-light flex items-center justify-between gap-3 px-5 py-4">
-      <div class="min-w-0">
-        <h2 id="cart-drawer-title" class="font-display text-lg font-bold text-white">
-          {% translate "Seu carrinho" %}
-        </h2>
+    <div class="cd-head">
+      <h2 id="cart-drawer-title" class="cd-title">
+        {% translate "Carrinho" %}
         {% include "cart/_drawer_count.html" %}
+      </h2>
+      <div class="cd-actions">
+        <a href="{% url 'cart:detail' %}" class="cd-link-sm" data-cart-close>
+          {% translate "Ver carrinho" %} <span aria-hidden="true">→</span>
+        </a>
+        <button type="button" data-cart-close class="cd-close"
+                aria-label="{% translate 'Fechar carrinho' %}">
+          {% icon "close" "h-5 w-5" %}
+        </button>
       </div>
-      <button type="button" data-cart-close
-              class="focus-ring flex h-9 w-9 shrink-0 items-center justify-center rounded-control bg-white/10 text-white transition-colors hover:bg-white/20"
-              aria-label="{% translate 'Fechar carrinho' %}">
-        {% icon "close" %}
-      </button>
-    </header>
+    </div>
 
-    <div id="cart-drawer-body" class="flex flex-1 flex-col overflow-hidden">
+    <div id="cart-drawer-body" class="flex min-h-0 flex-1 flex-col overflow-hidden">
       {% include "cart/_drawer_body.html" %}
     </div>
   </aside>

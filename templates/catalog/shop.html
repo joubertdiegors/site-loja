@@ -2,25 +2,32 @@
 {% load i18n jdprint %}
 
 {% comment %}
-Vitrine de Modelos.
+Vitrine de Modelos (e a página de qualquer categoria, que é a mesma vitrine).
 
-Estrutura: trilha, cabeçalho, barra lateral de categorias (fixa no desktop,
-recolhível no celular) e a área de resultados. A área de resultados é um bloco
-separado (`_shop_results.html`) porque o HTMX troca só ela ao filtrar, ordenar
-ou paginar — sem HTMX, os mesmos links recarregam a página inteira.
+A anatomia é a da direção visual (`Catalogo.html`): trilha, banner roxo,
+e a grade "lateral + lista". A lateral (`_shop_sidebar.html`) tem categorias
+e materiais; a lista (`_shop_results.html`) tem o título com a contagem, a
+ordenação, os filtros ativos em pílulas, os cards e a paginação.
 
-A lateral tem só o que existe de verdade: categorias. Filtros de preço,
-material ou cor não estão implementados no backend, e uma coluna cheia de
-controles que não filtram nada seria pior do que uma coluna curta.
+A lista é um bloco separado porque o HTMX troca só ela ao filtrar, ordenar ou
+paginar — e a lateral volta junto, fora do alvo, para a categoria ativa não
+ficar congelada. Sem HTMX, os mesmos links recarregam a página inteira.
+
+O banner não tem promoção escrita à mão: a etiqueta é "Catálogo", o texto é
+a descrição da categoria raiz (traduzível, editável no Admin) e o botão
+convida para outra vitrine — a primeira raiz que não é esta.
+
+No celular a lateral vira uma gaveta. É um `popover` nativo: o botão
+"Filtros" (na lista) abre, o ✕ e o "Ver N produtos" fecham, o Esc e o toque
+fora também. Nada disso precisa de JavaScript.
 {% endcomment %}
 
 {% block content %}
-  <section class="container-page py-6 sm:py-10">
+  <section class="container-page catalog-page">
 
-    <nav class="mb-5 font-mono text-[11px] uppercase tracking-[0.08em] text-ink-muted"
-         aria-label="{% translate 'Você está aqui' %}">
-      <ol class="flex flex-wrap items-center gap-1.5" role="list">
-        <li><a href="{% url 'home:index' %}" class="focus-ring rounded transition-colors hover:text-brand-700">{% translate "Início" %}</a></li>
+    <nav class="catalog-crumbs" aria-label="{% translate 'Você está aqui' %}">
+      <ol role="list">
+        <li><a href="{% url 'home:index' %}">{% translate "Início" %}</a></li>
         {% comment %}
           Numa pagina de categoria a trilha sobe ate a raiz: sem isso,
           "Inicio / Gatos" nao diz que Gatos fica dentro de Modelos > Animais.
@@ -28,34 +35,25 @@ controles que não filtram nada seria pior do que uma coluna curta.
         {% endcomment %}
         {% for ancestor in breadcrumb %}
           <li aria-hidden="true">/</li>
-          <li><a href="{{ ancestor.get_absolute_url }}" class="focus-ring rounded transition-colors hover:text-brand-700">{{ ancestor.name }}</a></li>
+          <li><a href="{{ ancestor.get_absolute_url }}">{{ ancestor.name }}</a></li>
         {% endfor %}
         <li aria-hidden="true">/</li>
-        <li class="{% if selected_category %}transition-colors hover:text-brand-700{% else %}text-brand-700{% endif %}">
-          {% if selected_category %}
-            <a href="{% querystring categoria=None page=None %}" class="focus-ring rounded">{{ page_title }}</a>
-          {% else %}
-            {{ page_title }}
-          {% endif %}
-        </li>
         {% if selected_category %}
+          <li><a href="{% querystring categoria=None page=None %}">{{ page_title }}</a></li>
           <li aria-hidden="true">/</li>
-          <li class="text-brand-700">{{ selected_category.name }}</li>
+          <li aria-current="page">{{ selected_category.name }}</li>
+        {% else %}
+          <li aria-current="page">{{ page_title }}</li>
         {% endif %}
       </ol>
     </nav>
 
-    <header class="max-w-2xl">
-      <p class="section-eyebrow">{% translate "Catálogo" %}</p>
-      <h1 class="section-title mt-2">{{ page_title }}</h1>
-      <p class="section-subtitle">{{ page_subtitle }}</p>
-    </header>
-
     {% if not root_category %}
 
+      <h1 class="catalog-title">{{ page_title }}</h1>
       <div class="empty-state mt-8">
         <span class="empty-state-icon" aria-hidden="true">{% icon "cube" "h-6 w-6" %}</span>
-        <p class="font-display text-lg font-bold text-ink">{% translate "Vitrine ainda não configurada" %}</p>
+        <p class="card-title">{% translate "Vitrine ainda não configurada" %}</p>
         <p class="max-w-md text-sm text-ink-soft">
           {% blocktranslate %}Crie a categoria "{{ expected_slug }}" no painel administrativo para que os modelos apareçam aqui.{% endblocktranslate %}
         </p>
@@ -63,20 +61,21 @@ controles que não filtram nada seria pior do que uma coluna curta.
 
     {% else %}
 
+      <div class="catalog-banner">
+        <div class="catalog-banner-text">
+          <span class="catalog-banner-tag">{% translate "Catálogo" %}</span>
+          <p class="catalog-banner-title">{{ page_subtitle }}</p>
+        </div>
+        {% if banner_link %}
+          <a href="{{ banner_link.get_absolute_url }}" class="catalog-banner-cta">
+            {% blocktranslate with name=banner_link.name %}Ver {{ name }}{% endblocktranslate %} <span aria-hidden="true">→</span>
+          </a>
+        {% endif %}
+      </div>
+
       <div class="shop-layout">
 
-        {# Barra lateral: <details> abre/fecha no celular e fica sempre aberta no desktop. #}
-        <details class="group" data-shop-filters open>
-          <summary class="focus-ring flex cursor-pointer list-none items-center justify-between rounded-card border border-surface-line bg-white px-4 py-3.5 text-sm font-bold text-ink shadow-card lg:hidden">
-            <span class="flex items-center gap-2">
-              {% icon "menu" "h-4 w-4 text-brand-600" %}
-              {% translate "Categorias" %}
-            </span>
-            {% icon "chevron-down" "h-4 w-4 transition-transform group-open:rotate-180" %}
-          </summary>
-
-          {% include "catalog/_shop_sidebar.html" %}
-        </details>
+        {% include "catalog/_shop_sidebar.html" %}
 
         {# Resultados #}
         <div id="shop-results">

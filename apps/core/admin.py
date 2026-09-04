@@ -139,7 +139,10 @@ class BrandAssetsAdmin(admin.ModelAdmin):
                 '<span style="color:var(--body-quiet-color)">{}</span>',
                 "Nenhuma imagem cadastrada — o site usa o espaço reservado.",
             )
-        fundo = "#1b1533" if escuro else "transparent"
+        # O navy do rodapé do site: a logo clara precisa ser vista sobre o
+        # fundo em que ela vai aparecer de verdade, e não sobre o branco do
+        # Admin. Tem de acompanhar `--color-surface-deep` do Design System.
+        fundo = "#1b1530" if escuro else "transparent"
         return format_html(
             '<div style="display:inline-flex;align-items:center;gap:14px;'
             'padding:12px 16px;border:1px solid var(--border-color);'

@@ -50,21 +50,21 @@ internas ficam no admin.
     <div class="grid gap-5">
 
       <section class="card p-5 sm:p-6" aria-labelledby="titulo-itens">
-        <h2 id="titulo-itens" class="font-display text-lg font-bold text-ink">
+        <h2 id="titulo-itens" class="card-title">
           {% translate "Itens" %}
         </h2>
 
         <ul class="mt-4 divide-y divide-surface-line" role="list">
           {% for item in items %}
             <li class="flex gap-3 py-4">
-              <span class="flex h-14 w-14 shrink-0 items-center justify-center rounded-[10px] border border-surface-line bg-surface-soft font-display text-lg font-bold text-brand-700" aria-hidden="true">
+              <span class="flex h-14 w-14 shrink-0 items-center justify-center rounded-control border border-surface-line bg-surface-soft font-display text-lg font-bold text-brand-700" aria-hidden="true">
                 {{ item.product_name|initial }}
               </span>
 
               <div class="min-w-0 flex-1">
                 <p class="text-sm font-bold text-ink">{{ item.product_name }}</p>
                 {% if item.variant_label %}
-                  <p class="font-mono text-[10.5px] uppercase tracking-[0.06em] text-ink-muted">
+                  <p class="font-mono text-[10.5px] uppercase tracking-label text-ink-muted">
                     {{ item.variant_label }}
                   </p>
                 {% endif %}
@@ -73,7 +73,7 @@ internas ficam no admin.
                 {% endif %}
 
                 {% if item.has_personalization %}
-                  <div class="mt-1.5 rounded-[8px] border border-magenta-500/20 bg-magenta-50 px-2.5 py-1.5 text-[11px] text-magenta-700">
+                  <div class="mt-1.5 rounded-control border border-coral-500/20 bg-coral-50 px-2.5 py-1.5 text-[11px] text-coral-700">
                     {% if item.personalization_type == "photo" %}
                       <span class="font-bold">{% translate "Foto enviada" %}</span>
                       {% if item.personalization_upload %}
@@ -102,7 +102,7 @@ internas ficam no admin.
       </section>
 
       <section class="card p-5 sm:p-6" aria-labelledby="titulo-historico">
-        <h2 id="titulo-historico" class="font-display text-lg font-bold text-ink">
+        <h2 id="titulo-historico" class="card-title">
           {% translate "Acompanhamento" %}
         </h2>
 
@@ -110,7 +110,7 @@ internas ficam no admin.
           {% for entry in history %}
             <li class="relative flex gap-3 pb-4 last:pb-0">
               <span class="relative flex flex-col items-center" aria-hidden="true">
-                <span class="mt-1 h-2.5 w-2.5 shrink-0 rounded-full {% if forloop.last %}bg-brand-600{% else %}bg-surface-line-strong{% endif %}"></span>
+                <span class="mt-1 h-2.5 w-2.5 shrink-0 rounded-pill {% if forloop.last %}bg-brand-600{% else %}bg-surface-line-strong{% endif %}"></span>
                 {% if not forloop.last %}
                   <span class="w-px flex-1 bg-surface-line"></span>
                 {% endif %}
@@ -124,7 +124,7 @@ internas ficam no admin.
                 bancarios enviados" e um estado de sistema, nao uma frase.
               {% endcomment %}
               <span class="min-w-0 flex-1">
-                <span class="block font-mono text-[10.5px] uppercase tracking-[0.06em] text-ink-muted">
+                <span class="block font-mono text-[10.5px] uppercase tracking-label text-ink-muted">
                   {{ entry.created_at|date:"d/m/Y H:i" }}
                 </span>
                 <span class="mt-0.5 block text-sm leading-relaxed text-ink">{{ entry.customer_message }}</span>
@@ -139,7 +139,7 @@ internas ficam no admin.
     <div class="grid gap-5">
 
       <section class="card p-5 sm:p-6" aria-labelledby="titulo-valores">
-        <h2 id="titulo-valores" class="font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-ink-muted">
+        <h2 id="titulo-valores" class="font-mono text-[11px] font-medium uppercase tracking-label text-ink-muted">
           {% translate "Valores" %}
         </h2>
 
@@ -177,7 +177,7 @@ internas ficam no admin.
       </section>
 
       <section class="card p-5 sm:p-6" aria-labelledby="titulo-entrega-pedido">
-        <h2 id="titulo-entrega-pedido" class="font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-ink-muted">
+        <h2 id="titulo-entrega-pedido" class="font-mono text-[11px] font-medium uppercase tracking-label text-ink-muted">
           {% translate "Entrega" %}
         </h2>
 
@@ -200,7 +200,7 @@ internas ficam no admin.
 
         {% if order.tracking_number %}
           <p class="mt-3 rounded-control bg-surface-brand px-3 py-2.5 text-[13px] text-ink">
-            <span class="block font-mono text-[10.5px] uppercase tracking-[0.08em] text-ink-muted">
+            <span class="block font-mono text-[10.5px] uppercase tracking-label text-ink-muted">
               {% translate "Código de rastreio" %}
             </span>
             {% if order.tracking_url %}
@@ -216,7 +216,7 @@ internas ficam no admin.
 
       {% if order.billing_address %}
         <section class="card p-5 sm:p-6" aria-labelledby="titulo-fatura">
-          <h2 id="titulo-fatura" class="font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-ink-muted">
+          <h2 id="titulo-fatura" class="font-mono text-[11px] font-medium uppercase tracking-label text-ink-muted">
             {% translate "Faturamento" %}
           </h2>
           <address class="mt-3 text-[13px] not-italic leading-relaxed text-ink-soft">

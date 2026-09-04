@@ -1,0 +1,52 @@
+{% load i18n jdprint %}
+{% comment %}
+Os blocos coloridos de categoria, logo abaixo do hero.
+
+Cada bloco vem de `home.HomeCategoryCard`: o destino é uma categoria de
+verdade (chave estrangeira, não um endereço digitado), e as três cores — fundo,
+texto e acento — saem do cadastro como variáveis CSS. O contraste entre texto e
+fundo é conferido no `clean()` do modelo, então uma combinação ilegível nem
+chega a ser gravada.
+
+Sem cadastro nenhum, a seção não existe. É uma faixa de destaque, não uma
+estrutura obrigatória da página.
+
+O bloco sem categoria vira `<div>` em vez de `<a>`: um link que não leva a
+lugar nenhum é pior que um bloco decorativo.
+{% endcomment %}
+
+{% if category_blocks %}
+  <section class="container-page pb-16 pt-4 sm:pb-20" aria-labelledby="titulo-categorias">
+    <h2 id="titulo-categorias" class="sr-only">{% translate "Categorias" %}</h2>
+
+    <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      {% for bloco in category_blocks %}
+        {% if bloco.link %}
+          <a href="{{ bloco.link }}" class="category-block focus-ring" style="{{ bloco.style }}">
+        {% else %}
+          <div class="category-block" style="{{ bloco.style }}">
+        {% endif %}
+
+          {% if bloco.eyebrow %}
+            <span class="category-block-eyebrow">{{ bloco.eyebrow }}</span>
+          {% elif bloco.image %}
+            <img src="{{ bloco.image.url }}" alt="" class="category-block-photo" loading="lazy">
+          {% elif bloco.icon %}
+            <span class="category-block-media" aria-hidden="true">{% icon bloco.icon "h-11 w-11" %}</span>
+          {% endif %}
+
+          <span>
+            <span class="category-block-title">
+              {{ bloco.title }}
+              {% if bloco.link %}{% icon "arrow-right" "h-7 w-7 rtl:rotate-180" %}{% endif %}
+            </span>
+            {% if bloco.text %}
+              <span class="category-block-text mt-2 block">{{ bloco.text }}</span>
+            {% endif %}
+          </span>
+
+        {% if bloco.link %}</a>{% else %}</div>{% endif %}
+      {% endfor %}
+    </div>
+  </section>
+{% endif %}

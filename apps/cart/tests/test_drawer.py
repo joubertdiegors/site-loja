@@ -71,7 +71,11 @@ class DrawerPresenceTests(LanguageResetMixin, TestCase):
         self.assertContains(response, "Gato Pompom")
         self.assertContains(response, "17,80")
         self.assertContains(response, "Subtotal")
-        self.assertContains(response, "Ver carrinho")
+        # O rodapé fixo: total, o botão para o checkout e a saída sem comprar.
+        self.assertContains(response, "Total")
+        self.assertContains(response, "Fechar conta")
+        self.assertContains(response, reverse("cart:checkout"))
+        self.assertContains(response, "Continuar comprando")
 
 
 class DrawerUpdateTests(LanguageResetMixin, TestCase):

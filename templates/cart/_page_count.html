@@ -1,0 +1,12 @@
+{% load i18n %}
+{% comment %}
+"N itens" ao lado do título da página do carrinho.
+
+Fica fora de `#cart-panel` (é parte do título), então cada troca do painel
+manda este bloco de novo, marcado com `hx-swap-oob` — senão o título diria
+"2 itens" depois de o cliente ter tirado um.
+{% endcomment %}
+<span id="cart-page-count" class="catalog-title-count" aria-live="polite"
+      {% if oob %}hx-swap-oob="true"{% endif %}>
+  {% blocktranslate count total=cart.total_quantity %}{{ total }} item{% plural %}{{ total }} itens{% endblocktranslate %}
+</span>

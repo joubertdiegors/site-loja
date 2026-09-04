@@ -115,7 +115,10 @@ class TopBarTests(StorefrontBase):
         hero = html.split("<section", 2)[1]
 
         self.assertIn("Enviamos para a Europa", hero)
-        self.assertIn("text-brand-300", hero)
+        # O desenho do caminhão, e não um ícone qualquer: as duas rodas são o
+        # que só ele tem. Antes isto conferia a classe de cor do ícone, que
+        # mudava a cada ajuste de paleta sem que o comportamento mudasse.
+        self.assertIn('<circle cx="7" cy="18"', hero)
 
     def test_an_item_without_icon_still_shows_its_text(self):
         self.topbar(internal_name="Sem ícone", pt="Promessa sem ícone")

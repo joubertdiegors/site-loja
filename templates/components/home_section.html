@@ -7,17 +7,24 @@ subtítulo, layout, CTA e a lista de produtos já resolvida. O template não
 sabe — nem precisa saber — se os produtos vieram de escolha manual, de uma
 categoria ou dos destaques.
 
-O fundo alterna entre claro e lavanda conforme a posição na lista: é o que dá
-ritmo à página sem depender de quantas seções o administrador criou.
+O fundo alterna entre o creme da página e o branco, conforme a posição na
+lista: é o que dá ritmo à página sem depender de quantas seções o administrador
+criou.
+
+A alternância é creme/branco, e não branco/lavanda como antes. Duas razões: o
+creme é o chão da marca e precisa aparecer — com faixas brancas e lavanda
+coladas uma na outra ele nunca chegava a ser visto; e o roxo claro fica
+reservado para UMA faixa da página (a de "como trabalhamos"), onde vale como
+acento em vez de virar mais um tom de fundo.
 {% endcomment %}
-<section class="{% if forloop.counter0|divisibleby:2 %}bg-white{% else %}bg-surface-brand{% endif %} border-y border-surface-line py-12 sm:py-14"
+<section class="{% if forloop.counter0|divisibleby:2 %}py-16 sm:py-24{% else %}border-y border-surface-line bg-white py-16 sm:py-24{% endif %}"
          aria-labelledby="{{ section.anchor }}">
   <div class="container-page">
 
     <div class="flex flex-wrap items-end justify-between gap-4">
-      <div>
+      <div class="max-w-2xl">
         <p class="section-eyebrow">{% translate "Seleção" %}</p>
-        <h2 id="{{ section.anchor }}" class="section-title mt-2">{{ section.title }}</h2>
+        <h2 id="{{ section.anchor }}" class="section-title mt-2.5">{{ section.title }}</h2>
         {% if section.subtitle %}
           <p class="section-subtitle">{{ section.subtitle }}</p>
         {% endif %}
@@ -47,7 +54,7 @@ ritmo à página sem depender de quantas seções o administrador criou.
     </div>
 
     {% if section.layout == "carousel" %}
-      <div class="mt-6" data-carousel>
+      <div class="mt-8" data-carousel>
         <ul class="carousel-track" role="list" data-carousel-track tabindex="0"
             aria-label="{{ section.title }}">
           {% for product in section.products %}
@@ -56,7 +63,7 @@ ritmo à página sem depender de quantas seções o administrador criou.
         </ul>
       </div>
     {% else %}
-      <ul class="product-grid mt-6" role="list">
+      <ul class="product-grid mt-8" role="list">
         {% for product in section.products %}
           <li>{% include "components/product_card.html" %}</li>
         {% endfor %}

@@ -10,16 +10,16 @@ A TVA aparece como "incluída": no varejo B2C da UE o preço anunciado já é o
 preço final, e somar imposto na última tela seria irregular além de deselegante.
 {% endcomment %}
 <div class="card p-5 sm:p-6">
-  <h2 class="font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-ink-muted">
+  <h2 class="font-mono text-[11px] font-medium uppercase tracking-label text-ink-muted">
     {% translate "Resumo do pedido" %}
   </h2>
 
   <ul class="mt-4 divide-y divide-surface-line" role="list">
     {% for line in lines %}
       <li class="flex gap-3 py-3">
-        <span class="relative block h-14 w-14 shrink-0 overflow-hidden rounded-[10px] border border-surface-line">
+        <span class="relative block h-14 w-14 shrink-0 overflow-hidden rounded-control border border-surface-line">
           {% include "components/product_media.html" with media=line.product.display_media name=line.display_name compact=True %}
-          <span class="absolute -end-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-ink px-1 font-mono text-[10px] font-medium text-white">
+          <span class="absolute -end-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-pill bg-ink px-1 font-mono text-[10px] font-medium text-white">
             {{ line.quantity }}
           </span>
         </span>
@@ -27,12 +27,12 @@ preço final, e somar imposto na última tela seria irregular além de deselegan
         <span class="min-w-0 flex-1">
           <span class="block truncate text-sm font-bold text-ink">{{ line.display_name }}</span>
           {% if line.variant_label %}
-            <span class="block font-mono text-[10.5px] uppercase tracking-[0.06em] text-ink-muted">
+            <span class="block font-mono text-[10.5px] uppercase tracking-label text-ink-muted">
               {{ line.variant_label }}
             </span>
           {% endif %}
           {% if line.has_customization %}
-            <span class="mt-0.5 block font-mono text-[10.5px] text-magenta-700">
+            <span class="mt-0.5 block font-mono text-[10.5px] text-coral-700">
               {% if line.customization_type == "photo" %}
                 {% translate "Com foto" %}{% if line.upload %} · {{ line.upload.original_name|truncatechars:18 }}{% endif %}
               {% else %}
@@ -79,8 +79,8 @@ preço final, e somar imposto na última tela seria irregular além de deselegan
   </dl>
 
   <div class="mt-4 flex items-baseline justify-between gap-4 border-t border-surface-line pt-4">
-    <span class="text-sm font-bold text-ink">{% translate "Total" %}</span>
-    <span class="font-display text-2xl font-bold tabular-price text-brand-800">
+    <span class="text-sm font-title text-ink">{% translate "Total" %}</span>
+    <span class="font-display text-display-sm font-title-strong tabular-price text-brand-700">
       €&nbsp;{{ draft.total|floatformat:2 }}
     </span>
   </div>

@@ -124,6 +124,27 @@ class ShopView(ListView):
                 return descricao
         return str(self.fallback_subtitle)
 
+    @property
+    def banner_link(self) -> Category | None:
+        """Para onde o banner convida: a primeira vitrine que não é esta.
+
+        A direção visual fecha o banner com "Ver filamentos →" — um convite
+        para outra vitrine, não uma promoção escrita à mão. A outra vitrine
+        sai da árvore que já está carregada (as raízes, na ordem do menu), e
+        quem manda na URL continua sendo `Category.get_absolute_url()`.
+
+        Numa página de categoria aninhada (`/modelos/?categoria=gatos` ou
+        `/categorias/gatos/`) "esta vitrine" é a raiz da categoria, não ela:
+        convidar de Gatos para Modelos seria convidar para onde já se está.
+        """
+        if self.root_category is None:
+            return None
+        current = self.tree.root_of(self.root_category.pk) or self.root_category
+        for root in self.tree.roots():
+            if root.pk != current.pk:
+                return root
+        return None
+
     def _resolve_selected_category(self) -> Category | None:
         """Categoria do filtro, aceita só se pertencer à árvore desta vitrine."""
         slug = self.request.GET.get("categoria")
@@ -384,6 +405,7 @@ class ShopView(ListView):
                 "sort_options": [(key, label) for key, (label, _expr) in SORT_OPTIONS.items()],
                 "page_title": self.page_title,
                 "page_subtitle": self.page_subtitle,
+                "banner_link": self.banner_link,
                 "meta_title": f"{self.page_title} | JD PRINT",
                 "meta_description": self.page_subtitle,
                 "results_url": self.request.path,

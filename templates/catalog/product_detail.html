@@ -4,217 +4,245 @@
 {% comment %}
 Página do produto.
 
-Galeria à esquerda, compra à direita, descrição e ficha técnica abaixo. No
-celular tudo empilha na ordem: galeria, nome, preço, opções, personalização,
-quantidade, botão, descrição, ficha.
+A anatomia é a da direção visual (`Produto.html`): trilha; galeria à
+esquerda (foto principal numa moldura lavanda de 36px de raio, miniaturas em
+quatro colunas) e, à direita, a coluna de compra presa ao rolar — etiquetas,
+título, preço com a referência, descrição curta, opções (cores em bolinhas,
+tamanhos e materiais em pílulas), a linha de compra (quantidade, botão com
+sombra sólida, coração), os três cartões de "vantagens" e um acordeão com a
+descrição, a ficha técnica e as informações adicionais. Abaixo, os produtos
+relacionados. No celular tudo empilha: galeria e depois a coluna de compra.
 
 Sem JavaScript: as miniaturas são links com âncora, a variante é escolhida em
 um <select> e o formulário é um POST comum. O JavaScript (app.js) troca a foto
 principal sem recarregar, transforma o select em botões e faz o botão adicionar
 sem sair da página.
+
+## A linha de compra fica FORA do formulário
+
+Quantidade, "Adicionar ao carrinho" e o coração dividem uma linha, como na
+referência — mas o coração é um `<form>` próprio (POST do favorito), e
+formulário dentro de formulário não existe em HTML. A linha vive fora do
+formulário do carrinho, e o campo de quantidade e o botão apontam para ele
+pelo atributo `form="add-to-cart"`: para o navegador e para o HTMX eles
+continuam sendo do formulário (`form.elements` os inclui), o Enter na
+quantidade continua enviando, e o `hx-disabled-elt` acha o botão por seletor
+em vez de por descendência.
 {% endcomment %}
 
 {% block content %}
-  <article class="container-page py-6 sm:py-10">
+  <article class="container-page catalog-page product-page">
 
     {# ---- Trilha ------------------------------------------------------- #}
-    <nav class="mb-5 font-mono text-[11px] uppercase tracking-[0.08em] text-ink-muted"
-         aria-label="{% translate 'Você está aqui' %}">
-      <ol class="flex flex-wrap items-center gap-1.5" role="list">
-        <li><a href="{% url 'home:index' %}" class="focus-ring rounded transition-colors hover:text-brand-700">{% translate "Início" %}</a></li>
+    <nav class="catalog-crumbs" aria-label="{% translate 'Você está aqui' %}">
+      <ol role="list">
+        <li><a href="{% url 'home:index' %}">{% translate "Início" %}</a></li>
         {% for category in breadcrumb %}
           <li aria-hidden="true">/</li>
-          <li><a href="{{ category.get_absolute_url }}" class="focus-ring rounded transition-colors hover:text-brand-700">{{ category.name }}</a></li>
+          <li><a href="{{ category.get_absolute_url }}">{{ category.name }}</a></li>
         {% endfor %}
         <li aria-hidden="true">/</li>
-        <li class="text-brand-700">{{ product.display_name }}</li>
+        <li aria-current="page">{{ product.display_name }}</li>
       </ol>
     </nav>
 
-    <div class="card p-4 sm:p-6 lg:p-7">
-      <div class="grid gap-8 lg:grid-cols-2 lg:gap-10">
+    <div class="product-cols">
 
-        {# ---- Galeria ---------------------------------------------------- #}
-        <section data-gallery aria-labelledby="galeria-titulo">
-          <h2 id="galeria-titulo" class="sr-only">{% translate "Fotos do produto" %}</h2>
+      {# ---- Galeria ---------------------------------------------------- #}
+      <section class="product-gallery" data-gallery aria-labelledby="galeria-titulo">
+        <h2 id="galeria-titulo" class="sr-only">{% translate "Fotos do produto" %}</h2>
 
-          {% comment %}
-            `object-contain` e não `object-cover`: a foto do produto não pode
-            ser cortada. A área continua quadrada para a grade não pular de
-            altura, e a imagem se ajusta dentro dela — horizontal, vertical ou
-            quadrada, sem deformar.
+        {% comment %}
+          `object-contain` e não `object-cover`: a foto do produto não pode
+          ser cortada. A moldura continua quadrada para a página não pular de
+          altura, e a imagem se ajusta dentro dela — horizontal, vertical ou
+          quadrada, sem deformar.
 
-            Os `data-default-*` guardam a foto de abertura: é para ela que a
-            galeria volta quando a variante escolhida não tem foto própria.
-          {% endcomment %}
-          <div class="layers overflow-hidden rounded-card border border-surface-line">
-            {% with principal=gallery.0 %}
-              <div data-gallery-main
-                   class="aspect-square w-full {% if principal %}cursor-zoom-in{% endif %}"
-                   {% if principal %}
-                     role="button" tabindex="0"
-                     aria-label="{% translate 'Ver a foto ampliada' %}"
-                     data-default-url="{{ principal.file.url }}"
-                     data-default-alt="{{ principal.alt_text|default:product.display_name }}"
-                     data-default-type="{{ principal.media_type }}"
-                   {% endif %}>
-                {% if principal and principal.media_type == "VIDEO" %}
-                  <video src="{{ principal.file.url }}" controls playsinline
-                         class="h-full w-full object-contain"></video>
-                {% elif principal %}
-                  {% comment %}
-                    Sem `id`: a galeria reescreve esta `<img>` ao trocar de foto, e um
-                    `id` que some no primeiro clique seria pior que nenhum. Quem
-                    precisa da foto atual lê `data-current-url` no contêiner.
-                  {% endcomment %}
-                  <img src="{{ principal.file.url }}" alt="{{ principal.alt_text|default:product.display_name }}"
-                       class="h-full w-full object-contain">
-                {% else %}
-                  {% include "components/product_media.html" with media=None name=product.display_name %}
-                {% endif %}
-              </div>
-            {% endwith %}
+          Os `data-default-*` guardam a foto de abertura: é para ela que a
+          galeria volta quando a variante escolhida não tem foto própria.
+
+          Sem foto, a moldura ganha o tracejado da referência: é um espaço
+          reservado, e parece um.
+        {% endcomment %}
+        {% with principal=gallery.0 %}
+          <div data-gallery-main
+               class="product-gallery-main aspect-square{% if principal %} focus-ring cursor-zoom-in{% else %} product-gallery-main-empty{% endif %}"
+               {% if principal %}
+                 role="button" tabindex="0"
+                 aria-label="{% translate 'Ver a foto ampliada' %}"
+                 data-default-url="{{ principal.file.url }}"
+                 data-default-alt="{{ principal.alt_text|default:product.display_name }}"
+                 data-default-type="{{ principal.media_type }}"
+               {% endif %}>
+            {% if principal and principal.media_type == "VIDEO" %}
+              <video src="{{ principal.file.url }}" controls playsinline
+                     class="h-full w-full object-contain"></video>
+            {% elif principal %}
+              {% comment %}
+                Sem `id`: a galeria reescreve esta `<img>` ao trocar de foto, e um
+                `id` que some no primeiro clique seria pior que nenhum. Quem
+                precisa da foto atual lê `data-current-url` no contêiner.
+              {% endcomment %}
+              <img src="{{ principal.file.url }}" alt="{{ principal.alt_text|default:product.display_name }}"
+                   class="h-full w-full object-contain">
+            {% else %}
+              {% include "components/product_media.html" with media=None name=product.display_name %}
+            {% endif %}
           </div>
+        {% endwith %}
 
-          {% if gallery|length > 1 %}
-            <ul class="mt-3 grid grid-cols-4 gap-2.5 sm:grid-cols-5" role="list">
-              {% for item in gallery %}
-                <li>
-                  <a href="{{ item.file.url }}"
-                     data-gallery-thumb
-                     data-media-type="{{ item.media_type }}"
-                     data-alt="{{ item.alt_text|default:product.display_name }}"
-                     class="focus-ring block aspect-square overflow-hidden rounded-[11px] border-2 {% if forloop.first %}border-brand-600{% else %}border-surface-line{% endif %} transition-colors hover:border-brand-300"
-                     aria-label="{% blocktranslate with number=forloop.counter %}Ver mídia {{ number }}{% endblocktranslate %}">
-                    {% if item.media_type == "VIDEO" %}
-                      <span class="layers flex h-full w-full items-center justify-center text-brand-600">
-                        {% icon "cube" "h-6 w-6" %}
-                      </span>
-                    {% else %}
-                      <img src="{{ item.file.url }}" alt="" loading="lazy" class="h-full w-full object-contain">
-                    {% endif %}
-                  </a>
-                </li>
-              {% endfor %}
-            </ul>
-          {% endif %}
+        {% if gallery|length > 1 %}
+          <ul class="product-thumbs" role="list">
+            {% for item in gallery %}
+              <li>
+                <a href="{{ item.file.url }}"
+                   data-gallery-thumb
+                   data-media-type="{{ item.media_type }}"
+                   data-alt="{{ item.alt_text|default:product.display_name }}"
+                   class="product-thumb{% if forloop.first %} product-thumb-on{% endif %}"
+                   aria-label="{% blocktranslate with number=forloop.counter %}Ver mídia {{ number }}{% endblocktranslate %}">
+                  {% if item.media_type == "VIDEO" %}
+                    <span class="product-thumb-video">{% icon "cube" "h-6 w-6" %}</span>
+                  {% else %}
+                    <img src="{{ item.file.url }}" alt="" loading="lazy" class="h-full w-full object-contain">
+                  {% endif %}
+                </a>
+              </li>
+            {% endfor %}
+          </ul>
+        {% endif %}
 
-          {% if gallery %}
-            {% comment %}
-              A lupa. Fica fora do fluxo (`position: fixed`) para não aumentar
-              a página, e a imagem é limitada à viewport — uma foto de 4000px
-              não pode empurrar a tela nem sair dela.
-
-              Fecha no X, no fundo e no ESC; as setas andam entre as fotos.
-            {% endcomment %}
-            <div class="jd-lightbox" data-lightbox hidden
-                 role="dialog" aria-modal="true"
-                 aria-label="{% translate 'Foto ampliada' %}">
-              <div class="jd-lightbox-backdrop" data-lightbox-backdrop aria-hidden="true"></div>
-
-              <div class="jd-lightbox-frame">
-                <button type="button" class="jd-lightbox-close" data-lightbox-close
-                        aria-label="{% translate 'Fechar' %}">&times;</button>
-
-                <button type="button" class="jd-lightbox-nav jd-lightbox-prev" data-lightbox-prev
-                        aria-label="{% translate 'Foto anterior' %}">&lsaquo;</button>
-
-                <div class="jd-lightbox-stage" data-lightbox-media></div>
-
-                <button type="button" class="jd-lightbox-nav jd-lightbox-next" data-lightbox-next
-                        aria-label="{% translate 'Próxima foto' %}">&rsaquo;</button>
-
-                <p class="jd-lightbox-counter" data-lightbox-counter aria-live="polite"></p>
-              </div>
-            </div>
-          {% endif %}
-        </section>
-
-        {# ---- Compra ----------------------------------------------------- #}
-        <section aria-labelledby="produto-titulo">
-          <p class="flex flex-wrap items-center gap-x-2 font-mono text-[11px] uppercase tracking-[0.12em] text-brand-700">
-            {% if product.category %}<span>{{ product.category.name }}</span><span aria-hidden="true" class="text-ink-muted">·</span>{% endif %}
-            <span class="text-ink-muted">{% translate "Ref." %} {{ product.sku }}</span>
-          </p>
-
-          <h1 id="produto-titulo" class="mt-2 font-display text-2xl font-bold tracking-[-0.02em] text-ink sm:text-3xl">
-            {{ product.display_name }}
-          </h1>
-
+        {% if gallery %}
           {% comment %}
-            O preço é o da VARIANTE selecionada — nunca uma faixa e nunca o
-            produto. A página abre com uma variante escolhida (a primeira
-            disponível) e o JavaScript troca este número ao trocar de opção.
+            A lupa. Fica fora do fluxo (`position: fixed`) para não aumentar
+            a página, e a imagem é limitada à viewport — uma foto de 4000px
+            não pode empurrar a tela nem sair dela.
+
+            Fecha no X, no fundo e no ESC; as setas andam entre as fotos.
           {% endcomment %}
-          <p class="mt-4 flex items-baseline gap-2">
-            <span data-price class="font-display text-3xl font-bold tabular-price tracking-[-0.02em] text-brand-800 sm:text-4xl">
-              {% if selected_variant.sale_price %}
-                {{ product.currency_symbol }}&nbsp;{{ selected_variant.sale_price|floatformat:2 }}
-              {% else %}
-                {% translate "Sob consulta" %}
-              {% endif %}
-            </span>
-          </p>
+          <div class="jd-lightbox" data-lightbox hidden
+               role="dialog" aria-modal="true"
+               aria-label="{% translate 'Foto ampliada' %}">
+            <div class="jd-lightbox-backdrop" data-lightbox-backdrop aria-hidden="true"></div>
 
-          {% if product.display_short_description %}
-            <p class="mt-3 text-sm leading-relaxed text-ink-soft sm:text-base">{{ product.display_short_description }}</p>
+            <div class="jd-lightbox-frame">
+              <button type="button" class="jd-lightbox-close" data-lightbox-close
+                      aria-label="{% translate 'Fechar' %}">&times;</button>
+
+              <button type="button" class="jd-lightbox-nav jd-lightbox-prev" data-lightbox-prev
+                      aria-label="{% translate 'Foto anterior' %}">&lsaquo;</button>
+
+              <div class="jd-lightbox-stage" data-lightbox-media></div>
+
+              <button type="button" class="jd-lightbox-nav jd-lightbox-next" data-lightbox-next
+                      aria-label="{% translate 'Próxima foto' %}">&rsaquo;</button>
+
+              <p class="jd-lightbox-counter" data-lightbox-counter aria-live="polite"></p>
+            </div>
+          </div>
+        {% endif %}
+      </section>
+
+      {# ---- Compra ----------------------------------------------------- #}
+      <section class="product-info" aria-labelledby="produto-titulo">
+
+        {% comment %}
+          As etiquetas: o que a loja diz do produto (destaque, personalizável)
+          e a disponibilidade da VARIANTE selecionada. O JavaScript reescreve
+          só o `data-stock-state` ao trocar de opção — por isso ele é um
+          embrulho próprio, em `display: contents`, dentro da mesma fileira.
+        {% endcomment %}
+        <div class="product-tags">
+          {% if product.is_featured %}
+            <span class="product-tag">{% translate "Destaque" %}</span>
           {% endif %}
-
-          {# Estoque #}
-          {# Disponibilidade: sempre a da variante selecionada. #}
-          <p class="mt-4 flex flex-wrap items-center gap-2" data-stock-state>
+          {% if product.needs_personalization %}
+            <span class="product-tag">{% translate "Personalizável" %}</span>
+          {% endif %}
+          <span class="contents" data-stock-state>
             {% if not selected_variant %}
-              <span class="badge-muted">{% translate "Indisponível" %}</span>
+              <span class="product-tag product-tag-danger">{% translate "Indisponível" %}</span>
             {% elif selected_variant.stock_state == "made_to_order" %}
-              <span class="badge-amber">{% translate "Produzido sob encomenda" %}</span>
+              <span class="product-tag product-tag-warning">{% translate "Produzido sob encomenda" %}</span>
               {% if selected_variant.production_lead_time_days %}
-                <span class="text-xs text-ink-muted" data-stock-note>
+                <span class="product-tag-note" data-stock-note>
                   {% blocktranslate count days=selected_variant.production_lead_time_days %}Pronto em {{ days }} dia{% plural %}Pronto em {{ days }} dias{% endblocktranslate %}
                 </span>
               {% endif %}
             {% elif selected_variant.stock_state == "out" %}
-              <span class="badge-muted">{% translate "Esgotado" %}</span>
+              <span class="product-tag product-tag-danger">{% translate "Esgotado" %}</span>
             {% elif selected_variant.stock_state == "low" %}
-              <span class="badge-amber">{% translate "Últimas unidades" %}</span>
+              <span class="product-tag product-tag-warning">{% translate "Últimas unidades" %}</span>
             {% else %}
-              <span class="badge-mint">{% translate "Em estoque" %}</span>
+              <span class="product-tag product-tag-stock">{% translate "Em estoque" %}</span>
             {% endif %}
-          </p>
+          </span>
+        </div>
 
-          <div class="my-5 h-px bg-surface-line"></div>
+        <h1 id="produto-titulo" class="product-title">{{ product.display_name }}</h1>
 
-          {# ---- Formulário de compra ------------------------------------- #}
-          {% comment %}
-            `hx-disabled-elt` desliga o botão enquanto o POST está no ar: dois
-            cliques rápidos mandavam duas requisições, e o cliente terminava
-            com duas unidades sem ter pedido. É do próprio HTMX — nenhum
-            JavaScript novo, e sem JavaScript o navegador já bloqueia o
-            segundo envio do formulário.
-          {% endcomment %}
-          <form method="post" action="{% url 'cart:add' %}" enctype="multipart/form-data"
-                hx-post="{% url 'cart:add' %}" hx-swap="none" hx-encoding="multipart/form-data"
-                hx-disabled-elt="find [data-add-button]"
-                data-add-to-cart>
-            {% csrf_token %}
-            <input type="hidden" name="product_id" value="{{ product.pk }}">
-            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        {% comment %}
+          O preço é o da VARIANTE selecionada — nunca uma faixa e nunca o
+          produto. A página abre com uma variante escolhida (a primeira
+          disponível) e o JavaScript troca este número ao trocar de opção. A
+          referência ao lado é da mesma variante (`data-spec="referencia"`, o
+          mesmo gancho da ficha técnica).
+        {% endcomment %}
+        <div class="product-price-row">
+          <span data-price class="product-price tabular-price">
+            {% if selected_variant.sale_price %}
+              {{ product.currency_symbol }}&nbsp;{{ selected_variant.sale_price|floatformat:2 }}
+            {% else %}
+              {% translate "Sob consulta" %}
+            {% endif %}
+          </span>
+          <span class="product-price-meta" data-spec="referencia">
+            {% translate "Ref." %} <span data-spec-value>{% if selected_variant %}{{ selected_variant.sku }}{% else %}{{ product.sku }}{% endif %}</span>
+          </span>
+        </div>
 
-            {% if product.has_multiple_variants %}
-              {% comment %}
-                O seletor lista TODAS as variantes cadastradas — nenhuma fica
-                escondida atrás de um "preço do produto". A que abre marcada é
-                a primeira disponível; as esgotadas aparecem desabilitadas,
-                para o cliente ver que existem.
+        {% if product.display_short_description %}
+          <p class="product-desc">{{ product.display_short_description }}</p>
+        {% endif %}
 
-                **Sem JavaScript, este `<select>` é a interface inteira.** Cada
-                opção dele é uma variante que existe de verdade, então não há
-                como montar uma combinação inexistente. Com JavaScript ele passa
-                para `sr-only` e os botões abaixo tomam a frente — mas continua
-                sendo ele quem carrega o `variant_id` no POST.
-              {% endcomment %}
-              <div class="mb-4" data-variant-select-wrapper>
-                <label for="variant_id" class="form-label">{% translate "Opção" %}</label>
-                <select id="variant_id" name="variant_id" data-variant-select required class="form-select mt-1.5"
+        {# ---- Formulário de compra ------------------------------------- #}
+        {% comment %}
+          `display: contents` (classe `product-form`): o formulário não tem
+          caixa própria — as opções e a personalização entram na coluna com o
+          mesmo respiro de tudo o mais, e um produto de opção única (só campos
+          ocultos aqui) não deixa um vão vazio.
+
+          `hx-disabled-elt` desliga o botão enquanto o POST está no ar: dois
+          cliques rápidos mandavam duas requisições, e o cliente terminava
+          com duas unidades sem ter pedido. Por seletor, e não por `find`: o
+          botão mora na linha de compra, fora deste formulário.
+        {% endcomment %}
+        <form method="post" action="{% url 'cart:add' %}" enctype="multipart/form-data"
+              id="add-to-cart" class="product-form"
+              hx-post="{% url 'cart:add' %}" hx-swap="none" hx-encoding="multipart/form-data"
+              hx-disabled-elt="[data-add-button]"
+              data-add-to-cart>
+          {% csrf_token %}
+          <input type="hidden" name="product_id" value="{{ product.pk }}">
+          <input type="hidden" name="next" value="{{ request.get_full_path }}">
+
+          {% if product.has_multiple_variants %}
+            {% comment %}
+              O seletor lista TODAS as variantes cadastradas — nenhuma fica
+              escondida atrás de um "preço do produto". A que abre marcada é
+              a primeira disponível; as esgotadas aparecem desabilitadas,
+              para o cliente ver que existem.
+
+              **Sem JavaScript, este `<select>` é a interface inteira.** Cada
+              opção dele é uma variante que existe de verdade, então não há
+              como montar uma combinação inexistente. Com JavaScript ele passa
+              para `sr-only` e os botões abaixo tomam a frente — mas continua
+              sendo ele quem carrega o `variant_id` no POST.
+            {% endcomment %}
+            <div class="product-opt" data-variant-select-wrapper>
+              <label class="catalog-select product-select" for="variant_id">
+                <span>{% translate "Opção" %}:</span>
+                <select id="variant_id" name="variant_id" data-variant-select required
                         data-unavailable-label="{% translate 'Esta combinação não existe. Escolha outra.' %}"
                         data-switch-label="{% translate 'Não existe com a opção atual — clique para trocar' %}">
                   {% for variant in variants %}
@@ -228,225 +256,250 @@ sem sair da página.
                     </option>
                   {% endfor %}
                 </select>
-              </div>
-            {% elif selected_variant %}
-              {# Opção única: nada a escolher, mas a variante vai no POST. #}
-              <input type="hidden" name="variant_id" value="{{ selected_variant.pk }}">
-            {% endif %}
+              </label>
+            </div>
+          {% elif selected_variant %}
+            {# Opção única: nada a escolher, mas a variante vai no POST. #}
+            <input type="hidden" name="variant_id" value="{{ selected_variant.pk }}">
+          {% endif %}
 
-            {% if product.has_multiple_variants %}
-              {% comment %}
-                Os botões nascem escondidos: sem JavaScript eles não teriam como
-                desabilitar as combinações impossíveis, e mostrar dois controles
-                para a mesma escolha só confunde. O JavaScript remove o `hidden`.
+          {% if product.has_multiple_variants %}
+            {% comment %}
+              Os botões nascem escondidos: sem JavaScript eles não teriam como
+              desabilitar as combinações impossíveis, e mostrar dois controles
+              para a mesma escolha só confunde. O JavaScript remove o `hidden`.
 
-                Cada opção continua visível quando não combina com a escolha
-                atual — riscada, mas **clicável**. Sumir com ela faria o cliente
-                achar que o tamanho não existe; desabilitar diria a mesma coisa.
-                O que é verdade é que ele não existe *nessa cor* — e clicar nele
-                troca a cor sozinho, para uma variante que existe de verdade.
-              {% endcomment %}
-              <div data-variant-groups hidden>
-                {% for group in variant_options %}
-                  <fieldset class="mb-4" data-variant-group="{{ group.key }}">
-                    <legend class="form-label">{{ group.label }}</legend>
-                    <div class="mt-2 flex flex-wrap gap-2">
-                      {% for option in group.options %}
+              Cor vira bolinha (a cor cadastrada é o fundo; o nome fica para o
+              leitor de tela e no `title`) e o nome da cor escolhida aparece
+              no rótulo do grupo, como na referência. Tamanho e material são
+              pílulas de contorno navy; a escolhida fica cheia.
+
+              Cada opção continua visível quando não combina com a escolha
+              atual — riscada, mas **clicável**. Sumir com ela faria o cliente
+              achar que o tamanho não existe; desabilitar diria a mesma coisa.
+              O que é verdade é que ele não existe *nessa cor* — e clicar nele
+              troca a cor sozinho, para uma variante que existe de verdade.
+            {% endcomment %}
+            <div class="product-opts" data-variant-groups hidden>
+              {% for group in variant_options %}
+                <fieldset class="product-opt" data-variant-group="{{ group.key }}">
+                  <legend class="product-opt-label">
+                    {{ group.label }}{% if group.key == "color" %}: <b data-variant-choice="color">{% if selected_variant.color_id %}{{ selected_variant.color.display_name }}{% endif %}</b>{% endif %}
+                  </legend>
+                  <div class="product-opt-list">
+                    {% for option in group.options %}
+                      {% if option.hex %}
+                        <label class="variant-swatch" style="background-color: {{ option.hex }}" title="{{ option.label }}">
+                          <input type="radio" name="option_{{ group.key }}" value="{{ option.value }}"
+                                 class="sr-only" data-variant-option>
+                          <span class="sr-only">{{ option.label }}</span>
+                        </label>
+                      {% else %}
                         <label class="variant-option">
                           <input type="radio" name="option_{{ group.key }}" value="{{ option.value }}"
                                  class="sr-only" data-variant-option>
-                          {% if option.hex %}
-                            <span class="h-4 w-4 rounded-full border border-black/10" style="background-color: {{ option.hex }}" aria-hidden="true"></span>
-                          {% endif %}
                           <span>{{ option.label }}</span>
                         </label>
-                      {% endfor %}
-                    </div>
-                  </fieldset>
-                {% endfor %}
-
-                {% comment %}
-                  Preenchido pelo JavaScript quando a escolha está incompleta ou
-                  quando a combinação pedida não existe.
-                {% endcomment %}
-                <p class="mb-4 text-sm font-semibold text-state-warning-dark"
-                   data-variant-message role="status" hidden></p>
-              </div>
-
-              {{ variant_payload|json_script:"variant-data" }}
-            {% endif %}
-
-            {# ---- Personalização ---------------------------------------- #}
-            {% if product.needs_personalization %}
-              <fieldset class="mb-5 rounded-card border border-dashed border-magenta-500/40 bg-magenta-50 p-4 sm:p-5"
-                        data-personalization>
-                <legend class="px-1 font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-magenta-700">
-                  {% translate "Personalização" %}
-                </legend>
-
-                {% if product.personalization_type == "photo_or_text" %}
-                  <div class="mb-3 flex flex-wrap gap-2" role="radiogroup"
-                       aria-label="{% translate 'Como deseja personalizar?' %}">
-                    <label class="variant-option">
-                      <input type="radio" name="personalization_mode" value="photo" class="sr-only"
-                             data-personalization-mode required>
-                      <span>{% translate "Enviar uma foto" %}</span>
-                    </label>
-                    <label class="variant-option">
-                      <input type="radio" name="personalization_mode" value="text" class="sr-only"
-                             data-personalization-mode>
-                      <span>{% translate "Informar um texto" %}</span>
-                    </label>
+                      {% endif %}
+                    {% endfor %}
                   </div>
-                {% endif %}
-
-                {% if product.accepts_personalization_photo %}
-                  <div class="mb-3" data-personalization-photo
-                       {% if product.personalization_type == "photo_or_text" %}hidden{% endif %}>
-                    <label for="personalization_photo" class="form-label">
-                      {% translate "Enviar sua foto" %}
-                    </label>
-                    <input id="personalization_photo" type="file" name="personalization_photo"
-                           accept="image/jpeg,image/png,image/webp"
-                           {% if product.personalization_type == "photo" %}required{% endif %}
-                           class="form-input mt-1.5 file:me-3 file:rounded-[7px] file:border-0 file:bg-magenta-500 file:px-3 file:py-1.5 file:font-sans file:text-xs file:font-bold file:text-white">
-                    <p class="form-help mt-1.5">
-                      {% blocktranslate with formats=photo_extensions size=photo_max_mb %}{{ formats }} até {{ size }} MB.{% endblocktranslate %}
-                    </p>
-                  </div>
-                {% endif %}
-
-                {% if product.accepts_personalization_text %}
-                  <div class="mb-3" data-personalization-text
-                       {% if product.personalization_type == "photo_or_text" %}hidden{% endif %}>
-                    <label for="personalization_text" class="form-label">
-                      {% translate "Texto que deseja personalizar" %}
-                    </label>
-                    <textarea id="personalization_text" name="personalization_text" rows="3"
-                              maxlength="{{ product.personalization_text_limit }}"
-                              data-counter-target="contador-texto"
-                              {% if product.personalization_type == "text" %}required{% endif %}
-                              class="form-textarea mt-1.5"></textarea>
-                    <p class="form-help mt-1.5 text-end font-mono">
-                      <span id="contador-texto">0</span> / {{ product.personalization_text_limit }}
-                    </p>
-                  </div>
-                {% endif %}
-
-                <div>
-                  <label for="personalization_notes" class="form-label">
-                    {% translate "Observações (opcional)" %}
-                  </label>
-                  <input id="personalization_notes" type="text" name="personalization_notes"
-                         maxlength="{{ notes_limit }}"
-                         placeholder="{% translate 'Ex.: quero o nome na parte inferior.' %}"
-                         class="form-input mt-1.5">
-                </div>
-              </fieldset>
-            {% endif %}
-
-            {# ---- Quantidade e botão ------------------------------------ #}
-            <div class="flex flex-wrap items-center gap-3">
-              <div class="inline-flex items-center rounded-control border-[1.5px] border-surface-line bg-white" data-quantity>
-                <button type="button" class="focus-ring flex h-11 w-11 items-center justify-center rounded-s-control text-lg text-brand-700 transition-colors hover:bg-brand-50"
-                        data-quantity-step="-1" aria-label="{% translate 'Diminuir quantidade' %}">−</button>
-                <label class="sr-only" for="quantity">{% translate "Quantidade" %}</label>
-                <input id="quantity" type="number" name="quantity" value="1" min="1"
-                       max="{{ max_quantity }}" data-quantity-input
-                       class="w-11 border-0 bg-transparent p-0 text-center font-mono text-sm font-medium text-ink focus:outline-none">
-                <button type="button" class="focus-ring flex h-11 w-11 items-center justify-center rounded-e-control text-lg text-brand-700 transition-colors hover:bg-brand-50"
-                        data-quantity-step="1" aria-label="{% translate 'Aumentar quantidade' %}">+</button>
-              </div>
-
-              <button type="submit" class="btn-primary h-11 flex-1 text-base" data-add-button
-                      {% if not product.is_available %}disabled{% endif %}>
-                {% if product.is_available %}
-                  {% icon "cart" "h-5 w-5" %}
-                  {% translate "Adicionar ao carrinho" %}
-                {% else %}
-                  {% translate "Esgotado" %}
-                {% endif %}
-              </button>
-            </div>
-          </form>
-
-        </section>
-      </div>
-    </div>
-
-    {# ---- Descrição, ficha técnica e extras --------------------------- #}
-    {% if product.display_description or specifications or product.display_extra_information %}
-      {% comment %}
-        Duas colunas só quando há texto à esquerda. Produto sem descrição
-        mostraria uma coluna vazia do lado da ficha — aqui ela some.
-      {% endcomment %}
-      <div class="mt-6 grid gap-6 lg:items-start{% if product.display_description or product.display_extra_information %} lg:grid-cols-[1.4fr_1fr]{% endif %}">
-
-        {% if product.display_description or product.display_extra_information %}
-        <div class="flex flex-col gap-6">
-          {% if product.display_description %}
-            <section class="card p-6 sm:p-7" aria-labelledby="descricao-titulo">
-              <h2 id="descricao-titulo" class="font-display text-xl font-bold tracking-[-0.02em] text-ink">
-                {% translate "Descrição" %}
-              </h2>
-              <div class="mt-4 whitespace-pre-line text-sm leading-relaxed text-ink-soft sm:text-base">
-                {{ product.display_description }}
-              </div>
-            </section>
-          {% endif %}
-
-          {% if product.display_extra_information %}
-            <section class="card p-6 sm:p-7" aria-labelledby="extra-titulo">
-              <h2 id="extra-titulo" class="font-display text-xl font-bold tracking-[-0.02em] text-ink">
-                {% translate "Informações adicionais" %}
-              </h2>
-              <div class="mt-4 whitespace-pre-line text-sm leading-relaxed text-ink-soft sm:text-base">
-                {{ product.display_extra_information }}
-              </div>
-            </section>
-          {% endif %}
-        </div>
-        {% endif %}
-
-        {% if specifications %}
-          <section class="card p-6 sm:p-7 lg:sticky lg:top-28{% if not product.display_description and not product.display_extra_information %} lg:max-w-xl{% endif %}"
-                   aria-labelledby="ficha-titulo">
-            <h2 id="ficha-titulo" class="font-display text-xl font-bold tracking-[-0.02em] text-ink">
-              {% translate "Especificações" %}
-            </h2>
-            <dl class="mt-4 divide-y divide-surface-line">
-              {% comment %}
-                `data-spec` é o gancho do JavaScript: trocar de variante troca
-                peso, dimensões, tempo de impressão e referência sem recarregar
-                a página. Linha sem valor nasce escondida em vez de sumir do
-                HTML — assim ela reaparece quando a outra variante tiver o dado.
-              {% endcomment %}
-              {% for key, label, value in specifications %}
-                <div class="flex items-baseline justify-between gap-4 py-3"
-                     data-spec="{{ key }}" {% if not value %}hidden{% endif %}>
-                  <dt class="text-sm text-ink-muted">{{ label }}</dt>
-                  <dd class="text-end font-mono text-[13px] font-medium text-ink" data-spec-value>{{ value }}</dd>
-                </div>
+                </fieldset>
               {% endfor %}
-            </dl>
-          </section>
+
+              {% comment %}
+                Preenchido pelo JavaScript quando a escolha está incompleta ou
+                quando a combinação pedida não existe.
+              {% endcomment %}
+              <p class="product-variant-message" data-variant-message role="status" hidden></p>
+            </div>
+
+            {{ variant_payload|json_script:"variant-data" }}
+          {% endif %}
+
+          {# ---- Personalização ---------------------------------------- #}
+          {% if product.needs_personalization %}
+            <div class="product-personalization" role="group"
+                 aria-labelledby="personalizacao-titulo" data-personalization>
+              <p id="personalizacao-titulo" class="product-opt-label">
+                {% translate "Personalização" %}
+              </p>
+
+              {% if product.personalization_type == "photo_or_text" %}
+                <div class="product-opt-list" role="radiogroup"
+                     aria-label="{% translate 'Como deseja personalizar?' %}">
+                  <label class="variant-option">
+                    <input type="radio" name="personalization_mode" value="photo" class="sr-only"
+                           data-personalization-mode required>
+                    <span>{% translate "Enviar uma foto" %}</span>
+                  </label>
+                  <label class="variant-option">
+                    <input type="radio" name="personalization_mode" value="text" class="sr-only"
+                           data-personalization-mode>
+                    <span>{% translate "Informar um texto" %}</span>
+                  </label>
+                </div>
+              {% endif %}
+
+              {% if product.accepts_personalization_photo %}
+                <div data-personalization-photo
+                     {% if product.personalization_type == "photo_or_text" %}hidden{% endif %}>
+                  <label for="personalization_photo" class="form-label">
+                    {% translate "Enviar sua foto" %}
+                  </label>
+                  <input id="personalization_photo" type="file" name="personalization_photo"
+                         accept="image/jpeg,image/png,image/webp"
+                         {% if product.personalization_type == "photo" %}required{% endif %}
+                         class="form-input mt-1.5 file:me-3 file:rounded-pill file:border-0 file:bg-coral-500 file:px-3 file:py-1.5 file:font-sans file:text-xs file:font-bold file:text-ink">
+                  <p class="form-help mt-1.5">
+                    {% blocktranslate with formats=photo_extensions size=photo_max_mb %}{{ formats }} até {{ size }} MB.{% endblocktranslate %}
+                  </p>
+                </div>
+              {% endif %}
+
+              {% if product.accepts_personalization_text %}
+                <div data-personalization-text
+                     {% if product.personalization_type == "photo_or_text" %}hidden{% endif %}>
+                  <label for="personalization_text" class="form-label">
+                    {% translate "Texto que deseja personalizar" %}
+                  </label>
+                  <textarea id="personalization_text" name="personalization_text" rows="3"
+                            maxlength="{{ product.personalization_text_limit }}"
+                            data-counter-target="contador-texto"
+                            {% if product.personalization_type == "text" %}required{% endif %}
+                            class="form-textarea mt-1.5"></textarea>
+                  <p class="form-help mt-1.5 text-end font-mono">
+                    <span id="contador-texto">0</span> / {{ product.personalization_text_limit }}
+                  </p>
+                </div>
+              {% endif %}
+
+              <div>
+                <label for="personalization_notes" class="form-label">
+                  {% translate "Observações (opcional)" %}
+                </label>
+                <input id="personalization_notes" type="text" name="personalization_notes"
+                       maxlength="{{ notes_limit }}"
+                       placeholder="{% translate 'Ex.: quero o nome na parte inferior.' %}"
+                       class="form-input mt-1.5">
+              </div>
+            </div>
+          {% endif %}
+        </form>
+
+        {# ---- Quantidade, botão e coração ------------------------------- #}
+        <div class="product-buy">
+          <div class="product-qty" data-quantity>
+            <button type="button" data-quantity-step="-1"
+                    aria-label="{% translate 'Diminuir quantidade' %}">−</button>
+            <label class="sr-only" for="quantity">{% translate "Quantidade" %}</label>
+            <input id="quantity" type="number" name="quantity" form="add-to-cart"
+                   value="1" min="1" max="{{ max_quantity }}" inputmode="numeric"
+                   data-quantity-input>
+            <button type="button" data-quantity-step="1"
+                    aria-label="{% translate 'Aumentar quantidade' %}">+</button>
+          </div>
+
+          <button type="submit" form="add-to-cart" class="product-add" data-add-button
+                  {% if not product.is_available %}disabled{% endif %}>
+            {% if product.is_available %}
+              {% icon "cart" "h-5 w-5" %}
+              {% translate "Adicionar ao carrinho" %}
+            {% else %}
+              {% translate "Esgotado" %}
+            {% endif %}
+          </button>
+
+          {% include "components/favorite_button.html" with inline=True %}
+        </div>
+
+        {# ---- Os três cartões ------------------------------------------ #}
+        {% comment %}
+          Impressão e material são da variante e usam o mesmo gancho da ficha
+          (`data-spec`): trocar de opção troca aqui também, e cartão sem valor
+          nasce escondido. Envio é a promessa da faixa do topo com o ícone de
+          caminhão — cadastro do Admin, não texto escrito aqui.
+        {% endcomment %}
+        {% with print_time=selected_variant.print_time_display %}
+          <div class="product-perks">
+            <div class="product-perk" data-spec="impressao" {% if not print_time %}hidden{% endif %}>
+              <b>{% translate "Impressão" %}</b>
+              <span data-spec-value>{{ print_time }}</span>
+            </div>
+            {% for item in top_bar_items %}
+              {% if item.icon == "truck" and item.text %}
+                <div class="product-perk">
+                  <b>{% translate "Envio" %}</b>
+                  {% if item.link_url %}
+                    <a href="{{ item.link_url }}" class="product-perk-link">{{ item.text }}</a>
+                  {% else %}
+                    <span>{{ item.text }}</span>
+                  {% endif %}
+                </div>
+              {% endif %}
+            {% endfor %}
+            <div class="product-perk" data-spec="material" {% if not selected_variant.material_id %}hidden{% endif %}>
+              <b>{% translate "Material" %}</b>
+              <span data-spec-value>{% if selected_variant.material_id %}{{ selected_variant.material.display_name }}{% endif %}</span>
+            </div>
+          </div>
+        {% endwith %}
+
+        {# ---- Descrição, ficha técnica e extras ------------------------- #}
+        {% if product.display_description or specifications or product.display_extra_information %}
+          {% comment %}
+            O acordeão da referência, em `<details>` nativo: abre e fecha sem
+            JavaScript, com teclado, e o conteúdo continua no HTML para quem
+            indexa. As linhas da ficha levam `data-spec`: o JavaScript troca
+            peso, dimensões, tempo de impressão e referência ao trocar de
+            variante, aberto ou fechado. Linha sem valor nasce escondida em vez
+            de sumir do HTML — assim ela reaparece quando a outra variante
+            tiver o dado.
+          {% endcomment %}
+          <div class="product-acc">
+            {% if product.display_description %}
+              <details class="product-acc-item">
+                <summary>{% translate "Descrição" %}</summary>
+                <div class="product-acc-body product-acc-text">{{ product.display_description }}</div>
+              </details>
+            {% endif %}
+
+            {% if specifications %}
+              <details class="product-acc-item">
+                <summary>{% translate "Especificações" %}</summary>
+                <dl class="product-acc-body product-specs">
+                  {% for key, label, value in specifications %}
+                    <div class="product-spec" data-spec="{{ key }}" {% if not value %}hidden{% endif %}>
+                      <dt>{{ label }}</dt>
+                      <dd data-spec-value{% if key == "referencia" %} class="font-mono"{% endif %}>{{ value }}</dd>
+                    </div>
+                  {% endfor %}
+                </dl>
+              </details>
+            {% endif %}
+
+            {% if product.display_extra_information %}
+              <details class="product-acc-item">
+                <summary>{% translate "Informações adicionais" %}</summary>
+                <div class="product-acc-body product-acc-text">{{ product.display_extra_information }}</div>
+              </details>
+            {% endif %}
+          </div>
         {% endif %}
-      </div>
-    {% endif %}
+      </section>
+    </div>
 
     {% if recommended %}
       {% comment %}
-        Sugestões. Reaproveita o card do Shop inteiro — mesma grade, mesmo
-        preço "a partir de", mesmas amostras de cor. Um card próprio aqui seria
-        um segundo lugar para corrigir quando o card mudar.
+        Sugestões. Reaproveita o card do catálogo inteiro — mesma moldura
+        pastel, mesmo preço "a partir de", mesma contagem de cores. Um card
+        próprio aqui seria um segundo lugar para corrigir quando o card mudar.
       {% endcomment %}
-      <section class="mt-10" aria-labelledby="recomendados-titulo">
-        <h2 id="recomendados-titulo"
-            class="font-display text-xl font-bold tracking-[-0.02em] text-ink sm:text-2xl">
+      <section class="product-related" aria-labelledby="recomendados-titulo">
+        <h2 id="recomendados-titulo" class="product-related-title">
           {% translate "Você também pode gostar" %}
         </h2>
 
-        <ul class="mt-5 grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-4" role="list">
+        <ul class="product-grid product-related-grid" role="list">
           {% comment %}
             `with product=sugerido` e nao um `{% templatetag openblock %} for product {% templatetag closeblock %}`:
             reusar o nome `product` dentro do laco sombrearia o produto da

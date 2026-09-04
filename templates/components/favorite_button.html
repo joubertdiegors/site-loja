@@ -1,9 +1,18 @@
 {% load i18n jdprint %}
 {% comment %}
-O coração — usado no card da loja e na página de favoritos.
+O coração — usado no card da loja, na página de favoritos e na página do
+produto.
 
 Espera `product` e lê `favorite_ids` do contexto: uma consulta por requisição,
 não uma por card (ver `apps/accounts/context_processors.py`).
+
+## Dois tamanhos, um componente
+
+No card ele é o círculo de 34px no canto da foto (`product-card-fav`). Na
+página do produto, com `inline=True`, é o círculo de 56px ao lado do botão de
+comprar (`product-fav`). O `inline` viaja no POST para a resposta do HTMX
+voltar no mesmo tamanho — o alvo do swap é o próprio formulário, e um coração
+de card no lugar do grande seria um salto na tela.
 
 ## Visitante vê, mas não guarda
 
@@ -27,9 +36,14 @@ quando ela fica vazia e precisa virar o estado vazio.
 
 ## O clique não pode abrir o produto
 
-O card inteiro é clicável (link esticado no título). O botão fica acima dele
-(`z-10` no card, `pointer-events-auto` aqui) e o `onclick` para a propagação:
-clicar no coração guarda o produto, não abre a página dele.
+O card inteiro é clicável (link esticado no título). O coração fica acima dele
+(`.product-card-fav`, `z-index: 10`) e o `onclick` para a propagação: clicar
+no coração guarda o produto, não abre a página dele.
+
+## Sempre visível, e não só ao passar o cursor
+
+No desenho da referência o coração é parte do card — um círculo branco no
+canto da foto. Escondê-lo até o hover o tiraria de quem usa o dedo.
 
 ## Não depende só de cor
 
@@ -41,7 +55,7 @@ favoritos" ou "Remover dos favoritos", não uma cor.
   {% if user.is_authenticated %}
 
     <form action="{% url 'accounts:favorite_toggle' %}" method="post"
-          class="pointer-events-auto"
+          class="{% if inline %}product-fav{% else %}product-card-fav{% endif %}"
           hx-post="{% url 'accounts:favorite_toggle' %}"
           {% if remove_card %}hx-target="#favorites-grid"{% else %}hx-target="this"{% endif %}
           hx-swap="outerHTML">
@@ -49,18 +63,19 @@ favoritos" ou "Remover dos favoritos", não uma cor.
       <input type="hidden" name="product_id" value="{{ product.pk }}">
       <input type="hidden" name="next" value="{{ request.get_full_path }}">
       {% if remove_card %}<input type="hidden" name="from_list" value="1">{% endif %}
+      {% if inline %}<input type="hidden" name="inline" value="1">{% endif %}
 
       <button type="submit"
               data-favorite-button
               data-favorite="{% if favorito %}1{% else %}0{% endif %}"
               aria-pressed="{% if favorito %}true{% else %}false{% endif %}"
-              class="focus-ring inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/90 shadow-sm transition-colors duration-150 {% if favorito %}text-magenta-600{% else %}text-ink-muted opacity-0 group-hover:opacity-100 focus-visible:opacity-100{% endif %}"
+              class="{% if inline %}product-fav-button{% if favorito %} product-fav-on{% endif %}{% else %}product-card-fav-button{% if favorito %} product-card-fav-on{% endif %}{% endif %}"
               onclick="event.stopPropagation()"
               aria-label="{% if favorito %}{% blocktranslate with name=product.display_name %}Remover {{ name }} dos favoritos{% endblocktranslate %}{% else %}{% blocktranslate with name=product.display_name %}Adicionar {{ name }} aos favoritos{% endblocktranslate %}{% endif %}">
         {% if favorito %}
-          {% icon "heart-filled" "h-4 w-4" %}
+          {% icon "heart-filled" inline|yesno:"h-5.5 w-5.5,h-4 w-4" %}
         {% else %}
-          {% icon "heart" "h-4 w-4" %}
+          {% icon "heart" inline|yesno:"h-5.5 w-5.5,h-4 w-4" %}
         {% endif %}
       </button>
     </form>
@@ -68,12 +83,12 @@ favoritos" ou "Remover dos favoritos", não uma cor.
   {% else %}
 
     <a href="{% url 'accounts:login' %}?next={{ request.get_full_path|urlencode }}"
-       class="focus-ring pointer-events-auto inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/90 text-ink-muted opacity-0 shadow-sm transition-colors duration-150 group-hover:opacity-100 focus-visible:opacity-100"
+       class="{% if inline %}product-fav product-fav-button{% else %}product-card-fav product-card-fav-button{% endif %}"
        data-favorite-login
        onclick="event.stopPropagation()"
        aria-label="{% translate 'Entre para adicionar aos favoritos' %}"
        title="{% translate 'Entre para adicionar aos favoritos' %}">
-      {% icon "heart" "h-4 w-4" %}
+      {% icon "heart" inline|yesno:"h-5.5 w-5.5,h-4 w-4" %}
     </a>
 
   {% endif %}
