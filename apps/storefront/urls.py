@@ -32,4 +32,7 @@ urlpatterns = [
         views.InstitutionalPageView.as_view(page_slug="revenda"),
         name="page_reseller",
     ),
+    # O formulário da página de lançamento. É a única rota pública que o
+    # middleware da página especial deixa passar (ver storefront/middleware.py).
+    path("lancamento/aviso/", views.launch_notify, name="launch_notify"),
 ]

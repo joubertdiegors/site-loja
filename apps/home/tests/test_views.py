@@ -413,7 +413,7 @@ class HomeQueryTests(TestCase):
         # E de 36 para 37 com o carrossel de banners: uma consulta para a linha
         # única de configuração (rotação, setas, indicadores). Os banners em si
         # já vinham numa consulta só — agora todos os ativos, não só o primeiro.
-        with self.assertNumQueries(37):
+        with self.assertNumQueries(38):
             self.client.get(HOME_PT)
 
     def test_query_count_does_not_grow_with_more_content(self):

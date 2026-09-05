@@ -93,3 +93,20 @@ class ContactForm(HoneypotMixin, forms.Form):
                 _("Escreva um pouco mais para podermos ajudar.")
             )
         return texto
+
+
+class LaunchNotifyForm(HoneypotMixin, forms.Form):
+    """O aviso de lançamento: só o e-mail (e o campo que só um robô preenche).
+
+    A página especial desenha o campo à mão para seguir a referência; o que
+    vale é a validação daqui, para quem chega com um POST montado.
+    """
+
+    email = forms.EmailField(
+        label=_("E-mail"),
+        max_length=254,
+        error_messages={
+            "required": _("Informe o seu e-mail."),
+            "invalid": _("Informe um e-mail válido."),
+        },
+    )

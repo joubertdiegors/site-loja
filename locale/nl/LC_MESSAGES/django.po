@@ -2395,3 +2395,43 @@ msgstr "Volgende banner"
 
 msgid "Ir para o banner %(number)s"
 msgstr "Ga naar banner %(number)s"
+
+#: templates/storefront/special_page.html apps/storefront/views.py
+msgid "dias"
+msgstr "dagen"
+
+#: templates/storefront/special_page.html apps/storefront/views.py
+msgid "horas"
+msgstr "uren"
+
+#: templates/storefront/special_page.html apps/storefront/views.py
+msgid "min"
+msgstr "min"
+
+#: templates/storefront/special_page.html apps/storefront/views.py
+msgid "seg"
+msgstr "sec"
+
+#: templates/storefront/special_page.html apps/storefront/views.py
+msgid "Contagem regressiva para o lançamento"
+msgstr "Aftellen tot de lancering"
+
+#: templates/storefront/special_page.html apps/storefront/views.py
+msgid "Pronto! Avisamos você no lançamento."
+msgstr "Gelukt! We laten het je weten bij de lancering."
+
+#: templates/storefront/special_page.html apps/storefront/views.py
+msgid "Quero ser avisado →"
+msgstr "Houd me op de hoogte →"
+
+#: templates/storefront/special_page.html apps/storefront/views.py
+msgid "Pré-visualização"
+msgstr "Voorvertoning"
+
+#: templates/storefront/special_page.html apps/storefront/views.py
+msgid "voltar ao Admin"
+msgstr "terug naar Admin"
+
+#: templates/storefront/special_page.html apps/storefront/views.py
+msgid "Muitas tentativas. Aguarde alguns minutos e tente de novo."
+msgstr "Te veel pogingen. Wacht enkele minuten en probeer opnieuw."

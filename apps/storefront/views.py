@@ -26,14 +26,23 @@ import logging
 from django.contrib import messages
 from django.core.mail import EmailMultiAlternatives
 from django.http import Http404
-from django.shortcuts import redirect
+from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.template.loader import render_to_string
 from django.utils.translation import get_language
 from django.utils.translation import gettext as _
+from django.views.decorators.http import require_POST
 from django.views.generic import FormView, TemplateView
 
-from apps.storefront.forms import ContactForm
-from apps.storefront.models import InstitutionalPage, PageSlug, page_cta_url
+from apps.core.security import ip_is_throttled
+from apps.storefront.forms import ContactForm, LaunchNotifyForm
+from apps.storefront.models import (
+    InstitutionalPage,
+    LaunchSubscriber,
+    PageSlug,
+    SpecialPage,
+    page_cta_url,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -166,3 +175,73 @@ class ContactView(InstitutionalFormView):
 
     def get_email_subject(self, registro) -> str:
         return f"[JD PRINT] Contato: {registro.subject}"
+
+
+# ---------------------------------------------------------------------------
+# Manutenção e lançamento
+# ---------------------------------------------------------------------------
+
+
+def render_special_page(request, page, *, form=None, preview=False):
+    """A página especial, com os cabeçalhos que o momento pede.
+
+    * **Manutenção → 503** com `Retry-After`: é o que diz ao buscador "volte
+      depois, não apague nada". **Lançamento → 200**: a página *é* o site por
+      enquanto. Em pré-visualização, sempre 200.
+    * `X-Robots-Tag: noindex, nofollow` e a meta correspondente: a página não
+      entra no índice, em nenhum dos dois casos.
+    * `Cache-Control: no-store`: desativar no Admin vale na requisição
+      seguinte, sem uma cópia presa em cache ou proxy.
+    * `HX-Refresh` quando o pedido veio do HTMX: um visitante que estava na
+      loja quando ela fechou recarrega a página inteira em vez de receber
+      este HTML dentro de um pedaço da tela.
+    """
+    status = 200 if (page.is_launch or preview) else 503
+    if form is None and page.has_form:
+        form = LaunchNotifyForm()
+    launch_at = page.launch_at
+    response = render(
+        request,
+        "storefront/special_page.html",
+        {
+            "page": page,
+            "form": form,
+            "subscribed": page.has_form and request.GET.get("aviso") == "ok",
+            "preview": preview,
+            "launch_at_iso": launch_at.isoformat() if launch_at else "",
+            "launched": page.is_launched,
+        },
+        status=status,
+    )
+    response["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response["X-Robots-Tag"] = "noindex, nofollow"
+    if status == 503:
+        response["Retry-After"] = "3600"
+    if request.headers.get("HX-Request"):
+        response["HX-Refresh"] = "true"
+    return response
+
+
+@require_POST
+def launch_notify(request):
+    """O e-mail do formulário de lançamento.
+
+    Só existe enquanto há um lançamento ativo com o formulário ligado: fora
+    disso é 404, e não uma lista de e-mails aberta o ano inteiro. A trava por
+    IP conta antes da validação — um robô mandando lixo também gasta a cota.
+    Endereço repetido não cria linha nem revela que já existia: a resposta é a
+    mesma de uma inscrição nova.
+    """
+    page = SpecialPage.objects.current()
+    if page is None or not page.has_form:
+        raise Http404("Nenhum lançamento em curso.")
+
+    form = LaunchNotifyForm(request.POST)
+    if ip_is_throttled(request, "launch-notify"):
+        form.add_error(None, _("Muitas tentativas. Aguarde alguns minutos e tente de novo."))
+    elif form.is_valid():
+        LaunchSubscriber.subscribe(
+            form.cleaned_data["email"], language=get_language() or "", page=page
+        )
+        return redirect(f"{reverse('home:index')}?aviso=ok#aviso")
+    return render_special_page(request, page, form=form)

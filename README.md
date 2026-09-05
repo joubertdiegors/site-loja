@@ -576,6 +576,38 @@ deslize, rotação automática, pausas e `prefers-reduced-motion`, nas cinco
 larguras. Sem o pacote (`requirements/dev.txt`) ou sem navegador, são pulados;
 `manage.py test --exclude-tag browser` os deixa de fora.
 
+### Manutenção e lançamento — a página que fecha a loja
+
+CONFIGURAÇÕES DA LOJA › MANUTENÇÃO E LANÇAMENTO (`storefront.SpecialPage`):
+quantas páginas se quiser, cada uma do tipo **manutenção** (duas colunas,
+ilustração da impressora com porcentagem e barra) ou **lançamento** (o poster
+roxo com contagem regressiva e formulário de aviso), reproduzindo os dois
+HTMLs da direção visual (`templates/storefront/special_page.html`, bloco "A
+página de manutenção e de lançamento" no CSS). Todo texto é traduzível por
+idioma (`SpecialPageTranslation`), os benefícios são itens à parte
+(`SpecialPageBenefit`, com tom de cor e ordem) e as cores saem do sistema de
+cores do projeto, com contraste conferido ao salvar.
+
+**Só uma página fica ativa**, e isso vale no banco: um índice único parcial
+sobre `is_active` impede duas linhas ativas mesmo com dois administradores
+salvando ao mesmo tempo; ativar uma desliga a outra na mesma transação. Com
+uma página ativa, `apps/storefront/middleware.py` responde com ela em **toda**
+rota pública, em qualquer idioma e método — manutenção com 503 e
+`Retry-After`, lançamento com 200; as duas com `noindex` (meta e
+`X-Robots-Tag`) e `Cache-Control: no-store`, então desativar vale na
+requisição seguinte. Continuam abertos `/admin/`, `/i18n/`, estáticos, mídia,
+o webhook da Stripe e a rota do formulário; quem está logado como **equipe**
+vê a loja normal para testar (é a sessão do Admin, não uma URL secreta), e o
+cliente comum logado vê a página especial. No Admin: ativação por ação com
+tela de confirmação (e aviso ao marcar «ativa» no formulário),
+pré-visualização de qualquer página inativa (`.../<id>/preview/?lang=fr`,
+só para equipe com permissão de ver) e a lista de inscritos do lançamento
+(`LaunchSubscriber`, e-mail único sem distinguir maiúsculas, exportável em
+CSV). O formulário tem CSRF, honeypot e trava por IP; sem integração externa
+— a lista fica no banco. A contagem regressiva é calculada no navegador a
+partir da data, hora e fuso do cadastro (`static/js/special_page.js`) e, ao
+chegar a zero, mostra o texto final configurado.
+
 ### A página do carrinho
 
 `/carrinho/` segue o arquivo da direção visual (`Carrinho.html`): título com a

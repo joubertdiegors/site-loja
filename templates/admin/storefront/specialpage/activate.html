@@ -1,0 +1,62 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls %}
+
+{% comment %}
+  Ativar uma página de manutenção ou de lançamento.
+
+  Tela intermediária pelo mesmo motivo da exclusão: o efeito é imediato e
+  atinge todo visitante — a loja fecha no clique. A tela diz qual página vai
+  ao ar, qual sai (se houver) e o que continua acessível.
+{% endcomment %}
+
+{% block breadcrumbs %}
+  <div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% translate "Início" %}</a>
+    &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+    &rsaquo; <a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+    &rsaquo; {{ title }}
+  </div>
+{% endblock %}
+
+{% block content %}
+  <h1>{{ title }}</h1>
+
+  <p class="errornote">
+    ⚠️ ATIVAR ESTA PÁGINA BLOQUEARÁ O SITE PÚBLICO.
+  </p>
+
+  <p>
+    Ao confirmar, <strong>{{ page.internal_name }}</strong>
+    ({{ page.get_kind_display|lower }}) passa a responder em todos os endereços
+    da loja — Home, catálogo, produtos, carrinho e conta —, em todos os idiomas.
+    {% if current %}
+      A página <strong>{{ current.internal_name }}</strong>, ativa hoje, é desligada
+      no mesmo instante: só uma fica ativa por vez.
+    {% else %}
+      Hoje nenhuma página especial está ativa.
+    {% endif %}
+  </p>
+
+  <ul>
+    <li>O Admin continua acessível — é por aqui que a página é desativada.</li>
+    <li>Quem está logado como equipe segue vendo a loja normal, para testar.</li>
+    <li>Pagamentos em andamento continuam sendo confirmados (o webhook fica aberto).</li>
+    <li>
+      Antes de ativar, confira o resultado em
+      <a href="{% url 'admin:storefront_specialpage_preview' page.pk %}" target="_blank" rel="noopener">pré-visualização</a>.
+    </li>
+  </ul>
+
+  <form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="{{ action_checkbox_name }}" value="{{ page.pk }}">
+    <input type="hidden" name="{{ action_field }}" value="{{ action_name }}">
+    <input type="hidden" name="index" value="0">
+    <input type="hidden" name="confirmar" value="1">
+
+    <div class="submit-row">
+      <input type="submit" class="default" value="{% translate 'Sim, ativar e fechar o site público' %}">
+      <a href="{% url opts|admin_urlname:'changelist' %}" class="button cancel-link">{% translate "Cancelar" %}</a>
+    </div>
+  </form>
+{% endblock %}

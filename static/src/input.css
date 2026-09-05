@@ -5030,3 +5030,696 @@
     color: var(--color-brand-800);
   }
 }
+
+
+/* ---------------------------------------------------------------------------
+   A página de manutenção e de lançamento
+
+   Medidas de `JD Print - Manutencao (static).html` e `JD Print - Lancamento
+   (static).html`, uma a uma. A página não usa o `base.html`: header e rodapé
+   são os do desenho, e o resto da loja não entra.
+
+   Cores: as escolhidas no Admin chegam como variáveis `--sp-*` no `style` do
+   `<body>` (ver `SpecialPage.style`); o que o desenho fixa (o navy do texto,
+   a linha do rodapé, as sombras dos tons) vem dos tokens. Os tons dos selos e
+   dos benefícios são classes fechadas (`sp-tone-*`, `sp-perk-*`), porque cada
+   um carrega a própria sombra e o próprio contorno.
+
+   Manutenção: duas colunas (1.05fr/1fr, 48px), cópia à esquerda e a
+   composição à direita — placa roxa inclinada (3°), cartão listrado em lilás
+   com a impressora animada, a porcentagem e a barra, três selos soltos.
+   Lançamento: o poster roxo (raio 44, 64px/56px de padding), blobs, título
+   72px com a palavra marcada em amarelo, contagem em quatro caixas de 112px,
+   formulário em pílula branca com sombra sólida.
+
+   Pontos de quebra da referência: 1024px e 640px.
+--------------------------------------------------------------------------- */
+@layer components {
+  .sp-body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    background: var(--sp-surface, var(--color-surface));
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---- header ----------------------------------------------------------- */
+  .sp-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    max-width: 1280px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 22px 32px;
+  }
+
+  .sp-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 26px;
+    line-height: normal;
+    color: var(--color-ink);
+    text-decoration: none;
+  }
+
+  .sp-logo i {
+    width: 34px;
+    height: 34px;
+    border-radius: 11px;
+    background: var(--sp-brand, var(--color-brand-600));
+    display: grid;
+    place-items: center;
+    color: var(--sp-accent, var(--color-yellow-500));
+    font-family: var(--font-display);
+    font-style: normal;
+    font-weight: 800;
+    font-size: 17px;
+    transform: rotate(-6deg);
+  }
+
+  .sp-logo img {
+    display: block;
+    height: 34px;
+    width: auto;
+  }
+
+  .sp-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 800;
+    font-size: 13px;
+    line-height: normal;
+    color: var(--color-ink-soft);
+    background: #fff;
+    border: 2px solid var(--color-surface-line);
+    border-radius: var(--radius-pill);
+    padding: 8px 14px;
+  }
+
+  .sp-status i {
+    width: 9px;
+    height: 9px;
+    border-radius: var(--radius-pill);
+    background: var(--sp-status, var(--color-yellow-500));
+  }
+
+  .sp-status-pulse i {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--sp-status, var(--color-yellow-500)) 35%, transparent);
+    animation: sp-pulse 1.6s infinite;
+  }
+
+  @keyframes sp-pulse {
+    0%, 100% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--sp-status, var(--color-yellow-500)) 35%, transparent); }
+    50% { box-shadow: 0 0 0 7px color-mix(in srgb, var(--sp-status, var(--color-yellow-500)) 15%, transparent); }
+  }
+
+  /* ---- o miolo ------------------------------------------------------------ */
+  .sp-main {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    max-width: 1280px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 16px 32px 40px;
+  }
+
+  .sp-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--sp-accent, var(--color-yellow-500));
+    color: var(--sp-on-accent, var(--color-ink));
+    font-weight: 800;
+    font-size: 13px;
+    line-height: normal;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 8px 14px;
+    border-radius: var(--radius-pill);
+  }
+
+  /* As promessas curtas: quadradinho colorido + texto. */
+  .sp-perks {
+    display: flex;
+    gap: 28px;
+    margin: 10px 0 0;
+    padding: 0;
+    list-style: none;
+    font-weight: 700;
+    font-size: 14px;
+    line-height: normal;
+    color: var(--color-ink-soft);
+    flex-wrap: wrap;
+  }
+
+  .sp-perks li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .sp-perks i {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+    flex: none;
+  }
+
+  .sp-perk-yellow i { background: var(--color-yellow-500); }
+  .sp-perk-mint i { background: var(--color-mint-500); }
+  .sp-perk-coral i { background: var(--color-coral-500); }
+  .sp-perk-purple i { background: var(--color-brand-600); }
+  .sp-perk-white i { background: #fff; border: 2px solid var(--color-ink); }
+
+  /* Os selos soltos: o tom decide fundo, tinta e sombra. */
+  .sp-sticker {
+    position: absolute;
+    padding: 12px 18px;
+    border-radius: 18px;
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 15px;
+    line-height: normal;
+    color: var(--color-ink);
+    white-space: nowrap;
+    z-index: 2;
+  }
+
+  .sp-tone-yellow { background: var(--color-yellow-500); color: var(--color-ink); box-shadow: 0 4px 0 #c9ab1f; }
+  .sp-tone-mint { background: var(--color-mint-500); color: var(--color-ink); box-shadow: 0 4px 0 #3fa8a3; }
+  .sp-tone-coral { background: var(--color-coral-500); color: var(--color-ink); box-shadow: 0 4px 0 #d9836c; }
+  .sp-tone-white { background: #fff; color: var(--color-ink); border: 2px solid var(--color-ink); box-shadow: 0 4px 0 var(--color-ink); }
+  .sp-tone-purple { background: var(--color-brand-600); color: #fff; box-shadow: 0 4px 0 var(--color-brand-800); }
+
+  /* ---- 1. Manutenção ------------------------------------------------------ */
+  .sp-hero {
+    display: grid;
+    grid-template-columns: 1.05fr 1fr;
+    gap: 48px;
+    align-items: center;
+    width: 100%;
+  }
+
+  .sp-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+  }
+
+  .sp-copy .sp-tag {
+    align-self: flex-start;
+    transform: rotate(-2deg);
+  }
+
+  .sp-title {
+    margin: 0;
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 68px;
+    line-height: 1.02;
+    letter-spacing: -0.02em;
+    color: var(--color-ink);
+    text-wrap: pretty;
+  }
+
+  .sp-title em {
+    font-style: normal;
+    color: var(--sp-brand, var(--color-brand-600));
+  }
+
+  .sp-text {
+    margin: 0;
+    font-weight: 600;
+    font-size: 20px;
+    line-height: 1.5;
+    color: var(--color-ink-soft);
+    max-width: 520px;
+    text-wrap: pretty;
+  }
+
+  .sp-ctas {
+    display: flex;
+    gap: 12px;
+    margin-top: 6px;
+    flex-wrap: wrap;
+  }
+
+  .sp-btn {
+    display: inline-block;
+    background: var(--sp-brand, var(--color-brand-600));
+    color: var(--sp-on-brand, #fff);
+    font-weight: 800;
+    font-size: 17px;
+    line-height: normal;
+    padding: 16px 28px;
+    border-radius: var(--radius-pill);
+    box-shadow: 0 6px 0 var(--sp-brand-dk, var(--color-brand-800));
+    text-decoration: none;
+    transition: transform 0.12s, box-shadow 0.12s;
+  }
+
+  .sp-btn:hover {
+    transform: translateY(2px);
+    box-shadow: 0 4px 0 var(--sp-brand-dk, var(--color-brand-800));
+  }
+
+  .sp-btn-ghost {
+    display: inline-block;
+    background: #fff;
+    color: var(--color-ink);
+    border: 2px solid var(--color-ink);
+    font-weight: 800;
+    font-size: 17px;
+    line-height: normal;
+    padding: 14px 26px;
+    border-radius: var(--radius-pill);
+    text-decoration: none;
+  }
+
+  .sp-btn-ghost:hover {
+    background: var(--color-ink);
+    color: #fff;
+  }
+
+  /* A composição: placa, cartão listrado, impressora, progresso, selos. */
+  .sp-art {
+    position: relative;
+    height: 520px;
+  }
+
+  .sp-art-back {
+    position: absolute;
+    inset: 20px 20px 40px 40px;
+    background: var(--sp-brand, var(--color-brand-600));
+    border-radius: 44px;
+    transform: rotate(3deg);
+  }
+
+  .sp-art-card {
+    position: absolute;
+    inset: 0 40px 60px 0;
+    border-radius: 44px;
+    background: repeating-linear-gradient(135deg, var(--color-brand-100) 0 14px, #e4daf6 14px 28px);
+    border: 2px dashed #c9b8ea;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 22px;
+    padding: 32px;
+    text-align: center;
+  }
+
+  .sp-printer {
+    position: relative;
+    width: 200px;
+    height: 160px;
+  }
+
+  .sp-printer span { position: absolute; }
+  .sp-printer-frame { inset: 0; border: 6px solid var(--color-ink); border-radius: 22px; background: #fff; }
+  .sp-printer-rail { left: 18px; right: 18px; top: 46px; height: 6px; background: var(--color-ink); border-radius: 3px; }
+  .sp-printer-head {
+    top: 34px;
+    left: 60px;
+    width: 36px;
+    height: 30px;
+    background: var(--sp-brand, var(--color-brand-600));
+    border-radius: 8px;
+    animation: sp-head 2.4s ease-in-out infinite;
+  }
+  .sp-printer-head::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: -10px;
+    width: 8px;
+    height: 10px;
+    background: var(--sp-brand, var(--color-brand-600));
+    transform: translateX(-50%);
+    border-radius: 0 0 4px 4px;
+  }
+  .sp-printer-bed { left: 24px; right: 24px; bottom: 26px; height: 8px; background: var(--color-ink); border-radius: 4px; }
+  .sp-printer-part {
+    bottom: 34px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 64px;
+    height: 0;
+    background: var(--color-mint-500);
+    border-radius: 8px 8px 0 0;
+    animation: sp-grow 4.8s linear infinite;
+  }
+
+  @keyframes sp-head { 0%, 100% { left: 26px; } 50% { left: 132px; } }
+  @keyframes sp-grow { 0% { height: 0; } 90% { height: 52px; } 100% { height: 52px; opacity: 0; } }
+
+  .sp-pct {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 28px;
+    line-height: normal;
+    color: var(--sp-brand, var(--color-brand-600));
+  }
+
+  .sp-bar {
+    width: min(260px, 80%);
+    height: 14px;
+    border-radius: var(--radius-pill);
+    background: #fff;
+    border: 2px solid var(--color-ink);
+    overflow: hidden;
+  }
+
+  .sp-bar i {
+    display: block;
+    height: 100%;
+    background: var(--sp-accent, var(--color-yellow-500));
+    border-right: 2px solid var(--color-ink);
+  }
+
+  .sp-art-note {
+    font-weight: 700;
+    font-size: 13px;
+    line-height: normal;
+    color: #8a8399;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .sp-art .sp-sticker-1 { right: 0; top: 56px; transform: rotate(4deg); }
+  .sp-art .sp-sticker-2 { left: -16px; bottom: 96px; transform: rotate(-5deg); }
+  .sp-art .sp-sticker-3 { right: 60px; bottom: 20px; }
+
+  /* ---- 2. Lançamento -------------------------------------------------------- */
+  .sp-poster {
+    position: relative;
+    overflow: hidden;
+    background: var(--sp-brand, var(--color-brand-600));
+    color: var(--sp-on-brand, #fff);
+    border-radius: 44px;
+    padding: 64px 64px 56px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 22px;
+  }
+
+  .sp-blob {
+    position: absolute;
+    border-radius: var(--radius-pill);
+    pointer-events: none;
+    opacity: 0.18;
+  }
+
+  .sp-blob-1 { width: 320px; height: 320px; background: var(--color-mint-500); left: -120px; top: -120px; }
+  .sp-blob-2 { width: 220px; height: 220px; background: var(--color-yellow-500); right: -60px; top: 40px; border-radius: 60px; transform: rotate(20deg); }
+  .sp-blob-3 { width: 260px; height: 260px; background: var(--color-coral-500); right: 18%; bottom: -140px; }
+
+  .sp-poster .sp-tag {
+    position: relative;
+    transform: rotate(2deg);
+  }
+
+  .sp-poster-title {
+    position: relative;
+    margin: 0;
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 72px;
+    line-height: 0.98;
+    letter-spacing: -0.025em;
+    max-width: 900px;
+    color: var(--sp-on-brand, #fff);
+    text-wrap: balance;
+  }
+
+  .sp-poster-title em {
+    display: inline-block;
+    font-style: normal;
+    background: var(--sp-accent, var(--color-yellow-500));
+    color: var(--sp-on-accent, var(--color-ink));
+    padding: 0 18px;
+    border-radius: 22px;
+    line-height: 1.05;
+    transform: rotate(-2deg);
+  }
+
+  /* O texto do poster, um pouco apagado sobre o roxo (o #DCD4EE do desenho). */
+  .sp-lead,
+  .sp-note,
+  .sp-poster .sp-perks,
+  .sp-count small {
+    color: color-mix(in srgb, var(--sp-on-brand, #fff) 84%, var(--sp-brand, var(--color-brand-600)));
+  }
+
+  .sp-lead {
+    position: relative;
+    margin: 0;
+    font-weight: 600;
+    font-size: 20px;
+    line-height: 1.5;
+    max-width: 600px;
+    text-wrap: pretty;
+  }
+
+  .sp-lead b {
+    color: var(--sp-on-brand, #fff);
+    font-weight: 700;
+  }
+
+  .sp-count {
+    position: relative;
+    display: flex;
+    gap: 14px;
+    margin-top: 6px;
+  }
+
+  .sp-count div {
+    width: 112px;
+    background: rgb(255 255 255 / 0.12);
+    border: 2px dashed rgb(255 255 255 / 0.5);
+    border-radius: 24px;
+    padding: 16px 8px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .sp-count b {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 44px;
+    line-height: 1;
+  }
+
+  .sp-count small {
+    font-weight: 800;
+    font-size: 11px;
+    line-height: normal;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .sp-count div:nth-child(1) { transform: rotate(-3deg); }
+  .sp-count div:nth-child(4) { transform: rotate(3deg); }
+
+  .sp-form {
+    position: relative;
+    display: flex;
+    gap: 10px;
+    width: min(560px, 100%);
+    background: #fff;
+    border-radius: var(--radius-pill);
+    padding: 8px 8px 8px 22px;
+    box-shadow: 0 8px 0 var(--sp-brand-dk, var(--color-brand-800));
+    margin-top: 8px;
+  }
+
+  .sp-form:focus-within {
+    outline: 3px solid var(--sp-accent, var(--color-yellow-500));
+    outline-offset: 3px;
+  }
+
+  .sp-form input[type="email"] {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    outline: 0;
+    background: none;
+    font-family: var(--font-sans);
+    font-weight: 700;
+    font-size: 17px;
+    color: var(--color-ink);
+  }
+
+  .sp-form input::placeholder {
+    color: #8a8399;
+  }
+
+  .sp-form button {
+    border: 0;
+    cursor: pointer;
+    background: var(--sp-accent, var(--color-yellow-500));
+    color: var(--sp-on-accent, var(--color-ink));
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 16px;
+    line-height: normal;
+    padding: 14px 24px;
+    border-radius: var(--radius-pill);
+    white-space: nowrap;
+    box-shadow: 0 4px 0 var(--sp-accent-dk, #c9ab1f);
+    transition: transform 0.12s, box-shadow 0.12s;
+  }
+
+  .sp-form button:hover {
+    transform: translateY(2px);
+    box-shadow: 0 2px 0 var(--sp-accent-dk, #c9ab1f);
+  }
+
+  /* O campo que só um robô preenche. */
+  .sp-hp {
+    position: absolute;
+    left: -9999px;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+  }
+
+  .sp-note {
+    position: relative;
+    margin: 0;
+    font-weight: 700;
+    font-size: 13px;
+    line-height: normal;
+  }
+
+  .sp-ok,
+  .sp-error {
+    position: relative;
+    display: inline-block;
+    color: var(--color-ink);
+    font-weight: 800;
+    font-size: 16px;
+    line-height: normal;
+    padding: 14px 24px;
+    border-radius: var(--radius-pill);
+  }
+
+  .sp-ok { background: var(--color-mint-500); }
+  .sp-error { background: var(--color-coral-500); }
+
+  .sp-poster .sp-perks {
+    position: relative;
+    justify-content: center;
+    margin-top: 0;
+  }
+
+  .sp-poster .sp-sticker-1 { right: 9%; top: 72px; transform: rotate(6deg); }
+  .sp-poster .sp-sticker-2 { left: 8%; top: 38%; transform: rotate(-5deg); }
+  .sp-poster .sp-sticker-3 { right: 7%; bottom: 22%; transform: rotate(-4deg); }
+
+  /* ---- rodapé -------------------------------------------------------------- */
+  .sp-footer {
+    max-width: 1280px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 20px 32px 28px;
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    font-weight: 700;
+    font-size: 13px;
+    line-height: normal;
+    color: #8a8399;
+    border-top: 2px solid var(--color-surface-line);
+  }
+
+  .sp-social {
+    display: flex;
+    gap: 16px;
+  }
+
+  .sp-footer a {
+    color: var(--color-ink);
+    text-decoration: none;
+  }
+
+  .sp-footer a:hover {
+    color: var(--sp-brand, var(--color-brand-600));
+  }
+
+  /* O aviso de pré-visualização (só no Admin). */
+  .sp-preview-bar {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    z-index: 50;
+    background: var(--color-ink);
+    color: #fff;
+    font-weight: 800;
+    font-size: 13px;
+    padding: 10px 16px;
+    border-radius: var(--radius-pill);
+    text-decoration: none;
+    box-shadow: 0 4px 0 var(--color-brand-800);
+  }
+
+  /* ---- responsivo (1024px e 640px, como a referência) ------------------------- */
+  @media (max-width: 1024px) {
+    .sp-hero { grid-template-columns: 1fr; gap: 32px; }
+    .sp-title { font-size: 52px; }
+    .sp-art { height: 420px; }
+
+    .sp-poster { padding: 48px 28px 44px; }
+    .sp-poster-title { font-size: 54px; }
+    .sp-poster .sp-sticker { display: none; }
+    .sp-count div { width: 92px; }
+    .sp-count b { font-size: 36px; }
+  }
+
+  @media (max-width: 640px) {
+    .sp-header, .sp-main, .sp-footer { padding-left: 20px; padding-right: 20px; }
+
+    .sp-title { font-size: 40px; }
+    .sp-text { font-size: 17px; }
+    .sp-art { height: 340px; }
+    .sp-art-card { gap: 14px; }
+    .sp-printer { width: 150px; height: 120px; }
+    .sp-art .sp-sticker { font-size: 13px; padding: 9px 13px; }
+    .sp-ctas { flex-direction: column; }
+    .sp-ctas a { text-align: center; }
+    .sp-perks { gap: 12px; }
+
+    .sp-poster { padding: 40px 20px 36px; border-radius: 32px; }
+    .sp-poster-title { font-size: 40px; }
+    .sp-poster-title em { padding: 0 10px; border-radius: 14px; }
+    .sp-lead { font-size: 17px; }
+    .sp-count { gap: 8px; }
+    .sp-count div { width: 70px; padding: 12px 4px 10px; border-radius: 18px; }
+    .sp-count b { font-size: 28px; }
+    .sp-count small { font-size: 9px; }
+    .sp-form { flex-direction: column; border-radius: 28px; padding: 8px; }
+    .sp-form input[type="email"] { padding: 10px 14px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sp-status-pulse i,
+    .sp-printer-head,
+    .sp-printer-part { animation: none; }
+  }
+}

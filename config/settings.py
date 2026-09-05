@@ -85,6 +85,10 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    # Por último, depois do AuthenticationMiddleware (precisa de request.user)
+    # e do LocaleMiddleware: com uma página de manutenção/lançamento ativa,
+    # toda rota pública responde com ela (ver apps/storefront/middleware.py).
+    "apps.storefront.middleware.SpecialPageMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"

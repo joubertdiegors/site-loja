@@ -1,0 +1,181 @@
+{% load i18n static jdprint %}<!DOCTYPE html>
+{% comment %}
+A página de manutenção ou de lançamento — a que fecha a loja.
+
+Independente do `base.html` de propósito: sem o header da loja, sem o rodapé,
+sem HTMX, sem a gaveta do carrinho. É uma experiência à parte, com o header e
+o rodapé próprios do desenho (`JD Print - Manutencao (static).html` e
+`JD Print - Lancamento (static).html`, medidos um a um em `static/src/input.css`,
+bloco "A página de manutenção e de lançamento").
+
+Todo texto e toda cor vêm do cadastro (`SpecialPage`, CONFIGURAÇÕES DA LOJA ›
+MANUTENÇÃO E LANÇAMENTO); o que é rótulo de interface (dias, horas, Instagram)
+vem do gettext. As cores chegam como variáveis CSS no `style` do `<body>`; os
+rótulos dos selos e dos benefícios usam tons fechados da marca.
+
+`noindex` na meta e no cabeçalho `X-Robots-Tag` (ver `render_special_page`):
+a página nunca entra no índice, e nenhuma URL interna é servida enquanto ela
+está ativa — o que já estava indexado volta quando a loja reabre.
+{% endcomment %}
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>{{ page.title|striptags }} — {{ page.logo_text }}</title>
+  <link rel="preload" href="{% static 'fonts/nunito-400-800-latin.woff2' %}" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="{% static 'fonts/baloo2-400-800-latin.woff2' %}" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="{% static_versioned 'css/tailwind.css' %}">
+  {% brand_favicon_url as favicon_url %}
+  {% if favicon_url %}<link rel="icon" href="{{ favicon_url }}">{% endif %}
+</head>
+<body class="sp-body" style="{{ page.style }}">
+
+  <header class="sp-header">
+    <a class="sp-logo" href="{{ page.logo_url|default:'/' }}">
+      {% if page.logo %}
+        <img src="{{ page.logo.url }}" alt="{{ page.logo_text }}">
+      {% else %}
+        <i aria-hidden="true">{{ page.logo_mark }}</i>{{ page.logo_text }}
+      {% endif %}
+    </a>
+    {% if page.status_text %}
+      <span class="sp-status{% if page.status_pulse %} sp-status-pulse{% endif %}"><i aria-hidden="true"></i>{{ page.status_text }}</span>
+    {% endif %}
+  </header>
+
+  <main class="sp-main">
+    {% if page.is_launch %}
+
+      {# ---- Lançamento: o poster ------------------------------------------ #}
+      <section class="sp-poster" aria-labelledby="sp-titulo">
+        <span class="sp-blob sp-blob-1" aria-hidden="true"></span>
+        <span class="sp-blob sp-blob-2" aria-hidden="true"></span>
+        <span class="sp-blob sp-blob-3" aria-hidden="true"></span>
+
+        {% if page.eyebrow %}<span class="sp-tag">{{ page.eyebrow }}</span>{% endif %}
+
+        <h1 id="sp-titulo" class="sp-poster-title">{{ page.title_html }}</h1>
+
+        {% if page.description %}<p class="sp-lead">{{ page.description_html }}</p>{% endif %}
+
+        {% if page.has_countdown %}
+          <div class="sp-count" data-countdown data-launch-at="{{ launch_at_iso }}"{% if launched %} data-done{% endif %}
+               role="timer" aria-live="off" aria-label="{% translate 'Contagem regressiva para o lançamento' %}">
+            <div><b data-count-d>00</b><small>{% translate "dias" %}</small></div>
+            <div><b data-count-h>00</b><small>{% translate "horas" %}</small></div>
+            <div><b data-count-m>00</b><small>{% translate "min" %}</small></div>
+            <div><b data-count-s>00</b><small>{% translate "seg" %}</small></div>
+          </div>
+          {% if page.countdown_done_text %}
+            <span class="sp-ok" data-countdown-done {% if not launched %}hidden{% endif %}>{{ page.countdown_done_text }}</span>
+          {% endif %}
+        {% endif %}
+
+        {% if page.has_form %}
+          {% if subscribed %}
+            <span class="sp-ok" id="aviso" role="status">{{ page.form_success_text|default:_("Pronto! Avisamos você no lançamento.") }}</span>
+          {% else %}
+            <form class="sp-form" id="aviso" method="post" action="{% url 'storefront:launch_notify' %}" novalidate>
+              {% csrf_token %}
+              <input type="email" name="email" inputmode="email" autocomplete="email" required
+                     placeholder="{{ page.form_placeholder|default:'seu@email.com' }}"
+                     aria-label="{% translate 'E-mail' %}"
+                     value="{{ form.email.value|default:'' }}"
+                     {% if form.errors %}aria-invalid="true" aria-describedby="aviso-erro"{% endif %}>
+              <input type="text" name="website" class="sp-hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+              <button type="submit">{{ page.form_button_label|default:_("Quero ser avisado →") }}</button>
+            </form>
+            {% if form.errors %}
+              <span class="sp-error" id="aviso-erro" role="alert">
+                {% for erros in form.errors.values %}{% for erro in erros %}{{ erro }} {% endfor %}{% endfor %}
+              </span>
+            {% endif %}
+          {% endif %}
+          {% if page.form_note %}<p class="sp-note">{{ page.form_note }}</p>{% endif %}
+        {% endif %}
+
+        {% if page.visible_benefits %}
+          <ul class="sp-perks" role="list">
+            {% for item in page.visible_benefits %}
+              <li class="sp-perk-{{ item.tone }}"><i aria-hidden="true"></i>{{ item.text }}</li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+
+        {% for sticker in page.stickers %}
+          <span class="sp-sticker sp-sticker-{{ sticker.slot }} sp-tone-{{ sticker.tone }}" aria-hidden="true">{{ sticker.text }}</span>
+        {% endfor %}
+      </section>
+
+    {% else %}
+
+      {# ---- Manutenção: duas colunas --------------------------------------- #}
+      <section class="sp-hero" aria-labelledby="sp-titulo">
+        <div class="sp-copy">
+          {% if page.eyebrow %}<span class="sp-tag">{{ page.eyebrow }}</span>{% endif %}
+
+          <h1 id="sp-titulo" class="sp-title">{{ page.title_html }}</h1>
+
+          {% if page.description %}<p class="sp-text">{{ page.description_html }}</p>{% endif %}
+
+          {% if page.has_primary or page.has_secondary %}
+            <div class="sp-ctas">
+              {% if page.has_primary %}<a class="sp-btn" href="{{ page.primary_url }}">{{ page.primary_label }}</a>{% endif %}
+              {% if page.has_secondary %}<a class="sp-btn-ghost" href="{{ page.secondary_url }}">{{ page.secondary_label }}</a>{% endif %}
+            </div>
+          {% endif %}
+
+          {% if page.visible_benefits %}
+            <ul class="sp-perks" role="list">
+              {% for item in page.visible_benefits %}
+                <li class="sp-perk-{{ item.tone }}"><i aria-hidden="true"></i>{{ item.text }}</li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+        </div>
+
+        {# A ilustração é desenho puro: o leitor de tela pula tudo. #}
+        <div class="sp-art" aria-hidden="true">
+          <div class="sp-art-back"></div>
+          <div class="sp-art-card">
+            <div class="sp-printer">
+              <span class="sp-printer-frame"></span><span class="sp-printer-rail"></span>
+              <span class="sp-printer-head"></span><span class="sp-printer-part"></span>
+              <span class="sp-printer-bed"></span>
+            </div>
+            {% if page.show_progress %}
+              <div class="sp-pct">{{ page.progress_percent }}%</div>
+              <div class="sp-bar"><i style="width: {{ page.progress_percent }}%"></i></div>
+            {% endif %}
+            {% if page.progress_label %}<small class="sp-art-note">{{ page.progress_label }}</small>{% endif %}
+          </div>
+          {% for sticker in page.stickers %}
+            <span class="sp-sticker sp-sticker-{{ sticker.slot }} sp-tone-{{ sticker.tone }}">{{ sticker.text }}</span>
+          {% endfor %}
+        </div>
+      </section>
+
+    {% endif %}
+  </main>
+
+  <footer class="sp-footer">
+    <span>{{ page.footer_text }}</span>
+    {% if page.instagram_url or page.whatsapp_url or page.contact_email %}
+      <div class="sp-social">
+        {% if page.instagram_url %}<a href="{{ page.instagram_url }}" target="_blank" rel="noopener">Instagram</a>{% endif %}
+        {% if page.whatsapp_url %}<a href="{{ page.whatsapp_url }}" target="_blank" rel="noopener">WhatsApp</a>{% endif %}
+        {% if page.contact_email %}<a href="mailto:{{ page.contact_email }}">{% translate "E-mail" %}</a>{% endif %}
+      </div>
+    {% endif %}
+  </footer>
+
+  {% if preview %}
+    <a class="sp-preview-bar" href="{% url 'admin:storefront_specialpage_change' page.pk %}">
+      {% translate "Pré-visualização" %} · {{ page.internal_name }} · {% translate "voltar ao Admin" %}
+    </a>
+  {% endif %}
+
+  {% if page.has_countdown %}<script src="{% static_versioned 'js/special_page.js' %}" defer></script>{% endif %}
+</body>
+</html>

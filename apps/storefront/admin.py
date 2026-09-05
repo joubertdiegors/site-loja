@@ -9,8 +9,20 @@ Nada aqui inventa um segundo mecanismo de tradução: é o mesmo
 ``TranslationBase`` de ``ProductTranslation`` e companhia.
 """
 
+import csv
+
+from django import forms
 from django.contrib import admin, messages
+from django.contrib.admin import helpers
+from django.core.exceptions import PermissionDenied
+from django.db import IntegrityError
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404, render
+from django.urls import path, reverse
+from django.utils import translation
+from django.utils.html import format_html
 from django.utils.safestring import mark_safe
+from django.utils.translation import check_for_language
 
 from apps.core.colors import swatch
 from apps.core.admin_mixins import (
@@ -29,6 +41,12 @@ from apps.storefront.models import (
     FooterSettingsTranslation,
     InstitutionalPage,
     InstitutionalPageTranslation,
+    LaunchSubscriber,
+    SpecialPage,
+    SpecialPageBenefit,
+    SpecialPageBenefitTranslation,
+    SpecialPageTranslation,
+    TIMEZONE_CHOICES,
     TopBarItem,
     TopBarItemTranslation,
 )
@@ -432,3 +450,314 @@ class ContactMessageAdmin(ReceivedMessageAdmin):
         ("ATENDIMENTO", {"fields": ("is_handled",)}),
         ("AUDITORIA", {"classes": ("collapse",), "fields": ("created_at", "updated_at")}),
     )
+
+
+# ---------------------------------------------------------------------------
+# Manutenção e lançamento
+# ---------------------------------------------------------------------------
+
+
+class SpecialPageForm(PartialSafeModelForm):
+    """O fuso vem de uma lista curta; um valor gravado fora dela continua aparecendo."""
+
+    launch_timezone = forms.ChoiceField(label="fuso horário", choices=TIMEZONE_CHOICES)
+
+    class Meta:
+        model = SpecialPage
+        fields = "__all__"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        atual = getattr(self.instance, "launch_timezone", "")
+        opcoes = list(TIMEZONE_CHOICES)
+        if atual and atual not in dict(opcoes):
+            opcoes.append((atual, atual))
+        self.fields["launch_timezone"].choices = opcoes
+        self.fields["launch_timezone"].help_text = SpecialPage._meta.get_field("launch_timezone").help_text
+
+
+class SpecialPageTranslationInline(admin.StackedInline):
+    model = SpecialPageTranslation
+    formset = RequiredDefaultLanguageInlineFormSet
+    extra = 0
+    verbose_name = "conteúdo por idioma"
+    verbose_name_plural = "CONTEÚDO — um bloco por idioma (o português é obrigatório)"
+    fieldsets = (
+        (None, {"fields": ("language", "status_text", "eyebrow", "title", "title_highlight", "description")}),
+        ("Botões", {"fields": ("primary_label", "secondary_label")}),
+        ("Selos e rodapé", {"fields": ("sticker_1", "sticker_2", "sticker_3", "footer_text")}),
+        ("Manutenção", {"fields": ("progress_label",)}),
+        (
+            "Lançamento",
+            {"fields": ("countdown_done_text", "form_placeholder", "form_button_label", "form_note", "form_success_text")},
+        ),
+    )
+
+
+@admin.register(SpecialPage)
+class SpecialPageAdmin(admin.ModelAdmin):
+    """A página que fecha a loja — com a ativação pedindo confirmação."""
+
+    form = SpecialPageForm
+    inlines = [SpecialPageTranslationInline]
+    save_on_top = True
+    list_display = ("internal_name", "kind", "ativa", "updated_at", "links")
+    list_display_links = ("internal_name",)
+    list_filter = ("kind", "is_active")
+    search_fields = ("internal_name",)
+    ordering = ("-is_active", "-updated_at")
+    actions = ("action_activate_page", "action_deactivate_page")
+    readonly_fields = ("created_at", "updated_at", "links", "beneficios")
+    fieldsets = (
+        (
+            "GERAL",
+            {
+                "fields": ("internal_name", "kind", "is_active", "links", "beneficios"),
+                "description": (
+                    "<strong>⚠️ ATIVAR ESTA PÁGINA BLOQUEARÁ O SITE PÚBLICO.</strong> "
+                    "Só uma página fica ativa por vez; ativar esta desliga a outra. "
+                    "Confira antes na pré-visualização."
+                ),
+            },
+        ),
+        (
+            "MARCA E HEADER",
+            {
+                "fields": ("logo", "logo_mark", "logo_text", "logo_url", "status_color", "status_pulse"),
+                "description": "A pílula de status ao lado da logo leva o texto do bloco de idioma abaixo.",
+            },
+        ),
+        (
+            "BOTÕES",
+            {
+                "fields": (("primary_enabled", "primary_url"), ("secondary_enabled", "secondary_url")),
+                "description": "Os textos ficam no bloco de idioma. Um botão sem texto ou sem link não aparece.",
+            },
+        ),
+        (
+            "MANUTENÇÃO — a impressora",
+            {"classes": ("jd-sp-maintenance",), "fields": ("show_progress", "progress_percent")},
+        ),
+        (
+            "LANÇAMENTO — contagem e formulário",
+            {
+                "classes": ("jd-sp-launch",),
+                "fields": (("launch_date", "launch_time", "launch_timezone"), "show_countdown", "show_form"),
+                "description": (
+                    "A contagem é calculada no navegador do visitante a partir desta data. "
+                    "Os e-mails deixados no formulário ficam em «Inscritos»."
+                ),
+            },
+        ),
+        (
+            "SELOS",
+            {
+                "fields": ("sticker_1_tone", "sticker_2_tone", "sticker_3_tone"),
+                "description": "Os textos ficam no bloco de idioma; um selo sem texto não aparece.",
+            },
+        ),
+        ("RODAPÉ E CONTATO", {"fields": ("instagram_url", "whatsapp_url", "contact_email")}),
+        (
+            "CORES",
+            {
+                "classes": ("collapse",),
+                "fields": (
+                    "surface_color",
+                    ("brand_color", "brand_text_color"),
+                    ("accent_color", "accent_text_color"),
+                ),
+                "description": "O contraste é conferido ao salvar: uma dupla ilegível é recusada.",
+            },
+        ),
+        ("AUDITORIA", {"classes": ("collapse",), "fields": ("created_at", "updated_at")}),
+    )
+
+    class Media:
+        js = ("admin/js/special_page_admin.js",)
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).prefetch_related("translations")
+
+    @admin.display(description="ativa", ordering="is_active")
+    def ativa(self, obj):
+        if obj.is_active:
+            return mark_safe('<span style="color:#2e7d32;font-weight:700">● no ar</span>')
+        return mark_safe('<span style="color:#8a8399">○</span>')
+
+    @admin.display(description="ver")
+    def links(self, obj):
+        if not obj.pk:
+            return "—"
+        url = reverse("admin:storefront_specialpage_preview", args=[obj.pk])
+        return format_html(
+            '<a href="{}" target="_blank" rel="noopener">pré-visualizar</a>'
+            ' · <a href="{}?lang=fr" target="_blank" rel="noopener">fr</a>'
+            ' · <a href="{}?lang=nl" target="_blank" rel="noopener">nl</a>'
+            ' · <a href="{}?lang=en" target="_blank" rel="noopener">en</a>',
+            url, url, url, url,
+        )
+
+    @admin.display(description="benefícios")
+    def beneficios(self, obj):
+        if not obj.pk:
+            return "Salve a página para cadastrar os benefícios."
+        total = obj.benefits.count()
+        url = reverse("admin:storefront_specialpagebenefit_changelist") + f"?page__id__exact={obj.pk}"
+        novo = reverse("admin:storefront_specialpagebenefit_add") + f"?page={obj.pk}"
+        return format_html(
+            '{} cadastrado(s) — <a href="{}">ver</a> · <a href="{}">acrescentar</a>', total, url, novo
+        )
+
+    # -- pré-visualização --------------------------------------------------------
+
+    def get_urls(self):
+        urls = super().get_urls()
+        extra = [
+            path(
+                "<int:pk>/preview/",
+                self.admin_site.admin_view(self.preview_view),
+                name="storefront_specialpage_preview",
+            ),
+        ]
+        return extra + urls
+
+    def preview_view(self, request, pk):
+        """A página como o visitante veria — só para quem pode ver o cadastro.
+
+        Passa por `admin_view` (exige login de equipe) e pela permissão de
+        visualização do model. `?lang=fr` mostra a versão de outro idioma.
+        """
+        page = get_object_or_404(
+            SpecialPage.objects.prefetch_related("translations", "benefits__translations"), pk=pk
+        )
+        if not self.has_view_permission(request, page):
+            raise PermissionDenied
+        from apps.storefront.views import render_special_page
+
+        idioma = request.GET.get("lang", "")
+        if idioma and check_for_language(idioma):
+            with translation.override(idioma):
+                return render_special_page(request, page, preview=True)
+        return render_special_page(request, page, preview=True)
+
+    # -- ativação --------------------------------------------------------------------
+
+    @admin.action(permissions=["change"], description="Ativar a página selecionada (bloqueia o site público)")
+    def action_activate_page(self, request, queryset):
+        if queryset.count() != 1:
+            self.message_user(request, "Escolha uma página só: apenas uma pode ficar ativa.", messages.ERROR)
+            return None
+        page = queryset.first()
+        if request.POST.get("confirmar"):
+            try:
+                page.activate()
+            except IntegrityError:
+                self.message_user(
+                    request,
+                    "Outra página foi ativada neste mesmo instante. Recarregue e tente de novo.",
+                    messages.ERROR,
+                )
+                return None
+            self.message_user(
+                request,
+                f"«{page.internal_name}» está no ar: o site público mostra só esta página.",
+                messages.WARNING,
+            )
+            return None
+        return render(
+            request,
+            "admin/storefront/specialpage/activate.html",
+            {
+                **self.admin_site.each_context(request),
+                "opts": self.model._meta,
+                "title": "Ativar página especial",
+                "page": page,
+                "current": SpecialPage.objects.filter(is_active=True).exclude(pk=page.pk).first(),
+                "action_checkbox_name": helpers.ACTION_CHECKBOX_NAME,
+                "action_field": "action",
+                "action_name": "action_activate_page",
+            },
+        )
+
+    @admin.action(permissions=["change"], description="Desativar (reabre o site público)")
+    def action_deactivate_page(self, request, queryset):
+        total = 0
+        for page in queryset.filter(is_active=True):
+            page.deactivate()
+            total += 1
+        if total:
+            self.message_user(request, "Página desativada: o site público voltou ao normal.", messages.SUCCESS)
+        else:
+            self.message_user(request, "Nenhuma das páginas escolhidas estava ativa.", messages.INFO)
+
+
+class SpecialPageBenefitTranslationInline(admin.StackedInline):
+    model = SpecialPageBenefitTranslation
+    formset = RequiredDefaultLanguageInlineFormSet
+    extra = 0
+    fields = ("language", "text")
+    verbose_name = "texto por idioma"
+    verbose_name_plural = "TEXTO por idioma (o português é obrigatório)"
+
+
+@admin.register(SpecialPageBenefit)
+class SpecialPageBenefitAdmin(admin.ModelAdmin):
+    inlines = [SpecialPageBenefitTranslationInline]
+    form = PartialSafeModelForm
+    list_display = ("text_pt", "page", "tone", "is_active", "sort_order")
+    list_display_links = ("text_pt",)
+    list_editable = ("is_active", "sort_order")
+    list_filter = ("page",)
+    ordering = ("page", "sort_order", "id")
+    readonly_fields = ("created_at", "updated_at")
+    fieldsets = (
+        (
+            "BENEFÍCIO",
+            {
+                "fields": ("page", "tone", "is_active", "sort_order"),
+                "description": "Uma promessa curta sob os botões: o quadradinho colorido e o texto.",
+            },
+        ),
+        ("AUDITORIA", {"classes": ("collapse",), "fields": ("created_at", "updated_at")}),
+    )
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related("page").prefetch_related("translations")
+
+    @admin.display(description="texto (pt)")
+    def text_pt(self, obj):
+        return obj.tr("text", language=DEFAULT_LANGUAGE.value, fallback=False) or "—"
+
+
+@admin.register(LaunchSubscriber)
+class LaunchSubscriberAdmin(admin.ModelAdmin):
+    """Quem pediu o aviso do lançamento. Só leitura, com exportação em CSV."""
+
+    list_display = ("email", "language", "page", "created_at")
+    list_filter = ("page", "language")
+    search_fields = ("email",)
+    date_hierarchy = "created_at"
+    readonly_fields = ("email", "language", "page", "created_at", "updated_at")
+    actions = ("action_export_csv",)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    @admin.action(permissions=["view"], description="Exportar selecionados em CSV")
+    def action_export_csv(self, request, queryset):
+        response = HttpResponse(content_type="text/csv; charset=utf-8")
+        response["Content-Disposition"] = 'attachment; filename="inscritos-lancamento.csv"'
+        response.write("﻿")  # BOM: o Excel abre em UTF-8 sem perguntar
+        escritor = csv.writer(response, delimiter=";")
+        escritor.writerow(["email", "idioma", "pagina", "inscrito_em"])
+        for inscrito in queryset.select_related("page").order_by("created_at"):
+            escritor.writerow([
+                inscrito.email,
+                inscrito.language,
+                inscrito.page.internal_name if inscrito.page else "",
+                inscrito.created_at.isoformat(timespec="seconds"),
+            ])
+        return response

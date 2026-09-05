@@ -2395,3 +2395,43 @@ msgstr "Next banner"
 
 msgid "Ir para o banner %(number)s"
 msgstr "Go to banner %(number)s"
+
+#: templates/storefront/special_page.html apps/storefront/views.py
+msgid "dias"
+msgstr "days"
+
+#: templates/storefront/special_page.html apps/storefront/views.py
+msgid "horas"
+msgstr "hours"
+
+#: templates/storefront/special_page.html apps/storefront/views.py
+msgid "min"
+msgstr "min"
+
+#: templates/storefront/special_page.html apps/storefront/views.py
+msgid "seg"
+msgstr "sec"
+
+#: templates/storefront/special_page.html apps/storefront/views.py
+msgid "Contagem regressiva para o lançamento"
+msgstr "Countdown to the launch"
+
+#: templates/storefront/special_page.html apps/storefront/views.py
+msgid "Pronto! Avisamos você no lançamento."
+msgstr "Done! We'll let you know at launch."
+
+#: templates/storefront/special_page.html apps/storefront/views.py
+msgid "Quero ser avisado →"
+msgstr "Notify me →"
+
+#: templates/storefront/special_page.html apps/storefront/views.py
+msgid "Pré-visualização"
+msgstr "Preview"
+
+#: templates/storefront/special_page.html apps/storefront/views.py
+msgid "voltar ao Admin"
+msgstr "back to Admin"
+
+#: templates/storefront/special_page.html apps/storefront/views.py
+msgid "Muitas tentativas. Aguarde alguns minutos e tente de novo."
+msgstr "Too many attempts. Wait a few minutes and try again."

@@ -91,6 +91,9 @@ SECOES = (
             "orders.bankaccount",
             "orders.cancellationsettings",
             "orders.ordernumbersequence",
+            "storefront.specialpage",
+            "storefront.specialpagebenefit",
+            "storefront.launchsubscriber",
         ),
     ),
     (

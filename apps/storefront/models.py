@@ -26,12 +26,23 @@ onde o banner e as seções já viviam.
   o título dela é cadastrado.
 """
 
+from datetime import datetime
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
 from django.core.exceptions import ValidationError
-from django.db import models
+from django.core.validators import FileExtensionValidator, MaxValueValidator
+from django.db import IntegrityError, models, transaction
+from django.db.models.functions import Lower
+from django.utils import timezone
+from django.utils.html import escape
+from django.utils.safestring import mark_safe
+from django.utils.text import get_valid_filename
 from django.utils.translation import gettext_lazy as _
 
 from apps.core.colors import check_contrast, resolve, validate_color
+from apps.core.constants import DEFAULT_LANGUAGE
 from apps.core.models import TimeStampedModel, TranslatableMixin, TranslationBase
+from apps.core.uploads import BRAND_IMAGE_EXTENSIONS, validate_brand_image
 
 #: A frase que acompanha todo campo de cor no Admin.
 COLOR_HELP = (
@@ -747,3 +758,608 @@ class ContactMessage(TimeStampedModel):
 
     def __str__(self) -> str:
         return f"{self.subject} — {self.name}"
+
+
+# ---------------------------------------------------------------------------
+# 5. Manutenção e lançamento — a página que fecha a loja
+#
+# Um modelo só para os dois desenhos (`kind`): a estrutura é a mesma — marca,
+# status, tag, título com destaque, texto, botões, promessas, selos, rodapé —
+# e o que muda é o miolo: a ilustração da impressora com o progresso
+# (manutenção) ou a contagem regressiva com o formulário de aviso
+# (lançamento). Dois modelos seriam dois cadastros para o mesmo conteúdo.
+#
+# **Só uma ativa.** A regra vale no banco, não só no formulário: um índice
+# único parcial (`is_active = true`) torna duas linhas ativas impossíveis,
+# inclusive com dois administradores salvando ao mesmo tempo — o segundo
+# perde por `IntegrityError`, e não fica com duas páginas no ar. O `save()`
+# desativa as outras antes de ligar esta, na mesma transação, para o caminho
+# normal nunca chegar a bater no índice.
+#
+# Quem lê `SpecialPage.objects.current()` é o middleware
+# (`apps/storefront/middleware.py`): com uma página ativa, toda rota pública
+# recebe a página no lugar do site.
+# ---------------------------------------------------------------------------
+
+
+class SpecialPageKind(models.TextChoices):
+    MAINTENANCE = "maintenance", "Manutenção"
+    LAUNCH = "launch", "Lançamento"
+
+
+class Tone(models.TextChoices):
+    """Os tons dos selos e das promessas.
+
+    Uma lista fechada, e não um campo de cor livre: cada tom carrega a sombra
+    sólida e a tinta do texto que o desenho define para ele (amarelo com
+    sombra âmbar, menta com sombra verde, branco com contorno navy...). Um hex
+    solto não teria sombra nem contorno, e o selo sairia chapado.
+    """
+
+    YELLOW = "yellow", "Amarelo"
+    MINT = "mint", "Menta"
+    CORAL = "coral", "Coral"
+    WHITE = "white", "Branco com contorno"
+    PURPLE = "purple", "Roxo"
+
+
+#: Fusos que o cadastro oferece para a hora do lançamento. Uma lista curta
+#: (a loja é belga com público europeu e brasileiro), mas o campo aceita
+#: qualquer nome da base IANA — o `clean()` confere.
+TIMEZONE_CHOICES = (
+    ("Europe/Brussels", "Bruxelas (Europe/Brussels)"),
+    ("Europe/Paris", "Paris (Europe/Paris)"),
+    ("Europe/Amsterdam", "Amsterdã (Europe/Amsterdam)"),
+    ("Europe/Lisbon", "Lisboa (Europe/Lisbon)"),
+    ("Europe/London", "Londres (Europe/London)"),
+    ("America/Sao_Paulo", "São Paulo (America/Sao_Paulo)"),
+    ("UTC", "UTC"),
+)
+
+
+def special_page_upload_to(instance, filename: str) -> str:
+    """``media/brand/special-pages/<arquivo>`` — dentro da pasta pública `brand/`.
+
+    A logo da página especial é servida direto, como as da marca; por isso
+    mora numa subpasta de `brand/`, que já está em `PUBLIC_MEDIA_DIRS` e no
+    mapeamento da hospedagem. Uma pasta nova exigiria um passo no servidor.
+    """
+    return f"brand/special-pages/{get_valid_filename(filename)}"
+
+
+def _shade(hexa: str, factor: float) -> str:
+    """Um tom mais escuro da cor: a sombra sólida dos botões e da placa.
+
+    Os presets da marca têm o par escuro (roxo → roxo escuro); um hex livre
+    não tem. Escurecer os canais é o que basta para a sombra acompanhar a cor
+    escolhida em vez de ficar roxa sob um botão verde.
+    """
+    hexa = hexa.lstrip("#")
+    if len(hexa) != 6:
+        return "#" + hexa
+    canais = (int(hexa[i:i + 2], 16) for i in (0, 2, 4))
+    return "#" + "".join(f"{max(0, min(255, round(c * factor))):02x}" for c in canais)
+
+
+#: Os pares "cor → sombra" da marca. Fora deles, `_shade` calcula.
+_SHADOW_OF = {
+    "purple": "purple-dark",
+    "navy-soft": "navy",
+    "yellow": "#c9ab1f",
+    "mint": "#3fa8a3",
+    "coral": "#d9836c",
+}
+
+
+def shadow_for(value: str, default: str) -> str:
+    base = resolve(value, default)
+    escolhido = value if resolve(value) else default
+    par = _SHADOW_OF.get(escolhido)
+    if par:
+        return resolve(par) or par
+    return _shade(base, 0.62)
+
+
+class SpecialPageQuerySet(models.QuerySet):
+    def current(self):
+        """A página ativa, com tudo o que o template lê — ou ``None``."""
+        return (
+            self.filter(is_active=True)
+            .prefetch_related("translations", "benefits__translations")
+            .first()
+        )
+
+
+class SpecialPage(TranslatableMixin, TimeStampedModel):
+    """Uma página de manutenção ou de lançamento, pronta para assumir o site."""
+
+    translatable_fields = (
+        "status_text", "eyebrow", "title", "title_highlight", "description",
+        "primary_label", "secondary_label", "progress_label",
+        "sticker_1", "sticker_2", "sticker_3", "footer_text",
+        "countdown_done_text", "form_placeholder", "form_button_label",
+        "form_note", "form_success_text",
+    )
+
+    # -- geral -----------------------------------------------------------------
+    internal_name = models.CharField(
+        "nome interno", max_length=120,
+        help_text="Só para o Admin: \"Lançamento outubro\", \"Manutenção do servidor\".",
+    )
+    kind = models.CharField(
+        "tipo", max_length=20, choices=SpecialPageKind.choices,
+        default=SpecialPageKind.MAINTENANCE,
+    )
+    is_active = models.BooleanField(
+        "ativa",
+        default=False,
+        help_text=(
+            "⚠️ ATIVAR ESTA PÁGINA BLOQUEARÁ O SITE PÚBLICO: todo visitante passa a "
+            "ver só esta página, em qualquer endereço. Só uma página fica ativa por "
+            "vez — ativar esta desativa a outra. O Admin continua acessível, e quem "
+            "está logado como equipe segue vendo a loja normal para testar."
+        ),
+    )
+
+    # -- marca e header ----------------------------------------------------------
+    logo = models.FileField(
+        "logo (arquivo)", upload_to=special_page_upload_to, blank=True,
+        validators=[FileExtensionValidator(BRAND_IMAGE_EXTENSIONS), validate_brand_image],
+        help_text="Opcional. Sem arquivo, o header mostra a marca desenhada (sigla + nome) abaixo.",
+    )
+    logo_mark = models.CharField(
+        "sigla da marca", max_length=4, default="JD",
+        help_text="As letras dentro do quadradinho roxo do header.",
+    )
+    logo_text = models.CharField("nome da marca", max_length=40, default="JD Print")
+    logo_url = models.CharField(
+        "link da marca", max_length=500, blank=True,
+        help_text="Para onde a logo leva. Vazio = a própria página.",
+    )
+    status_color = models.CharField(
+        "cor do ponto de status", max_length=20, default="yellow",
+        validators=[validate_color], help_text=COLOR_HELP,
+    )
+    status_pulse = models.BooleanField(
+        "ponto pulsando", default=True,
+        help_text="O ponto do status pisca devagar (o desenho da manutenção). Desligue para um ponto fixo.",
+    )
+
+    # -- botões -------------------------------------------------------------------
+    primary_enabled = models.BooleanField("botão principal ligado", default=True)
+    primary_url = models.CharField(
+        "link do botão principal", max_length=500, blank=True,
+        help_text="Endereço completo (https://…), mailto:… ou um caminho do site.",
+    )
+    secondary_enabled = models.BooleanField("botão secundário ligado", default=True)
+    secondary_url = models.CharField("link do botão secundário", max_length=500, blank=True)
+
+    # -- manutenção: a ilustração ---------------------------------------------------
+    show_progress = models.BooleanField(
+        "mostrar porcentagem e barra", default=True,
+        help_text="Dentro do cartão da impressora.",
+    )
+    progress_percent = models.PositiveSmallIntegerField(
+        "porcentagem", default=68, validators=[MaxValueValidator(100)],
+        help_text="De 0 a 100. É só uma indicação para o visitante — nada é medido.",
+    )
+
+    # -- lançamento: a contagem e o formulário ----------------------------------------
+    launch_date = models.DateField("data do lançamento", null=True, blank=True)
+    launch_time = models.TimeField("hora do lançamento", null=True, blank=True)
+    launch_timezone = models.CharField(
+        "fuso horário", max_length=64, default="Europe/Brussels",
+        help_text="A data e a hora acima valem neste fuso. O navegador do visitante converte para o dele.",
+    )
+    show_countdown = models.BooleanField("mostrar contagem regressiva", default=True)
+    show_form = models.BooleanField(
+        "mostrar formulário de aviso", default=True,
+        help_text="O e-mail fica em CONFIGURAÇÕES DA LOJA › Inscritos do lançamento.",
+    )
+
+    # -- selos --------------------------------------------------------------------------
+    sticker_1_tone = models.CharField("tom do selo 1", max_length=10, choices=Tone.choices, default=Tone.YELLOW)
+    sticker_2_tone = models.CharField("tom do selo 2", max_length=10, choices=Tone.choices, default=Tone.MINT)
+    sticker_3_tone = models.CharField("tom do selo 3", max_length=10, choices=Tone.choices, default=Tone.WHITE)
+
+    # -- rodapé e contato ---------------------------------------------------------------
+    instagram_url = models.URLField("Instagram", blank=True)
+    whatsapp_url = models.URLField(
+        "WhatsApp", blank=True, help_text="Ex.: https://wa.me/32470000000",
+    )
+    contact_email = models.EmailField("e-mail de contato", blank=True)
+
+    # -- cores ----------------------------------------------------------------------------
+    surface_color = models.CharField(
+        "fundo da página", max_length=20, default="cream",
+        validators=[validate_color], help_text=COLOR_HELP,
+    )
+    brand_color = models.CharField(
+        "cor principal", max_length=20, default="purple",
+        validators=[validate_color],
+        help_text="O poster do lançamento; na manutenção, o botão, a placa e a palavra destacada. " + COLOR_HELP,
+    )
+    brand_text_color = models.CharField(
+        "texto sobre a cor principal", max_length=20, default="white",
+        validators=[validate_color], help_text=COLOR_HELP,
+    )
+    accent_color = models.CharField(
+        "cor de destaque", max_length=20, default="yellow",
+        validators=[validate_color],
+        help_text="A tag, a palavra marcada no lançamento, a barra e o botão do formulário. " + COLOR_HELP,
+    )
+    accent_text_color = models.CharField(
+        "texto sobre o destaque", max_length=20, default="navy",
+        validators=[validate_color], help_text=COLOR_HELP,
+    )
+
+    objects = SpecialPageQuerySet.as_manager()
+
+    class Meta:
+        verbose_name = "página de manutenção ou lançamento"
+        verbose_name_plural = "MANUTENÇÃO E LANÇAMENTO — páginas especiais"
+        ordering = ("-is_active", "-updated_at")
+        constraints = [
+            # A garantia de "só uma ativa" que vale mesmo em concorrência.
+            models.UniqueConstraint(
+                fields=["is_active"],
+                condition=models.Q(is_active=True),
+                name="storefront_one_active_special_page",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return self.internal_name
+
+    # -- ativação --------------------------------------------------------------------
+
+    def save(self, *args, **kwargs):
+        """Ligar esta página desliga as outras, na mesma transação."""
+        if self.is_active:
+            with transaction.atomic():
+                outras = SpecialPage.objects.select_for_update().filter(is_active=True)
+                if self.pk:
+                    outras = outras.exclude(pk=self.pk)
+                # `list()` antes do `update()`: o `update` não aceita o
+                # `select_for_update`, e é o lock nas linhas que serializa dois
+                # administradores ativando ao mesmo tempo.
+                ids = [pagina.pk for pagina in outras]
+                if ids:
+                    SpecialPage.objects.filter(pk__in=ids).update(is_active=False)
+                super().save(*args, **kwargs)
+            return
+        super().save(*args, **kwargs)
+
+    def activate(self) -> None:
+        self.is_active = True
+        self.save(update_fields=["is_active", "updated_at"])
+
+    def deactivate(self) -> None:
+        self.is_active = False
+        self.save(update_fields=["is_active", "updated_at"])
+
+    # -- validação -------------------------------------------------------------------
+
+    def clean(self):
+        super().clean()
+        erros = {}
+        for tinta, papel, campo in (
+            (self.brand_text_color, self.brand_color, "brand_text_color"),
+            (self.accent_text_color, self.accent_color, "accent_text_color"),
+            ("navy", self.surface_color, "surface_color"),
+        ):
+            erro = check_contrast(tinta, papel, campo=campo)
+            if erro:
+                erros.update(erro)
+        try:
+            ZoneInfo(self.launch_timezone)
+        except (ZoneInfoNotFoundError, ValueError, TypeError):
+            erros["launch_timezone"] = ValidationError(
+                "Fuso horário desconhecido. Use um nome da base IANA, como Europe/Brussels.",
+                code="fuso_invalido",
+            )
+        if self.is_launch and self.show_countdown and not (self.launch_date and self.launch_time):
+            erros["launch_date"] = ValidationError(
+                "Informe a data e a hora do lançamento, ou desligue a contagem regressiva.",
+                code="lancamento_sem_data",
+            )
+        if erros:
+            raise ValidationError(erros)
+
+    # -- leitura -----------------------------------------------------------------------
+
+    @property
+    def is_launch(self) -> bool:
+        return self.kind == SpecialPageKind.LAUNCH
+
+    @property
+    def is_maintenance(self) -> bool:
+        return self.kind == SpecialPageKind.MAINTENANCE
+
+    @property
+    def launch_at(self):
+        """O instante do lançamento, com fuso — ou ``None`` sem data e hora."""
+        if not (self.launch_date and self.launch_time):
+            return None
+        try:
+            fuso = ZoneInfo(self.launch_timezone)
+        except (ZoneInfoNotFoundError, ValueError, TypeError):
+            fuso = ZoneInfo("UTC")
+        return datetime.combine(self.launch_date, self.launch_time, tzinfo=fuso)
+
+    @property
+    def is_launched(self) -> bool:
+        instante = self.launch_at
+        return instante is not None and instante <= timezone.now()
+
+    @property
+    def status_text(self) -> str:
+        return self.tr("status_text")
+
+    @property
+    def eyebrow(self) -> str:
+        return self.tr("eyebrow")
+
+    @property
+    def title(self) -> str:
+        return self.tr("title")
+
+    @property
+    def title_highlight(self) -> str:
+        return self.tr("title_highlight")
+
+    @property
+    def title_html(self):
+        """O título com o trecho destacado num `<em>` — o mesmo mecanismo do banner.
+
+        Tudo é escapado antes de a marcação entrar; o único HTML que sai daqui
+        é o `<em>`. Trecho ausente do título = título inteiro, sem destaque.
+        """
+        titulo, trecho = self.title, self.title_highlight
+        if not trecho or trecho not in titulo:
+            return mark_safe(escape(titulo))
+        antes, _, depois = titulo.partition(trecho)
+        return mark_safe(f"{escape(antes)}<em>{escape(trecho)}</em>{escape(depois)}")
+
+    @property
+    def description(self) -> str:
+        return self.tr("description")
+
+    @property
+    def description_html(self):
+        """O texto com os trechos entre `**` em negrito — e nada mais.
+
+        O desenho do lançamento destaca a data e a hora em branco dentro do
+        texto. Em vez de HTML, quem escreve marca o trecho com asteriscos
+        duplos; o texto é escapado antes e o único HTML gerado é o `<b>`.
+        """
+        partes = self.description.split("**")
+        if len(partes) < 3:
+            return mark_safe(escape(self.description))
+        saida = []
+        for indice, parte in enumerate(partes):
+            texto = escape(parte)
+            saida.append(f"<b>{texto}</b>" if indice % 2 == 1 and indice < len(partes) - 1 else texto)
+        return mark_safe("".join(saida))
+
+    @property
+    def primary_label(self) -> str:
+        return self.tr("primary_label")
+
+    @property
+    def secondary_label(self) -> str:
+        return self.tr("secondary_label")
+
+    @property
+    def has_primary(self) -> bool:
+        return bool(self.primary_enabled and self.primary_label and self.primary_url)
+
+    @property
+    def has_secondary(self) -> bool:
+        return bool(self.secondary_enabled and self.secondary_label and self.secondary_url)
+
+    @property
+    def progress_label(self) -> str:
+        return self.tr("progress_label")
+
+    @property
+    def stickers(self) -> list[dict]:
+        """Os selos com texto, com o tom de cada um. Sem texto, sem selo."""
+        saida = []
+        for numero in (1, 2, 3):
+            texto = self.tr(f"sticker_{numero}")
+            if texto:
+                saida.append({
+                    "slot": numero,
+                    "text": texto,
+                    "tone": getattr(self, f"sticker_{numero}_tone"),
+                })
+        return saida
+
+    @property
+    def visible_benefits(self) -> list:
+        return [b for b in self.benefits.all() if b.is_active and b.text]
+
+    @property
+    def footer_text(self) -> str:
+        return self.tr("footer_text")
+
+    @property
+    def countdown_done_text(self) -> str:
+        return self.tr("countdown_done_text")
+
+    @property
+    def form_placeholder(self) -> str:
+        return self.tr("form_placeholder")
+
+    @property
+    def form_button_label(self) -> str:
+        return self.tr("form_button_label")
+
+    @property
+    def form_note(self) -> str:
+        return self.tr("form_note")
+
+    @property
+    def form_success_text(self) -> str:
+        return self.tr("form_success_text")
+
+    @property
+    def has_form(self) -> bool:
+        return self.is_launch and self.show_form
+
+    @property
+    def has_countdown(self) -> bool:
+        return self.is_launch and self.show_countdown and self.launch_at is not None
+
+    @property
+    def style(self) -> str:
+        """As cores escolhidas, como variáveis CSS do atributo `style`."""
+        variaveis = {
+            "sp-surface": resolve(self.surface_color, "cream"),
+            "sp-brand": resolve(self.brand_color, "purple"),
+            "sp-brand-dk": shadow_for(self.brand_color, "purple"),
+            "sp-on-brand": resolve(self.brand_text_color, "white"),
+            "sp-accent": resolve(self.accent_color, "yellow"),
+            "sp-accent-dk": shadow_for(self.accent_color, "yellow"),
+            "sp-on-accent": resolve(self.accent_text_color, "navy"),
+            "sp-status": resolve(self.status_color, "yellow"),
+        }
+        return ";".join(f"--{nome}:{valor}" for nome, valor in variaveis.items())
+
+
+class SpecialPageTranslation(TranslationBase):
+    master = models.ForeignKey(
+        SpecialPage, verbose_name="página", related_name="translations", on_delete=models.CASCADE
+    )
+    status_text = models.CharField(
+        "status (header)", max_length=60, blank=True,
+        help_text="A pílula ao lado da logo: \"Manutenção programada\", \"Lançamento em breve\".",
+    )
+    eyebrow = models.CharField("tag", max_length=60, blank=True, help_text="A tarja amarela acima do título.")
+    title = models.CharField("título", max_length=160)
+    title_highlight = models.CharField(
+        "trecho destacado do título", max_length=80, blank=True,
+        help_text="Uma palavra ou trecho do título, copiado exatamente. Sai roxo (manutenção) ou na pílula amarela (lançamento).",
+    )
+    description = models.TextField(
+        "texto", blank=True,
+        help_text="Trechos entre ** saem em negrito: \"Lançamos no dia **1 de outubro** às **10:00**\".",
+    )
+    primary_label = models.CharField("texto do botão principal", max_length=60, blank=True)
+    secondary_label = models.CharField("texto do botão secundário", max_length=60, blank=True)
+    progress_label = models.CharField(
+        "legenda do progresso", max_length=80, blank=True,
+        help_text="Manutenção: sob a barra. Ex.: \"Imprimindo a nova versão…\".",
+    )
+    sticker_1 = models.CharField("selo 1", max_length=40, blank=True)
+    sticker_2 = models.CharField("selo 2", max_length=40, blank=True)
+    sticker_3 = models.CharField("selo 3", max_length=40, blank=True)
+    footer_text = models.CharField(
+        "texto do rodapé", max_length=120, blank=True,
+        help_text="Ex.: \"© 2026 JD Print · Feito na Bélgica\".",
+    )
+    countdown_done_text = models.CharField(
+        "texto ao zerar a contagem", max_length=120, blank=True,
+        help_text="Lançamento: o que aparece quando a data chega. Ex.: \"Já lançamos! Bem-vindo.\"",
+    )
+    form_placeholder = models.CharField("campo de e-mail (placeholder)", max_length=60, blank=True)
+    form_button_label = models.CharField("botão do formulário", max_length=60, blank=True)
+    form_note = models.CharField(
+        "nota sob o formulário", max_length=160, blank=True,
+        help_text="Ex.: \"Sem spam. Só o aviso de lançamento e o cupom.\"",
+    )
+    form_success_text = models.CharField(
+        "texto de sucesso", max_length=160, blank=True,
+        help_text="Depois de deixar o e-mail. Ex.: \"Pronto! Avisamos você no lançamento 🎉\"",
+    )
+
+    class Meta:
+        verbose_name = "tradução da página"
+        verbose_name_plural = "traduções da página"
+        constraints = [
+            models.UniqueConstraint(fields=["master", "language"], name="uq_specialpage_translation"),
+        ]
+
+
+class SpecialPageBenefit(TranslatableMixin, TimeStampedModel):
+    """Uma promessa curta sob os botões: o quadradinho colorido e o texto."""
+
+    translatable_fields = ("text",)
+
+    page = models.ForeignKey(
+        SpecialPage, verbose_name="página", related_name="benefits", on_delete=models.CASCADE
+    )
+    tone = models.CharField("cor do marcador", max_length=10, choices=Tone.choices, default=Tone.MINT)
+    sort_order = models.PositiveIntegerField("ordem", default=0)
+    is_active = models.BooleanField("ativo", default=True)
+
+    class Meta:
+        verbose_name = "benefício da página especial"
+        verbose_name_plural = "MANUTENÇÃO E LANÇAMENTO — benefícios"
+        ordering = ("sort_order", "id")
+
+    def __str__(self) -> str:
+        return self.tr("text", language=DEFAULT_LANGUAGE.value) or f"benefício #{self.pk}"
+
+    @property
+    def text(self) -> str:
+        return self.tr("text")
+
+
+class SpecialPageBenefitTranslation(TranslationBase):
+    master = models.ForeignKey(
+        SpecialPageBenefit, verbose_name="benefício", related_name="translations", on_delete=models.CASCADE
+    )
+    text = models.CharField("texto", max_length=80)
+
+    class Meta:
+        verbose_name = "tradução do benefício"
+        verbose_name_plural = "traduções do benefício"
+        constraints = [
+            models.UniqueConstraint(fields=["master", "language"], name="uq_specialpagebenefit_translation"),
+        ]
+
+
+class LaunchSubscriber(TimeStampedModel):
+    """Quem pediu para ser avisado do lançamento.
+
+    Só o e-mail, o idioma em que a pessoa escreveu e de qual página veio. Sem
+    integração externa: a lista fica no banco e sai por CSV do Admin; ligar um
+    serviço de e-mail marketing depois é ler esta tabela, não mudar o
+    formulário. O e-mail é único sem distinguir maiúsculas — a segunda
+    inscrição do mesmo endereço não cria linha nem revela que já existia.
+    """
+
+    email = models.EmailField("e-mail")
+    language = models.CharField("idioma", max_length=5, blank=True)
+    page = models.ForeignKey(
+        SpecialPage, verbose_name="página de origem", null=True, blank=True,
+        related_name="subscribers", on_delete=models.SET_NULL,
+    )
+
+    class Meta:
+        verbose_name = "inscrito do lançamento"
+        verbose_name_plural = "MANUTENÇÃO E LANÇAMENTO — inscritos"
+        ordering = ("-created_at",)
+        constraints = [
+            models.UniqueConstraint(Lower("email"), name="storefront_subscriber_email_ci"),
+        ]
+
+    def __str__(self) -> str:
+        return self.email
+
+    @classmethod
+    def subscribe(cls, email: str, *, language: str = "", page=None) -> tuple["LaunchSubscriber", bool]:
+        """Grava uma vez por endereço. Devolve (inscrito, criado)."""
+        normalizado = email.strip().lower()
+        existente = cls.objects.filter(email__iexact=normalizado).first()
+        if existente:
+            return existente, False
+        try:
+            with transaction.atomic():
+                return cls.objects.create(email=normalizado, language=language[:5], page=page), True
+        except IntegrityError:
+            # Duas inscrições do mesmo endereço no mesmo instante: a segunda
+            # encontra a primeira, e ninguém vê erro.
+            return cls.objects.get(email__iexact=normalizado), False

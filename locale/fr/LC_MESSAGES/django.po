@@ -2395,3 +2395,43 @@ msgstr "Bannière suivante"
 
 msgid "Ir para o banner %(number)s"
 msgstr "Aller à la bannière %(number)s"
+
+#: templates/storefront/special_page.html apps/storefront/views.py
+msgid "dias"
+msgstr "jours"
+
+#: templates/storefront/special_page.html apps/storefront/views.py
+msgid "horas"
+msgstr "heures"
+
+#: templates/storefront/special_page.html apps/storefront/views.py
+msgid "min"
+msgstr "min"
+
+#: templates/storefront/special_page.html apps/storefront/views.py
+msgid "seg"
+msgstr "sec"
+
+#: templates/storefront/special_page.html apps/storefront/views.py
+msgid "Contagem regressiva para o lançamento"
+msgstr "Compte à rebours jusqu'au lancement"
+
+#: templates/storefront/special_page.html apps/storefront/views.py
+msgid "Pronto! Avisamos você no lançamento."
+msgstr "C'est noté ! Nous vous préviendrons au lancement."
+
+#: templates/storefront/special_page.html apps/storefront/views.py
+msgid "Quero ser avisado →"
+msgstr "Prévenez-moi →"
+
+#: templates/storefront/special_page.html apps/storefront/views.py
+msgid "Pré-visualização"
+msgstr "Aperçu"
+
+#: templates/storefront/special_page.html apps/storefront/views.py
+msgid "voltar ao Admin"
+msgstr "retour à l'Admin"
+
+#: templates/storefront/special_page.html apps/storefront/views.py
+msgid "Muitas tentativas. Aguarde alguns minutos e tente de novo."
+msgstr "Trop de tentatives. Attendez quelques minutes et réessayez."

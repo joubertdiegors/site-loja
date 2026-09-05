@@ -133,6 +133,11 @@ class ConcurrencyNoteTests(SimpleTestCase):
     LUGARES = {
         "apps/orders/models.py",  # numeração do pedido
         "apps/orders/services.py",  # baixa de estoque e confirmação de pagamento
+        # A página de manutenção/lançamento: "só uma ativa". A trava serializa
+        # dois administradores ativando ao mesmo tempo; no SQLite ela é
+        # ignorada, mas o índice único parcial (`storefront_one_active_special_page`)
+        # continua recusando a segunda ativa — a garantia não depende da trava.
+        "apps/storefront/models.py",
     }
 
     def test_the_places_that_lock_rows_are_the_known_ones(self):
