@@ -118,6 +118,6 @@ class LaunchPageBrowserTests(LanguageResetMixin, StaticLiveServerTestCase):
                 page.wait_for_load_state("networkidle")
 
                 self.assertIn("aviso=ok", page.url)
-                self.assertTrue(page.locator(".sp-ok#aviso").is_visible())
-                self.assertEqual(page.locator(".sp-form").count(), 0)
+                self.assertTrue(page.locator(".sp-notify-done").is_visible())
+                self.assertTrue(page.locator(".sp-form").is_hidden())
         self.assertEqual(LaunchSubscriber.objects.count(), 5)

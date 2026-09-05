@@ -206,6 +206,9 @@ def render_special_page(request, page, *, form=None, preview=False):
         {
             "page": page,
             "form": form,
+            # Uma mensagem só (a primeira): a linha da nota tem a altura de uma
+            # linha, e duas frases juntas a fariam quebrar e mover o poster.
+            "form_error": next((erro for lista in form.errors.values() for erro in lista), "") if form else "",
             "subscribed": page.has_form and request.GET.get("aviso") == "ok",
             "preview": preview,
             "launch_at_iso": launch_at.isoformat() if launch_at else "",
@@ -243,5 +246,8 @@ def launch_notify(request):
         LaunchSubscriber.subscribe(
             form.cleaned_data["email"], language=get_language() or "", page=page
         )
-        return redirect(f"{reverse('home:index')}?aviso=ok#aviso")
+        # Sem fragmento (`#aviso`): ele rolaria a página até a pílula e o
+        # título sairia do alto da tela — o "salto" que parecia mudança de
+        # layout. A página reabre no topo, com o poster no mesmo lugar.
+        return redirect(f"{reverse('home:index')}?aviso=ok")
     return render_special_page(request, page, form=form)

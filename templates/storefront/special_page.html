@@ -59,24 +59,36 @@ está ativa — o que já estava indexado volta quando a loja reabre.
 
         {% if page.description %}<p class="sp-lead">{{ page.description_html }}</p>{% endif %}
 
+        {% comment %}
+          A contagem e o texto final ocupam a MESMA célula (`.sp-count` é uma
+          grade de uma célula): ao zerar, as caixas somem e o texto aparece no
+          lugar, sem mexer na altura — nada abaixo se move.
+        {% endcomment %}
         {% if page.has_countdown %}
           <div class="sp-count" data-countdown data-launch-at="{{ launch_at_iso }}"{% if launched %} data-done{% endif %}
                role="timer" aria-live="off" aria-label="{% translate 'Contagem regressiva para o lançamento' %}">
-            <div><b data-count-d>00</b><small>{% translate "dias" %}</small></div>
-            <div><b data-count-h>00</b><small>{% translate "horas" %}</small></div>
-            <div><b data-count-m>00</b><small>{% translate "min" %}</small></div>
-            <div><b data-count-s>00</b><small>{% translate "seg" %}</small></div>
+            <div class="sp-count-boxes">
+              <div><b data-count-d>00</b><small>{% translate "dias" %}</small></div>
+              <div><b data-count-h>00</b><small>{% translate "horas" %}</small></div>
+              <div><b data-count-m>00</b><small>{% translate "min" %}</small></div>
+              <div><b data-count-s>00</b><small>{% translate "seg" %}</small></div>
+            </div>
+            {% if page.countdown_done_text %}
+              <span class="sp-ok sp-count-done" data-countdown-done role="status">{{ page.countdown_done_text }}</span>
+            {% endif %}
           </div>
-          {% if page.countdown_done_text %}
-            <span class="sp-ok" data-countdown-done {% if not launched %}hidden{% endif %}>{{ page.countdown_done_text }}</span>
-          {% endif %}
         {% endif %}
 
+        {% comment %}
+          O formulário e a pílula de sucesso também dividem uma célula: depois
+          do envio o formulário continua no lugar, invisível e inerte, só para
+          reservar a altura — a pílula entra exatamente onde ele estava. O erro
+          de validação sai na linha da nota (que existe sempre que há
+          formulário), e não numa linha a mais.
+        {% endcomment %}
         {% if page.has_form %}
-          {% if subscribed %}
-            <span class="sp-ok" id="aviso" role="status">{{ page.form_success_text|default:_("Pronto! Avisamos você no lançamento.") }}</span>
-          {% else %}
-            <form class="sp-form" id="aviso" method="post" action="{% url 'storefront:launch_notify' %}" novalidate>
+          <div class="sp-notify"{% if subscribed %} data-done{% endif %}>
+            <form class="sp-form" id="aviso" method="post" action="{% url 'storefront:launch_notify' %}" novalidate{% if subscribed %} aria-hidden="true" inert{% endif %}>
               {% csrf_token %}
               <input type="email" name="email" inputmode="email" autocomplete="email" required
                      placeholder="{{ page.form_placeholder|default:'seu@email.com' }}"
@@ -86,13 +98,13 @@ está ativa — o que já estava indexado volta quando a loja reabre.
               <input type="text" name="website" class="sp-hp" tabindex="-1" autocomplete="off" aria-hidden="true">
               <button type="submit">{{ page.form_button_label|default:_("Quero ser avisado →") }}</button>
             </form>
-            {% if form.errors %}
-              <span class="sp-error" id="aviso-erro" role="alert">
-                {% for erros in form.errors.values %}{% for erro in erros %}{{ erro }} {% endfor %}{% endfor %}
-              </span>
+            {% if subscribed %}
+              <span class="sp-ok sp-notify-done" role="status">{{ page.form_success_text|default:_("Pronto! Avisamos você no lançamento.") }}</span>
             {% endif %}
-          {% endif %}
-          {% if page.form_note %}<p class="sp-note">{{ page.form_note }}</p>{% endif %}
+          </div>
+          <p class="sp-note{% if form_error %} sp-note-error{% endif %}"{% if form_error %} id="aviso-erro" role="alert"{% endif %}>
+            {% if form_error %}{{ form_error }}{% else %}{{ page.form_note }}{% endif %}
+          </p>
         {% endif %}
 
         {% if page.visible_benefits %}

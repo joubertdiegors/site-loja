@@ -2,9 +2,10 @@
 
    O instante vem do cadastro, em `data-launch-at` (ISO 8601 com o fuso que
    o Admin escolheu) — nada de data escrita aqui. O navegador conta no relógio
-   dele; ao chegar a zero, os mostradores ficam em 00, o elemento
-   `[data-countdown-done]` aparece e a contagem para. Se a data já passou
-   quando a página abre, o servidor já a entrega nesse estado. */
+   dele; ao chegar a zero, os mostradores ficam em 00, `data-done` entra no
+   contêiner (o CSS troca as caixas pelo texto final, na mesma célula, sem
+   mexer na altura) e a contagem para. Se a data já passou quando a página
+   abre, o servidor já a entrega nesse estado. */
 (function () {
   "use strict";
 
@@ -23,7 +24,6 @@
     m: root.querySelector("[data-count-m]"),
     s: root.querySelector("[data-count-s]")
   };
-  var done = document.querySelector("[data-countdown-done]");
   var timer = null;
 
   function pad(n) {
@@ -38,9 +38,6 @@
     if (cells.s) { cells.s.textContent = pad(Math.floor(left % 60)); }
     if (left <= 0) {
       root.setAttribute("data-done", "");
-      if (done) {
-        done.hidden = false;
-      }
       if (timer) {
         window.clearInterval(timer);
       }

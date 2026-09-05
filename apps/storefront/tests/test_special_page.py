@@ -400,7 +400,7 @@ class LaunchActiveTests(SpecialPageBase):
         response = self.client.post(AVISO, {"email": "Ana@Exemplo.test", "website": ""})
 
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response["Location"], "/?aviso=ok#aviso")
+        self.assertEqual(response["Location"], "/?aviso=ok")
         inscrito = LaunchSubscriber.objects.get()
         self.assertEqual(inscrito.email, "ana@exemplo.test")
         self.assertEqual(inscrito.page, self.page)
@@ -408,12 +408,15 @@ class LaunchActiveTests(SpecialPageBase):
 
         html = self.client.get("/?aviso=ok").content.decode()
         self.assertIn("Pronto! Avisamos você.", html)
-        self.assertNotIn('class="sp-form"', html)
+        # O formulário continua no HTML só para reservar a altura: invisível e inerte.
+        self.assertIn('<div class="sp-notify" data-done>', html)
+        self.assertIn('novalidate aria-hidden="true" inert>', html)
+        self.assertIn("sp-notify-done", html)
 
     def test_subscribe_in_french_records_the_language_and_redirects_to_fr(self):
         response = self.client.post("/fr" + AVISO, {"email": "luc@exemple.test", "website": ""})
 
-        self.assertEqual(response["Location"], "/fr/?aviso=ok#aviso")
+        self.assertEqual(response["Location"], "/fr/?aviso=ok")
         self.assertEqual(LaunchSubscriber.objects.get().language, "fr")
 
     def test_duplicates_do_not_create_rows_and_look_the_same(self):
@@ -429,7 +432,7 @@ class LaunchActiveTests(SpecialPageBase):
 
         self.assertEqual(response.status_code, 200)
         self.assertIn("Informe um e-mail válido.", response.content.decode())
-        self.assertIn("sp-error", response.content.decode())
+        self.assertIn("sp-note-error", response.content.decode())
         self.assertEqual(LaunchSubscriber.objects.count(), 0)
 
     def test_honeypot_blocks_robots(self):
