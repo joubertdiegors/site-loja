@@ -1,0 +1,429 @@
+/* Os formulários do Admin como um painel: campos relacionados lado a lado,
+   rótulo em cima do campo, seções bem separadas e a pré-visualização ao vivo
+   na coluna da direita.
+
+   É a folha global (entra pelo `templates/admin/base_site.html`). Nada aqui
+   cria um sistema visual novo: são os componentes do próprio Django com a
+   grade e o espaçamento acertados. */
+
+/* ---- rótulo em cima, campo ocupando a linha ------------------------------ */
+
+.change-form .aligned .form-row {
+  padding: 12px 14px;
+}
+
+.change-form .aligned label,
+.change-form .aligned .form-row > div > label {
+  float: none;
+  display: block;
+  width: auto;
+  min-width: 0;
+  padding: 0 0 5px;
+  font-weight: 600;
+}
+
+.change-form .aligned .checkbox-row label,
+.change-form .aligned div.checkbox label {
+  display: inline;
+  padding: 0 0 0 6px;
+  font-weight: 500;
+}
+
+.change-form .aligned .form-row .vTextField,
+.change-form .aligned .form-row .vURLField,
+.change-form .aligned .form-row .vLargeTextField,
+.change-form .aligned .form-row .vDateField,
+.change-form .aligned .form-row .vTimeField,
+.change-form .aligned .form-row .vIntegerField,
+.change-form .aligned .form-row .vBigIntegerField,
+.change-form .aligned .form-row .vForeignKeyRawIdAdminField,
+.change-form .aligned .form-row input[type="text"],
+.change-form .aligned .form-row input[type="email"],
+.change-form .aligned .form-row input[type="url"],
+.change-form .aligned .form-row input[type="number"],
+.change-form .aligned .form-row input[type="password"],
+.change-form .aligned .form-row select:not([multiple]),
+.change-form .aligned .form-row textarea {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.change-form .aligned .form-row .vIntegerField,
+.change-form .aligned .form-row .vDateField,
+.change-form .aligned .form-row .vTimeField,
+.change-form .aligned .form-row input[type="number"] {
+  max-width: 14em;
+}
+
+.change-form .aligned .form-row textarea {
+  min-height: 6.5em;
+}
+
+.change-form .aligned .form-row .help,
+.change-form .aligned .form-row p.help,
+.change-form .aligned .form-row div.help {
+  margin: 4px 0 0;
+  padding: 0;
+  font-size: 0.75rem;
+}
+
+.change-form .aligned .form-row .readonly {
+  padding-top: 2px;
+}
+
+/* ---- a grade: campos relacionados dividem a linha ---------------------------- */
+
+.change-form .form-row.form-multiline {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 12px 24px;
+  align-items: start;
+}
+
+.change-form .form-row.form-multiline > .fieldBox {
+  margin: 0;
+  width: auto;
+  min-width: 0;
+  flex: none;
+  gap: 0;
+}
+
+.change-form .form-row.form-multiline > .fieldBox.checkbox-row {
+  padding-top: 26px; /* alinha a caixa com os campos ao lado */
+}
+
+.change-form .form-row.form-multiline > .fieldBox .errorlist {
+  margin: 4px 0 0;
+}
+
+/* Django empilha rótulo e campo dentro do fieldBox com `flex-container`. */
+.change-form .form-row .fieldBox.flex-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* ---- as seções ---------------------------------------------------------------- */
+
+.change-form fieldset.module {
+  margin-bottom: 20px;
+  border-radius: 8px;
+}
+
+.change-form fieldset.module .description {
+  padding: 10px 14px 4px;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--body-quiet-color);
+}
+
+.change-form .inline-group {
+  margin-bottom: 20px;
+}
+
+/* A tabela de um inline tabular (ex.: os links de uma coluna do rodapé) rola
+   dentro dela mesma em telas estreitas, em vez de empurrar a página. */
+.change-form .inline-group .tabular {
+  overflow-x: auto;
+}
+
+.change-form .inline-related h3 {
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+}
+
+.change-form .inline-related .inline_label {
+  font-weight: 600;
+}
+
+/* ---- pré-visualização em cima, formulário embaixo -------------------------- */
+
+.jd-has-preview #content-main {
+  max-width: none;
+}
+
+.jd-preview {
+  position: sticky;
+  top: 0;
+  z-index: 12; /* acima dos campos, abaixo dos menus do select2 (1051) */
+  margin: 0 0 20px;
+  border: 1px solid var(--hairline-color);
+  border-radius: 8px;
+  background: var(--darkened-bg);
+  padding: 12px 14px 10px;
+}
+
+/* Grudado no alto da janela: sombra para descolar do formulário que rola. */
+.jd-preview.is-stuck {
+  border-radius: 0 0 8px 8px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.14);
+}
+
+/* O quadro flutuando sob o cabeçalho: não ocupa espaço no fluxo, cabe na
+   janela e rola por dentro se precisar. */
+.jd-preview.is-overlay .jd-preview-body {
+  position: absolute;
+  top: 100%;
+  left: -1px;
+  right: -1px;
+  margin: 0;
+  padding: 8px 14px 10px;
+  border: 1px solid var(--hairline-color);
+  border-top: 0;
+  border-radius: 0 0 8px 8px;
+  background: var(--darkened-bg);
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.2);
+  max-height: calc(100vh - 90px);
+  overflow: auto;
+}
+
+.jd-preview.is-overlay {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.jd-preview-anchor {
+  height: 0;
+}
+
+.jd-preview-spacer {
+  height: 0;
+}
+
+.jd-preview-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.jd-preview-head h2 {
+  margin: 0;
+  padding: 0;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--body-quiet-color);
+  background: none;
+}
+
+.jd-preview-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+}
+
+.jd-preview-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.jd-preview-tools button {
+  padding: 3px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: var(--body-bg);
+  color: var(--body-fg);
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.5;
+  cursor: pointer;
+}
+
+.jd-preview-tools button.is-on {
+  background: var(--button-bg);
+  border-color: var(--button-bg);
+  color: var(--button-fg);
+}
+
+.jd-preview-toggle {
+  border-style: dashed;
+}
+
+.jd-preview-body {
+  margin-top: 8px;
+}
+
+.jd-preview.is-collapsed .jd-preview-body {
+  display: none;
+}
+
+.jd-preview-note {
+  margin: 0 0 8px;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--body-quiet-color);
+}
+
+.jd-preview-stage {
+  overflow: auto;
+  border: 1px solid var(--hairline-color);
+  border-radius: 6px;
+  background: #faf8f4;
+}
+
+/* Largura fixa (tablet/celular): o quadro centralizado num palco cinza. */
+.jd-preview-stage.is-narrow {
+  padding: 16px 12px;
+  background: var(--darkened-bg);
+}
+
+.jd-preview-stage iframe {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: 320px;
+  border: 0;
+  background: #faf8f4;
+  margin: 0 auto;
+}
+
+.jd-preview-stage.is-narrow iframe {
+  border: 1px solid var(--hairline-color);
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.jd-preview-status {
+  margin: 8px 0 0;
+  font-size: 0.72rem;
+  color: var(--body-quiet-color);
+}
+
+/* ---- inline tabular como cards nas telas estreitas (fieldset.jd-cards) ------- */
+
+@media (max-width: 820px) {
+  .change-form fieldset.jd-cards .tabular {
+    overflow: visible;
+  }
+
+  .change-form fieldset.jd-cards table,
+  .change-form fieldset.jd-cards tbody,
+  .change-form fieldset.jd-cards tbody tr,
+  .change-form fieldset.jd-cards tbody td {
+    display: block;
+    width: auto;
+    box-sizing: border-box;
+  }
+
+  .change-form fieldset.jd-cards thead {
+    display: none;
+  }
+
+  .change-form fieldset.jd-cards tbody tr.empty-form {
+    display: none;
+  }
+
+  .change-form fieldset.jd-cards tbody tr {
+    margin: 0 0 12px;
+    padding: 10px 12px 6px;
+    border: 1px solid var(--hairline-color);
+    border-radius: 8px;
+    background: var(--body-bg);
+  }
+
+  .change-form fieldset.jd-cards tbody tr.add-row,
+  .change-form fieldset.jd-cards tbody tr.row-form-errors {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+
+  .change-form fieldset.jd-cards tbody td {
+    padding: 4px 0 8px;
+    border: 0;
+    vertical-align: top;
+  }
+
+  .change-form fieldset.jd-cards tbody td.original {
+    padding: 0 0 6px;
+    font-weight: 600;
+  }
+
+  .change-form fieldset.jd-cards tbody td.original:empty,
+  .change-form fieldset.jd-cards tbody td.original p:empty {
+    display: none;
+  }
+
+  .change-form fieldset.jd-cards tbody td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    margin: 0 0 3px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--body-quiet-color);
+  }
+
+  .change-form fieldset.jd-cards tbody td input[type="text"],
+  .change-form fieldset.jd-cards tbody td input[type="url"],
+  .change-form fieldset.jd-cards tbody td input[type="email"],
+  .change-form fieldset.jd-cards tbody td select,
+  .change-form fieldset.jd-cards tbody td textarea {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .change-form fieldset.jd-cards tbody td input[type="number"],
+  .change-form fieldset.jd-cards tbody td .vIntegerField {
+    width: 100%;
+    max-width: 8em;
+    box-sizing: border-box;
+  }
+
+  .change-form fieldset.jd-cards tbody td.delete,
+  .change-form fieldset.jd-cards tbody td.field-is_active {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .change-form fieldset.jd-cards tbody td.delete::before,
+  .change-form fieldset.jd-cards tbody td.field-is_active::before {
+    margin: 0;
+  }
+
+  .change-form fieldset.jd-cards tbody td .errorlist {
+    margin: 4px 0 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .jd-preview {
+    padding: 10px 10px 8px;
+  }
+
+  .jd-preview-tools button {
+    padding: 2px 8px;
+    font-size: 0.68rem;
+  }
+
+  .jd-preview-stage.is-narrow {
+    padding: 8px 0;
+  }
+}
+
+@media (max-width: 767px) {
+  /* O Django dá `width: calc(100vw - 30px)` ao bloco do campo, contando só
+     com a margem da página; dentro de um bloco de idioma (que tem o seu
+     próprio recuo) isso passa da borda da tela. O bloco ocupa a linha dele. */
+  .change-form .aligned .form-row > div {
+    width: auto;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .change-form .form-row.form-multiline {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .change-form .form-row.form-multiline > .fieldBox.checkbox-row {
+    padding-top: 0;
+  }
+}

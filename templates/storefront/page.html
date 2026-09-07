@@ -40,35 +40,7 @@ de `FooterSettings` — o mesmo cadastro do rodapé, não uma segunda cópia.
     </nav>
 
     <div class="mx-auto max-w-3xl">
-      <header>
-        <p class="section-eyebrow">{% translate "Informações" %}</p>
-        <h1 class="page-title mt-2">{{ page_title }}</h1>
-        {% if page.intro %}
-          <p class="section-subtitle">{{ page.intro }}</p>
-        {% endif %}
-      </header>
-
-      {% if page.body %}
-        <div class="prose-jd mt-8">{% rich_text page.body %}</div>
-
-        {% if page_cta_url %}
-          <a href="{{ page_cta_url }}" class="btn-primary mt-8 w-full sm:w-auto">
-            {% translate "Falar com a gente" %}
-            {% icon "arrow-right" "h-4 w-4 rtl:rotate-180" %}
-          </a>
-        {% endif %}
-      {% elif not form %}
-        <div class="empty-state mt-8">
-          <span class="empty-state-icon" aria-hidden="true">{% icon "clock" "h-6 w-6" %}</span>
-          <p class="card-title">{% translate "Conteúdo em preparação" %}</p>
-          <p class="max-w-md text-sm text-ink-soft">
-            {% translate "Esta informação está sendo escrita. Se precisar dela agora, fale com a gente." %}
-          </p>
-          <a href="{% url 'storefront:page_contact' %}" class="btn-secondary btn-sm mt-1">
-            {% translate "Falar com a gente" %}
-          </a>
-        </div>
-      {% endif %}
+      {% include "storefront/_page_article.html" %}
 
       {% if form %}
         {% include "storefront/_page_form.html" %}

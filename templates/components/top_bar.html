@@ -1,0 +1,37 @@
+{% load i18n jdprint %}
+{% comment %}
+A faixa do topo — o componente é o mesmo no site (incluído pelo header) e na
+pré-visualização do Admin.
+{% endcomment %}
+{% if top_bar_items %}
+  {% comment %}
+    A faixa do topo, no desenho da referência: fundo navy, texto pequeno em
+    maiúsculas com bastante entreletra, e cada promessa numa cor diferente —
+    amarelo, menta e coral. A cor é do cadastro (`TopBarItem.color`), validada
+    contra o navy no `clean()` do modelo, e chega aqui como variável CSS.
+
+    Sem separador: o que separa é o espaço de 36px e a troca de cor. O ponto
+    que havia antes existia porque tudo era da mesma tinta.
+
+    Nas telas estreitas a faixa quebra em duas linhas em vez de esconder itens:
+    a promessa cadastrada é para ser lida, e `flex-wrap` custa menos do que
+    decidir qual delas o cliente não precisa ver.
+  {% endcomment %}
+  <div class="topbar" data-top-bar>
+    {% for item in top_bar_items %}
+      {% if item.text %}
+        {% if item.link_url %}
+          <a class="topbar-item focus-ring" style="{{ item.style }}" href="{{ item.link_url }}">
+            {% if item.icon %}{% icon item.icon "h-3.5 w-3.5 shrink-0" %}{% endif %}
+            {{ item.text }}
+          </a>
+        {% else %}
+          <span class="topbar-item" style="{{ item.style }}">
+            {% if item.icon %}{% icon item.icon "h-3.5 w-3.5 shrink-0" %}{% endif %}
+            {{ item.text }}
+          </span>
+        {% endif %}
+      {% endif %}
+    {% endfor %}
+  </div>
+{% endif %}

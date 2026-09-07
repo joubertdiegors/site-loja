@@ -46,6 +46,7 @@ from apps.home.models import (
     HomeCard,
     HomeCardTranslation,
     HomeSection,
+    HomeSectionType,
     HomeSectionLayout,
     HomeSectionProduct,
     HomeSectionTranslation,
@@ -101,6 +102,10 @@ SHIPPING_RATES = [
 ]
 
 #: Os três cards abaixo do banner: (nome interno, ícone, cor, ordem, textos).
+#: As seções da composição que posicionam os cards e a chamada de demonstração.
+DEMO_CARDS_SECTION = "Como trabalhamos (demonstração)"
+DEMO_CALLOUT_SECTION = "Chamada final (demonstração)"
+
 HOME_CARDS = [
     (
         "producao-propria", "cube", "brand", 0,
@@ -1201,19 +1206,36 @@ class Command(BaseCommand):
     # -- Home: cards e chamada ---------------------------------------------
 
     def create_cards(self):
+        # Os cards pertencem a uma seção «Como trabalhamos» da composição.
+        secao, _criada = HomeSection.objects.get_or_create(
+            internal_name=DEMO_CARDS_SECTION,
+            defaults={"section_type": HomeSectionType.HOW_WE_WORK, "sort_order": 900, "is_active": True},
+        )
         for internal_name, icon, accent, order, texts in HOME_CARDS:
             card, _created = HomeCard.objects.get_or_create(
                 internal_name=internal_name,
-                defaults={"icon": icon, "accent": accent, "sort_order": order, "is_active": True},
+                defaults={
+                    "section": secao, "icon": icon, "accent": accent, "sort_order": order, "is_active": True,
+                },
             )
+            if card.section_id is None:
+                card.section = secao
+                card.save(update_fields=["section"])
             for language, (title, text) in texts.items():
                 HomeCardTranslation.objects.get_or_create(
                     master=card, language=language, defaults={"title": title, "text": text}
                 )
 
     def create_callout(self, categories):
-        """A chamada final. Uma linha só (`load()` cuida disso)."""
+        """A chamada final: o texto padrão (`load()`) e a seção que o posiciona."""
         callout = HomeCallout.load()
+        HomeSection.objects.get_or_create(
+            internal_name=DEMO_CALLOUT_SECTION,
+            defaults={
+                "section_type": HomeSectionType.CALLOUT, "callout": callout,
+                "sort_order": 910, "is_active": True,
+            },
+        )
         target = categories.get("modelos")
         if target is not None and callout.cta_category_id is None and not callout.cta_url:
             callout.cta_target = CtaTarget.CATEGORY
@@ -1288,7 +1310,7 @@ class Command(BaseCommand):
     # -- remoção -----------------------------------------------------------
 
     def remove_demo_data(self):
-        section_names = [data["internal_name"] for data in SECTIONS]
+        section_names = [data["internal_name"] for data in SECTIONS] + [DEMO_CARDS_SECTION, DEMO_CALLOUT_SECTION]
         sections = HomeSection.objects.filter(internal_name__in=section_names)
         banner_names = [BANNER["internal_name"]] + [d["internal_name"] for d in EXTRA_BANNERS]
         banners = HomeBanner.objects.filter(internal_name__in=banner_names)

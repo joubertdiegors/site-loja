@@ -1,0 +1,55 @@
+/* O menu do Admin (índice e barra lateral), organizado como a loja é vista.
+
+   Ver config/admin.py: cada caixa é uma seção por assunto, e dentro dela há
+   subtítulos ("1 · Faixa do topo", "2 · Banner principal"...), itens e itens
+   recuados — o que "faz parte" do item logo acima (as pílulas do bloco
+   "Sobre a loja", os passos da chamada final). A dica em letra menor só sai
+   no índice; a barra lateral é estreita. */
+
+.module tr.jd-grupo th {
+  padding-top: 12px;
+  padding-bottom: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--body-quiet-color);
+  background: transparent;
+  border-bottom: 0;
+}
+
+.module tr.jd-grupo:first-child th {
+  padding-top: 6px;
+}
+
+.module tr.jd-grupo .jd-dica {
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.module tr.jd-sub th {
+  padding-left: 26px;
+}
+
+.module tr.jd-sub th::before {
+  content: "↳ ";
+  color: var(--body-quiet-color);
+}
+
+.jd-dica {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.35;
+  color: var(--body-quiet-color);
+}
+
+/* Na barra lateral, sem as dicas: só os nomes. */
+#nav-sidebar .jd-dica {
+  display: none;
+}
+
+#nav-sidebar tr.jd-grupo th {
+  padding-top: 10px;
+}

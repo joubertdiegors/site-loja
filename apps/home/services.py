@@ -4,10 +4,30 @@ A view não sabe de onde vêm os produtos de cada seção — quem sabe é este
 módulo. Cada tipo de seção tem um resolvedor; acrescentar "promoções" ou
 "lançamentos da marca X" é acrescentar uma função aqui.
 
+## A composição
+
+Desde a etapa 20 a Home é a **lista das seções ativas, na ordem** — todas
+elas: as faixas de produtos e também os blocos (categorias em destaque, como
+trabalhamos, chamada final, sobre a loja), que antes tinham posição fixa no
+template. `get_home_sections` devolve cada seção já resolvida e pronta para o
+template, e descarta as que não têm o que mostrar: um título com zero
+produtos, uma seção de categorias sem blocos, uma chamada desativada.
+
+A **faixa de fundo** de cada seção é consequência da posição entre as que
+sobraram: a primeira depois do banner é branca, a segunda creme, e assim por
+diante (`band`). Remover ou mover uma seção reajusta as outras sozinho — não
+há cor gravada em lugar nenhum. Os blocos que têm fundo próprio no cadastro
+(a chamada final, o "Sobre a loja") e a faixa lilás de "Como trabalhamos"
+pintam por cima da faixa; ela continua contando na alternância.
+
+Sem nenhuma seção cadastrada (uma instalação recém-migrada) a Home mostra a
+composição padrão: o aviso de vitrine em montagem, os três cards de sempre e
+a chamada final de fábrica — o primeiro cadastro a substitui.
+
 Cuidado com consultas: a Home carrega tudo com ``select_related`` /
 ``prefetch_related`` e resolve categorias em memória. O custo é constante em
-relação ao número de produtos e cresce apenas com o número de seções ativas
-(uma consulta por seção dinâmica).
+relação ao número de produtos e de blocos, e cresce apenas com o número de
+seções de produtos ativas (uma consulta por seção dinâmica).
 """
 
 from dataclasses import dataclass, field
@@ -17,7 +37,14 @@ from django.db.models import Count, Prefetch
 from apps.catalog.models import Product, ProductStatus, ProductVariant
 from apps.categories.models import Category
 from apps.categories.tree import CategoryTree
-from apps.home.models import HomeBanner, HomeSection, HomeSectionProduct, HomeSectionType
+from apps.home.models import (
+    HomeBanner,
+    HomeCard,
+    HomeCategoryCard,
+    HomeSection,
+    HomeSectionProduct,
+    HomeSectionType,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -60,46 +87,84 @@ def product_card_queryset():
 # Seção resolvida
 # ---------------------------------------------------------------------------
 
+#: As duas faixas de fundo que se alternam. A primeira seção depois do banner
+#: é branca — é o que a separa do creme em que o banner está.
+BANDS = ("white", "cream")
+
 
 @dataclass
 class ResolvedSection:
-    """Uma seção pronta para o template: configuração + produtos já carregados."""
+    """Uma seção pronta para o template: configuração + conteúdo já carregado.
 
-    section: HomeSection
+    `kind` diz ao template qual componente desenhar; `band` é a faixa de fundo
+    desta posição. As seções padrão da instalação vazia não têm `section`.
+    """
+
+    section: HomeSection | None
+    kind: str
     products: list = field(default_factory=list)
+    blocks: list = field(default_factory=list)  # HomeCategoryCard
+    cards: list = field(default_factory=list)  # HomeCard
+    callout: object = None  # HomeCallout
+    about: object = None  # HomeAbout
+    use_defaults: bool = False  # cards/chamada de fábrica
+    band: str = BANDS[0]
+
+    KIND_PRODUCTS = "products"
+    KIND_CATEGORY_CARDS = "category_cards"
+    KIND_HOW_WE_WORK = "how_we_work"
+    KIND_CALLOUT = "callout"
+    KIND_ABOUT = "about"
 
     @property
     def is_renderable(self) -> bool:
-        return bool(self.products)
+        if self.kind == self.KIND_PRODUCTS:
+            return bool(self.products)
+        if self.kind == self.KIND_CATEGORY_CARDS:
+            return bool(self.blocks)
+        if self.kind == self.KIND_HOW_WE_WORK:
+            return bool(self.cards) or self.use_defaults
+        if self.kind == self.KIND_CALLOUT:
+            return self.callout is not None or self.use_defaults
+        if self.kind == self.KIND_ABOUT:
+            return self.about is not None
+        return False
 
     # Atalhos usados pelo template (evitam lógica no HTML).
     @property
     def title(self) -> str:
-        return self.section.title
+        return self.section.title if self.section else ""
 
     @property
     def subtitle(self) -> str:
-        return self.section.subtitle
+        return self.section.subtitle if self.section else ""
 
     @property
     def layout(self) -> str:
-        return self.section.layout
+        return self.section.layout if self.section else ""
 
     @property
     def has_cta(self) -> bool:
-        return self.section.has_cta
+        return bool(self.section and self.section.has_cta)
 
     @property
     def cta_link(self) -> str:
-        return self.section.cta_link
+        return self.section.cta_link if self.section else ""
 
     @property
     def cta_label(self) -> str:
-        return self.section.cta_label
+        return self.section.cta_label if self.section else ""
 
     @property
     def anchor(self) -> str:
+        """Um id único por seção — duas do mesmo tipo não podem dividir um id."""
+        if self.section is None:
+            return f"secao-{self.kind}"
         return f"secao-{self.section.pk}"
+
+    @property
+    def is_white(self) -> bool:
+        return self.band == "white"
 
 
 # ---------------------------------------------------------------------------
@@ -168,12 +233,79 @@ RESOLVERS = {
 
 
 # ---------------------------------------------------------------------------
+# Os blocos
+# ---------------------------------------------------------------------------
+
+
+def _category_cards_section(section: HomeSection) -> ResolvedSection:
+    """Os blocos coloridos desta seção (prefetch de ``category_cards``)."""
+    blocks = [b for b in section.category_cards.all() if b.is_active]
+    return ResolvedSection(section=section, kind=ResolvedSection.KIND_CATEGORY_CARDS, blocks=blocks)
+
+
+def _how_we_work_section(section: HomeSection) -> ResolvedSection:
+    """Os cards desta seção — e, sem nenhum cadastrado, os três de fábrica.
+
+    Dois estados diferentes de propósito: seção sem card nenhum mostra os
+    padrões (a seção acabou de ser criada e a Home não abre com um buraco);
+    seção com cards, todos desativados, não mostra nada — desativar é uma
+    decisão do administrador, e ela vale.
+    """
+    todos = list(section.cards.all())
+    ativos = [card for card in todos if card.is_active]
+    return ResolvedSection(
+        section=section,
+        kind=ResolvedSection.KIND_HOW_WE_WORK,
+        cards=ativos,
+        use_defaults=not todos,
+    )
+
+
+def _callout_section(section: HomeSection) -> ResolvedSection:
+    """A chamada escolhida — ou a de fábrica, quando a seção não escolheu.
+
+    Escolhida e **desativada**, ou escolhida e **vazia**, a seção não desenha
+    nada: uma faixa escura vazia é pior que faixa nenhuma, e desativar é uma
+    decisão. Sem escolha (`callout` vazio) vale o texto padrão, para a seção
+    recém-criada não abrir um buraco na página.
+    """
+    chamada = section.callout
+    if chamada is None:
+        return ResolvedSection(section=section, kind=ResolvedSection.KIND_CALLOUT, use_defaults=True)
+    if not chamada.is_active or not chamada.has_content:
+        return ResolvedSection(section=section, kind=ResolvedSection.KIND_CALLOUT)
+    return ResolvedSection(section=section, kind=ResolvedSection.KIND_CALLOUT, callout=chamada)
+
+
+def _about_section(section: HomeSection) -> ResolvedSection:
+    sobre = section.about
+    if sobre is None or not sobre.is_active or not sobre.has_content:
+        return ResolvedSection(section=section, kind=ResolvedSection.KIND_ABOUT)
+    return ResolvedSection(section=section, kind=ResolvedSection.KIND_ABOUT, about=sobre)
+
+
+BLOCK_RESOLVERS = {
+    HomeSectionType.CATEGORY_CARDS: _category_cards_section,
+    HomeSectionType.HOW_WE_WORK: _how_we_work_section,
+    HomeSectionType.CALLOUT: _callout_section,
+    HomeSectionType.ABOUT: _about_section,
+}
+
+
+# ---------------------------------------------------------------------------
 # API pública
 # ---------------------------------------------------------------------------
 
 
-def active_sections_queryset():
-    """Seções ativas, ordenadas, com tudo o que o template vai precisar."""
+def section_prefetches():
+    """Os prefetches de uma seção — para a lista da Home e para uma seção só.
+
+    Uma consulta para as seções e um número **fixo** de prefetches — os
+    produtos manuais, os blocos de categoria, os cards, a chamada com os
+    passos, o "Sobre a loja" com as pílulas, cada um com as suas traduções.
+    Cadastrar mais seções, mais blocos ou mais pílulas não acrescenta
+    consulta nenhuma; é o que `HomeQueryTests` prova.
+    """
     manual_items = (
         HomeSectionProduct.objects.select_related("product", "product__category")
         .prefetch_related(
@@ -191,40 +323,99 @@ def active_sections_queryset():
         )
         .order_by("sort_order", "id")
     )
+    category_cards = (
+        HomeCategoryCard.objects.select_related("category")
+        .prefetch_related("translations", "category__translations")
+        .order_by("sort_order", "id")
+    )
+    cards = HomeCard.objects.prefetch_related("translations").order_by("sort_order", "id")
     return (
-        HomeSection.objects.active()
-        .ordered()
-        .select_related("category", "cta_category", "cta_product")
-        .prefetch_related(
-            "translations",
-            "category__translations",
-            "cta_category__translations",
-            "cta_product__translations",
-            Prefetch("items", queryset=manual_items),
-        )
+        "translations",
+        "category__translations",
+        "cta_category__translations",
+        "cta_product__translations",
+        Prefetch("items", queryset=manual_items),
+        Prefetch("category_cards", queryset=category_cards),
+        Prefetch("cards", queryset=cards),
+        "callout__translations",
+        "callout__cta_category__translations",
+        "callout__cta_product__translations",
+        "callout__steps__translations",
+        "about__translations",
+        "about__badges__translations",
     )
 
 
+def active_sections_queryset():
+    """Seções ativas, ordenadas, com tudo o que o template vai precisar."""
+    return (
+        HomeSection.objects.active()
+        .ordered()
+        .select_related(
+            "category", "cta_category", "cta_product",
+            "callout", "callout__cta_category", "callout__cta_product",
+            "about",
+        )
+        .prefetch_related(*section_prefetches())
+    )
+
+
+def _default_composition() -> list[ResolvedSection]:
+    """A Home de uma instalação sem nenhuma seção cadastrada.
+
+    Os três cards de sempre e a chamada final de fábrica — o que impede a loja
+    recém-migrada de abrir pela metade. O primeiro cadastro em "Seções da
+    Home" substitui tudo isto.
+    """
+    return [
+        ResolvedSection(section=None, kind=ResolvedSection.KIND_HOW_WE_WORK, use_defaults=True),
+        ResolvedSection(section=None, kind=ResolvedSection.KIND_CALLOUT, use_defaults=True),
+    ]
+
+
+def _with_bands(entries: list[ResolvedSection]) -> list[ResolvedSection]:
+    """A faixa de fundo de cada seção, pela posição entre as que sobraram."""
+    for index, entry in enumerate(entries):
+        entry.band = BANDS[index % len(BANDS)]
+    return entries
+
+
 def get_home_sections(tree: CategoryTree | None = None) -> list[ResolvedSection]:
-    """Seções ativas já resolvidas, sem as vazias.
+    """A composição da Home: as seções ativas já resolvidas, sem as vazias.
 
     Uma seção ativa cujo conteúdo não existe (categoria sem produtos, nenhum
-    produto em destaque, mais vendidos sem módulo de pedidos) é descartada
-    aqui — a Home nunca mostra um título com zero produtos.
+    produto em destaque, seção de categorias sem blocos, chamada desativada) é
+    descartada aqui — a Home nunca mostra um título com zero produtos nem uma
+    faixa vazia. As faixas de fundo são numeradas **depois** do descarte: é a
+    posição na página que conta, não a do cadastro.
     """
     tree = tree or CategoryTree.load()
     resolved = []
 
     for section in active_sections_queryset():
-        resolver = RESOLVERS.get(section.section_type)
-        if resolver is None:
-            continue
-        products = resolver(section, tree)
-        candidate = ResolvedSection(section=section, products=products)
-        if candidate.is_renderable:
+        candidate = resolve_section(section, tree)
+        if candidate is not None and candidate.is_renderable:
             resolved.append(candidate)
 
-    return resolved
+    return _with_bands(resolved)
+
+
+def resolve_section(section: HomeSection, tree: CategoryTree | None = None) -> ResolvedSection | None:
+    """Uma seção resolvida — a mesma rotina da Home, para uma seção só.
+
+    É o que a pré-visualização do Admin usa: a seção como está no formulário,
+    resolvida exatamente como a Home a resolveria. `None` para um tipo sem
+    resolvedor.
+    """
+    if section.section_type in BLOCK_RESOLVERS:
+        return BLOCK_RESOLVERS[section.section_type](section)
+    resolver = RESOLVERS.get(section.section_type)
+    if resolver is None:
+        return None
+    tree = tree or CategoryTree.load()
+    return ResolvedSection(
+        section=section, kind=ResolvedSection.KIND_PRODUCTS, products=resolver(section, tree)
+    )
 
 
 def get_active_banners() -> list[HomeBanner]:
@@ -307,83 +498,22 @@ def get_category_cards(tree: CategoryTree | None = None, limit: int = 8) -> list
     return cards[:limit]
 
 
-def get_home_cards():
-    """Os cards ativos, na ordem — e se **existe** cadastro.
-
-    Duas informações, porque são dois estados diferentes:
-
-    * sem cadastro nenhum -> o template usa os três cards padrão, e a loja
-      recém-migrada abre igual ao que era;
-    * cadastro existe, mas nada ativo -> a seção some. É uma decisão do
-      administrador, e ela tem de valer.
-
-    Com um `{% empty %}` simples os dois seriam o mesmo estado, e desativar o
-    único card faria os padrões voltarem — sem jeito de remover a seção.
-    """
-    from apps.home.models import HomeCard
-
-    # Uma consulta, e o filtro de "ativo" em memória: perguntar duas vezes à
-    # mesma tabela ("me dê os ativos" e depois "existe algum?") seriam duas
-    # idas ao banco em toda visita à Home. São punhados de registros.
-    todos = list(
-        HomeCard.objects.order_by("sort_order", "id").prefetch_related("translations")
-    )
-    return {
-        "home_cards": [card for card in todos if card.is_active],
-        "home_cards_configured": bool(todos),
-    }
-
-
-def get_home_callout():
-    """A chamada final, e se existe cadastro. Mesma regra dos cards.
-
-    A chamada só é entregue se tiver **algo** escrito: uma faixa escura vazia
-    no fim da Home é pior que faixa nenhuma.
-    """
-    from apps.home.models import HomeCallout
-
-    linha = (
-        HomeCallout.objects.filter(pk=1).prefetch_related("translations").first()
-    )
-
-    # "A linha existe" **não** prova que alguém configurou: o Admin a cria só
-    # para redirecionar para ela. Uma linha ativa e vazia é "ninguém escreveu
-    # nada ainda" — e a Home não pode perder a chamada final porque alguém
-    # abriu a tela.
-    escrita = linha is not None and linha.has_content
-    escondida = linha is not None and not linha.is_active
-
-    return {
-        "home_callout": linha if (escrita and not escondida) else None,
-        "home_callout_configured": escrita or escondida,
-    }
-
-
-def get_category_blocks():
-    """Os blocos coloridos de categoria, na ordem cadastrada."""
-    from apps.home.models import HomeCategoryCard
-
-    return list(HomeCategoryCard.objects.for_display())
-
-
-def get_home_about():
-    """O bloco institucional, ou `None` quando não há o que mostrar."""
-    from apps.home.models import HomeAbout
-
-    linha = HomeAbout.current()
-    return {"home_about": linha if (linha and linha.has_content) else None}
-
-
 def get_home_context() -> dict:
     """Tudo que a Home precisa, compartilhando uma única árvore de categorias."""
     tree = CategoryTree.load()
+    sections = get_home_sections(tree)
+    # "Nenhuma seção cadastrada" é diferente de "nenhuma seção com conteúdo":
+    # só a primeira recebe a composição padrão. Um `exists()` a mais, e só
+    # quando a lista voltou vazia — na loja em uso não custa nada.
+    composition_configured = bool(sections) or HomeSection.objects.exists()
+    if not composition_configured:
+        sections = _with_bands(_default_composition())
+    has_products = any(entry.kind == ResolvedSection.KIND_PRODUCTS for entry in sections)
     contexto = {
-        "sections": get_home_sections(tree),
+        "sections": sections,
+        "composition_configured": composition_configured,
+        "has_product_sections": has_products,
         "category_cards": get_category_cards(tree),
-        "category_blocks": get_category_blocks(),
     }
     contexto.update(get_banner_carousel())
-    contexto.update(get_home_cards())
-    contexto.update(get_home_callout())
-    contexto.update(get_home_about())
     return contexto

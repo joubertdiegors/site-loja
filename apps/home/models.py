@@ -719,11 +719,42 @@ class HomeBannerCarousel(TimeStampedModel):
 
 
 class HomeSectionType(models.TextChoices):
+    """O que uma seção da Home mostra.
+
+    Os cinco primeiros são faixas de **produtos** (o que a seção sempre foi);
+    os quatro últimos são os **blocos** da Home — categorias em destaque, como
+    trabalhamos, chamada final e sobre a loja —, que até a etapa 20 tinham
+    posição fixa na página e agora são seções como as outras: entram na
+    composição, na ordem que o Admin escolher, quantas vezes quiser.
+    """
+
     MANUAL_PRODUCTS = "manual", "Produtos escolhidos manualmente"
     CATEGORY_PRODUCTS = "category", "Produtos de uma categoria"
     FEATURED_PRODUCTS = "featured", "Produtos em destaque"
     NEWEST_PRODUCTS = "newest", "Novidades (produtos mais recentes)"
     BEST_SELLERS = "best_sellers", "Mais vendidos (aguarda o módulo de pedidos)"
+    CATEGORY_CARDS = "category_cards", "Categorias em destaque (blocos coloridos)"
+    HOW_WE_WORK = "how_we_work", "Como trabalhamos (cards com ícone)"
+    CALLOUT = "callout", "Chamada final (faixa com botão e passos)"
+    ABOUT = "about", "Sobre a loja (quadro de imagem e texto)"
+
+
+#: Os tipos que são faixas de produtos — os que têm layout, limite e resolvedor.
+PRODUCT_SECTION_TYPES = frozenset({
+    HomeSectionType.MANUAL_PRODUCTS,
+    HomeSectionType.CATEGORY_PRODUCTS,
+    HomeSectionType.FEATURED_PRODUCTS,
+    HomeSectionType.NEWEST_PRODUCTS,
+    HomeSectionType.BEST_SELLERS,
+})
+
+#: Os tipos que são blocos da Home.
+BLOCK_SECTION_TYPES = frozenset({
+    HomeSectionType.CATEGORY_CARDS,
+    HomeSectionType.HOW_WE_WORK,
+    HomeSectionType.CALLOUT,
+    HomeSectionType.ABOUT,
+})
 
 
 class HomeSectionLayout(models.TextChoices):
@@ -740,12 +771,27 @@ class HomeSectionQuerySet(models.QuerySet):
 
 
 class HomeSection(TranslatableMixin, CtaMixin, TimeStampedModel):
-    """Uma faixa de produtos da Home.
+    """Uma seção da Home — a unidade da **composição** da página.
 
-    O tipo (``section_type``) decide de onde vêm os produtos; o service em
-    ``apps/home/services.py`` faz a resolução. Acrescentar um tipo novo
-    (promoções, lançamentos de uma marca) é acrescentar uma opção aqui e um
-    resolvedor lá — o template não muda.
+    A Home é a lista das seções ativas, na ordem de ``sort_order``: o que
+    aparece, quantas vezes e em que ordem é decisão do Admin, e nada no
+    template fixa posição nenhuma. Cada linha é uma **instância**: duas seções
+    de categorias, cada uma com os seus blocos; duas chamadas finais; o "Sobre
+    a loja" antes ou depois dos produtos.
+
+    O tipo (``section_type``) decide o que a seção mostra:
+
+    * **faixas de produtos** (manual, categoria, destaques, novidades, mais
+      vendidos) — o service em ``apps/home/services.py`` resolve os produtos;
+    * **categorias em destaque** — os `HomeCategoryCard` desta seção;
+    * **como trabalhamos** — os `HomeCard` desta seção;
+    * **chamada final** — o `HomeCallout` escolhido em ``callout`` (com os
+      passos dele); duas seções podem apontar para o mesmo texto;
+    * **sobre a loja** — o `HomeAbout` escolhido em ``about`` (com as pílulas).
+
+    O nome interno é o nome da **instância** ("Categorias — Coleções"); o tipo
+    é o nome do **modelo**. Na lista do Admin os dois aparecem lado a lado, e é
+    assim que se distingue duas seções iguais.
     """
 
     translatable_fields = ("title", "subtitle", "cta_label")
@@ -794,6 +840,25 @@ class HomeSection(TranslatableMixin, CtaMixin, TimeStampedModel):
         through="HomeSectionProduct",
         blank=True,
     )
+    # Os blocos que têm um registro de conteúdo próprio, reaproveitável.
+    callout = models.ForeignKey(
+        "HomeCallout",
+        verbose_name="chamada final (conteúdo)",
+        related_name="sections",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        help_text="Usada só no tipo 'Chamada final'. Sem escolher, a seção mostra o texto padrão.",
+    )
+    about = models.ForeignKey(
+        "HomeAbout",
+        verbose_name="sobre a loja (conteúdo)",
+        related_name="sections",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        help_text="Usado só no tipo 'Sobre a loja'. Sem escolher, a seção não é desenhada.",
+    )
 
     objects = HomeSectionQuerySet.as_manager()
 
@@ -836,6 +901,23 @@ class HomeSection(TranslatableMixin, CtaMixin, TimeStampedModel):
         return self.tr("cta_label")
 
     # -- características do tipo -------------------------------------------
+
+    @property
+    def is_products_section(self) -> bool:
+        """Faixa de produtos (com layout, limite e botão) — e não um bloco."""
+        return self.section_type in PRODUCT_SECTION_TYPES
+
+    @property
+    def is_block_section(self) -> bool:
+        return self.section_type in BLOCK_SECTION_TYPES
+
+    @property
+    def uses_callout(self) -> bool:
+        return self.section_type == HomeSectionType.CALLOUT
+
+    @property
+    def uses_about(self) -> bool:
+        return self.section_type == HomeSectionType.ABOUT
 
     @property
     def uses_manual_products(self) -> bool:
@@ -975,6 +1057,14 @@ class HomeCard(TranslatableMixin, TimeStampedModel):
 
     translatable_fields = ("title", "text")
 
+    section = models.ForeignKey(
+        HomeSection,
+        verbose_name="seção",
+        related_name="cards",
+        null=True,
+        on_delete=models.CASCADE,
+        help_text="A seção 'Como trabalhamos' em que este card aparece.",
+    )
     internal_name = models.CharField(
         "nome interno",
         max_length=120,
@@ -1034,9 +1124,11 @@ class HomeCardTranslation(TranslationBase):
 
 
 class HomeCallout(TranslatableMixin, CtaMixin, TimeStampedModel):
-    """A faixa escura no fim da Home — sobretítulo, título, texto e botão.
+    """A faixa escura com botão e passos — sobretítulo, título, texto e botão.
 
-    **Uma linha só** (`pk=1`): é *a* chamada final, não uma lista delas. O
+    É o **conteúdo** de uma seção do tipo "Chamada final": a posição na Home
+    (e quantas vezes aparece) é da `HomeSection` que aponta para cá. Pode
+    haver várias — uma por campanha —, e duas seções podem usar a mesma. O
     botão reaproveita o `CtaMixin`, o mesmo do banner e das seções, então pode
     apontar para uma categoria ou um produto e continuar válido se o slug
     mudar.
@@ -1047,7 +1139,14 @@ class HomeCallout(TranslatableMixin, CtaMixin, TimeStampedModel):
 
     translatable_fields = ("eyebrow", "title", "text", "cta_label")
 
-    is_active = models.BooleanField("exibir na Home", default=True)
+    internal_name = models.CharField(
+        "nome interno", max_length=120, blank=True, default="",
+        help_text="Para reconhecer o texto na lista (ex.: 'Chamada — Natal'). Não aparece para o cliente.",
+    )
+    is_active = models.BooleanField(
+        "exibir na Home", default=True,
+        help_text="Desmarcado, as seções que usam este texto não são desenhadas.",
+    )
 
     surface_color = models.CharField(
         "fundo da faixa", max_length=20, default="navy",
@@ -1081,27 +1180,20 @@ class HomeCallout(TranslatableMixin, CtaMixin, TimeStampedModel):
     class Meta:
         verbose_name = "chamada final da Home"
         verbose_name_plural = "CHAMADA FINAL — faixa do fim da Home"
+        ordering = ("id",)
 
     def __str__(self) -> str:
-        return "Chamada final da Home"
-
-    def save(self, *args, **kwargs):
-        self.pk = 1
-        super().save(*args, **kwargs)
+        return self.internal_name or f"Chamada final #{self.pk}"
 
     @classmethod
     def load(cls) -> "HomeCallout":
-        obj, _criado = cls.objects.get_or_create(pk=1)
-        return obj
+        """A chamada padrão (a primeira, `pk=1`), criada se não existir.
 
-    @classmethod
-    def current(cls) -> "HomeCallout | None":
-        """A chamada em uso, ou `None` para o template usar o texto padrão."""
-        return (
-            cls.objects.filter(pk=1, is_active=True)
-            .prefetch_related("translations", "steps__translations")
-            .first()
-        )
+        Era o registro único; hoje é só o primeiro de uma lista — quem sabe
+        qual chamada uma seção mostra é a `HomeSection.callout`.
+        """
+        obj, _criado = cls.objects.get_or_create(pk=1, defaults={"internal_name": "Chamada final"})
+        return obj
 
     @property
     def eyebrow(self) -> str:
@@ -1216,6 +1308,14 @@ class HomeCategoryCard(TranslatableMixin, TimeStampedModel):
 
     translatable_fields = ("eyebrow", "title", "text")
 
+    section = models.ForeignKey(
+        HomeSection,
+        verbose_name="seção",
+        related_name="category_cards",
+        null=True,
+        on_delete=models.CASCADE,
+        help_text="A seção 'Categorias em destaque' em que este bloco aparece.",
+    )
     internal_name = models.CharField(
         "nome interno",
         max_length=120,
@@ -1417,8 +1517,10 @@ class HomeCalloutStepTranslation(TranslationBase):
 class HomeAbout(TranslatableMixin, TimeStampedModel):
     """O bloco sobre a loja: quadro de imagem à esquerda, texto à direita.
 
-    **Uma linha só** (`pk=1`), como a chamada final: é *o* bloco institucional
-    da Home. Desativado, ele não desenha nada — nem uma faixa vazia.
+    É o **conteúdo** de uma seção do tipo "Sobre a loja": a posição na Home é
+    da `HomeSection` que aponta para cá, e pode haver mais de um texto (a
+    seção escolhe qual). Desativado, ele não desenha nada — nem uma faixa
+    vazia. As pílulas (`HomeAboutBadge`) continuam sendo dele.
 
     O quadro da imagem segue o mesmo conceito do hero: a moldura listrada faz
     parte do desenho e continua visível em volta da foto.
@@ -1426,7 +1528,14 @@ class HomeAbout(TranslatableMixin, TimeStampedModel):
 
     translatable_fields = ("eyebrow", "title", "text")
 
-    is_active = models.BooleanField("exibir na Home", default=True)
+    internal_name = models.CharField(
+        "nome interno", max_length=120, blank=True, default="",
+        help_text="Para reconhecer o bloco na lista. Não aparece para o cliente.",
+    )
+    is_active = models.BooleanField(
+        "exibir na Home", default=True,
+        help_text="Desmarcado, as seções que usam este bloco não são desenhadas.",
+    )
     image = models.FileField(
         "imagem",
         upload_to=banner_upload_to,
@@ -1450,26 +1559,16 @@ class HomeAbout(TranslatableMixin, TimeStampedModel):
     class Meta:
         verbose_name = "bloco Sobre a loja"
         verbose_name_plural = "SOBRE A LOJA — quadro de imagem e texto"
+        ordering = ("id",)
 
     def __str__(self) -> str:
-        return "Sobre a loja"
-
-    def save(self, *args, **kwargs):
-        self.pk = 1
-        super().save(*args, **kwargs)
+        return self.internal_name or f"Sobre a loja #{self.pk}"
 
     @classmethod
     def load(cls) -> "HomeAbout":
-        obj, _criado = cls.objects.get_or_create(pk=1)
+        """O bloco padrão (o primeiro, `pk=1`), criado se não existir."""
+        obj, _criado = cls.objects.get_or_create(pk=1, defaults={"internal_name": "Sobre a loja"})
         return obj
-
-    @classmethod
-    def current(cls) -> "HomeAbout | None":
-        return (
-            cls.objects.filter(pk=1, is_active=True)
-            .prefetch_related("translations", "badges__translations")
-            .first()
-        )
 
     @property
     def eyebrow(self) -> str:

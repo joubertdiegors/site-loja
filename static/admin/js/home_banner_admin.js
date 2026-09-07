@@ -9,7 +9,8 @@
    e quem cadastra preencheria campos que o desenho escolhido ignora.
 
    É só apresentação: nada é apagado, e trocar o tipo de volta traz o que
-   estava preenchido. */
+   estava preenchido. Os campos dividem linhas (`jdShowField` esconde a caixa
+   de cada um, e a linha só quando fica vazia). */
 (function () {
   "use strict";
 
@@ -19,35 +20,31 @@
       return;
     }
 
-    /* Campo -> desenhos que o usam. As chaves batem com `BannerLayout`; o
-       que não está aqui aparece em todos os desenhos. Os campos de tradução
-       vivem no inline, um conjunto por idioma — por isso a busca é por
-       classe e não por id. */
     var EDITORIAL = "editorial", CHEIA = "full_image", POSTER = "poster_pop", BENTO = "bento_criativo";
     var COMPOSTOS = [EDITORIAL, POSTER, BENTO];
     var campos = {
-      ".field-image_mobile": [CHEIA],
-      ".field-cta_secondary_url": COMPOSTOS,
-      ".field-plate_color": [EDITORIAL],
-      ".field-frame_color": [EDITORIAL],
-      ".field-surface_color": [EDITORIAL],
-      ".field-image_tile_left": [POSTER],
-      ".field-image_tile_right": [POSTER],
-      ".field-eyebrow": COMPOSTOS,
-      ".field-title_highlight": COMPOSTOS,
-      ".field-cta_secondary_label": COMPOSTOS,
-      ".field-perk_1": COMPOSTOS,
-      ".field-perk_2": COMPOSTOS,
-      ".field-perk_3": COMPOSTOS,
-      ".field-badge_yellow": [EDITORIAL, BENTO],
-      ".field-badge_mint": [EDITORIAL, POSTER, BENTO],
-      ".field-badge_white": [EDITORIAL, POSTER],
-      ".field-image_tile_left_alt": [POSTER],
-      ".field-image_tile_right_alt": [POSTER],
-      ".field-badge_coral": [BENTO],
-      ".field-colors_note": [BENTO],
-      ".field-rating_value": [BENTO],
-      ".field-rating_note": [BENTO]
+      image_mobile: [CHEIA],
+      cta_secondary_url: COMPOSTOS,
+      plate_color: [EDITORIAL],
+      frame_color: [EDITORIAL],
+      surface_color: [EDITORIAL],
+      image_tile_left: [POSTER],
+      image_tile_right: [POSTER],
+      eyebrow: COMPOSTOS,
+      title_highlight: COMPOSTOS,
+      cta_secondary_label: COMPOSTOS,
+      perk_1: COMPOSTOS,
+      perk_2: COMPOSTOS,
+      perk_3: COMPOSTOS,
+      badge_yellow: [EDITORIAL, BENTO],
+      badge_mint: [EDITORIAL, POSTER, BENTO],
+      badge_white: [EDITORIAL, POSTER],
+      image_tile_left_alt: [POSTER],
+      image_tile_right_alt: [POSTER],
+      badge_coral: [BENTO],
+      colors_note: [BENTO],
+      rating_value: [BENTO],
+      rating_note: [BENTO]
     };
 
     /* Blocos inteiros do formulário. */
@@ -58,17 +55,11 @@
 
     function aplicar() {
       var atual = layout.value;
-      Object.keys(campos).forEach(function (seletor) {
-        var visivel = campos[seletor].indexOf(atual) !== -1;
-        document.querySelectorAll(seletor).forEach(function (node) {
-          node.style.display = visivel ? "" : "none";
-        });
+      Object.keys(campos).forEach(function (nome) {
+        window.jdShowField(nome, campos[nome].indexOf(atual) !== -1);
       });
       Object.keys(blocos).forEach(function (seletor) {
-        var visivel = blocos[seletor].indexOf(atual) !== -1;
-        document.querySelectorAll(seletor).forEach(function (node) {
-          node.style.display = visivel ? "" : "none";
-        });
+        window.jdShowBlock(seletor, blocos[seletor].indexOf(atual) !== -1);
       });
     }
 

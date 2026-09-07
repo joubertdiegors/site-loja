@@ -1,0 +1,19 @@
+{% comment %}
+A composição da Home: as seções resolvidas (`sections`, ver
+apps/home/services.py), cada uma desenhada pelo seu componente. É o mesmo
+arquivo para a Home (`home/index.html`) e para a pré-visualização de uma
+seção no Admin — por isso a Home e o preview nunca divergem.
+{% endcomment %}
+{% for section in sections %}
+  {% if section.kind == "products" %}
+    {% include "components/home_section.html" %}
+  {% elif section.kind == "category_cards" %}
+    {% include "components/category_blocks.html" %}
+  {% elif section.kind == "how_we_work" %}
+    {% include "components/home_cards.html" %}
+  {% elif section.kind == "callout" %}
+    {% include "components/home_callout.html" %}
+  {% elif section.kind == "about" %}
+    {% include "components/home_about.html" %}
+  {% endif %}
+{% endfor %}

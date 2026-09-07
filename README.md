@@ -414,9 +414,110 @@ ativas, não com o tamanho do catálogo. Dois testes garantem isso
 (`assertNumQueries`), e foi assim que um N+1 nas traduções de categoria foi
 encontrado e corrigido durante o desenvolvimento.
 
+### O menu do Admin
+
+O índice do Admin (`config/admin.py`) é organizado como a loja é vista, e
+não por app Python: sete caixas — PEDIDOS, CATÁLOGO, CLIENTES, ENTREGA, HOME,
+CONFIGURAÇÕES DA LOJA e EQUIPE — com subtítulos e itens na ordem em que a
+coisa acontece ou aparece na tela. A caixa HOME segue a página de cima para
+baixo (faixa do topo, banner principal com o carrossel recuado abaixo dos
+banners, os blocos na ordem em que aparecem, rodapé); o que faz parte de um
+bloco vem recuado logo abaixo dele (as pílulas do "Sobre a loja", os passos
+da chamada final, os links dentro das colunas do rodapé). Os nomes na tela
+são os de `config/admin.py`, escritos para quem administra; mudar um nome
+ali não gera migration nem altera URL, e os models continuam com os seus
+endereços e permissões. Cada item pode levar uma dica de uma linha, que o
+índice mostra e a barra lateral omite (`templates/admin/app_list.html`,
+`static/admin/css/jdprint_menu.css`). `apps/core/tests_admin_sections.py`
+garante que nada sumiu, nada mudou de endereço e ninguém ganhou acesso.
+
+### As telas de edição: grade de campos e pré-visualização ao vivo
+
+Os formulários do Admin não são mais "uma linha por campo": campos
+relacionados dividem a linha (`fields = (("internal_name", "layout"), ...)`
+nos `fieldsets` de cada `ModelAdmin`), com rótulo em cima e a grade
+respondendo à largura — três ou duas colunas no desktop, duas no tablet, uma
+no celular. É só CSS sobre o markup do próprio Django
+(`static/admin/css/jdprint_forms.css`, carregada por
+`templates/admin/base_site.html`); textos longos continuam sozinhos na
+linha, e os blocos de idioma dos inlines seguem a mesma grade. Os campos
+condicionais (tipo de banner, tipo de seção, tipo de página especial, destino
+do botão) continuam escondidos pelo JavaScript de sempre, agora caixa a caixa
+(`static/admin/js/jd_fields.js`): esconder um campo não esconde a linha em
+que ele está, e uma linha só some quando todas as caixas dela somem.
+
+As telas que desenham algo no site têm **pré-visualização ao vivo** ao lado
+do formulário (`apps/core/admin_preview.py`, `LivePreviewMixin`). O painel
+envia o formulário como está — por POST, sem salvar — para
+`…/live-preview/`, uma rota do próprio `AdminSite` (passa por `admin_view`,
+exige login de equipe e a permissão de ver/alterar o registro, ou de
+adicionar quando ele ainda não existe; responde só a POST, com
+`Cache-Control: no-store` e `X-Robots-Tag: noindex`). No servidor o registro
+é montado em memória com `construct_instance` (só os campos que passaram na
+validação individual entram; arquivos ficam de fora — uma imagem nova
+aparece depois de salvar) e os textos do inline de idiomas vão para o cache
+do `tr()`, no idioma pedido (`?lang=`). O HTML devolvido é o **mesmo
+componente do site** — `components/banner_carousel.html`,
+`components/home_composition.html` (a seção resolvida por
+`services.resolve_section`, com os mesmos prefetches da Home),
+`components/top_bar.html`, `components/footer.html`,
+`storefront/_page_article.html`, e a página especial inteira via
+`render_special_page` — dentro de um documento mínimo com o `tailwind.css`
+da loja (`templates/admin/preview/frame.html`), mostrado num `iframe` com
+`srcdoc` e `sandbox`. Nada é escrito no banco, o que a pessoa digita é texto
+(escapado pelo template), e nenhuma URL pública é criada. Os botões PT/FR/NL/
+EN trocam o idioma do quadro; Desktop/Tablet/Celular mudam só a largura
+visual do quadro (toda a área, ~768 px ou ~390 px, centralizado). O painel
+fica no topo da área principal, na largura toda, com o formulário abaixo —
+assim os campos têm o espaço todo para a grade — e gruda no alto da janela
+enquanto a página rola (`position: sticky`): o cabeçalho com os controles
+está sempre à mão. No topo da página o quadro abre no fluxo; depois de
+rolar, abre como camada flutuante sob o cabeçalho, sem mexer na rolagem nem
+no formulário (um espaçador guarda a altura que o quadro tinha no fluxo).
+"Recolher" deixa só o cabeçalho (e suspende as atualizações até expandir);
+recolhido/expandido e a largura escolhida ficam no `localStorage` do
+navegador, por cadastro. O inline de links da coluna do rodapé vira um card
+por link até 820 px (`fieldset.jd-cards` + `admin/js/jd_tabular_cards.js`,
+que copia o cabeçalho da tabela para o rótulo de cada campo).
+`apps/core/tests_admin_preview.py` cobre o acesso, o
+não-salvar, os idiomas, o escape, a seção da Home, os irmãos de um registro
+novo, a página especial e a grade.
+
+### A composição da Home
+
+Desde a etapa 20 a Home é uma **lista de seções** (`home.HomeSection`), na
+ordem do Admin — e não só as faixas de produtos: os blocos que tinham posição
+fixa no template (categorias em destaque, como trabalhamos, chamada final,
+sobre a loja) viraram tipos de seção. Cada linha é uma **instância**: tipo
+(o modelo do bloco), nome interno (esta instância — "Categorias — Coleções"),
+ordem, ativa. Uma mesma seção pode existir quantas vezes quiser, cada uma com
+o seu conteúdo: os blocos de categoria (`HomeCategoryCard`) e os cards de
+"como trabalhamos" (`HomeCard`) pertencem à sua seção; a chamada final
+(`HomeCallout`, com os passos) e o "Sobre a loja" (`HomeAbout`, com as
+pílulas) são registros de conteúdo que a seção escolhe — duas seções podem
+apontar para o mesmo texto. `apps/home/services.py` resolve tudo numa
+consulta de seções com um número fixo de prefetches e descarta o que não tem
+o que mostrar; `templates/home/index.html` só escolhe o componente pelo
+`kind`.
+
+A **faixa de fundo** de cada seção é consequência da posição entre as que
+sobraram: a primeira depois do banner é branca (com os fios), a segunda
+creme, e assim por diante — remover ou mover uma seção reajusta as outras, e
+nada é gravado. A chamada final, o "Sobre a loja" (cores do cadastro) e a
+faixa lilás de "como trabalhamos" pintam por cima, mas contam na alternância.
+Sem nenhuma seção cadastrada, a Home mostra a composição padrão (aviso de
+vitrine em montagem, os três cards e a chamada de fábrica); a migration
+`home/0009` transformou a Home existente em seções, na mesma ordem, sem apagar
+nem recriar nada.
+
 ### Gerenciando pelo Admin
 
-`/admin/` → **HOME** → **Seções da Home**.
+`/admin/` → **HOME** → **3 · Seções da Home**: a lista é a página, numerada
+de cima para baixo (nº, nome da instância, tipo, o que mostra, ativa, ordem).
+Reordenar e ativar é direto na grade. Ao criar uma seção, o formulário mostra
+só o que o tipo usa: layout, limite e botão nas faixas de produtos; o texto
+escolhido na chamada final e no "Sobre a loja"; os links para os blocos e
+cards nas outras duas. Para uma faixa de produtos:
 
 1. **Adicionar seção** → nome interno, ativa, ordem.
 2. **Tipo** — o formulário mostra só o que importa: escolher "Produtos de uma
@@ -432,8 +533,12 @@ Na listagem: ativar/desativar e reordenar direto na grade, filtros por tipo e
 estado, e as ações **Ativar**, **Desativar** e **Duplicar** (a cópia nasce
 desativada, com traduções e produtos).
 
-Banners: **HOME → Banners da Home** (imagem desktop, imagem mobile, título,
-subtítulo, botão). Sem imagem, a Home mostra o destaque tipográfico.
+Banners: **HOME → 2 · Banner principal → Banners** (imagem desktop, imagem
+mobile, título, subtítulo, botão); o comportamento da rotação fica em
+**Carrossel**, logo abaixo. Sem imagem, a Home mostra o destaque tipográfico.
+Os blocos de categoria, os cards, os textos da chamada final (com os passos)
+e os blocos "Sobre a loja" (com as pílulas) ficam recuados abaixo de **Seções
+da Home**: são o conteúdo que cada seção usa.
 
 ---
 

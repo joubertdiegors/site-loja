@@ -1,0 +1,50 @@
+{% extends "admin/change_form.html" %}
+{% load i18n static %}
+{% comment %}
+  O change form do Admin com o painel de pré-visualização ao vivo
+  (ver apps/core/admin_preview.py e static/admin/js/live_preview.js).
+
+  O painel é renderizado depois do formulário (fora dele) e, com JavaScript,
+  passa para o topo da área principal, acima do formulário, na largura toda;
+  sem JavaScript ele simplesmente não aparece — o preview depende dele para
+  existir. "Recolher" deixa só o cabeçalho, e o estado fica no localStorage.
+{% endcomment %}
+
+{% block content %}
+  {{ block.super }}
+  {% if preview_url %}
+    <section class="jd-preview" data-live-preview data-url="{{ preview_url }}"
+             data-storage-key="jd-preview:{{ opts.app_label }}.{{ opts.model_name }}" hidden
+             aria-labelledby="jd-preview-title">
+      <div class="jd-preview-head">
+        <h2 id="jd-preview-title">{{ preview_title }}</h2>
+        <div class="jd-preview-tools">
+          <div class="jd-preview-group" role="group" aria-label="{% translate 'Idioma da pré-visualização' %}">
+            {% for code, label in preview_languages %}
+              <button type="button" class="jd-preview-lang{% if forloop.first %} is-on{% endif %}" data-lang="{{ code }}">{{ label }}</button>
+            {% endfor %}
+          </div>
+          <div class="jd-preview-group" role="group" aria-label="{% translate 'Largura simulada' %}">
+            <button type="button" class="jd-preview-size is-on" data-width="" title="{% translate 'Toda a largura disponível' %}">{% translate "Desktop" %}</button>
+            <button type="button" class="jd-preview-size" data-width="768" title="{% translate 'Cerca de 768 px' %}">{% translate "Tablet" %}</button>
+            <button type="button" class="jd-preview-size" data-width="390" title="{% translate 'Cerca de 390 px' %}">{% translate "Celular" %}</button>
+          </div>
+          <button type="button" class="jd-preview-toggle" aria-expanded="true" aria-controls="jd-preview-body"
+                  data-label-collapse="{% translate 'Recolher' %}" data-label-expand="{% translate 'Expandir' %}">{% translate "Recolher" %}</button>
+        </div>
+      </div>
+      <div class="jd-preview-body" id="jd-preview-body">
+        {% if preview_note %}<p class="jd-preview-note">{{ preview_note }}</p>{% endif %}
+        <div class="jd-preview-stage">
+          <iframe title="{{ preview_title }}" sandbox="allow-scripts allow-same-origin" loading="eager"></iframe>
+        </div>
+        <p class="jd-preview-status" aria-live="polite">{% translate "Atualiza sozinha enquanto você edita — não é preciso salvar." %}</p>
+      </div>
+    </section>
+  {% endif %}
+{% endblock %}
+
+{% block admin_change_form_document_ready %}
+  {{ block.super }}
+  {% if preview_url %}<script src="{% static 'admin/js/live_preview.js' %}" defer></script>{% endif %}
+{% endblock %}

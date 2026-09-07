@@ -1,0 +1,48 @@
+{% load static jdprint %}<!DOCTYPE html>
+{% comment %}
+O quadro da pré-visualização do Admin (ver apps/core/admin_preview.py).
+
+Um documento mínimo com o CSS do site e o componente público incluído tal
+qual — nada aqui desenha coisa alguma: o rodapé é `components/footer.html`,
+o banner é `components/hero.html` dentro de `banner_carousel.html`, e assim
+por diante. `preview_empty` é o único texto próprio: o aviso de que a seção
+em edição não teria nada para mostrar.
+
+Os links do componente ficam sem efeito (é uma prévia, não a loja), e os
+botões continuam funcionando — o carrossel gira com o `app.js` de sempre.
+{% endcomment %}
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Pré-visualização</title>
+  <link rel="stylesheet" href="{% static_versioned 'css/tailwind.css' %}">
+  <style>
+    body { margin: 0; }
+    .jd-preview-empty {
+      margin: 24px;
+      padding: 18px 20px;
+      border: 1px dashed var(--color-surface-line-strong);
+      border-radius: 16px;
+      font: 600 14px/1.5 var(--font-sans);
+      color: var(--color-ink-soft);
+    }
+  </style>
+</head>
+<body class="bg-surface font-sans text-ink antialiased {{ preview_body_class }}">
+  {% if preview_empty %}
+    <p class="jd-preview-empty">{{ preview_empty }}</p>
+  {% else %}
+    {% include preview_component %}
+  {% endif %}
+
+  {% if preview_scripts %}<script src="{% static_versioned 'js/app.js' %}" defer></script>{% endif %}
+  <script>
+    document.addEventListener("click", function (event) {
+      var link = event.target.closest("a");
+      if (link) { event.preventDefault(); }
+    });
+  </script>
+</body>
+</html>

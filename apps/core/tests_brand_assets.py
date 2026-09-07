@@ -376,17 +376,17 @@ class AdminTests(BrandBase):
         )
 
     def test_it_lives_in_the_shop_settings_section(self):
-        from config.admin import SECOES
+        from config.admin import modelos_da_secao
 
-        secoes = {str(titulo): chaves for titulo, chaves in SECOES}
-        self.assertIn("core.brandassets", secoes["CONFIGURAÇÕES DA LOJA"])
+        self.assertIn("core.brandassets", modelos_da_secao("CONFIGURAÇÕES DA LOJA"))
 
     def test_the_section_shows_it_by_name(self):
         self.client.force_login(self.chefe)
 
         resposta = self.client.get(reverse("admin:index"))
 
-        self.assertContains(resposta, "LOGOS E IMAGENS")
+        # O nome na tela vem de config/admin.py, escrito para quem administra.
+        self.assertContains(resposta, "Logos e imagens")
 
     def test_the_four_uploads_are_on_the_page(self):
         self.client.force_login(self.chefe)

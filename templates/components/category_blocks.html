@@ -1,6 +1,10 @@
 {% load i18n jdprint %}
 {% comment %}
-Os blocos coloridos de categoria, logo abaixo do hero.
+Uma seção "Categorias em destaque": os blocos coloridos.
+
+Espera `section` (ResolvedSection, ver apps/home/services.py) com os blocos
+desta seção em `section.blocks` — cada seção tem os seus, então duas seções
+de categorias na mesma Home podem mostrar coleções diferentes.
 
 Cada bloco vem de `home.HomeCategoryCard`: o destino é uma categoria de
 verdade (chave estrangeira, não um endereço digitado), e as três cores — fundo,
@@ -8,19 +12,18 @@ texto e acento — saem do cadastro como variáveis CSS. O contraste entre texto
 fundo é conferido no `clean()` do modelo, então uma combinação ilegível nem
 chega a ser gravada.
 
-Sem cadastro nenhum, a seção não existe. É uma faixa de destaque, não uma
-estrutura obrigatória da página.
-
-O bloco sem categoria vira `<div>` em vez de `<a>`: um link que não leva a
-lugar nenhum é pior que um bloco decorativo.
+O fundo é a faixa da posição (`section.band`): branca com os fios, ou o creme
+da página. O bloco sem categoria vira `<div>` em vez de `<a>`: um link que não
+leva a lugar nenhum é pior que um bloco decorativo.
 {% endcomment %}
 
-{% if category_blocks %}
-  <section class="container-page pb-16 pt-4 sm:pb-20" aria-labelledby="titulo-categorias">
-    <h2 id="titulo-categorias" class="sr-only">{% translate "Categorias" %}</h2>
+<section class="{% if section.is_white %}border-y border-surface-line bg-white {% endif %}py-16 sm:py-20"
+         aria-labelledby="{{ section.anchor }}">
+  <div class="container-page">
+    <h2 id="{{ section.anchor }}" class="sr-only">{{ section.title|default:_("Categorias") }}</h2>
 
     <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-      {% for bloco in category_blocks %}
+      {% for bloco in section.blocks %}
         {% if bloco.link %}
           <a href="{{ bloco.link }}" class="category-block focus-ring" style="{{ bloco.style }}">
         {% else %}
@@ -48,5 +51,5 @@ lugar nenhum é pior que um bloco decorativo.
         {% if bloco.link %}</a>{% else %}</div>{% endif %}
       {% endfor %}
     </div>
-  </section>
-{% endif %}
+  </div>
+</section>

@@ -16,24 +16,26 @@
     }
 
     var MAINTENANCE = "maintenance", LAUNCH = "launch";
-    var alvos = {
+    var blocos = {
       "fieldset.jd-sp-maintenance": [MAINTENANCE],
-      "fieldset.jd-sp-launch": [LAUNCH],
-      ".field-progress_label": [MAINTENANCE],
-      ".field-countdown_done_text": [LAUNCH],
-      ".field-form_placeholder": [LAUNCH],
-      ".field-form_button_label": [LAUNCH],
-      ".field-form_note": [LAUNCH],
-      ".field-form_success_text": [LAUNCH]
+      "fieldset.jd-sp-launch": [LAUNCH]
+    };
+    var campos = {
+      progress_label: [MAINTENANCE],
+      countdown_done_text: [LAUNCH],
+      form_placeholder: [LAUNCH],
+      form_button_label: [LAUNCH],
+      form_note: [LAUNCH],
+      form_success_text: [LAUNCH]
     };
 
     function aplicar() {
       var atual = kind.value;
-      Object.keys(alvos).forEach(function (seletor) {
-        var visivel = alvos[seletor].indexOf(atual) !== -1;
-        document.querySelectorAll(seletor).forEach(function (node) {
-          node.style.display = visivel ? "" : "none";
-        });
+      Object.keys(blocos).forEach(function (seletor) {
+        window.jdShowBlock(seletor, blocos[seletor].indexOf(atual) !== -1);
+      });
+      Object.keys(campos).forEach(function (nome) {
+        window.jdShowField(nome, campos[nome].indexOf(atual) !== -1);
       });
     }
 

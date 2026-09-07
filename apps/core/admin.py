@@ -9,6 +9,7 @@ from django.urls import path, reverse
 from django.utils import timezone
 from django.utils.html import format_html
 
+from apps.core.admin_preview import LivePreviewMixin
 from apps.core.admin_mixins import RequiredDefaultLanguageInlineFormSet
 from apps.core.models import (
     BrandAssets,
@@ -44,7 +45,7 @@ class SiteLanguageForm(forms.ModelForm):
 
 
 @admin.register(BrandAssets)
-class BrandAssetsAdmin(admin.ModelAdmin):
+class BrandAssetsAdmin(LivePreviewMixin, admin.ModelAdmin):
     """As quatro imagens da marca, cada uma com o seu upload e o seu preview.
 
     **Uma linha só.** Não é uma galeria: é *a* identidade da loja, e ter duas
@@ -56,6 +57,8 @@ class BrandAssetsAdmin(admin.ModelAdmin):
     preta parece ótima no formulário branco e some no rodapé.
     """
 
+    preview_component = "admin/preview/brand.html"
+    preview_note = "O cabeçalho, um card de produto sem foto e o rodapé, com as imagens gravadas hoje. Uma imagem nova aparece depois de salvar."
     readonly_fields = (
         "preview_header_logo",
         "preview_footer_logo",
@@ -68,7 +71,7 @@ class BrandAssetsAdmin(admin.ModelAdmin):
         (
             "LOGO DO TOPO",
             {
-                "fields": ("preview_header_logo", "header_logo"),
+                "fields": (("preview_header_logo", "header_logo"),),
                 "description": (
                     "Usada <b>só</b> no cabeçalho do site. Em branco, o cabeçalho "
                     "mostra a marca tipográfica — a loja não quebra."
@@ -78,7 +81,7 @@ class BrandAssetsAdmin(admin.ModelAdmin):
         (
             "LOGO DO RODAPÉ",
             {
-                "fields": ("preview_footer_logo", "footer_logo"),
+                "fields": (("preview_footer_logo", "footer_logo"),),
                 "description": (
                     "Usada <b>só</b> no rodapé, que tem fundo escuro. "
                     "Normalmente é a versão clara da marca: a mesma logo do topo "
@@ -89,7 +92,7 @@ class BrandAssetsAdmin(admin.ModelAdmin):
         (
             "FAVICON",
             {
-                "fields": ("preview_favicon", "favicon"),
+                "fields": (("preview_favicon", "favicon"),),
                 "description": (
                     "O ícone da aba do navegador. Independente das duas logos: "
                     "num quadrado de 32 px a marca completa não se lê, e o que "
@@ -100,7 +103,7 @@ class BrandAssetsAdmin(admin.ModelAdmin):
         (
             "IMAGEM PADRÃO DOS PRODUTOS",
             {
-                "fields": ("preview_product_placeholder", "product_placeholder"),
+                "fields": (("preview_product_placeholder", "product_placeholder"),),
                 "description": (
                     "Aparece <b>apenas</b> nos produtos que ainda não têm foto "
                     "própria. Nenhum produto com foto é afetado. Em branco, "
@@ -110,6 +113,11 @@ class BrandAssetsAdmin(admin.ModelAdmin):
         ),
         ("AUDITORIA", {"classes": ("collapse",), "fields": ("created_at", "updated_at")}),
     )
+
+    def get_preview_context(self, request, instance):
+        from apps.home.services import product_card_queryset
+
+        return {"preview_products": list(product_card_queryset().filter(media__isnull=True)[:2])}
 
     def has_add_permission(self, request):
         """Uma linha só — e só para quem já teria permissão de criá-la."""

@@ -1,0 +1,18 @@
+{% load i18n %}
+{% comment %}
+A pré-visualização de LOGOS E IMAGENS: o cabeçalho e o rodapé da loja, os
+mesmos componentes públicos, com as imagens gravadas hoje. Uma imagem recém
+escolhida aparece aqui depois de salvar (ver apps/core/admin_preview.py).
+{% endcomment %}
+{% include "components/header.html" %}
+<div class="container-page py-10">
+  <p class="section-eyebrow">{% translate "Imagem padrão dos produtos" %}</p>
+  <div class="mt-4 grid max-w-sm grid-cols-2 gap-4">
+    {% for produto in preview_products %}
+      {% include "components/product_card.html" with product=produto %}
+    {% empty %}
+      <p class="text-sm text-ink-soft">{% translate "Sem produto cadastrado para mostrar o card." %}</p>
+    {% endfor %}
+  </div>
+</div>
+{% include "components/footer.html" %}

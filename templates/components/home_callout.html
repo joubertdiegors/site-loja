@@ -1,0 +1,82 @@
+{% load i18n jdprint %}
+{% comment %}
+Uma seção "Chamada final": a faixa escura com botão e passos.
+
+Espera `section` (ResolvedSection). `section.callout` é o `HomeCallout`
+escolhido na seção — cada peça (sobretítulo, título, texto, botão, passos) é
+opcional e só é desenhada se tiver conteúdo. Sem escolha
+(`section.use_defaults`), o texto de fábrica: é o que impede a seção
+recém-criada, ou a instalação recém-migrada, de abrir com a Home pela metade.
+Escolhida e desativada, a seção nem chega aqui.
+
+O fundo vem das cores do cadastro (`style`), por cima da faixa da posição.
+{% endcomment %}
+
+{% if section.use_defaults %}
+  <section class="callout" aria-labelledby="{{ section.anchor }}">
+    <div class="container-page callout-grid">
+      <div class="callout-text">
+        <p class="callout-eyebrow">{% translate "Personalização" %}</p>
+        <h2 id="{{ section.anchor }}" class="callout-title">
+          {% translate "Tem uma ideia? A gente imprime." %}
+        </h2>
+        <p class="callout-lead">
+          {% translate "Cores, tamanhos e materiais à sua escolha — e projetos sob encomenda para o que não existe na loja." %}
+        </p>
+        <a href="{% url 'catalog:models_shop' %}" class="callout-cta focus-ring">
+          {% translate "Ver produtos" %}
+          {% icon "arrow-right" "h-4 w-4 rtl:rotate-180" %}
+        </a>
+      </div>
+    </div>
+  </section>
+{% else %}
+  {% with home_callout=section.callout %}
+  <section class="callout" style="{{ home_callout.style }}" aria-labelledby="{{ section.anchor }}">
+    <div class="container-page callout-grid">
+
+      <div class="callout-text">
+        {% if home_callout.eyebrow %}
+          <p class="callout-eyebrow">{{ home_callout.eyebrow }}</p>
+        {% endif %}
+        {% if home_callout.title %}
+          <h2 id="{{ section.anchor }}" class="callout-title">{{ home_callout.title }}</h2>
+        {% endif %}
+        {% if home_callout.text %}
+          <p class="callout-lead">{{ home_callout.text }}</p>
+        {% endif %}
+        {% if home_callout.has_cta and home_callout.cta_label %}
+          <a href="{{ home_callout.cta_link }}" class="callout-cta focus-ring">
+            {{ home_callout.cta_label }}
+            {% icon "arrow-right" "h-4 w-4 rtl:rotate-180" %}
+          </a>
+        {% endif %}
+      </div>
+
+      {% comment %}
+        Os passos numerados. O número é a POSIÇÃO na lista, não um campo:
+        cadastrar "1, 2, 3" à mão e desativar o segundo deixaria "1, 3" na
+        tela. `aria-hidden` nele porque o título do passo já diz o que é.
+      {% endcomment %}
+      {% if home_callout.visible_steps %}
+        <div class="callout-steps">
+          {% for passo in home_callout.visible_steps %}
+            <div class="callout-step">
+              <span class="callout-step-number" style="{{ passo.style }}" aria-hidden="true">
+                {% if passo.icon %}{% icon passo.icon "h-6 w-6" %}{% else %}{{ forloop.counter }}{% endif %}
+              </span>
+              <div>
+                <div class="callout-step-title">{{ passo.title }}</div>
+                {% if passo.text %}
+                  <div class="callout-step-text mt-1">{{ passo.text }}</div>
+                {% endif %}
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+    </div>
+  </section>
+  {% endwith %}
+{% endif %}

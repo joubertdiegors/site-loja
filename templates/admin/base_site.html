@@ -1,0 +1,22 @@
+{% extends "admin/base.html" %}
+{% load static %}
+{% comment %}
+  Cópia de `django/contrib/admin/templates/admin/base_site.html` com uma
+  adição: a folha de estilo do menu por assunto (`admin/css/jdprint_menu.css`),
+  que precisa valer em TODAS as telas do Admin — o índice e a barra lateral —
+  e por isso não pode vir do `Media` de um ModelAdmin. Ao subir de versão do
+  Django, comparar com o original.
+{% endcomment %}
+
+{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'admin/css/jdprint_menu.css' %}"><link rel="stylesheet" href="{% static 'admin/css/jdprint_forms.css' %}">{% endblock %}
+
+{% block branding %}
+<div id="site-name"><a href="{% url 'admin:index' %}">{{ site_header|default:_('Django administration') }}</a></div>
+{% if user.is_anonymous %}
+  {% include "admin/color_theme_toggle.html" %}
+{% endif %}
+{% endblock %}
+
+{% block nav-global %}{% endblock %}

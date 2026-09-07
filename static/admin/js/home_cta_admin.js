@@ -1,4 +1,6 @@
-/* Mostra apenas o campo de destino correspondente ao tipo de CTA escolhido. */
+/* Mostra apenas o campo de destino correspondente ao tipo de CTA escolhido.
+   Usa `jdShowField` (admin/js/jd_fields.js): os quatro campos do botão
+   dividem a mesma linha, e é a caixa de cada um que some, não a linha. */
 (function () {
   "use strict";
 
@@ -8,18 +10,11 @@
       return;
     }
 
-    var map = {
-      category: ".field-cta_category",
-      product: ".field-cta_product",
-      url: ".field-cta_url"
-    };
+    var map = { category: "cta_category", product: "cta_product", url: "cta_url" };
 
     function apply() {
       Object.keys(map).forEach(function (key) {
-        var visible = targetField.value === key;
-        document.querySelectorAll(map[key]).forEach(function (node) {
-          node.style.display = visible ? "" : "none";
-        });
+        window.jdShowField(map[key], targetField.value === key);
       });
     }
 

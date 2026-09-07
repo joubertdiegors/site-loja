@@ -21,6 +21,8 @@ from apps.home.models import (
     HomeCalloutTranslation,
     HomeCard,
     HomeCardTranslation,
+    HomeSection,
+    HomeSectionType,
 )
 
 HOME = "/"
@@ -36,10 +38,27 @@ class HomeBlocksBase(LanguageResetMixin, TestCase):
         self.assertEqual(resposta.status_code, 200)
         return resposta.content.decode()
 
+    def cards_section(self):
+        """A seção «Como trabalhamos» da composição — os cards pertencem a ela."""
+        secao, _ = HomeSection.objects.get_or_create(
+            internal_name="Como trabalhamos",
+            defaults={"section_type": HomeSectionType.HOW_WE_WORK, "sort_order": 50},
+        )
+        return secao
+
+    def callout_section(self, chamada):
+        """A seção «Chamada final» que posiciona o texto na Home."""
+        secao, _ = HomeSection.objects.get_or_create(
+            internal_name="Chamada final",
+            defaults={"section_type": HomeSectionType.CALLOUT, "callout": chamada, "sort_order": 60},
+        )
+        return secao
+
     def card(self, nome="Card", titulo="Produção própria", texto="", **campos):
         traducoes = {
             idioma: campos.pop(idioma) for idioma in ("fr", "nl", "en") if idioma in campos
         }
+        campos.setdefault("section", self.cards_section())
         card = HomeCard.objects.create(internal_name=nome, **campos)
         HomeCardTranslation.objects.create(
             master=card, language="pt", title=titulo, text=texto
@@ -58,6 +77,7 @@ class HomeBlocksBase(LanguageResetMixin, TestCase):
         for campo, valor in campos.items():
             setattr(chamada, campo, valor)
         chamada.save()
+        self.callout_section(chamada)
         for idioma, valores in traducoes.items():
             HomeCalloutTranslation.objects.update_or_create(
                 master=chamada, language=idioma, defaults=valores
@@ -126,7 +146,7 @@ class HomeCardTests(HomeBlocksBase):
 
     def test_a_card_without_title_is_not_drawn(self):
         """Um card com ícone e nada escrito é uma caixa vazia."""
-        HomeCard.objects.create(internal_name="Vazio")
+        HomeCard.objects.create(internal_name="Vazio", section=self.cards_section())
 
         html = self.html()
 
@@ -141,7 +161,7 @@ class HomeCardTests(HomeBlocksBase):
 
         self.assertNotIn("Só este", html)
         self.assertNotIn("Produção própria", html)
-        self.assertNotIn("titulo-como", html)
+        self.assertNotIn("bg-surface-brand py-16", html)  # a faixa lilás não é desenhada
 
     def test_the_icon_and_accent_come_from_the_record(self):
         self.card(titulo="Envio", icon="truck", accent="mint")
@@ -206,21 +226,31 @@ class HomeCalloutTests(HomeBlocksBase):
         self.assertNotIn("Do Admin", html)
         self.assertNotIn("Tem uma ideia? A gente imprime.", html)
 
-    def test_an_empty_callout_falls_back_instead_of_drawing_a_dark_stripe(self):
-        """Faixa escura vazia no fim da página é pior que faixa nenhuma."""
-        HomeCallout.load()  # existe, ativa, sem tradução nenhuma
+    def test_an_empty_callout_does_not_draw_a_dark_stripe(self):
+        """Faixa escura vazia é pior que faixa nenhuma.
+
+        A seção existe e aponta para um texto sem nada escrito: a seção não é
+        desenhada — e, como a composição está cadastrada, o texto de fábrica
+        também não volta.
+        """
+        self.callout_section(HomeCallout.load())  # existe, ativa, sem tradução nenhuma
 
         html = self.html()
 
-        self.assertIn("Tem uma ideia? A gente imprime.", html)
+        self.assertNotIn("Tem uma ideia? A gente imprime.", html)
+        self.assertNotIn('class="callout"', html)
         self.assertNotIn("None", html)
 
-    def test_merely_opening_the_admin_screen_does_not_change_the_home(self):
-        """O Admin cria a linha só para redirecionar para ela.
+    def test_a_callout_section_without_a_chosen_text_shows_the_default(self):
+        """A seção recém-criada não abre um buraco: sem escolha, o texto de fábrica."""
+        HomeSection.objects.create(
+            internal_name="Chamada", section_type=HomeSectionType.CALLOUT, sort_order=1
+        )
 
-        Se "a linha existe" contasse como "alguém configurou", a chamada final
-        sumiria da Home porque alguém *olhou* a tela.
-        """
+        self.assertIn("Tem uma ideia? A gente imprime.", self.html())
+
+    def test_merely_opening_the_admin_screen_does_not_change_the_home(self):
+        """Abrir a lista de chamadas não cria linha nem mexe na Home."""
         from django.contrib.auth import get_user_model
 
         User = get_user_model()
@@ -228,10 +258,10 @@ class HomeCalloutTests(HomeBlocksBase):
             username="ana", email="ana@jdprint.test", password="senha-bem-comprida"
         )
         self.client.force_login(User.objects.get(username="ana"))
-        self.client.get("/admin/home/homecallout/")
+        self.assertEqual(self.client.get("/admin/home/homecallout/").status_code, 200)
         self.client.logout()
 
-        self.assertEqual(HomeCallout.objects.count(), 1)
+        self.assertEqual(HomeCallout.objects.count(), 0)
         self.assertIn("Tem uma ideia? A gente imprime.", self.html())
 
     def test_only_a_title_is_enough(self):

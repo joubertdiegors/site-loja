@@ -1,52 +1,53 @@
 {% load i18n jdprint %}
 {% comment %}
-O bloco institucional: quadro de imagem à esquerda, texto à direita.
+Uma seção "Sobre a loja": quadro de imagem à esquerda, texto à direita.
 
-Vem de `home.HomeAbout` — registro único, como a chamada final. Desativado ou
-sem conteúdo, o bloco não existe: `get_home_about` devolve `None` e nem a
-seção é desenhada. Faixa vazia é pior que faixa nenhuma.
+Espera `section` (ResolvedSection) com o `HomeAbout` escolhido em
+`section.about` — com as pílulas dele (`visible_badges`). Desativado ou sem
+conteúdo, a seção nem chega aqui: faixa vazia é pior que faixa nenhuma.
 
 O quadro segue o conceito do hero: a moldura listrada FAZ PARTE do desenho e
-continua visível em volta da foto, que entra por dentro com folga.
+continua visível em volta da foto, que entra por dentro com folga. O fundo vem
+das cores do cadastro (`style`), por cima da faixa da posição.
 {% endcomment %}
 
-{% if home_about %}
-  <section class="about" style="{{ home_about.style }}" aria-labelledby="titulo-sobre">
-    <div class="container-page about-grid">
+{% with home_about=section.about %}
+<section class="about" style="{{ home_about.style }}" aria-labelledby="{{ section.anchor }}">
+  <div class="container-page about-grid">
 
-      <div class="about-frame">
-        {% if home_about.image %}
-          <img src="{{ home_about.image.url }}" alt="{{ home_about.image_alt }}"
-               class="about-photo" loading="lazy">
-        {% else %}
-          <span class="about-frame-note" aria-hidden="true">
-            {% translate "Área da foto" %}
-          </span>
-        {% endif %}
-      </div>
-
-      <div class="about-text">
-        {% if home_about.eyebrow %}
-          <p class="about-eyebrow">{{ home_about.eyebrow }}</p>
-        {% endif %}
-
-        <h2 id="titulo-sobre" class="about-title">
-          {% if home_about.title %}{{ home_about.title }}{% else %}{{ site_name }}{% endif %}
-        </h2>
-
-        {% if home_about.text %}
-          <p class="about-lead">{{ home_about.text }}</p>
-        {% endif %}
-
-        {% if home_about.visible_badges %}
-          <div class="about-pills">
-            {% for pill in home_about.visible_badges %}
-              <span class="about-pill" style="{{ pill.style }}">{{ pill.text }}</span>
-            {% endfor %}
-          </div>
-        {% endif %}
-      </div>
-
+    <div class="about-frame">
+      {% if home_about.image %}
+        <img src="{{ home_about.image.url }}" alt="{{ home_about.image_alt }}"
+             class="about-photo" loading="lazy">
+      {% else %}
+        <span class="about-frame-note" aria-hidden="true">
+          {% translate "Área da foto" %}
+        </span>
+      {% endif %}
     </div>
-  </section>
-{% endif %}
+
+    <div class="about-text">
+      {% if home_about.eyebrow %}
+        <p class="about-eyebrow">{{ home_about.eyebrow }}</p>
+      {% endif %}
+
+      <h2 id="{{ section.anchor }}" class="about-title">
+        {% if home_about.title %}{{ home_about.title }}{% else %}{{ site_name }}{% endif %}
+      </h2>
+
+      {% if home_about.text %}
+        <p class="about-lead">{{ home_about.text }}</p>
+      {% endif %}
+
+      {% if home_about.visible_badges %}
+        <div class="about-pills">
+          {% for pill in home_about.visible_badges %}
+            <span class="about-pill" style="{{ pill.style }}">{{ pill.text }}</span>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </div>
+
+  </div>
+</section>
+{% endwith %}

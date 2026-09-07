@@ -99,8 +99,10 @@ class HomeSectionAdminTests(TestCase):
 
     def test_home_app_is_visible_in_the_admin_index(self):
         response = self.client.get(reverse("admin:index"))
+        # Os nomes na tela vêm de config/admin.py (seção HOME); os endereços são os de sempre.
         self.assertContains(response, "Seções da Home")
-        self.assertContains(response, "Banners da Home")
+        self.assertContains(response, 'href="/admin/home/homesection/"')
+        self.assertContains(response, 'href="/admin/home/homebanner/"')
 
     # -- criação ------------------------------------------------------------
 

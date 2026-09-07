@@ -1,8 +1,20 @@
 {% load i18n %}
 {% comment %}
-  Cópia de `django/contrib/admin/templates/admin/app_list.html` com duas
-  correções para as seções por assunto de `config/admin.py`, marcadas
-  abaixo. Ao subir de versão do Django, comparar com o original.
+  Cópia de `django/contrib/admin/templates/admin/app_list.html` com as
+  correções para o menu por assunto de `config/admin.py`, marcadas abaixo. Ao
+  subir de versão do Django, comparar com o original.
+
+  Além das seções (as caixas), a lista pode trazer:
+
+  * linhas de **subtítulo** (`model.heading`) — "1 · Faixa do topo",
+    "2 · Banner principal" —, que não são links;
+  * itens **recuados** (`model.sub`) — o que faz parte do item logo acima,
+    como as pílulas do bloco "Sobre a loja";
+  * uma **dica** (`model.hint`) em letra menor, só no índice
+    (`show_changelinks`); a barra lateral é estreita.
+
+  Os nomes vêm de `config/admin.py`, não do model: renomear ali não gera
+  migration nem muda URL nenhuma.
 {% endcomment %}
 
 {% if app_list %}
@@ -28,14 +40,23 @@
           </tr>
         </thead>
         {% for model in app.models %}
+          {% if model.heading %}
+            <tr class="jd-grupo">
+              <th scope="row" colspan="3">
+                {{ model.name }}
+                {% if model.hint and show_changelinks %}<small class="jd-dica">{{ model.hint }}</small>{% endif %}
+              </th>
+            </tr>
+          {% else %}
           {% with model_name=model.object_name|lower %}
-            <tr class="model-{{ model_name }}{% if model.admin_url in request.path|urlencode %} current-model{% endif %}">
+            <tr class="model-{{ model_name }}{% if model.sub %} jd-sub{% endif %}{% if model.admin_url and model.admin_url in request.path|urlencode %} current-model{% endif %}">
               <th scope="row" id="{{ app.app_label }}-{{ model_name }}">
                 {% if model.admin_url %}
                   <a href="{{ model.admin_url }}"{% if model.admin_url in request.path|urlencode %} aria-current="page"{% endif %}>{{ model.name }}</a>
                 {% else %}
                   {{ model.name }}
                 {% endif %}
+                {% if model.hint and show_changelinks %}<small class="jd-dica">{{ model.hint }}</small>{% endif %}
               </th>
 
               {% if model.add_url %}
@@ -55,6 +76,7 @@
               {% endif %}
             </tr>
           {% endwith %}
+          {% endif %}
         {% endfor %}
       </table>
     </div>

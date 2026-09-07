@@ -7,17 +7,18 @@ subtítulo, layout, CTA e a lista de produtos já resolvida. O template não
 sabe — nem precisa saber — se os produtos vieram de escolha manual, de uma
 categoria ou dos destaques.
 
-O fundo alterna entre o creme da página e o branco, conforme a posição na
-lista: é o que dá ritmo à página sem depender de quantas seções o administrador
-criou.
+O fundo é a faixa da posição desta seção na composição (`section.band`,
+calculada em apps/home/services.py): branca com os fios, ou o creme da
+página. É o que dá ritmo à página sem depender de quantas seções o
+administrador criou — e remover ou mover uma seção reajusta as vizinhas.
 
 A alternância é creme/branco, e não branco/lavanda como antes. Duas razões: o
 creme é o chão da marca e precisa aparecer — com faixas brancas e lavanda
 coladas uma na outra ele nunca chegava a ser visto; e o roxo claro fica
-reservado para UMA faixa da página (a de "como trabalhamos"), onde vale como
-acento em vez de virar mais um tom de fundo.
+reservado para a faixa de "como trabalhamos", onde vale como acento em vez de
+virar mais um tom de fundo.
 {% endcomment %}
-<section class="{% if forloop.counter0|divisibleby:2 %}py-16 sm:py-24{% else %}border-y border-surface-line bg-white py-16 sm:py-24{% endif %}"
+<section class="{% if section.is_white %}border-y border-surface-line bg-white {% endif %}py-16 sm:py-24"
          aria-labelledby="{{ section.anchor }}">
   <div class="container-page">
 

@@ -1,0 +1,79 @@
+{% load i18n jdprint %}
+{% comment %}
+Uma seção "Como trabalhamos": os cards com ícone na faixa lilás.
+
+Espera `section` (ResolvedSection) com os cards desta seção em
+`section.cards`. Nada aqui fixa a quantidade — a grade é `sm:grid-cols-3` e
+quatro cadastrados dão duas linhas.
+
+Dois estados diferentes de propósito (ver `_how_we_work_section`):
+
+  cards cadastrados -> os cards;
+  nenhum cadastrado -> os três padrão (`section.use_defaults`), para a seção
+                       recém-criada — ou a instalação recém-migrada — não abrir
+                       com um buraco.
+
+Seção com cards, todos desativados, nem chega aqui: desativar é uma decisão.
+
+A faixa lilás é o acento desta seção e fica por cima da faixa da posição; a
+posição continua contando na alternância das vizinhas.
+{% endcomment %}
+
+<section class="border-y border-surface-line bg-surface-brand py-16 sm:py-24" aria-labelledby="{{ section.anchor }}">
+  <div class="container-page">
+    <h2 id="{{ section.anchor }}" class="sr-only">{{ section.title|default:_("Como trabalhamos") }}</h2>
+    <ul class="grid gap-4 sm:grid-cols-3" role="list">
+      {% if section.use_defaults %}
+        <li class="card flex h-full items-center gap-4 p-5 sm:gap-5 sm:p-6">
+          <span class="flex h-14 w-14 shrink-0 items-center justify-center rounded-card bg-brand-100 text-brand-700" aria-hidden="true">
+            {% icon "cube" "h-7 w-7" %}
+          </span>
+          <div class="min-w-0">
+            <strong class="block font-display text-base font-bold tracking-display text-ink">{% translate "Produção própria" %}</strong>
+            <span class="mt-1.5 block text-sm leading-relaxed text-ink-soft">
+              {% translate "Impressão feita por nós, com controle de camada e acabamento." %}
+            </span>
+          </div>
+        </li>
+        <li class="card flex h-full items-center gap-4 p-5 sm:gap-5 sm:p-6">
+          <span class="flex h-14 w-14 shrink-0 items-center justify-center rounded-card bg-mint-100 text-mint-700" aria-hidden="true">
+            {% icon "palette" "h-7 w-7" %}
+          </span>
+          <div class="min-w-0">
+            <strong class="block font-display text-base font-bold tracking-display text-ink">{% translate "Cores e materiais à escolha" %}</strong>
+            <span class="mt-1.5 block text-sm leading-relaxed text-ink-soft">
+              {% translate "Cada peça sai na cor e no material que você escolher." %}
+            </span>
+          </div>
+        </li>
+        <li class="card flex h-full items-center gap-4 p-5 sm:gap-5 sm:p-6">
+          <span class="flex h-14 w-14 shrink-0 items-center justify-center rounded-card bg-coral-100 text-coral-700" aria-hidden="true">
+            {% icon "sparkles" "h-7 w-7" %}
+          </span>
+          <div class="min-w-0">
+            <strong class="block font-display text-base font-bold tracking-display text-ink">{% translate "Personalização real" %}</strong>
+            <span class="mt-1.5 block text-sm leading-relaxed text-ink-soft">
+              {% translate "Foto ou texto aplicados na peça antes da impressão." %}
+            </span>
+          </div>
+        </li>
+      {% else %}
+        {% for card in section.cards %}
+          {% if card.title %}
+            <li class="card flex h-full items-center gap-4 p-5 sm:gap-5 sm:p-6">
+              <span class="flex h-14 w-14 shrink-0 items-center justify-center rounded-card bg-{{ card.accent }}-100 text-{{ card.accent }}-700" aria-hidden="true">
+                {% icon card.icon "h-7 w-7" %}
+              </span>
+              <div class="min-w-0">
+                <strong class="block font-display text-base font-bold tracking-display text-ink">{{ card.title }}</strong>
+                {% if card.text %}
+                  <span class="mt-1.5 block text-sm leading-relaxed text-ink-soft">{{ card.text }}</span>
+                {% endif %}
+              </div>
+            </li>
+          {% endif %}
+        {% endfor %}
+      {% endif %}
+    </ul>
+  </div>
+</section>

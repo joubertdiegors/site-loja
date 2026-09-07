@@ -413,7 +413,15 @@ class HomeQueryTests(TestCase):
         # E de 36 para 37 com o carrossel de banners: uma consulta para a linha
         # única de configuração (rotação, setas, indicadores). Os banners em si
         # já vinham numa consulta só — agora todos os ativos, não só o primeiro.
-        with self.assertNumQueries(38):
+        # 38 com a página de manutenção/lançamento (a consulta da página ativa).
+        #
+        # E de 38 para 36 com a composição da Home (etapa 20): os blocos
+        # deixaram de ter uma consulta cada (cards, blocos de categoria,
+        # chamada, sobre a loja) e passaram a vir nos prefetches da lista de
+        # seções — que só rodam quando há seção daquele tipo. Nesta Home só há
+        # uma seção de produtos, então o que se paga é a seção, as traduções e
+        # o `exists()` que decide se a composição está cadastrada.
+        with self.assertNumQueries(36):
             self.client.get(HOME_PT)
 
     def test_query_count_does_not_grow_with_more_content(self):
@@ -426,10 +434,13 @@ class HomeQueryTests(TestCase):
             HomeAbout,
             HomeAboutBadge,
             HomeAboutBadgeTranslation,
+            HomeAboutTranslation,
             HomeCard,
             HomeCardTranslation,
             HomeCategoryCard,
             HomeCategoryCardTranslation,
+            HomeSection,
+            HomeSectionType,
         )
         from apps.storefront.models import (
             FooterColumn,
@@ -446,13 +457,27 @@ class HomeQueryTests(TestCase):
         make_section(internal_name="Destaques", title="Destaques", product_limit=4)
 
         sobre = HomeAbout.load()
+        HomeAboutTranslation.objects.create(master=sobre, language="pt", title="Sobre")
+        # Os blocos entram na composição, como na loja de verdade: uma seção
+        # de categorias, uma de «como trabalhamos» e uma de «sobre a loja».
+        secao_blocos = HomeSection.objects.create(
+            internal_name="Categorias", section_type=HomeSectionType.CATEGORY_CARDS, sort_order=1
+        )
+        secao_cards = HomeSection.objects.create(
+            internal_name="Como trabalhamos", section_type=HomeSectionType.HOW_WE_WORK, sort_order=3
+        )
+        HomeSection.objects.create(
+            internal_name="Sobre", section_type=HomeSectionType.ABOUT, about=sobre, sort_order=4
+        )
 
         def povoar(quantidade):
             for index in range(quantidade):
                 item = TopBarItem.objects.create(internal_name=f"Topo {index}", sort_order=index)
                 TopBarItemTranslation.objects.create(master=item, language="pt", text=f"T{index}")
 
-                card = HomeCard.objects.create(internal_name=f"Card {index}", sort_order=index)
+                card = HomeCard.objects.create(
+                    internal_name=f"Card {index}", sort_order=index, section=secao_cards
+                )
                 HomeCardTranslation.objects.create(master=card, language="pt", title=f"C{index}")
 
                 coluna = FooterColumn.objects.create(internal_name=f"Col {index}", sort_order=index)
@@ -464,7 +489,8 @@ class HomeQueryTests(TestCase):
                 # trazem categoria (`select_related`) e tradução (`prefetch`),
                 # e é justamente esse par que um N+1 quebraria.
                 bloco = HomeCategoryCard.objects.create(
-                    internal_name=f"Bloco {index}", category=category, sort_order=index
+                    internal_name=f"Bloco {index}", category=category, sort_order=index,
+                    section=secao_blocos,
                 )
                 HomeCategoryCardTranslation.objects.create(
                     master=bloco, language="pt", title=f"B{index}"

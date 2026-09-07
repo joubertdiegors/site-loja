@@ -6,10 +6,14 @@ apenas o que faz sentido para o tipo escolhido (ver
 """
 
 from django.contrib import admin, messages
-from django.db.models import Count
+from django.core.exceptions import ValidationError
+from django.db.models import Count, F, Window, prefetch_related_objects
+from django.db.models.functions import RowNumber
+from django.urls import reverse
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 
+from apps.core.admin_preview import LivePreviewMixin, Wrapped, ordered, replace_or_append
 from apps.core.admin_mixins import (
     PartialSafeModelForm,
     RequiredDefaultLanguageInlineFormSet,
@@ -17,6 +21,8 @@ from apps.core.admin_mixins import (
 )
 from apps.core.constants import DEFAULT_LANGUAGE
 from apps.core.colors import swatch
+from apps.home import services
+from apps.home.services import ResolvedSection
 from apps.home.models import (
     HomeAbout,
     HomeAboutBadge,
@@ -55,21 +61,21 @@ class HomeBannerTranslationInline(admin.StackedInline):
     model = HomeBannerTranslation
     formset = UniqueLanguageInlineFormSet
     extra = 0
-    fields = (
-        "language",
-        "eyebrow", "title", "title_highlight", "subtitle",
-        "cta_label", "cta_secondary_label",
-        "perk_1", "perk_2", "perk_3",
-        "badge_yellow", "badge_mint", "badge_white", "badge_coral",
-        "colors_note", "rating_value", "rating_note",
-        "image_alt", "image_tile_left_alt", "image_tile_right_alt",
+    fieldsets = (
+        (None, {"fields": (("language", "eyebrow", "title_highlight"), "title", "subtitle")}),
+        ("Botões", {"fields": (("cta_label", "cta_secondary_label"),)}),
+        ("Promessas e selos", {"fields": (("perk_1", "perk_2", "perk_3"), ("badge_yellow", "badge_mint", "badge_white", "badge_coral"))}),
+        ("Bento Criativo", {"fields": (("colors_note", "rating_value", "rating_note"),)}),
+        ("Textos alternativos das imagens", {"fields": (("image_alt", "image_tile_left_alt", "image_tile_right_alt"),)}),
     )
     verbose_name = "conteúdo por idioma"
     verbose_name_plural = "CONTEÚDO — um bloco por idioma (todos os campos opcionais)"
 
 
 @admin.register(HomeBanner)
-class HomeBannerAdmin(admin.ModelAdmin):
+class HomeBannerAdmin(LivePreviewMixin, admin.ModelAdmin):
+    preview_component = "components/banner_carousel.html"
+    preview_note = "O banner como abre a Home, no desenho escolhido. Uma imagem recém-escolhida aparece depois de salvar."
     inlines = [HomeBannerTranslationInline]
     list_display = ("internal_name", "layout", "title_pt", "is_active", "sort_order", "has_image", "updated_at")
     list_filter = ("is_active", "layout")
@@ -81,12 +87,12 @@ class HomeBannerAdmin(admin.ModelAdmin):
     fieldsets = (
         (
             "IDENTIFICAÇÃO",
-            {"fields": ("internal_name", "layout", "is_active", "sort_order")},
+            {"fields": (("internal_name", "layout"), ("is_active", "sort_order"))},
         ),
         (
             "IMAGENS",
             {
-                "fields": ("preview", "image_desktop", "image_mobile"),
+                "fields": ("preview", ("image_desktop", "image_mobile")),
                 "description": (
                     "<b>Hero editorial:</b> a foto entra no quadro da composição, "
                     "ao lado do texto. Proporção <b>quadrada a 4:3</b> "
@@ -111,7 +117,7 @@ class HomeBannerAdmin(admin.ModelAdmin):
             "QUADROS LATERAIS (só no Poster Pop)",
             {
                 "classes": ("jd-poster",),
-                "fields": ("image_tile_left", "image_tile_right"),
+                "fields": (("image_tile_left", "image_tile_right"),),
                 "description": (
                     "Os dois quadros que acompanham a foto principal na base do "
                     "poster. Quadrados (ex.: 600 × 600 px). Sem foto, o quadro "
@@ -123,7 +129,7 @@ class HomeBannerAdmin(admin.ModelAdmin):
             "COMPOSIÇÃO (só no hero editorial)",
             {
                 "classes": ("jd-composicao",),
-                "fields": ("plate_color", "frame_color", "surface_color"),
+                "fields": (("plate_color", "frame_color", "surface_color"),),
                 "description": (
                     "As cores da cena à direita: a placa inclinada atrás, o "
                     "quadro listrado da foto e o fundo do bloco. As opções são "
@@ -136,7 +142,7 @@ class HomeBannerAdmin(admin.ModelAdmin):
             "BOTÕES",
             {
                 "fields": (
-                    "cta_target", "cta_category", "cta_product", "cta_url",
+                    ("cta_target", "cta_category", "cta_product", "cta_url"),
                     "cta_secondary_url",
                 ),
                 "description": (
@@ -151,7 +157,15 @@ class HomeBannerAdmin(admin.ModelAdmin):
     )
 
     class Media:
-        js = ("admin/js/home_cta_admin.js", "admin/js/home_banner_admin.js")
+        js = ("admin/js/jd_fields.js", "admin/js/home_cta_admin.js", "admin/js/home_banner_admin.js")
+
+    def get_preview_context(self, request, instance):
+        """O banner sozinho no quadro da Home — o componente de sempre."""
+        return {
+            "banner": instance,
+            "banners": [instance],
+            "banner_carousel": HomeBannerCarousel.current(),
+        }
 
     @admin.display(description="imagem atual")
     def preview(self, obj):
@@ -194,7 +208,7 @@ class HomeBannerAdmin(admin.ModelAdmin):
 
 
 @admin.register(HomeBannerCarousel)
-class HomeBannerCarouselAdmin(admin.ModelAdmin):
+class HomeBannerCarouselAdmin(LivePreviewMixin, admin.ModelAdmin):
     """Uma linha só — o Admin leva direto a ela.
 
     É a configuração GLOBAL do carrossel, e não uma opção por banner: quantos
@@ -202,13 +216,16 @@ class HomeBannerCarouselAdmin(admin.ModelAdmin):
     Home"; aqui se decide como eles rodam.
     """
 
+    preview_component = "components/banner_carousel.html"
+    preview_scripts = True
+    preview_note = "Os banners ativos hoje, girando como na Home. Com um só, não há carrossel."
     save_on_top = True
     readonly_fields = ("created_at", "updated_at", "banners_ativos")
     fieldsets = (
         (
             "ROTAÇÃO",
             {
-                "fields": ("banners_ativos", "autoplay", "interval_seconds"),
+                "fields": (("autoplay", "interval_seconds"), "banners_ativos"),
                 "description": (
                     "Com <b>um</b> banner ativo nada disto aparece: ele é mostrado "
                     "como sempre, sem setas nem indicadores. Com <b>dois ou mais</b>, "
@@ -220,7 +237,7 @@ class HomeBannerCarouselAdmin(admin.ModelAdmin):
         (
             "CONTROLES",
             {
-                "fields": ("show_arrows", "show_dots", "pause_on_hover", "pause_on_interaction"),
+                "fields": (("show_arrows", "show_dots"), ("pause_on_hover", "pause_on_interaction")),
                 "description": (
                     "Setas e indicadores usam o desenho da marca (círculos brancos "
                     "com contorno navy e a bolinha cheia no slide atual). O teclado "
@@ -230,6 +247,10 @@ class HomeBannerCarouselAdmin(admin.ModelAdmin):
         ),
         ("AUDITORIA", {"classes": ("collapse",), "fields": ("created_at", "updated_at")}),
     )
+
+    def get_preview_context(self, request, instance):
+        banners = services.get_active_banners()
+        return {"banner": banners[0] if banners else None, "banners": banners, "banner_carousel": instance}
 
     @admin.display(description="banners ativos hoje")
     def banners_ativos(self, obj):
@@ -260,15 +281,36 @@ class HomeBannerCarouselAdmin(admin.ModelAdmin):
 # ---------------------------------------------------------------------------
 
 
+class SectionTranslationFormSet(UniqueLanguageInlineFormSet):
+    """O título em português é obrigatório nas faixas de produtos.
+
+    Os blocos (categorias, como trabalhamos, chamada final, sobre a loja) têm
+    o conteúdo no cadastro próprio; o título da seção só serve de rótulo
+    acessível, e exigi-lo seria burocracia sem leitor.
+    """
+
+    def clean(self):
+        super().clean()
+        if any(self.errors):
+            return
+        if not self.instance.is_products_section:
+            return
+        languages = [
+            form.cleaned_data.get("language")
+            for form in self.forms
+            if form.cleaned_data and not form.cleaned_data.get("DELETE")
+        ]
+        if DEFAULT_LANGUAGE.value not in languages:
+            raise ValidationError("Uma faixa de produtos precisa do título em português.")
+
+
 class HomeSectionTranslationInline(admin.StackedInline):
     model = HomeSectionTranslation
-    formset = RequiredDefaultLanguageInlineFormSet
+    formset = SectionTranslationFormSet
     extra = 0
-    min_num = 1
-    validate_min = True
-    fields = ("language", "title", "subtitle", "cta_label")
+    fields = (("language", "title"), ("subtitle", "cta_label"))
     verbose_name = "conteúdo por idioma"
-    verbose_name_plural = "CONTEÚDO — título, subtítulo e texto do botão por idioma"
+    verbose_name_plural = "CONTEÚDO — título, subtítulo e texto do botão por idioma (faixas de produtos)"
 
 
 class HomeSectionProductInline(admin.TabularInline):
@@ -287,96 +329,209 @@ class HomeSectionProductInline(admin.TabularInline):
 
 
 @admin.register(HomeSection)
-class HomeSectionAdmin(admin.ModelAdmin):
+class HomeSectionAdmin(LivePreviewMixin, admin.ModelAdmin):
+    """A ordem da Home. Cada linha é uma seção; a lista é a página, de cima para baixo."""
+
+    preview_component = "components/home_composition.html"
+    preview_note = (
+        "A seção como aparece na Home, com o conteúdo de hoje. A faixa de fundo "
+        "(branca ou creme) depende da posição entre as outras seções."
+    )
     inlines = [HomeSectionTranslationInline, HomeSectionProductInline]
     save_on_top = True
 
     list_display = (
+        "posicao",
         "internal_name",
-        "title_pt",
         "type_badge",
-        "layout",
-        "product_limit",
-        "manual_products_count",
+        "conteudo",
         "is_active",
         "sort_order",
     )
-    list_display_links = ("internal_name", "title_pt")
+    list_display_links = ("internal_name",)
     list_editable = ("is_active", "sort_order")
-    list_filter = ("is_active", "section_type", "layout", "category")
+    list_filter = ("is_active", "section_type")
     search_fields = ("internal_name", "translations__title")
     ordering = ("sort_order", "id")
     autocomplete_fields = ("category", "cta_category", "cta_product")
-    readonly_fields = ("created_at", "updated_at")
+    readonly_fields = ("created_at", "updated_at", "blocos_desta_secao")
     actions = ("action_activate", "action_deactivate", "action_duplicate")
-    list_per_page = 40
+    list_per_page = 60
 
     fieldsets = (
         (
             "IDENTIFICAÇÃO",
             {
-                "fields": ("internal_name", "is_active", "sort_order"),
+                "fields": (("internal_name", "section_type"), ("is_active", "sort_order")),
                 "description": (
-                    "O nome interno é só para você se organizar. O que o cliente vê "
-                    "é o título, na seção <b>CONTEÚDO</b> no final da página."
+                    "<b>Tipo</b> é o modelo do bloco; <b>nome interno</b> é esta instância "
+                    "(ex.: <i>Categorias — Coleções</i>) — é o que distingue duas seções do "
+                    "mesmo tipo na lista. A <b>ordem</b> é a posição na Home: menor valor "
+                    "aparece primeiro. Uma mesma seção pode existir quantas vezes quiser."
                 ),
             },
         ),
         (
             "CONTEÚDO DA SEÇÃO",
             {
-                "fields": (
-                    "section_type",
-                    "layout",
-                    "product_limit",
-                    "category",
-                    "include_subcategories",
-                )
+                "classes": ("jd-produtos",),
+                "fields": (("layout", "product_limit"), ("category", "include_subcategories")),
+                "description": "Só para as faixas de produtos. O título do cliente fica em CONTEÚDO, no fim da página.",
             },
         ),
-        ("BOTÃO (CTA)", {"fields": ("cta_target", "cta_category", "cta_product", "cta_url")}),
+        (
+            "CHAMADA FINAL",
+            {
+                "classes": ("jd-callout",),
+                "fields": ("callout",),
+                "description": (
+                    "Qual texto esta seção mostra (o cadastro fica em «Chamada final»; os "
+                    "passos são dele). Sem escolher, a seção mostra o texto padrão. "
+                    "Duas seções podem usar o mesmo texto."
+                ),
+            },
+        ),
+        (
+            "SOBRE A LOJA",
+            {
+                "classes": ("jd-about",),
+                "fields": ("about",),
+                "description": (
+                    "Qual bloco esta seção mostra (o cadastro fica em «Sobre a loja»; as "
+                    "pílulas são dele). Sem escolher, a seção não é desenhada."
+                ),
+            },
+        ),
+        (
+            "BLOCOS DESTA SEÇÃO",
+            {
+                "classes": ("jd-blocos",),
+                "fields": ("blocos_desta_secao",),
+                "description": (
+                    "Os blocos de categorias e os cards de «Como trabalhamos» pertencem a "
+                    "uma seção: cada instância tem os seus. Uma seção nova de «Como "
+                    "trabalhamos» sem cards mostra os três de fábrica até você cadastrar."
+                ),
+            },
+        ),
+        (
+            "BOTÃO (CTA)",
+            {"classes": ("jd-cta",), "fields": (("cta_target", "cta_category", "cta_product", "cta_url"),)},
+        ),
         ("AUDITORIA", {"classes": ("collapse",), "fields": ("created_at", "updated_at")}),
     )
 
     class Media:
-        js = ("admin/js/home_section_admin.js", "admin/js/home_cta_admin.js")
+        js = ("admin/js/jd_fields.js", "admin/js/home_section_admin.js", "admin/js/home_cta_admin.js")
         css = {"all": ("admin/css/jdprint_admin.css",)}
+
+    def get_preview_context(self, request, instance):
+        """A seção resolvida pela mesma rotina da Home, com os mesmos prefetches."""
+        prefetch_related_objects([instance], *services.section_prefetches())
+        entry = services.resolve_section(instance)
+        if entry is None or not entry.is_renderable:
+            motivos = {
+                HomeSectionType.CATEGORY_CARDS: "Esta seção ainda não tem blocos de categoria ativos — cadastre-os em «Blocos de categorias» depois de salvar.",
+                HomeSectionType.ABOUT: "Escolha um bloco «Sobre a loja» com conteúdo: sem ele a seção não é desenhada.",
+                HomeSectionType.CALLOUT: "O texto escolhido está desativado ou vazio: a seção não é desenhada.",
+            }
+            motivo = motivos.get(
+                instance.section_type,
+                "Esta seção não tem produtos para mostrar com a configuração atual — ela não seria desenhada na Home.",
+            )
+            return {"sections": [], "preview_empty": motivo}
+        return {"sections": services._with_bands([entry])}
 
     def get_queryset(self, request):
         return (
             super()
             .get_queryset(request)
-            .select_related("category")
+            .select_related("category", "callout", "about")
             .prefetch_related("translations")
-            .annotate(total_items=Count("items", distinct=True))
+            .annotate(
+                total_items=Count("items", distinct=True),
+                total_blocks=Count("category_cards", distinct=True),
+                total_cards=Count("cards", distinct=True),
+                # A posição na Home: a numeração da lista inteira, na ordem em
+                # que ela aparece — inclusive quando a tela está filtrada.
+                posicao_na_home=Window(RowNumber(), order_by=[F("sort_order").asc(), F("id").asc()]),
+            )
         )
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name in ("callout", "about"):
+            kwargs["queryset"] = db_field.remote_field.model.objects.order_by("id")
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+    # -- colunas -----------------------------------------------------------
+
+    @admin.display(description="nº", ordering="sort_order")
+    def posicao(self, obj):
+        numero = getattr(obj, "posicao_na_home", None)
+        texto = f"{numero:02d}" if numero else "—"
+        if not obj.is_active:
+            return format_html('<span style="color:var(--body-quiet-color)" title="inativa: não aparece">{}</span>', texto)
+        return format_html("<strong>{}</strong>", texto)
+
+    @admin.display(description="mostra")
+    def conteudo(self, obj):
+        """O que a instância mostra, numa frase: é o que separa duas seções iguais."""
+        if obj.section_type == HomeSectionType.CATEGORY_CARDS:
+            url = reverse("admin:home_homecategorycard_changelist") + f"?section__id__exact={obj.pk}"
+            return format_html('<a href="{}">{} bloco(s) de categoria</a>', url, obj.total_blocks)
+        if obj.section_type == HomeSectionType.HOW_WE_WORK:
+            url = reverse("admin:home_homecard_changelist") + f"?section__id__exact={obj.pk}"
+            if obj.total_cards:
+                return format_html('<a href="{}">{} card(s)</a>', url, obj.total_cards)
+            return format_html('<a href="{}">os 3 cards padrão</a>', url)
+        if obj.section_type == HomeSectionType.CALLOUT:
+            if obj.callout_id:
+                url = reverse("admin:home_homecallout_change", args=[obj.callout_id])
+                return format_html('<a href="{}">{}</a>', url, obj.callout)
+            return "texto padrão"
+        if obj.section_type == HomeSectionType.ABOUT:
+            if obj.about_id:
+                url = reverse("admin:home_homeabout_change", args=[obj.about_id])
+                return format_html('<a href="{}">{}</a>', url, obj.about)
+            return format_html('<span style="color:#b45309">sem conteúdo escolhido ⚠</span>')
+        titulo = obj.tr("title", language=DEFAULT_LANGUAGE.value, default="")
+        detalhe = f"{obj.get_layout_display().lower()}, até {obj.product_limit}"
+        if obj.uses_manual_products:
+            detalhe += f", {obj.total_items} escolhido(s)"
+        if obj.uses_category and obj.category_id:
+            detalhe += f", {obj.category}"
+        return f"«{titulo}» — {detalhe}" if titulo else detalhe
+
+    @admin.display(description="blocos")
+    def blocos_desta_secao(self, obj):
+        if not obj.pk:
+            return "Salve a seção para cadastrar os blocos dela."
+        if obj.section_type == HomeSectionType.CATEGORY_CARDS:
+            lista = reverse("admin:home_homecategorycard_changelist") + f"?section__id__exact={obj.pk}"
+            novo = reverse("admin:home_homecategorycard_add") + f"?section={obj.pk}"
+            total = obj.category_cards.count()
+            return format_html('{} bloco(s) — <a href="{}">ver</a> · <a href="{}">acrescentar bloco</a>', total, lista, novo)
+        if obj.section_type == HomeSectionType.HOW_WE_WORK:
+            lista = reverse("admin:home_homecard_changelist") + f"?section__id__exact={obj.pk}"
+            novo = reverse("admin:home_homecard_add") + f"?section={obj.pk}"
+            total = obj.cards.count()
+            return format_html('{} card(s) — <a href="{}">ver</a> · <a href="{}">acrescentar card</a>', total, lista, novo)
+        return "Este tipo não tem blocos próprios."
 
     def get_changelist_form(self, request, **kwargs):
         # A edição em lote (ativar/ordenar) envia um formulário parcial.
         kwargs.setdefault("form", PartialSafeModelForm)
         return super().get_changelist_form(request, **kwargs)
 
-    # -- colunas -----------------------------------------------------------
-
-    @admin.display(description="título (pt)")
-    def title_pt(self, obj):
-        return obj.tr("title", language=DEFAULT_LANGUAGE.value, default="—")
-
     @admin.display(description="tipo", ordering="section_type")
     def type_badge(self, obj):
-        label = obj.get_section_type_display()
+        label = obj.get_section_type_display().split(" (")[0]
         if not obj.has_data_source:
             return format_html(
                 '<span title="Depende do módulo de pedidos" style="color:#b45309">{} ⚠</span>',
                 label,
             )
         return label
-
-    @admin.display(description="produtos manuais", ordering="total_items")
-    def manual_products_count(self, obj):
-        if not obj.uses_manual_products:
-            return "—"
-        return obj.total_items
 
     # -- ações -------------------------------------------------------------
 
@@ -420,7 +575,8 @@ class HomeSectionAdmin(admin.ModelAdmin):
 
         self.message_user(
             request,
-            f"{created} seção(ões) duplicada(s). As cópias começam desativadas.",
+            f"{created} seção(ões) duplicada(s). As cópias começam desativadas; blocos de "
+            "categoria e cards continuam na seção original — cadastre os da cópia.",
             messages.SUCCESS,
         )
 
@@ -446,41 +602,62 @@ class HomeCardTranslationInline(admin.StackedInline):
     extra = 0
     min_num = 1
     validate_min = True
-    fields = ("language", "title", "text")
+    fields = (("language", "title"), "text")
     verbose_name = "conteúdo por idioma"
     verbose_name_plural = "CONTEÚDO — título e texto por idioma"
 
 
 @admin.register(HomeCard)
-class HomeCardAdmin(admin.ModelAdmin):
+class HomeCardAdmin(LivePreviewMixin, admin.ModelAdmin):
+    preview_component = "components/home_composition.html"
+    preview_note = "A seção «Como trabalhamos» inteira, com este card no lugar dele."
     inlines = [HomeCardTranslationInline]
     form = PartialSafeModelForm
-    list_display = ("internal_name", "title_pt", "icon", "accent", "is_active", "sort_order")
+    list_display = ("internal_name", "title_pt", "section", "icon", "accent", "is_active", "sort_order")
     list_display_links = ("internal_name", "title_pt")
     list_editable = ("is_active", "sort_order")
-    list_filter = ("is_active", "accent")
+    list_filter = ("section", "is_active", "accent")
     search_fields = ("internal_name", "translations__title")
-    ordering = ("sort_order", "id")
+    ordering = ("section", "sort_order", "id")
     readonly_fields = ("created_at", "updated_at")
     actions = ("action_activate", "action_deactivate")
     fieldsets = (
         (
             "IDENTIFICAÇÃO",
             {
-                "fields": ("internal_name", "is_active", "sort_order"),
+                "fields": (("section", "internal_name"), ("is_active", "sort_order")),
                 "description": (
-                    "Os cards com ícone abaixo das faixas de produtos. "
-                    "A quantidade não é fixa: a grade tem três colunas, e um quarto "
-                    "card começa a segunda linha."
+                    "Os cards com ícone de uma seção «Como trabalhamos». Cada seção tem "
+                    "os seus. A quantidade não é fixa: a grade tem três colunas, e um "
+                    "quarto card começa a segunda linha."
                 ),
             },
         ),
-        ("APARÊNCIA", {"fields": ("icon", "accent")}),
+        ("APARÊNCIA", {"fields": (("icon", "accent"),)}),
         ("AUDITORIA", {"classes": ("collapse",), "fields": ("created_at", "updated_at")}),
     )
 
+    def get_preview_context(self, request, instance):
+        secao = instance.section
+        if secao is None:
+            return {"sections": [], "preview_empty": "Escolha a seção «Como trabalhamos» em que este card aparece."}
+        cards = ordered(replace_or_append(list(secao.cards.prefetch_related("translations")), instance))
+        entry = ResolvedSection(
+            section=secao,
+            kind=ResolvedSection.KIND_HOW_WE_WORK,
+            cards=[c for c in cards if c.is_active or c is instance],
+        )
+        return {"sections": services._with_bands([entry])}
+
     def get_queryset(self, request):
-        return super().get_queryset(request).prefetch_related("translations")
+        return super().get_queryset(request).select_related("section").prefetch_related("translations")
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "section":
+            kwargs["queryset"] = HomeSection.objects.filter(
+                section_type=HomeSectionType.HOW_WE_WORK
+            ).order_by("sort_order", "id")
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
     @admin.display(description="título (pt)")
     def title_pt(self, obj):
@@ -506,37 +683,41 @@ class HomeCalloutTranslationInline(admin.StackedInline):
     model = HomeCalloutTranslation
     formset = UniqueLanguageInlineFormSet
     extra = 0
-    fields = ("language", "eyebrow", "title", "text", "cta_label")
+    fields = (("language", "eyebrow", "cta_label"), "title", "text")
     verbose_name = "conteúdo por idioma"
     verbose_name_plural = "CONTEÚDO — sobretítulo, título, texto e botão por idioma"
 
 
 @admin.register(HomeCallout)
-class HomeCalloutAdmin(admin.ModelAdmin):
-    """Uma linha só — o Admin leva direto a ela."""
+class HomeCalloutAdmin(LivePreviewMixin, admin.ModelAdmin):
+    """O conteúdo das chamadas finais. A posição na Home é uma seção."""
 
+    preview_component = "components/home_composition.html"
+    preview_note = "A faixa como aparece na Home, com os passos cadastrados para este texto."
     inlines = [HomeCalloutTranslationInline]
     save_on_top = True
     autocomplete_fields = ("cta_category", "cta_product")
-    readonly_fields = ("created_at", "updated_at")
+    readonly_fields = ("created_at", "updated_at", "usada_em")
+    list_display = ("__str__", "title_pt", "usada_em", "is_active")
     fieldsets = (
         (
             "EXIBIÇÃO",
             {
-                "fields": ("is_active",),
+                "fields": (("internal_name", "is_active"), "usada_em"),
                 "description": (
-                    "A faixa escura no fim da Home. Sem título, sem texto e sem "
-                    "botão ela não é desenhada — nunca vira uma faixa vazia."
+                    "A faixa escura com botão e passos. Sem título, sem texto e sem "
+                    "botão ela não é desenhada — nunca vira uma faixa vazia. Onde ela "
+                    "aparece na Home é uma seção do tipo «Chamada final», em Seções da Home."
                 ),
             },
         ),
-        ("BOTÃO (CTA)", {"fields": ("cta_target", "cta_category", "cta_product", "cta_url")}),
+        ("BOTÃO (CTA)", {"fields": (("cta_target", "cta_category", "cta_product", "cta_url"),)}),
         (
             "CORES",
             {
                 "fields": (
-                    "surface_color", "eyebrow_color", "title_color", "text_color",
-                    "cta_bg_color", "cta_text_color", "step_bg_color",
+                    ("surface_color", "eyebrow_color", "title_color", "text_color"),
+                    ("cta_bg_color", "cta_text_color", "step_bg_color"),
                 ),
                 "description": (
                     "Todo texto é conferido contra o fundo escolhido ao salvar: "
@@ -549,20 +730,27 @@ class HomeCalloutAdmin(admin.ModelAdmin):
     )
 
     class Media:
-        js = ("admin/js/home_cta_admin.js",)
+        js = ("admin/js/jd_fields.js", "admin/js/home_cta_admin.js")
 
-    def has_add_permission(self, request):
-        return False
+    def get_preview_context(self, request, instance):
+        if not instance.has_content:
+            return {"sections": [], "preview_empty": "Sem título, texto, botão ou passos, a chamada não é desenhada na Home."}
+        entry = ResolvedSection(section=None, kind=ResolvedSection.KIND_CALLOUT, callout=instance)
+        return {"sections": services._with_bands([entry])}
 
-    def has_delete_permission(self, request, obj=None):
-        return False
+    def get_queryset(self, request):
+        return super().get_queryset(request).prefetch_related("translations", "sections")
 
-    def changelist_view(self, request, extra_context=None):
-        from django.shortcuts import redirect
-        from django.urls import reverse
+    @admin.display(description="título (pt)")
+    def title_pt(self, obj):
+        return obj.tr("title", language=DEFAULT_LANGUAGE.value, fallback=False) or "—"
 
-        callout = HomeCallout.load()
-        return redirect(reverse("admin:home_homecallout_change", args=[callout.pk]))
+    @admin.display(description="usada nas seções")
+    def usada_em(self, obj):
+        if not obj.pk:
+            return "—"
+        nomes = [s.internal_name for s in obj.sections.all()]
+        return ", ".join(nomes) if nomes else "nenhuma seção usa este texto ainda"
 
 
 # ---------------------------------------------------------------------------
@@ -574,23 +762,25 @@ class HomeCategoryCardTranslationInline(admin.StackedInline):
     model = HomeCategoryCardTranslation
     formset = UniqueLanguageInlineFormSet
     extra = 0
-    fields = ("language", "eyebrow", "title", "text")
+    fields = (("language", "eyebrow"), ("title", "text"))
     verbose_name = "conteúdo por idioma"
     verbose_name_plural = "CONTEÚDO — um bloco por idioma (todos opcionais)"
 
 
 @admin.register(HomeCategoryCard)
-class HomeCategoryCardAdmin(admin.ModelAdmin):
+class HomeCategoryCardAdmin(LivePreviewMixin, admin.ModelAdmin):
+    preview_component = "components/home_composition.html"
+    preview_note = "A seção de categorias inteira, com este bloco no lugar dele. Uma imagem nova aparece depois de salvar."
     inlines = [HomeCategoryCardTranslationInline]
     form = PartialSafeModelForm
     list_display = (
-        "internal_name", "title_pt", "category", "cores", "is_active", "sort_order",
+        "internal_name", "title_pt", "section", "category", "cores", "is_active", "sort_order",
     )
     list_display_links = ("internal_name", "title_pt")
     list_editable = ("is_active", "sort_order")
-    list_filter = ("is_active",)
+    list_filter = ("section", "is_active")
     search_fields = ("internal_name", "translations__title")
-    ordering = ("sort_order", "id")
+    ordering = ("section", "sort_order", "id")
     autocomplete_fields = ("category",)
     readonly_fields = ("created_at", "updated_at", "preview")
     actions = ("action_activate", "action_deactivate")
@@ -598,18 +788,19 @@ class HomeCategoryCardAdmin(admin.ModelAdmin):
         (
             "IDENTIFICAÇÃO",
             {
-                "fields": ("internal_name", "category", "is_active", "sort_order"),
+                "fields": (("section", "category"), ("internal_name", "is_active", "sort_order")),
                 "description": (
-                    "Os blocos coloridos logo abaixo do banner. O destino é uma "
-                    "categoria do catálogo — assim o link continua válido se o "
-                    "endereço dela mudar. Sem categoria, o bloco aparece sem link."
+                    "Os blocos coloridos de uma seção «Categorias em destaque»; cada "
+                    "seção tem os seus. O destino é uma categoria do catálogo — assim o "
+                    "link continua válido se o endereço dela mudar. Sem categoria, o "
+                    "bloco aparece sem link."
                 ),
             },
         ),
         (
             "IMAGEM OU ÍCONE",
             {
-                "fields": ("preview", "icon", "image"),
+                "fields": ("preview", ("icon", "image")),
                 "description": (
                     "Opcionais, e só um dos dois aparece: a linha de cima (quando "
                     "cadastrada) tem prioridade, depois a imagem, depois o ícone."
@@ -619,7 +810,7 @@ class HomeCategoryCardAdmin(admin.ModelAdmin):
         (
             "CORES",
             {
-                "fields": ("bg_color", "text_color", "accent_color"),
+                "fields": (("bg_color", "text_color", "accent_color"),),
                 "description": (
                     "Cada bloco tem a sua. O contraste entre texto e fundo é "
                     "conferido ao salvar: uma combinação ilegível é recusada."
@@ -630,9 +821,31 @@ class HomeCategoryCardAdmin(admin.ModelAdmin):
     )
 
     def get_queryset(self, request):
-        return super().get_queryset(request).select_related("category").prefetch_related(
+        return super().get_queryset(request).select_related("category", "section").prefetch_related(
             "translations"
         )
+
+    def get_preview_context(self, request, instance):
+        secao = instance.section
+        if secao is None:
+            return {"sections": [], "preview_empty": "Escolha a seção «Categorias em destaque» em que este bloco aparece."}
+        blocos = list(
+            secao.category_cards.select_related("category").prefetch_related("translations", "category__translations")
+        )
+        blocos = ordered(replace_or_append(blocos, instance))
+        entry = ResolvedSection(
+            section=secao,
+            kind=ResolvedSection.KIND_CATEGORY_CARDS,
+            blocks=[b for b in blocos if b.is_active or b is instance],
+        )
+        return {"sections": services._with_bands([entry])}
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "section":
+            kwargs["queryset"] = HomeSection.objects.filter(
+                section_type=HomeSectionType.CATEGORY_CARDS
+            ).order_by("sort_order", "id")
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
     @admin.display(description="título (pt)")
     def title_pt(self, obj):
@@ -667,13 +880,15 @@ class HomeCalloutStepTranslationInline(admin.StackedInline):
     model = HomeCalloutStepTranslation
     formset = UniqueLanguageInlineFormSet
     extra = 0
-    fields = ("language", "title", "text")
+    fields = (("language", "title"), "text")
     verbose_name = "conteúdo por idioma"
     verbose_name_plural = "CONTEÚDO — título e descrição por idioma"
 
 
 @admin.register(HomeCalloutStep)
-class HomeCalloutStepAdmin(admin.ModelAdmin):
+class HomeCalloutStepAdmin(LivePreviewMixin, admin.ModelAdmin):
+    preview_component = "components/home_composition.html"
+    preview_note = "A chamada final inteira, com este passo no lugar dele."
     inlines = [HomeCalloutStepTranslationInline]
     form = PartialSafeModelForm
     list_display = ("internal_name", "title_pt", "cor", "is_active", "sort_order")
@@ -687,7 +902,7 @@ class HomeCalloutStepAdmin(admin.ModelAdmin):
         (
             "IDENTIFICAÇÃO",
             {
-                "fields": ("callout", "internal_name", "is_active", "sort_order"),
+                "fields": (("callout", "internal_name"), ("is_active", "sort_order")),
                 "description": (
                     "Os blocos numerados ao lado da chamada final. O número é a "
                     "POSIÇÃO na ordem, não um campo: desativar o segundo passo "
@@ -695,9 +910,20 @@ class HomeCalloutStepAdmin(admin.ModelAdmin):
                 ),
             },
         ),
-        ("APARÊNCIA", {"fields": ("icon", "accent_color")}),
+        ("APARÊNCIA", {"fields": (("icon", "accent_color"),)}),
         ("AUDITORIA", {"classes": ("collapse",), "fields": ("created_at", "updated_at")}),
     )
+
+    def get_preview_context(self, request, instance):
+        chamada = instance.callout
+        if chamada is None:
+            return {"sections": [], "preview_empty": "Escolha a chamada final a que este passo pertence."}
+        passos = ordered(replace_or_append(list(chamada.steps.prefetch_related("translations")), instance))
+        visiveis = [p for p in passos if (p.is_active and p.title) or p is instance]
+        entry = ResolvedSection(
+            section=None, kind=ResolvedSection.KIND_CALLOUT, callout=Wrapped(chamada, visible_steps=visiveis)
+        )
+        return {"sections": services._with_bands([entry])}
 
     def get_queryset(self, request):
         return super().get_queryset(request).prefetch_related("translations")
@@ -711,9 +937,11 @@ class HomeCalloutStepAdmin(admin.ModelAdmin):
         return mark_safe(swatch(obj.accent_color))
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        """Há uma chamada só — o campo já vem preenchido com ela."""
+        """Com uma chamada só cadastrada, o campo já vem preenchido com ela."""
         if db_field.name == "callout":
-            kwargs["initial"] = HomeCallout.load().pk
+            unica = HomeCallout.objects.order_by("id").first()
+            if unica is not None and HomeCallout.objects.count() == 1:
+                kwargs["initial"] = unica.pk
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
@@ -726,7 +954,7 @@ class HomeAboutTranslationInline(admin.StackedInline):
     model = HomeAboutTranslation
     formset = UniqueLanguageInlineFormSet
     extra = 0
-    fields = ("language", "eyebrow", "title", "text", "image_alt")
+    fields = (("language", "eyebrow", "image_alt"), "title", "text")
     verbose_name = "conteúdo por idioma"
     verbose_name_plural = "CONTEÚDO — um bloco por idioma"
 
@@ -735,13 +963,15 @@ class HomeAboutBadgeTranslationInline(admin.StackedInline):
     model = HomeAboutBadgeTranslation
     formset = UniqueLanguageInlineFormSet
     extra = 0
-    fields = ("language", "text")
+    fields = (("language", "text"),)
     verbose_name = "texto por idioma"
     verbose_name_plural = "TEXTO por idioma"
 
 
 @admin.register(HomeAboutBadge)
-class HomeAboutBadgeAdmin(admin.ModelAdmin):
+class HomeAboutBadgeAdmin(LivePreviewMixin, admin.ModelAdmin):
+    preview_component = "components/home_composition.html"
+    preview_note = "O bloco «Sobre a loja» inteiro, com esta pílula no lugar dela."
     inlines = [HomeAboutBadgeTranslationInline]
     form = PartialSafeModelForm
     list_display = ("internal_name", "text_pt", "cores", "is_active", "sort_order")
@@ -754,19 +984,30 @@ class HomeAboutBadgeAdmin(admin.ModelAdmin):
         (
             "IDENTIFICAÇÃO",
             {
-                "fields": ("about", "internal_name", "is_active", "sort_order"),
+                "fields": (("about", "internal_name"), ("is_active", "sort_order")),
                 "description": "As pílulas coloridas abaixo do texto institucional.",
             },
         ),
         (
             "CORES",
             {
-                "fields": ("bg_color", "text_color"),
+                "fields": (("bg_color", "text_color"),),
                 "description": "O contraste é conferido ao salvar.",
             },
         ),
         ("AUDITORIA", {"classes": ("collapse",), "fields": ("created_at", "updated_at")}),
     )
+
+    def get_preview_context(self, request, instance):
+        sobre = instance.about
+        if sobre is None:
+            return {"sections": [], "preview_empty": "Escolha o bloco «Sobre a loja» a que esta pílula pertence."}
+        pilulas = ordered(replace_or_append(list(sobre.badges.prefetch_related("translations")), instance))
+        visiveis = [p for p in pilulas if (p.is_active and p.text) or p is instance]
+        entry = ResolvedSection(
+            section=None, kind=ResolvedSection.KIND_ABOUT, about=Wrapped(sobre, visible_badges=visiveis)
+        )
+        return {"sections": services._with_bands([entry])}
 
     def get_queryset(self, request):
         return super().get_queryset(request).prefetch_related("translations")
@@ -783,27 +1024,33 @@ class HomeAboutBadgeAdmin(admin.ModelAdmin):
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         if db_field.name == "about":
-            kwargs["initial"] = HomeAbout.load().pk
+            unico = HomeAbout.objects.order_by("id").first()
+            if unico is not None and HomeAbout.objects.count() == 1:
+                kwargs["initial"] = unico.pk
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
 @admin.register(HomeAbout)
-class HomeAboutAdmin(admin.ModelAdmin):
-    """Uma linha só — o Admin leva direto a ela."""
+class HomeAboutAdmin(LivePreviewMixin, admin.ModelAdmin):
+    """O conteúdo dos blocos «Sobre a loja». A posição na Home é uma seção."""
 
+    preview_component = "components/home_composition.html"
+    preview_note = "O bloco como aparece na Home, com as pílulas cadastradas. Uma imagem nova aparece depois de salvar."
     inlines = [HomeAboutTranslationInline]
     form = PartialSafeModelForm
     save_on_top = True
-    readonly_fields = ("created_at", "updated_at", "preview")
+    readonly_fields = ("created_at", "updated_at", "preview", "usado_em")
+    list_display = ("__str__", "title_pt", "usado_em", "is_active")
     fieldsets = (
         (
             "EXIBIÇÃO",
             {
-                "fields": ("is_active",),
+                "fields": (("internal_name", "is_active"), "usado_em"),
                 "description": (
-                    "O bloco com o quadro de imagem e o texto sobre a loja. "
-                    "Desmarcado, ele não aparece na Home — e não deixa espaço "
-                    "vazio no lugar."
+                    "O bloco com o quadro de imagem e o texto sobre a loja; as pílulas "
+                    "coloridas são dele. Desmarcado, ele não aparece na Home — e não "
+                    "deixa espaço vazio no lugar. Onde ele aparece é uma seção do tipo "
+                    "«Sobre a loja», em Seções da Home."
                 ),
             },
         ),
@@ -821,25 +1068,32 @@ class HomeAboutAdmin(admin.ModelAdmin):
         (
             "CORES",
             {
-                "fields": ("frame_color", "surface_color", "text_color"),
+                "fields": (("frame_color", "surface_color", "text_color"),),
                 "description": "O quadro listrado, o fundo do bloco e a tinta do texto.",
             },
         ),
         ("AUDITORIA", {"classes": ("collapse",), "fields": ("created_at", "updated_at")}),
     )
 
-    def has_add_permission(self, request):
-        return False
+    def get_preview_context(self, request, instance):
+        if not instance.has_content:
+            return {"sections": [], "preview_empty": "Sem título, texto, imagem ou pílulas, o bloco não é desenhado na Home."}
+        entry = ResolvedSection(section=None, kind=ResolvedSection.KIND_ABOUT, about=instance)
+        return {"sections": services._with_bands([entry])}
 
-    def has_delete_permission(self, request, obj=None):
-        return False
+    def get_queryset(self, request):
+        return super().get_queryset(request).prefetch_related("translations", "sections")
 
-    def changelist_view(self, request, extra_context=None):
-        from django.shortcuts import redirect
-        from django.urls import reverse
+    @admin.display(description="título (pt)")
+    def title_pt(self, obj):
+        return obj.tr("title", language=DEFAULT_LANGUAGE.value, fallback=False) or "—"
 
-        sobre = HomeAbout.load()
-        return redirect(reverse("admin:home_homeabout_change", args=[sobre.pk]))
+    @admin.display(description="usado nas seções")
+    def usado_em(self, obj):
+        if not obj.pk:
+            return "—"
+        nomes = [s.internal_name for s in obj.sections.all()]
+        return ", ".join(nomes) if nomes else "nenhuma seção usa este bloco ainda"
 
     @admin.display(description="imagem atual")
     def preview(self, obj):
