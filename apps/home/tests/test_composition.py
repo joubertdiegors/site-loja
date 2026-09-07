@@ -437,7 +437,8 @@ class MigracaoDaComposicaoTests(TransactionTestCase):
     migration: nada some, nada é recriado, e a ordem é a de sempre."""
 
     antes = ("home", "0008_banner_carousel_settings")
-    depois = ("home", "0009_home_composition")
+    schema = ("home", "0009_home_composition")
+    depois = ("home", "0010_home_composition_data")
 
     def migrar(self, alvo):
         executor = MigrationExecutor(connection)
@@ -489,6 +490,15 @@ class MigracaoDaComposicaoTests(TransactionTestCase):
         HomeAboutTranslationA.objects.create(master=sobre, language="en", title="Made in Belgium")
         HomeAboutBadgeA.objects.create(about=sobre, internal_name="Pílula", sort_order=0)
 
+        # A 0009 é só schema: nenhuma seção nasce, os vínculos ficam vazios.
+        apps_schema = self.migrar(self.schema)
+        HomeSectionS = apps_schema.get_model("home", "HomeSection")
+        self.assertEqual(HomeSectionS.objects.count(), 2)
+        self.assertEqual(set(apps_schema.get_model("home", "HomeCard").objects.values_list("section_id", flat=True)), {None})
+        self.assertEqual(
+            set(apps_schema.get_model("home", "HomeCategoryCard").objects.values_list("section_id", flat=True)), {None}
+        )
+
         apps_depois = self.migrar(self.depois)
         HomeSectionD = apps_depois.get_model("home", "HomeSection")
         HomeCardD = apps_depois.get_model("home", "HomeCard")
@@ -529,6 +539,32 @@ class MigracaoDaComposicaoTests(TransactionTestCase):
             set(HomeAboutD.objects.get(pk=1).translations.values_list("language", flat=True)), {"pt", "en"}
         )
         self.assertEqual(HomeCalloutD.objects.get(pk=1).internal_name, "Chamada final")
+        self.assertEqual(
+            list(HomeSectionD.objects.order_by("sort_order", "id").values_list("sort_order", flat=True)),
+            [0, 10, 20, 30, 40, 50],
+        )
+
+        # Reverter só a 0010: os vínculos são soltos ANTES de apagar as seções
+        # de bloco (FKs em cascata), e nada de conteúdo some.
+        apps_volta = self.migrar(self.schema)
+        HomeSectionV = apps_volta.get_model("home", "HomeSection")
+        self.assertEqual(
+            list(HomeSectionV.objects.order_by("sort_order", "id").values_list("section_type", "internal_name")),
+            [("newest", "Novidades"), ("featured", "Destaques")],
+        )
+        self.assertEqual(apps_volta.get_model("home", "HomeCard").objects.count(), 3)
+        self.assertEqual(set(apps_volta.get_model("home", "HomeCard").objects.values_list("section_id", flat=True)), {None})
+        self.assertEqual(apps_volta.get_model("home", "HomeCategoryCard").objects.count(), 2)
+        self.assertEqual(apps_volta.get_model("home", "HomeCallout").objects.get(pk=1).steps.count(), 1)
+        self.assertEqual(apps_volta.get_model("home", "HomeAbout").objects.get(pk=1).badges.count(), 1)
+        self.assertEqual(apps_volta.get_model("home", "HomeCardTranslation").objects.count(), 6)
+
+        # E a 0010 de novo produz a mesma composição.
+        apps_de_novo = self.migrar(self.depois)
+        self.assertEqual(
+            list(apps_de_novo.get_model("home", "HomeSection").objects.order_by("sort_order", "id").values_list("section_type", flat=True)),
+            ["category_cards", "newest", "featured", "how_we_work", "callout", "about"],
+        )
 
     def test_an_empty_installation_gets_no_sections(self):
         self.migrar(self.antes)
