@@ -654,7 +654,9 @@ class ProdutoTests(DuplicarBase):
     def test_a_tela_abre_com_a_identificacao_e_a_classificacao(self):
         _destino, campos = self.tela_de_criacao(self.vaso)
 
-        self.assertEqual(campos["sku"], "VASO-01")
+        # A cópia nasce com a identidade seguinte livre: não há colisão de SKU
+        # ao salvar, e o original fica como está.
+        self.assertEqual(campos["sku"], "VASO-02")
         self.assertEqual(campos["slug"], "")
         self.assertEqual(campos["category"], str(self.categoria.pk))
         self.assertEqual(campos["status"], ProductStatus.ACTIVE)
@@ -672,7 +674,7 @@ class ProdutoTests(DuplicarBase):
         _destino, campos = self.tela_de_criacao(self.vaso)
 
         skus = {v for k, v in campos.items() if k.startswith("variants-") and k.endswith("-sku") and v}
-        self.assertEqual(skus, {"VASO-01-PRETO", "VASO-01-BRANCO"})
+        self.assertEqual(skus, {"VASO-02-V01", "VASO-02-V02"})
 
         precos = {v for k, v in campos.items() if k.startswith("variants-") and k.endswith("-sale_price")}
         self.assertEqual(precos, {"27.90", "29.90"})
@@ -692,11 +694,29 @@ class ProdutoTests(DuplicarBase):
 
     # -- salvar ------------------------------------------------------------
 
-    def test_salvar_sem_mudar_nada_e_recusado(self):
+    def test_salvar_sem_mudar_nada_cria_a_copia_com_o_sku_seguinte(self):
+        """A sugestão de SKU já é livre: a cópia nasce sem colidir com o original."""
         destino, campos = self.tela_de_criacao(self.vaso)
         antes = Product.objects.count()
 
-        resposta = self.salvar(destino, campos)
+        self.assertCriou(self.salvar(destino, campos))
+
+        self.assertEqual(Product.objects.count(), antes + 1)
+        copia = Product.objects.get(sku="VASO-02")
+        self.assertEqual(
+            sorted(copia.variants.values_list("sku", flat=True)), ["VASO-02-V01", "VASO-02-V02"]
+        )
+        original = Product.objects.get(pk=self.vaso.pk)
+        self.assertEqual(original.sku, "VASO-01")
+        self.assertEqual(
+            sorted(original.variants.values_list("sku", flat=True)), ["VASO-01-BRANCO", "VASO-01-PRETO"]
+        )
+
+    def test_salvar_com_o_sku_do_original_e_recusado(self):
+        destino, campos = self.tela_de_criacao(self.vaso)
+        antes = Product.objects.count()
+
+        resposta = self.salvar(destino, campos, sku="VASO-01")
 
         self.assertRecusou(resposta, "já existe")
         self.assertEqual(Product.objects.count(), antes)

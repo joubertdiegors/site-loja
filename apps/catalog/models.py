@@ -20,9 +20,15 @@ from datetime import timedelta
 from decimal import Decimal
 
 from django.core.exceptions import ValidationError
-from django.core.validators import FileExtensionValidator, RegexValidator
+from django.core.validators import (
+    FileExtensionValidator,
+    MaxValueValidator,
+    MinValueValidator,
+    RegexValidator,
+)
 from django.db import models, transaction
 from django.utils.text import get_valid_filename, slugify
+from django.utils.translation import gettext as _
 
 from apps.catalog import pricing
 from apps.categories.models import Category
@@ -219,6 +225,30 @@ class PersonalizationType(models.TextChoices):
     PHOTO_OR_TEXT = "photo_or_text", "Foto ou texto (o cliente escolhe)"
 
 
+class ColorMode(models.TextChoices):
+    """Como a cor funciona num produto — é o produto quem diz.
+
+    Cor pode ser três coisas diferentes, e a arquitetura até a etapa 2A só
+    sabia uma delas:
+
+    * **descrição visual** — a peça é preta, ou preta e branca, ou de seis
+      cores. Vem de ``ProductColor`` (uma lista ordenada) e não cria variante;
+    * **à escolha do cliente** — a peça é produzida na cor que ele pedir.
+      Também não cria variante; nesta etapa é só informação;
+    * **opção comercial** — o cliente escolhe entre preto e branco e cada um
+      tem estoque e SKU próprios. Aí a cor continua sendo o eixo
+      ``ProductVariant.color``, como sempre foi.
+
+    Os valores são chaves estáveis, nunca texto traduzido.
+    """
+
+    NONE = "none", "Não se aplica"
+    SINGLE = "single", "Uma cor"
+    MULTI = "multi", "Multicolorido"
+    CUSTOM = "custom", "Cores à escolha do cliente"
+    VARIANT = "variant", "Opção comercial (a cor é escolhida na variante)"
+
+
 class ProductStatus(models.TextChoices):
     DRAFT = "draft", "Rascunho"
     ACTIVE = "active", "Ativo"
@@ -344,6 +374,24 @@ class Product(TranslatableMixin, AuditableModel):
     # docstring de ``ProductVariant``.
     currency = models.CharField(
         "moeda", max_length=3, choices=Currency.choices, default=DEFAULT_CURRENCY
+    )
+
+    # -- cores -------------------------------------------------------------
+    #
+    # ``none`` é o padrão seguro: um produto novo não diz nada sobre cor até
+    # alguém dizer. Os produtos que já existiam recebem o modo derivado das
+    # variantes na migration de dados (``0012``).
+    color_mode = models.CharField(
+        "modo de cores",
+        max_length=8,
+        choices=ColorMode.choices,
+        default=ColorMode.NONE,
+        help_text=(
+            "Como a cor funciona neste produto. «Uma cor» e «Multicolorido» "
+            "descrevem a peça (lista abaixo, não cria variantes); «Cores à "
+            "escolha» é informativo; «Opção comercial» mantém a cor como eixo "
+            "de cada variante."
+        ),
     )
 
     # -- personalização ----------------------------------------------------
@@ -514,6 +562,62 @@ class Product(TranslatableMixin, AuditableModel):
             if variant.material_id and variant.material not in materiais:
                 materiais.append(variant.material)
         return materiais
+
+    # -- cores e composição ------------------------------------------------
+    #
+    # Lidas do prefetch (``product_color_prefetches`` no card,
+    # ``product_description_prefetches`` na página e no carrinho):
+    # ``product_colors.all()`` e ``material_composition.all()`` são percorridos
+    # em memória, como as variantes — a listagem inteira não custa uma
+    # consulta por produto.
+
+    @property
+    def configured_colors(self) -> list:
+        """As cores cadastradas em ``ProductColor``, na ordem."""
+        linhas = sorted(self.product_colors.all(), key=lambda pc: (pc.sort_order, pc.pk or 0))
+        return [linha.color for linha in linhas]
+
+    @property
+    def display_colors(self) -> list:
+        """As cores que o card mostra, conforme o modo.
+
+        Descrição visual (uma cor, multicolorido): a lista cadastrada. Opção
+        comercial: as cores das variantes ativas, como antes da etapa 2B.
+        Não se aplica e à escolha: nenhuma bolinha.
+        """
+        if self.color_mode in (ColorMode.SINGLE, ColorMode.MULTI):
+            return self.configured_colors
+        if self.color_mode == ColorMode.VARIANT:
+            return self.available_colors
+        return []
+
+    @property
+    def has_custom_colors(self) -> bool:
+        return self.color_mode == ColorMode.CUSTOM
+
+    @property
+    def colors_text(self) -> str:
+        """«Preto + Branco + Dourado», ou «Cores à escolha», ou vazio.
+
+        No modo «opção comercial» é vazio de propósito: a cor que importa é a
+        da variante escolhida, e ela já tem o seu lugar (``variant.color``,
+        ``OrderItem.color_name``).
+        """
+        if self.color_mode in (ColorMode.SINGLE, ColorMode.MULTI):
+            return " + ".join(color.display_name for color in self.configured_colors)
+        if self.color_mode == ColorMode.CUSTOM:
+            return _("Cores à escolha")
+        return ""
+
+    @property
+    def composition(self) -> list:
+        """As linhas de ``ProductMaterialComposition``, na ordem."""
+        return sorted(self.material_composition.all(), key=lambda c: (c.sort_order, c.pk or 0))
+
+    @property
+    def materials_text(self) -> str:
+        """«PLA 80% + PETG 20%», «PLA», ou vazio quando não há composição."""
+        return " + ".join(linha.display for linha in self.composition)
 
     # -- estoque -----------------------------------------------------------
 
@@ -1174,6 +1278,126 @@ class ColorTranslation(TranslationBase):
 
     def __str__(self) -> str:
         return f"{self.get_language_display()}: {self.name}"
+
+
+class ProductColor(TimeStampedModel):
+    """Uma cor da descrição visual do produto — na ordem em que aparece.
+
+    É a lista que «Uma cor» e «Multicolorido» usam. Aponta para a ``Color`` de
+    sempre (com HEX e traduções); não cria variante, não tem preço nem
+    estoque. Quantas cores forem: «Preto + Branco», ou seis.
+    """
+
+    product = models.ForeignKey(
+        Product, verbose_name="produto", related_name="product_colors", on_delete=models.CASCADE
+    )
+    color = models.ForeignKey(
+        Color, verbose_name="cor", related_name="product_uses", on_delete=models.PROTECT
+    )
+    sort_order = models.PositiveIntegerField("ordem", default=0)
+
+    class Meta:
+        verbose_name = "cor do produto"
+        verbose_name_plural = "cores do produto"
+        ordering = ("sort_order", "id")
+        constraints = [
+            models.UniqueConstraint(fields=["product", "color"], name="product_color_unique"),
+        ]
+        indexes = [
+            models.Index(fields=["product", "sort_order"], name="product_color_order_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.product_id} · {self.color.name}"
+
+
+class ProductMaterialComposition(TimeStampedModel):
+    """Um material da fabricação do produto, com percentual opcional.
+
+    «PLA 80% + PETG 20%», ou só «PLA + TPU + PETG». É a composição física da
+    peça — o que ela é feita —, não uma opção que o cliente escolhe: para isso
+    existe ``ProductVariant.material``. Não exige que os percentuais somem 100
+    (suportes, tinta e acabamento também pesam).
+    """
+
+    product = models.ForeignKey(
+        Product,
+        verbose_name="produto",
+        related_name="material_composition",
+        on_delete=models.CASCADE,
+    )
+    material = models.ForeignKey(
+        Material, verbose_name="material", related_name="compositions", on_delete=models.PROTECT
+    )
+    percentage = models.DecimalField(
+        "percentual",
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0")), MaxValueValidator(Decimal("100"))],
+        help_text="Opcional, de 0 a 100. Em branco, só o material é mostrado.",
+    )
+    sort_order = models.PositiveIntegerField("ordem", default=0)
+
+    class Meta:
+        verbose_name = "material da composição"
+        verbose_name_plural = "composição de materiais"
+        ordering = ("sort_order", "id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["product", "material"], name="product_material_composition_unique"
+            ),
+            models.CheckConstraint(
+                condition=models.Q(percentage__isnull=True)
+                | (models.Q(percentage__gte=0) & models.Q(percentage__lte=100)),
+                name="product_material_percentage_range",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["product", "sort_order"], name="product_material_order_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.product_id} · {self.display}"
+
+    @property
+    def display(self) -> str:
+        """«PLA 80%» ou «PLA» — no idioma do cliente."""
+        nome = self.material.display_name
+        if self.percentage is None:
+            return nome
+        return f"{nome} {self.percentage.normalize():f}%"
+
+
+def product_color_prefetches():
+    """A paleta do produto, para o card: duas consultas por listagem.
+
+    ``select_related("color")`` traz a cor na mesma consulta das linhas da
+    paleta; só as traduções da cor custam a segunda. Vazia (o produto não tem
+    paleta), custa uma.
+    """
+    return (
+        models.Prefetch(
+            "product_colors",
+            queryset=ProductColor.objects.select_related("color")
+            .prefetch_related("color__translations")
+            .order_by("sort_order", "id"),
+        ),
+    )
+
+
+def product_description_prefetches():
+    """Paleta e composição: para a página do produto e o carrinho."""
+    return (
+        *product_color_prefetches(),
+        models.Prefetch(
+            "material_composition",
+            queryset=ProductMaterialComposition.objects.select_related("material")
+            .prefetch_related("material__translations")
+            .order_by("sort_order", "id"),
+        ),
+    )
 
 
 class ProductTranslation(TranslationBase):

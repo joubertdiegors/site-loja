@@ -483,6 +483,95 @@ que copia o cabeçalho da tabela para o rótulo de cada campo).
 não-salvar, os idiomas, o escape, a seção da Home, os irmãos de um registro
 novo, a página especial e a grade.
 
+### Cadastro rápido de produtos e SKU sugerido
+
+"Cadastrar primeiro, detalhar depois." O "+ Novo produto" do Admin (na lista
+e no menu) abre `admin/catalog/product/novo/` (`ProductAdmin.quick_add_view`):
+nome em português, categoria, SKU e status — e, opcionalmente, o preço da
+primeira variante. O produto nasce como rascunho, com a tradução em
+português e o slug de sempre (do nome, nunca do SKU); fotos, descrições,
+outros idiomas, custos, peso, dimensões e variantes ficam para a ficha. O
+cadastro completo continua em `add/`, e é por ele que o "Duplicar" passa.
+
+O SKU é sugerido por `apps/catalog/sku.py` — nos dois cadastros, o rápido e
+o completo (`ProductAdminForm`: em branco num produto novo, nasce da
+categoria e do nome em português do inline CONTEÚDO; num produto existente
+nunca é reescrito). A sugestão ao vivo é o mesmo script nos dois
+(`admin/js/product_sku_suggest.js`). Regra: três letras da primeira palavra
+significativa da categoria + primeira palavra significativa do nome +
+sequência (`REL-LEAO-001`, `DEC-VASO-001`), tudo sem acento e em
+maiúsculas. A sequência é o maior número já usado com aquela base mais um,
+lido do banco (`sku__regex`, que existe no PostgreSQL e no SQLite); se dois
+cadastros simultâneos receberem a mesma sugestão, o `unique` do banco recusa
+o segundo e `com_sku_livre` tenta a sequência seguinte. O SKU digitado vence
+sempre e nunca é substituído depois; o campo `sku` continua sendo o único
+SKU. As variantes novas ganham `PRODUTO-V01`, `V02`… (modal, inline e tela
+própria, `VariantSkuAutoMixin`); variantes existentes não são renomeadas. Ao
+duplicar, a cópia abre com a sequência seguinte (`VASO-01` → `VASO-02`) e as
+variantes com `VASO-02-V01…`, então salvar sem mexer em nada cria a cópia em
+vez de colidir.
+
+A lista de produtos mostra ID, SKU, produto, categoria, status, preço
+(derivado das variantes ativas: um valor ou a faixa), estoque somado,
+variantes ("1 opção", "3 opções", ou "⚠ Sem configuração" quando não há
+nenhuma) e ações (Editar, Duplicar, ⋮ com Ver produto e Ativar/Desativar —
+este último por POST, com as regras de ativação de sempre). A ficha tem
+INFORMAÇÕES BÁSICAS, CONTEÚDO, FOTOS (um card por foto), PERSONALIZAÇÃO,
+VARIANTES, OUTRAS INFORMAÇÕES (recolhida) e AUDITORIA.
+`apps/catalog/tests/test_quick_add.py` cobre tudo isso.
+
+### Variante, cor e composição de materiais
+
+Três coisas diferentes, desde a etapa 2B. A **variante** (`ProductVariant`)
+continua sendo a única unidade vendável: SKU, preço, estoque, peso, prazo — e
+os eixos `color`, `material` e `size` só quando são opções que o cliente
+escolhe e que mudam a oferta. A **cor da peça** é do produto:
+`Product.color_mode` diz se não se aplica, se é uma cor, multicolorida, à
+escolha do cliente (informativo) ou opção comercial (aí vale a variante), e a
+lista ordenada fica em `ProductColor`, apontando para as `Color` de sempre. A
+**composição** também é do produto: `ProductMaterialComposition` (material,
+percentual opcional, ordem) — «PLA 80% + PETG 20%», ou só «PLA + TPU». Nenhuma
+das duas cria variante. O card, a ficha técnica e o carrinho leem
+`display_colors`/`colors_text` e `materials_text` (prefetch fixo,
+`PRODUCT_COLOR_PREFETCHES`); o filtro de material do shop considera a
+composição e as variantes; o pedido congela `colors_snapshot` e
+`materials_snapshot` além de `color_name`/`material_name` da variante. As
+migrations `catalog.0011` (schema) e `0012` (dados, derivados das variantes:
+cor única comum → «uma cor», cores distintas → «opção comercial», material
+único comum → composição sem percentual, o resto fica vazio) são separadas de
+propósito. Cadastro rápido não mudou.
+
+### A ficha do produto e o modal da variante
+
+A tela `/admin/catalog/product/<id>/change/` é uma ficha, não uma sequência
+de campos: cabeçalho (nome, SKU, status com «Ativar/Desativar», categoria,
+ações), uma navegação rápida («1 · Básico» … «9 · Auditoria») e nove seções
+numeradas — Informações básicas, Conteúdo, Fotos, Cores (com a Paleta apoiada
+nela), Materiais, Personalização, Variantes, Outras e Auditoria (recolhida).
+Cada seção é um cartão `<details>` com número, título e subtítulo. A ordem
+continua em `SECTION_ORDER`; os textos da ficha (âncora, rótulo do índice,
+subtítulo, explicação) estão em `SECTION_META`, e `_page_layout` entrega ao
+template (`templates/admin/catalog/product/change_form.html`,
+`section_fieldset.html`, `_section_head.html`) a lista já numerada. O botão
+de salvar de baixo fica grudado no rodapé da janela.
+
+A **variante** se edita num modal próprio (`edit_inline/variant_table.html`):
+cabeçalho «Editar variante / SKU» com o interruptor Ativa/Inativa, o produto
+pai somente leitura, e os campos do formset em cinco grupos —
+`VARIANT_MODAL_GROUPS` (identificação, opções da variante, estoque e produção,
+peso/tempo/dimensões, custos e preço), com unidade ao lado do campo (€, g,
+dias, %). Uma afirmação no admin garante que os grupos cobrem exatamente
+`VARIANT_FIELDS`. «Salvar e continuar editando» grava e mantém o modal aberto
+(variante nova recarrega a página e reabre sozinha). Os campos continuam sendo
+os do formset do Django: nada muda no modelo, na gravação nem no SKU
+automático `PRODUTO-V01`.
+
+A paleta e a composição são tabelas compactas (`jd-compact-rows`) — cards nas
+telas estreitas — e cada opção do `<select>` de cor leva `data-hex`
+(`ColorSelect`), de onde `product_form_admin.js` desenha a bolinha da cor. O
+mesmo script abre a seção ao clicar no índice e esconde o limite de texto da
+personalização quando o tipo não aceita texto. O cadastro rápido não mudou.
+
 ### A composição da Home
 
 Desde a etapa 20 a Home é uma **lista de seções** (`home.HomeSection`), na

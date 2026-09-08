@@ -1,5 +1,7 @@
+{% load catalog_admin %}
 {% comment %}
-  Variantes: tabela compacta + MODAL de edição.
+  VARIANTES: tabela compacta + MODAL de edição, com a anatomia própria de
+  uma variante.
 
   Os textos aqui são literais em português, como no resto do Admin
   (ver `apps/catalog/admin.py`): o Admin deste projeto não é traduzido, e
@@ -16,6 +18,14 @@
   Na tela de EDIÇÃO, onde o produto já existe, o botão do modal grava a
   variante sozinha, por `admin:catalog_product_variant_save`. É o que faz o
   rótulo "Salvar" dizer a verdade.
+
+  ## A anatomia do modal
+
+  Os campos são desenhados por nome, nos grupos de `VARIANT_MODAL_GROUPS`
+  (admin.py): identificação, opções da variante, estoque e produção, peso e
+  dimensões, custos e preço. `is_active` vira o interruptor do cabeçalho.
+  Uma afirmação no admin garante que os grupos cobrem exatamente os campos do
+  formset — nenhum campo some por ter sido esquecido num grupo.
 
   ## Por que a tabela nasce vazia
 
@@ -38,6 +48,7 @@
   <div class="inline-group jd-variants"
      id="{{ inline_admin_formset.formset.prefix }}-group"
      data-variant-inline
+     data-variant-sku-next="{{ variant_sku_next|default:'' }}"
      {% if original %}data-variant-save-url="{% url 'admin:catalog_product_variant_save' original.pk %}"
      data-variant-delete-url="{% url 'admin:catalog_product_variant_delete' original.pk 0 %}"{% endif %}>
   <div class="tabular inline-related">
@@ -46,13 +57,17 @@
     <fieldset class="module {{ inline_admin_formset.classes }}"
               aria-labelledby="{{ inline_admin_formset.formset.prefix }}-heading">
       {# `<details open>`: recolhivel, mas aberta -- quem edita quer ver. #}
-      {% if inline_admin_formset.is_collapsible %}<details open><summary>{% endif %}
-      <h2 id="{{ inline_admin_formset.formset.prefix }}-heading" class="inline-heading">
-        {{ inline_admin_formset.opts.verbose_name_plural|capfirst }}
-      </h2>
-      {% if inline_admin_formset.is_collapsible %}</summary>{% endif %}
+      {% if inline_admin_formset.is_collapsible %}<details open>{% endif %}
+      {% include "admin/catalog/product/_section_head.html" with heading_id=inline_admin_formset.formset.prefix|add:"-heading" heading_class="inline-heading" title=inline_admin_formset.opts.verbose_name_plural|capfirst badge_attr="data-variant-count" %}
+      <div class="jd-sec-body">
 
       {{ inline_admin_formset.formset.non_form_errors }}
+
+      <p class="jd-variant-help jd-variant-hint">
+        Use cor ou material na variante somente quando forem opções comerciais que
+        alteram a oferta, preço, estoque ou SKU. A descrição das cores e a
+        composição de materiais da peça ficam em CORES e MATERIAIS, acima.
+      </p>
 
       {% if not original %}
         <p class="jd-variant-help jd-variant-hint">
@@ -72,10 +87,10 @@
               <th scope="col">Cor</th>
               <th scope="col">Tamanho</th>
               <th scope="col">Material</th>
-              <th scope="col" class="jd-num">Peso</th>
+              <th scope="col" class="jd-num jd-col-extra">Peso</th>
               <th scope="col" class="jd-num">Estoque</th>
               <th scope="col" class="jd-num">Preço</th>
-              <th scope="col" class="jd-num">Produção</th>
+              <th scope="col" class="jd-num jd-col-extra">Produção</th>
               <th scope="col">Status</th>
               <th scope="col"><span class="jd-sr">Ações</span></th>
             </tr>
@@ -85,8 +100,8 @@
       </div>
 
       <p class="jd-variant-note" data-variant-empty hidden>
-        Nenhuma variante cadastrada. Um produto ativo precisa de pelo menos uma —
-        é ela que tem preço, estoque, peso e prazo.
+        Este produto ainda não possui uma configuração vendável. Um produto ativo
+        precisa de pelo menos uma variante — é ela que tem preço, estoque, peso e prazo.
       </p>
 
       <p class="jd-variant-actions">
@@ -106,6 +121,7 @@
       {% endcomment %}
       <div class="jd-variant-modals">
         {% for inline_admin_form in inline_admin_formset %}
+          {% with form=inline_admin_form.form %}
           <div class="jd-modal"
                data-variant-modal
                {% if forloop.last and inline_admin_formset.has_add_permission %}data-variant-template{% endif %}
@@ -114,20 +130,37 @@
             {# Sem gancho proprio: quem cuida deste no e `jd_modal.js`, e ele nao fecha. #}
             <div class="jd-modal-backdrop" aria-hidden="true"></div>
 
-            <div class="jd-modal-dialog"
+            <div class="jd-modal-dialog jd-vm"
                  role="dialog"
                  aria-modal="true"
                  aria-labelledby="{{ inline_admin_formset.formset.prefix }}-{{ forloop.counter0 }}-titulo">
-              <header class="jd-modal-head">
-                <h3 class="jd-modal-title"
-                    id="{{ inline_admin_formset.formset.prefix }}-{{ forloop.counter0 }}-titulo"
-                    data-variant-modal-title>Editar variante</h3>
-                <button type="button" class="jd-modal-x" data-variant-cancel
-                        aria-label="Fechar sem salvar">&times;</button>
+              <header class="jd-modal-head jd-vm-head">
+                <div class="jd-vm-head-title">
+                  <span class="jd-vm-eyebrow" data-variant-modal-kind>Editar variante</span>
+                  <h3 class="jd-modal-title"
+                      id="{{ inline_admin_formset.formset.prefix }}-{{ forloop.counter0 }}-titulo"
+                      data-variant-modal-title>Editar variante</h3>
+                </div>
+                <div class="jd-vm-head-tools">
+                  {% with campo=form|bound_field:"is_active" %}
+                  {% if campo %}
+                  <div class="jd-modal-field jd-variant-field jd-vm-switch-field field-is_active">
+                    {{ campo.errors }}
+                    <label class="jd-vm-switch" for="{{ campo.id_for_label }}" title="Só variantes ativas aparecem no site">
+                      {{ campo }}
+                      <span class="jd-vm-switch-track" aria-hidden="true"><span class="jd-vm-switch-knob"></span></span>
+                      <span class="jd-vm-switch-text" data-variant-active-label>Ativa</span>
+                    </label>
+                  </div>
+                  {% endif %}
+                  {% endwith %}
+                  <button type="button" class="jd-modal-x" data-variant-cancel
+                          aria-label="Fechar sem salvar">&times;</button>
+                </div>
               </header>
 
-              <div class="jd-modal-body">
-                {{ inline_admin_form.form.non_field_errors }}
+              <div class="jd-modal-body jd-vm-body">
+                {{ form.non_field_errors }}
 
                 {# Erro devolvido pelo servidor que não pertence a um campo só. #}
                 <p class="errornote" data-modal-error data-variant-modal-error hidden></p>
@@ -135,39 +168,39 @@
                 {% if inline_admin_form.needs_explicit_pk_field %}{{ inline_admin_form.pk_field.field }}{% endif %}
                 {% if inline_admin_form.fk_field %}{{ inline_admin_form.fk_field.field }}{% endif %}
 
-                {% for fieldset in inline_admin_form %}
-                  {% for line in fieldset %}
-                    <div class="jd-variant-line">
-                      {% for field in line %}
-                        <div class="jd-modal-field jd-variant-field {% if field.field.name %}field-{{ field.field.name }}{% endif %}{% if field.field.is_hidden %} jd-hidden{% endif %}">
-                          {% if field.is_readonly %}
-                            <label>{{ field.field.label }}</label>
-                            <p class="jd-variant-readonly">{{ field.contents }}</p>
-                          {% else %}
-                            {{ field.field.label_tag }}
-                            {{ field.field.errors }}
-                            {{ field.field }}
-                            {% if field.field.help_text %}
-                              <p class="jd-variant-help">{{ field.field.help_text|safe }}</p>
-                            {% endif %}
-                          {% endif %}
+                {% for grupo in variant_modal_groups %}
+                  <section class="jd-vm-group jd-vm-group-{{ grupo.slug }}" aria-label="{{ grupo.title }}">
+                    <h4 class="jd-vm-group-title">{{ grupo.title }}</h4>
+                    {% if grupo.hint %}<p class="jd-vm-group-hint">{{ grupo.hint }}</p>{% endif %}
+                    <div class="jd-vm-grid">
+                      {% if grupo.slug == "identificacao" %}
+                        {# O produto pai, como contexto: a variante pertence a ele e não o edita. #}
+                        <div class="jd-vm-field jd-vm-static">
+                          <span class="jd-vm-static-label">Produto</span>
+                          <p class="jd-variant-readonly jd-vm-static-value">
+                            {% if original %}{{ original.display_name }} <code>{{ original.sku }}</code>{% else %}Produto novo — ainda não salvo{% endif %}
+                          </p>
                         </div>
+                      {% endif %}
+                      {% for nome in grupo.fields %}
+                        {% include "admin/catalog/edit_inline/_variant_field.html" with field=form|bound_field:nome affix=variant_field_affix|get_item:nome currency_symbol=original.currency_symbol %}
                       {% endfor %}
                     </div>
-                  {% endfor %}
+                    {% if grupo.slug == "preco" %}
+                      {% comment %}
+                        Os dois valores derivados, juntos: ambos saem de custo e preço.
+                        São leitura, não campo — quem grava é o servidor, com Decimal.
+                        O número aqui é pré-visualização e pode diferir no último
+                        centavo.
+                      {% endcomment %}
+                      <div class="jd-variant-derived jd-vm-derived">
+                        <p><span class="jd-vm-derived-label">Custo total</span> <b data-variant-total-cost>&mdash;</b></p>
+                        <p><span class="jd-vm-derived-label">Lucro por unidade</span> <b data-variant-profit>&mdash;</b></p>
+                        <p class="jd-variant-help">Recalculado no servidor ao salvar.</p>
+                      </div>
+                    {% endif %}
+                  </section>
                 {% endfor %}
-
-                {% comment %}
-                  Os dois valores derivados, juntos: ambos saem de custo e preço.
-                  São leitura, não campo — quem grava é o servidor, com Decimal.
-                  O número aqui é pré-visualização e pode diferir no último
-                  centavo.
-                {% endcomment %}
-                <div class="jd-variant-derived">
-                  <p>Custo total: <b data-variant-total-cost>&mdash;</b></p>
-                  <p>Lucro por unidade: <b data-variant-profit>&mdash;</b></p>
-                  <p class="jd-variant-help">Recalculado no servidor ao salvar.</p>
-                </div>
 
                 {% if inline_admin_formset.formset.can_delete and inline_admin_formset.has_delete_permission %}
                   {# Sem JavaScript, esta caixa continua sendo o jeito de excluir. #}
@@ -180,7 +213,7 @@
                 {% endif %}
               </div>
 
-              <footer class="jd-modal-foot">
+              <footer class="jd-modal-foot jd-vm-foot">
                 <button type="button" class="jd-modal-danger" data-variant-remove hidden>
                   Excluir variante
                 </button>
@@ -188,13 +221,18 @@
                 <button type="button" class="jd-modal-cancel" data-variant-cancel>
                   Cancelar
                 </button>
+                <button type="button" class="jd-modal-cancel jd-modal-save-stay" data-variant-save-stay>
+                  Salvar e continuar editando
+                </button>
                 <button type="button" class="jd-modal-save" data-variant-save>
                   Salvar
                 </button>
               </footer>
             </div>
           </div>
+          {% endwith %}
         {% endfor %}
+      </div>
       </div>
       {% if inline_admin_formset.is_collapsible %}</details>{% endif %}
     </fieldset>

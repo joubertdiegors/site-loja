@@ -64,6 +64,16 @@ trocas, quando publicadas — cadastro do Admin, não texto escrito aqui.
               {% if line.variant.material_id %}
                 <li class="cart-chip">{{ line.variant.material.display_name }}</li>
               {% endif %}
+              {# Etapa 2B: a descrição da peça, quando a variante não tem a sua própria. #}
+              {% if not line.variant.color_id and line.product.colors_text %}
+                <li class="cart-chip">
+                  {% for color in line.product.display_colors|slice:":4" %}<span class="cart-chip-dot" aria-hidden="true"{% if color.hex_code %} style="background-color: {{ color.hex_code }}"{% endif %}></span>{% endfor %}
+                  {{ line.product.colors_text }}
+                </li>
+              {% endif %}
+              {% if not line.variant.material_id and line.product.materials_text %}
+                <li class="cart-chip">{{ line.product.materials_text }}</li>
+              {% endif %}
               {% if line.variant.made_to_order %}
                 <li class="cart-chip cart-chip-warning">{% translate "Sob encomenda" %}</li>
               {% endif %}

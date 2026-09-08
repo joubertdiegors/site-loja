@@ -1,0 +1,22 @@
+{% comment %}
+  O cabeçalho de uma seção da ficha do produto: caret, número, título e
+  subtítulo, dentro do <summary> que abre e fecha a seção.
+
+  Espera no contexto:
+    jd_section    o item de `ProductAdmin._page_layout` (number, title,
+                  subtitle) — pode faltar; aí valem `title`/`subtitle`
+    heading_id    o id do <h2> (o `aria-labelledby` do fieldset aponta para ele)
+    heading_class "fieldset-heading" ou "inline-heading", como o Django faz
+    badge_attr    opcional: um atributo para o selo à direita (a contagem
+                  de variantes, que o JavaScript preenche)
+
+  O subtítulo fica DENTRO do <h2>, depois do travessão: é assim que o título
+  «CONTEÚDO — nome e descrições por idioma» continua sendo uma frase só para
+  quem lê o HTML (e para os testes), e ganha dois pesos só na tela.
+{% endcomment %}
+<summary>
+  <span class="jd-sec-caret" aria-hidden="true"></span>
+  {% if jd_section.number %}<span class="jd-sec-num" aria-hidden="true">{{ jd_section.number }}</span>{% endif %}
+  <h2 id="{{ heading_id }}" class="{{ heading_class|default:'fieldset-heading' }}">{% firstof jd_section.title title %}{% with sub=jd_section.subtitle|default:subtitle %}{% if sub %}<span class="jd-sec-sub"> — {{ sub }}</span>{% endif %}{% endwith %}</h2>
+  {% if badge_attr %}<span class="jd-sec-badge" {{ badge_attr }}></span>{% endif %}
+</summary>

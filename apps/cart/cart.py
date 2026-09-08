@@ -33,7 +33,7 @@ from django.utils.translation import gettext as _
 from apps.cart.keys import customization_fingerprint, line_key
 from apps.cart.models import CustomizationUpload
 from apps.cart.storage import CART_SESSION_KEY, DatabaseStorage, SessionStorage
-from apps.catalog.models import Product, ProductStatus, ProductVariant
+from apps.catalog.models import Product, ProductStatus, ProductVariant, product_description_prefetches
 
 __all__ = [
     "CART_SESSION_KEY",
@@ -64,6 +64,7 @@ def load_products(items: dict) -> dict:
         .select_related("category")
         .prefetch_related(
             "translations",
+            *product_description_prefetches(),
             "media",
             "category__translations",
             Prefetch(

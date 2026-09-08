@@ -1,0 +1,41 @@
+{% load catalog_admin %}
+{% comment %}
+  Um campo do modal da variante.
+
+  Espera `field` (o BoundField) e, opcionalmente, `affix` — o par
+  (prefixo, sufixo) de `VARIANT_FIELD_AFFIX`: «€» antes do preço, «g» depois
+  do peso. «moeda» no prefixo vira o símbolo da moeda do produto.
+
+  Caixas de marcar viram um cartão (rótulo + ajuda ao lado da caixa); os
+  outros campos, rótulo em cima. A classe `jd-modal-field` é a que
+  `jd_modal.js` procura para pintar o erro devolvido pelo servidor.
+{% endcomment %}
+{% if field %}
+<div class="jd-modal-field jd-variant-field jd-vm-field field-{{ field.name }}{% if field|is_checkbox %} jd-vm-check{% endif %}{% if field.is_hidden %} jd-hidden{% endif %}">
+  {% if field|is_checkbox %}
+    {{ field.errors }}
+    <label class="jd-vm-checkcard" for="{{ field.id_for_label }}">
+      <span class="jd-vm-checkbox">{{ field }}</span>
+      <span class="jd-vm-checktext">
+        <span class="jd-vm-checklabel">{{ field.label }}</span>
+        {% if field.help_text %}<span class="jd-variant-help">{{ field.help_text|safe }}</span>{% endif %}
+      </span>
+    </label>
+  {% else %}
+    {{ field.label_tag }}
+    {{ field.errors }}
+    {% if affix %}
+      <div class="jd-vm-affix">
+        {% if affix.0 %}<span class="jd-vm-affix-text">{% if affix.0 == "moeda" %}{{ currency_symbol|default:"€" }}{% else %}{{ affix.0 }}{% endif %}</span>{% endif %}
+        {{ field }}
+        {% if affix.1 %}<span class="jd-vm-affix-text">{{ affix.1 }}</span>{% endif %}
+      </div>
+    {% else %}
+      {{ field }}
+    {% endif %}
+    {% if field.help_text %}
+      <p class="jd-variant-help">{{ field.help_text|safe }}</p>
+    {% endif %}
+  {% endif %}
+</div>
+{% endif %}

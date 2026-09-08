@@ -1,26 +1,111 @@
 {% extends "admin/change_form.html" %}
+{% load admin_urls admin_modify static %}
 {% comment %}
-  A ordem das secoes da tela do produto, e a AUDITORIA no fim.
+  A ficha do produto.
 
-  O Django desenha *todos* os fieldsets e so depois *todos* os inlines. A ordem
-  pedida intercala os dois (CONTEUDO, que e inline, fica entre CLASSIFICACAO e
-  PERSONALIZACAO, que sao fieldsets), entao `ProductAdmin._page_layout` monta em
-  Python uma lista unica -- `product_layout` -- e aqui e so caminhar por ela.
+  ## A anatomia
 
-  A ordem propriamente dita mora em `SECTION_ORDER`, no admin. Este arquivo nao
-  sabe quais sao as secoes nem em que ordem elas vem: sem isso, mudar a ordem
-  exigiria editar dois arquivos e lembrar de manter os dois de acordo.
+  Cabeçalho (nome, SKU, status, categoria, ações), a navegação rápida
+  («1 · Básico» … «9 · Auditoria») e as seções numeradas, cada uma um cartão
+  recolhível com número, título e subtítulo. O botão de salvar fica no topo
+  (`save_on_top`) e, grudado, no rodapé da janela.
+
+  O PRODUTO é a entidade principal. Preço, estoque, peso, dimensões e prazo
+  pertencem às VARIANTES (seção 7), e cada variante se edita num modal
+  próprio — ver `edit_inline/variant_table.html`.
+
+  ## A ordem das seções
+
+  O Django desenha *todos* os fieldsets e só depois *todos* os inlines. A ordem
+  pedida intercala os dois, então `ProductAdmin._page_layout` monta em Python
+  uma lista única -- `product_layout` -- com número, âncora, título e
+  subtítulo de cada seção, e aqui é só caminhar por ela. A ordem mora em
+  `SECTION_ORDER`; os textos da ficha, em `SECTION_META`.
+
+  A AUDITORIA é a última seção: sai dos `fieldsets` porque o Django a
+  desenharia antes dos inlines, e entra em `after_related_objects`.
 {% endcomment %}
 
-{% block field_sets %}
-  {% if product_layout %}
-    {% for item in product_layout %}
-      {% if item.kind == "fieldset" %}
-        {% include "admin/includes/fieldset.html" with fieldset=item.fieldset heading_level=2 prefix="fieldset" id_prefix=0 id_suffix=item.index %}
+{% comment %}
+  O título padrão («Modificar produto») sai: o cabeçalho da ficha é desenhado
+  junto com as ações, em `object-tools`, para nome e botões ficarem na mesma
+  linha.
+{% endcomment %}
+{% block content_title %}{% if not adminform %}{{ block.super }}{% endif %}{% endblock %}
+{% block content_subtitle %}{% if not adminform %}{{ block.super }}{% endif %}{% endblock %}
+
+{% block object-tools %}
+  {% if adminform %}
+  {# O Django 6 desenha este bloco num contêiner flex: o embrulho ocupa a linha toda. #}
+  <div class="jd-sheet-top">
+  <header class="jd-sheet-head">
+    <div class="jd-sheet-title">
+      {% if original and original.pk %}
+        <h1>{{ original.display_name }}</h1>
+        <p class="jd-sheet-meta">
+          <code class="jd-sheet-sku">{{ original.sku }}</code>
+          <span class="jd-badge {% if original.status == 'active' %}jd-badge-ok{% elif original.status == 'inactive' %}jd-badge-danger{% else %}jd-badge-muted{% endif %}">{{ original.get_status_display }}</span>
+          {% if jd_toggle_url %}
+            <a href="{{ jd_toggle_url }}?next={{ request.path|urlencode }}" class="jd-sheet-toggle" data-toggle-status
+               data-toggle-confirm="Isto grava o status agora e recarrega a ficha. Alterações ainda não salvas nas outras seções serão perdidas. Continuar?"
+               title="Só produtos ativos aparecem no site">{{ jd_toggle_label }}</a>
+          {% endif %}
+          {% if original.category %}<span class="jd-sheet-sep">·</span><span>{{ original.category.full_path }}</span>{% endif %}
+          {% if original.updated_at %}<span class="jd-sheet-sep">·</span><span class="jd-sheet-quiet">Atualizado em {{ original.updated_at|date:"j \d\e F \d\e Y, H:i" }}{% if original.updated_by %} por <b>{{ original.updated_by }}</b>{% endif %}</span>{% endif %}
+        </p>
       {% else %}
-        {% include item.formset.opts.template with inline_admin_formset=item.formset %}
+        <h1>Novo produto</h1>
+        <p class="jd-sheet-meta">
+          <span class="jd-badge jd-badge-muted">cadastro completo</span>
+          <span class="jd-sheet-quiet">Para só criar o produto e detalhar depois, use o <a href="{% url 'admin:catalog_product_quick_add' %}">cadastro rápido</a>.</span>
+        </p>
       {% endif %}
+    </div>
+    {% if change and not is_popup %}
+      <ul class="object-tools jd-sheet-tools">
+        {% block object-tools-items %}
+          {% change_form_object_tools %}
+          {% if jd_duplicate_url %}
+            <li><a href="{{ jd_duplicate_url }}" class="jd-tool-duplicate">Duplicar</a></li>
+          {% endif %}
+          {% if jd_view_url %}
+            <li><a href="{{ jd_view_url }}" class="viewsitelink" target="_blank" rel="noopener">Ver produto</a></li>
+          {% endif %}
+        {% endblock %}
+      </ul>
+    {% endif %}
+  </header>
+
+  {% if jd_section_nav %}
+    <nav class="jd-sheet-nav" aria-label="Seções da ficha" data-section-nav>
+      {% for item in jd_section_nav %}
+        <a href="#sec-{{ item.slug }}"><span class="jd-sheet-nav-num">{{ item.number }}</span> · {{ item.label }}</a>
+      {% endfor %}
+    </nav>
+  {% endif %}
+  </div>
+  {% else %}
+    {{ block.super }}
+  {% endif %}
+{% endblock %}
+
+{% block field_sets %}
+  {% if jd_sku_suggest_url %}
+    {# Produto novo: o SKU é sugerido enquanto se digita (product_sku_suggest.js). #}
+    <div data-sku-suggest data-url="{{ jd_sku_suggest_url }}" data-mode="full" hidden></div>
+  {% endif %}
+  {% if product_layout %}
+    <div class="jd-sheet" data-product-sheet>
+    {% for item in product_layout %}
+      <section class="jd-section{% if item.attached %} jd-section-attached{% endif %} jd-section-{{ item.slug }}" id="sec-{{ item.slug }}">
+      {% if item.kind == "fieldset" %}
+        {% include "admin/catalog/product/section_fieldset.html" with fieldset=item.fieldset jd_section=item heading_level=2 prefix="fieldset" id_prefix=0 id_suffix=item.index %}
+      {% else %}
+        {% include item.formset.opts.template with inline_admin_formset=item.formset jd_section=item %}
+      {% endif %}
+      </section>
     {% endfor %}
+    </div>
   {% else %}
     {{ block.super }}
   {% endif %}
@@ -37,25 +122,25 @@
 {% comment %}
   A AUDITORIA e o ultimo bloco da pagina. `after_related_objects` e o ponto de
   extensao do proprio Django para isto. So aparece na edicao: produto que ainda
-  nao foi criado nao tem historico.
+  nao foi criado nao tem historico. Comeca recolhida: e consulta, nao trabalho.
 {% endcomment %}
 {% block after_related_objects %}
   {{ block.super }}
   {% if audit_rows %}
+    <section class="jd-section jd-section-auditoria jd-section-quiet" id="sec-auditoria">
     <fieldset class="module aligned collapse" aria-labelledby="auditoria-heading">
       <details>
-        <summary>
-          <h2 id="auditoria-heading" class="fieldset-heading">AUDITORIA</h2>
-        </summary>
+        {% include "admin/catalog/product/_section_head.html" with jd_section=audit_section heading_id="auditoria-heading" heading_class="fieldset-heading" %}
+        <div class="jd-sec-body jd-audit-grid">
         {% for rotulo, valor in audit_rows %}
-          <div class="form-row">
-            <div class="flex-container">
-              <label>{{ rotulo }}:</label>
-              <div class="readonly">{{ valor|default:"—" }}</div>
-            </div>
+          <div class="jd-audit-cell">
+            <span class="jd-audit-label">{{ rotulo }}</span>
+            <span class="jd-audit-value">{{ valor|default:"—" }}</span>
           </div>
         {% endfor %}
+        </div>
       </details>
     </fieldset>
+    </section>
   {% endif %}
 {% endblock %}

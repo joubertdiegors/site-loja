@@ -65,14 +65,25 @@ que guarda o produto; para o visitante, um link para o login. O estado sai de
         {% endif %}
       </p>
 
-      {% with colors=product.available_colors %}
-        {% if colors %}
-          <p class="product-card-colors">
-            {% blocktranslate count total=colors|length %}{{ total }} cor{% plural %}{{ total }} cores{% endblocktranslate %}
-            <span class="sr-only">: {% for color in colors %}{{ color.display_name }}{% if not forloop.last %}, {% endif %}{% endfor %}</span>
-          </p>
-        {% endif %}
-      {% endwith %}
+      {% comment %}
+        As cores, conforme o modo do produto (etapa 2B): a paleta cadastrada
+        («Uma cor», «Multicolorido»), as cores das variantes («Opção
+        comercial»), a frase «Cores à escolha», ou nada. Até cinco bolinhas;
+        acima disso, «+N» — o card não pode crescer com a paleta.
+      {% endcomment %}
+      {% if product.has_custom_colors %}
+        <p class="product-card-colors product-card-colors-custom">{% translate "Cores à escolha" %}</p>
+      {% else %}
+        {% with colors=product.display_colors %}
+          {% if colors %}
+            <p class="product-card-colors">
+              <span class="product-card-swatches" aria-hidden="true">{% for color in colors|slice:":5" %}<span class="product-card-swatch"{% if color.hex_code %} style="background-color: {{ color.hex_code }}"{% endif %}></span>{% endfor %}{% if colors|length > 5 %}<span class="product-card-swatch-more">+{{ colors|length|add:"-5" }}</span>{% endif %}</span>
+              {% blocktranslate count total=colors|length %}{{ total }} cor{% plural %}{{ total }} cores{% endblocktranslate %}
+              <span class="sr-only">: {% for color in colors %}{{ color.display_name }}{% if not forloop.last %}, {% endif %}{% endfor %}</span>
+            </p>
+          {% endif %}
+        {% endwith %}
+      {% endif %}
     </div>
 
     {% comment %}

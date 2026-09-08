@@ -840,6 +840,14 @@ class OrderItem(models.Model):
     color_name = models.CharField("cor", max_length=60, blank=True)
     size_name = models.CharField("tamanho", max_length=60, blank=True)
     material_name = models.CharField("material", max_length=80, blank=True)
+    # Etapa 2B: a descrição visual e a composição do PRODUTO no momento da
+    # compra («Preto + Branco», «PLA 80% + PETG 20%»). Os três acima
+    # continuam sendo os eixos da VARIANTE comprada; estes dois nascem vazios
+    # nos pedidos anteriores e nunca são preenchidos retroativamente.
+    colors_snapshot = models.CharField("cores (snapshot)", max_length=255, blank=True, default="")
+    materials_snapshot = models.CharField(
+        "composição de materiais (snapshot)", max_length=255, blank=True, default=""
+    )
 
     quantity = models.PositiveIntegerField("quantidade", default=1, validators=[MinValueValidator(1)])
     unit_price = models.DecimalField("preço unitário", max_digits=10, decimal_places=2, default=ZERO)

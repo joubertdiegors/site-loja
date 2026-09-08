@@ -44,6 +44,7 @@ listado; `apps/core/tests_admin_sections.py` cobra isso.)
 from dataclasses import dataclass
 
 from django.contrib.admin import AdminSite
+from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
 
@@ -55,6 +56,7 @@ class Item:
     nome: str = ""  # vazio = o verbose_name_plural do model
     dica: str = ""
     sub: bool = False  # recuado: faz parte do item logo acima
+    adicionar: str = ""  # nome de URL do "+ Adicionar", quando não é o padrão
 
 
 @dataclass(frozen=True)
@@ -90,7 +92,7 @@ SECOES = (
     (
         _("CATÁLOGO"),
         (
-            Item("catalog.product", "Produtos"),
+            Item("catalog.product", "Produtos", adicionar="admin:catalog_product_quick_add"),
             Item("catalog.productvariant", "Variantes", "Cor, material e tamanho de cada produto: é aqui que ficam preço e estoque."),
             Item("categories.category", "Categorias", "A árvore do catálogo; também monta o menu do site."),
             Item("catalog.color", "Cores"),
@@ -241,6 +243,8 @@ class JDPrintAdminSite(AdminSite):
                     model["name"] = entrada.nome
                 model["hint"] = entrada.dica
                 model["sub"] = entrada.sub
+                if entrada.adicionar and model.get("add_url"):
+                    model["add_url"] = reverse(entrada.adicionar)
                 linhas.append(model)
                 usados.add(entrada.chave)
 

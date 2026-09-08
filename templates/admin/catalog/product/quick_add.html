@@ -1,0 +1,121 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static admin_urls %}
+{% comment %}
+  O cadastro rápido de produto: nome, categoria, SKU (sugerido) e status.
+  "Cadastrar primeiro, detalhar depois" — fotos, descrições, traduções e
+  variantes ficam para a ficha. Ver `ProductAdmin.quick_add_view`.
+{% endcomment %}
+
+{% block title %}Novo produto | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block extrahead %}
+  {{ block.super }}
+  {{ form.media }}
+  <link rel="stylesheet" href="{% static 'admin/css/jdprint_admin.css' %}">
+  <script src="{% static 'admin/js/product_sku_suggest.js' %}" defer></script>
+{% endblock %}
+
+{% block bodyclass %}{{ block.super }} app-catalog model-product change-form{% endblock %}
+
+{% block breadcrumbs %}
+  <div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+    &rsaquo; <a href="{% url 'admin:app_list' app_label='catalog' %}">Catálogo</a>
+    &rsaquo; <a href="{% url 'admin:catalog_product_changelist' %}">Produtos</a>
+    &rsaquo; Novo produto
+  </div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main" class="jd-quick-add">
+  <p class="jd-quick-intro">
+    Só o essencial para o produto existir. Fotos, descrições, traduções, preço e
+    variantes ficam para depois, na ficha do produto.
+  </p>
+
+  <form method="post" id="product_quick_form" novalidate>
+    {% csrf_token %}
+    <div data-sku-suggest data-url="{% url 'admin:catalog_product_sku_suggestion' %}" data-mode="quick" hidden></div>
+    {% if form.non_field_errors %}
+      <p class="errornote">{{ form.non_field_errors|join:" " }}</p>
+    {% elif form.errors %}
+      <p class="errornote">Corrija os campos marcados abaixo.</p>
+    {% endif %}
+
+    <fieldset class="module aligned">
+      <h2 class="fieldset-heading">IDENTIFICAÇÃO</h2>
+
+      <div class="form-row field-name{% if form.name.errors %} errors{% endif %}">
+        <div class="flex-container">
+          {{ form.name.label_tag }}
+          {{ form.name.errors }}
+          {{ form.name }}
+          <div class="help">{{ form.name.help_text }}</div>
+        </div>
+      </div>
+
+      <div class="form-row flex-container form-multiline field-category field-status">
+        <div class="flex-container fieldBox field-category{% if form.category.errors %} errors{% endif %}">
+          {{ form.category.label_tag }}
+          {{ form.category.errors }}
+          {{ form.category }}
+          <div class="help">{{ form.category.help_text }}</div>
+        </div>
+        <div class="flex-container fieldBox field-status{% if form.status.errors %} errors{% endif %}">
+          {{ form.status.label_tag }}
+          {{ form.status.errors }}
+          {{ form.status }}
+          <div class="help">{{ form.status.help_text }}</div>
+        </div>
+      </div>
+
+      <div class="form-row flex-container form-multiline field-sku field-brand">
+        <div class="flex-container fieldBox field-sku{% if form.sku.errors %} errors{% endif %}">
+          {{ form.sku.label_tag }}
+          {{ form.sku.errors }}
+          {{ form.sku }}
+          <div class="help" data-sku-help>{{ form.sku.help_text }}</div>
+        </div>
+        <div class="flex-container fieldBox field-brand{% if form.brand.errors %} errors{% endif %}">
+          {{ form.brand.label_tag }}
+          {{ form.brand.errors }}
+          {{ form.brand }}
+          <div class="help">{{ form.brand.help_text }}</div>
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset class="module aligned collapse">
+      <details>
+        <summary><h2 class="fieldset-heading">PRIMEIRA VARIANTE (opcional)</h2></summary>
+        <div class="description">
+          Com um preço, o produto já nasce com a primeira variante
+          (<code data-variant-sku-preview>{{ variant_sku_preview }}</code>). Sem preço,
+          a variante é cadastrada depois, na ficha — e é ela que tem estoque, peso e prazo.
+        </div>
+        <div class="form-row flex-container form-multiline field-sale_price field-stock_quantity">
+          <div class="flex-container fieldBox field-sale_price{% if form.sale_price.errors %} errors{% endif %}">
+            {{ form.sale_price.label_tag }}
+            {{ form.sale_price.errors }}
+            {{ form.sale_price }}
+            <div class="help">{{ form.sale_price.help_text }}</div>
+          </div>
+          <div class="flex-container fieldBox field-stock_quantity{% if form.stock_quantity.errors %} errors{% endif %}">
+            {{ form.stock_quantity.label_tag }}
+            {{ form.stock_quantity.errors }}
+            {{ form.stock_quantity }}
+            <div class="help">{{ form.stock_quantity.help_text }}</div>
+          </div>
+        </div>
+      </details>
+    </fieldset>
+
+    <div class="submit-row jd-quick-submit">
+      <input type="submit" value="Criar produto" class="default" name="_save">
+      <input type="submit" value="Criar e abrir a ficha" name="_continue">
+      <input type="submit" value="Criar e cadastrar outro" name="_addanother">
+      <a class="jd-quick-cancel" href="{% url 'admin:catalog_product_changelist' %}">Cancelar</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

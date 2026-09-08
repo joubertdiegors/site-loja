@@ -1184,17 +1184,44 @@
   }
 
   @media (max-width: 640px) {
-    .hero-text { gap: 14px; }
+    /* No celular o texto empilha botões e promessas e cresce; a arte não
+       pode ficar com o que sobra de uma altura fixa nem empurrada para o pé
+       do quadro. A grade passa a ter duas faixas — texto (auto) e arte (o
+       resto) —, os respiros entre botões e promessas encolhem, e a arte
+       sobe, colada às promessas, ocupando toda a altura que restou. */
+    .hero-grid {
+      grid-template-rows: auto minmax(0, 1fr);
+      align-content: stretch;
+      align-items: stretch; /* a arte preenche a faixa dela (o desktop centra) */
+      gap: 14px;
+      padding: 16px 0 12px;
+    }
+
+    .hero-text { gap: 12px; }
     .hero-title { font-size: 40px; }
     .hero-lead { font-size: 17px; }
-    .hero-art { height: 200px; }
+
+    .hero-art {
+      height: auto;
+      min-height: 180px;
+    }
+
+    /* A foto inteira, sem corte: dentro da moldura listrada, no tamanho em
+       que couber, com a moldura aparecendo em volta onde a proporção não
+       bate — é uma moldura, e é assim que a referência a trata. */
+    .hero-photo { object-fit: contain; }
 
     .hero-perks {
       flex-wrap: wrap;
-      gap: 12px;
+      gap: 6px 16px;
+      margin-top: 2px;
     }
 
-    .hero-actions { flex-direction: column; }
+    .hero-actions {
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 2px;
+    }
     .hero-actions .hero-btn { text-align: center; }
 
     /* Nas telas estreitas a placa e os selos encolhem junto, senão a
@@ -3136,6 +3163,9 @@
   }
 
   .product-card-colors {
+    display: flex;
+    align-items: center;
+    gap: 6px;
     margin: 0;
     font-family: var(--font-sans);
     font-weight: 700;
@@ -3143,6 +3173,32 @@
     line-height: normal;
     color: var(--color-ink-soft);
     white-space: nowrap;
+  }
+
+  /* As bolinhas da paleta (etapa 2B): até cinco, e «+N» para o resto. */
+  .product-card-swatches {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+  }
+
+  .product-card-swatch {
+    display: block;
+    width: 12px;
+    height: 12px;
+    border: 1px solid var(--color-ink);
+    border-radius: var(--radius-pill);
+    background: var(--color-surface-line-strong);
+  }
+
+  .product-card-swatch-more {
+    margin-left: 2px;
+    font-size: 11px;
+    color: var(--color-ink-muted);
+  }
+
+  .product-card-colors-custom {
+    color: var(--color-brand-600);
   }
 
   .product-card-stock {

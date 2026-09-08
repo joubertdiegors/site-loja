@@ -4,36 +4,49 @@ O formulário de produto é organizado em seções (``fieldsets``) e usa três
 inlines: traduções, variantes e mídias.
 """
 
+from decimal import Decimal
+
 from django import forms
 from django.contrib import admin, messages
 from django.contrib.admin.widgets import RelatedFieldWidgetWrapper
-from django.core.exceptions import ValidationError
-from django.http import JsonResponse
-from django.shortcuts import get_object_or_404
-from django.urls import path
+from django.core.exceptions import PermissionDenied, ValidationError
+from django.db import transaction
+from django.http import HttpResponseRedirect, JsonResponse
+from django.shortcuts import get_object_or_404, render
+from django.urls import path, reverse
 from django.utils.decorators import method_decorator
 from django.utils.html import format_html, format_html_join
+from django.utils.safestring import mark_safe
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
+
+from apps.catalog import sku as sku_rules
 
 from apps.catalog.models import (
     Brand,
     Color,
+    ColorMode,
     ColorTranslation,
     Material,
     MaterialTranslation,
     MediaType,
+    PricingMode,
     Product,
+    ProductColor,
+    ProductMaterialComposition,
     ProductMedia,
     ProductStatus,
     ProductTranslation,
     ProductVariant,
 )
+from apps.categories.models import Category
 from apps.core.admin_mixins import (
     AuditUserAdminMixin,
     DuplicateAdminMixin,
     TranslatedSlugAdminMixin,
 )
 from apps.core.constants import DEFAULT_LANGUAGE, Language
+from apps.core.utils import unique_slugify
 
 # ---------------------------------------------------------------------------
 # Atributos
@@ -267,8 +280,125 @@ VARIANT_FIELD_ROWS = (
 
 VARIANT_FIELDS = tuple(campo for linha in VARIANT_FIELD_ROWS for campo in linha)
 
+#: Como o MODAL da variante agrupa os campos — a anatomia da tela, não do
+#: formulário. `VARIANT_FIELD_ROWS` continua sendo a lista do formset; aqui é
+#: só a ordem em que o administrador os vê: quem é a variante, o que a
+#: distingue, o que ela custa e vale, quanto pesa e mede.
+#:
+#: `is_active` não está em grupo nenhum: vira o interruptor do cabeçalho.
+#: A afirmação no fim garante que os dois lugares falam dos mesmos campos —
+#: um campo acrescentado no formset e esquecido aqui sumiria do modal.
+VARIANT_MODAL_GROUPS = (
+    {
+        "slug": "identificacao",
+        "title": "Identificação",
+        "hint": "",
+        "fields": ("sku", "sort_order"),
+    },
+    {
+        "slug": "opcoes",
+        "title": "Opções da variante",
+        "hint": (
+            "Só o que distingue esta variante das outras do mesmo produto e "
+            "muda oferta, preço, estoque ou SKU. Eixo que não se aplica fica em "
+            "branco — a descrição das cores e a composição da peça são do produto."
+        ),
+        "fields": ("color", "size", "material"),
+    },
+    {
+        "slug": "estoque",
+        "title": "Estoque e produção",
+        "hint": "",
+        "fields": ("stock_quantity", "production_lead_time_days", "allow_backorder", "made_to_order"),
+    },
+    {
+        "slug": "fisico",
+        "title": "Peso, tempo e dimensões",
+        "hint": "",
+        "fields": ("weight_grams", "print_time", "width", "height", "depth", "dimension_unit"),
+    },
+    {
+        "slug": "preco",
+        "title": "Custos e preço",
+        "hint": (
+            "Escolha em «definir preço por» qual valor você digita; o outro é "
+            "calculado ao salvar."
+        ),
+        "fields": ("filament_cost", "energy_cost", "pricing_mode", "sale_price", "profit_margin"),
+    },
+)
 
-class ProductVariantModalForm(forms.ModelForm):
+VARIANT_HEADER_FIELDS = ("is_active",)
+
+#: Unidade ao lado do campo, no modal: quem digita 20 no peso vê que é «g».
+VARIANT_FIELD_AFFIX = {
+    "filament_cost": ("moeda", ""),
+    "energy_cost": ("moeda", ""),
+    "sale_price": ("moeda", ""),
+    "profit_margin": ("", "%"),
+    "weight_grams": ("", "g"),
+    "production_lead_time_days": ("", "dias"),
+}
+
+_no_modal = {campo for grupo in VARIANT_MODAL_GROUPS for campo in grupo["fields"]} | set(VARIANT_HEADER_FIELDS)
+assert _no_modal == set(VARIANT_FIELDS), sorted(_no_modal ^ set(VARIANT_FIELDS))
+
+
+class VariantSkuAutoMixin:
+    """SKU da variante em branco = a próxima sequência do produto (V01, V02…).
+
+    O campo continua sendo o SKU oficial e continua editável: a sugestão só
+    entra quando ninguém digitou nada. Variantes que já existem nunca são
+    renomeadas — a sugestão só preenche o que está vazio.
+
+    ``reserved_skus`` é compartilhado pelo formset: duas variantes novas no
+    mesmo cadastro recebem V01 e V02, e não duas vezes V01.
+    """
+
+    reserved_skus: set | None = None
+
+    #: Campos que podem ficar em branco no cadastro e recebem o padrão do
+    #: modelo (zero): custo e estoque se detalham depois.
+    optional_with_default = ("filament_cost", "energy_cost", "stock_quantity")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if "sku" in self.fields:
+            self.fields["sku"].required = False
+            self.fields["sku"].help_text = (
+                "Em branco, o sistema sugere PRODUTO-V01, V02… Você pode alterar."
+            )
+        for nome in self.optional_with_default:
+            if nome in self.fields:
+                self.fields[nome].required = False
+
+    def _variant_product(self):
+        produto = self.cleaned_data.get("product") if "product" in self.fields else None
+        if produto is None:
+            produto = getattr(self.instance, "product", None) if self.instance.product_id or hasattr(self.instance, "product") else None
+        return produto
+
+    def clean(self):
+        dados = super().clean()
+        for nome in self.optional_with_default:
+            if nome in self.fields and dados.get(nome) is None:
+                dados[nome] = ProductVariant._meta.get_field(nome).get_default()
+        if (dados.get("sku") or "").strip():
+            return dados
+        try:
+            produto = self._variant_product()
+        except ProductVariant.product.RelatedObjectDoesNotExist:
+            produto = None
+        sku_produto = getattr(produto, "sku", "") if produto is not None else ""
+        if not sku_produto:
+            return dados  # o modelo pede o SKU, com a mensagem de sempre
+        reservados = self.reserved_skus if self.reserved_skus is not None else set()
+        dados["sku"] = sku_rules.suggest_variant_sku(sku_produto, reserved=reservados)
+        reservados.add(dados["sku"])
+        return dados
+
+
+class ProductVariantModalForm(VariantSkuAutoMixin, forms.ModelForm):
     """O formulário que o modal envia — os mesmos campos do inline.
 
     Existe separado do inline porque o inline é um formset (vem com `id`,
@@ -282,6 +412,22 @@ class ProductVariantModalForm(forms.ModelForm):
         fields = VARIANT_FIELDS
 
 
+class ProductVariantInlineForm(VariantSkuAutoMixin, forms.ModelForm):
+    """O formulário de cada linha do inline — com o SKU sugerido."""
+
+    class Meta:
+        model = ProductVariant
+        fields = VARIANT_FIELDS
+
+
+class ProductVariantAdminForm(VariantSkuAutoMixin, forms.ModelForm):
+    """A tela própria da variante — com o SKU sugerido."""
+
+    class Meta:
+        model = ProductVariant
+        fields = "__all__"
+
+
 class ProductVariantInlineFormSet(forms.BaseInlineFormSet):
     """Um produto ativo precisa de pelo menos uma variante ativa.
 
@@ -289,6 +435,16 @@ class ProductVariantInlineFormSet(forms.BaseInlineFormSet):
     o produto **antes** dos inlines: no cadastro, o modelo ainda não enxerga a
     variante que está sendo criada na mesma tela. O formset enxerga.
     """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Compartilhado pelas linhas: V01, V02… sem repetir dentro do cadastro.
+        self.reserved_skus: set[str] = set()
+
+    def _construct_form(self, i, **kwargs):
+        form = super()._construct_form(i, **kwargs)
+        form.reserved_skus = self.reserved_skus
+        return form
 
     def clean(self):
         super().clean()
@@ -333,6 +489,7 @@ class ProductVariantInline(admin.StackedInline):
     """
 
     model = ProductVariant
+    form = ProductVariantInlineForm
     formset = ProductVariantInlineFormSet
     template = "admin/catalog/edit_inline/variant_table.html"
     #: `collapse` torna a secao recolhivel; o template a abre expandida.
@@ -366,12 +523,14 @@ class ProductMediaInline(admin.TabularInline):
 
     model = ProductMedia
     template = "admin/catalog/edit_inline/media_tabular.html"
-    classes = ("collapse",)
+    #: `jd-cards` + `jd-media-grid`: cada linha da tabela vira um card com a
+    #: miniatura em cima (jdprint_admin.css), em qualquer largura.
+    classes = ("collapse", "jd-cards", "jd-media-grid")
     extra = 1
     fields = ("preview", "file", "media_type", "variant", "alt_text", "sort_order", "is_primary")
     readonly_fields = ("preview",)
-    verbose_name = "mídia"
-    verbose_name_plural = "MÍDIA — fotos, vídeos e GIFs"
+    verbose_name = "foto"
+    verbose_name_plural = "FOTOS — fotos, vídeos e GIFs"
 
     def get_formset(self, request, obj=None, **kwargs):
         """Guarda o produto para limitar a lista de variantes a ele.
@@ -429,12 +588,111 @@ class ProductMediaInline(admin.TabularInline):
     @admin.display(description="prévia")
     def preview(self, obj):
         if not obj.pk or not obj.file:
-            return "—"
+            return mark_safe('<span class="jd-media-empty" aria-hidden="true">+</span>')
         if obj.media_type in {MediaType.IMAGE, MediaType.GIF}:
-            return format_html(
-                '<img src="{}" style="max-height:70px;border-radius:4px" />', obj.file.url
-            )
+            selo = '<span class="jd-badge jd-badge-ok jd-media-primary">principal</span>' if obj.is_primary else ""
+            return format_html('<img src="{}" class="jd-media-thumb" alt="" />{}', obj.file.url, mark_safe(selo))
         return format_html('<a href="{}" target="_blank">abrir vídeo</a>', obj.file.url)
+
+
+class ProductColorInlineFormSet(forms.BaseInlineFormSet):
+    """A paleta obedece ao modo de cores do produto.
+
+    «Uma cor» com duas linhas é contradição; «Multicolorido» sem nenhuma é uma
+    lista vazia que o card não tem como desenhar. A mesma cor duas vezes o
+    banco já recusa — aqui a mensagem chega antes, legível.
+    """
+
+    def clean(self):
+        super().clean()
+        if any(self.errors):
+            return
+        vivas = [
+            form.cleaned_data["color"]
+            for form in self.forms
+            if form.cleaned_data and not form.cleaned_data.get("DELETE") and form.cleaned_data.get("color")
+        ]
+        if len({cor.pk for cor in vivas}) != len(vivas):
+            raise ValidationError("A mesma cor aparece duas vezes na paleta.")
+        modo = getattr(self.instance, "color_mode", ColorMode.NONE)
+        if modo == ColorMode.SINGLE and len(vivas) > 1:
+            raise ValidationError(
+                "No modo «Uma cor» cadastre uma cor só — para várias, use «Multicolorido»."
+            )
+        if modo in (ColorMode.SINGLE, ColorMode.MULTI) and not vivas:
+            raise ValidationError(
+                "Cadastre ao menos uma cor na paleta — ou mude o modo de cores para "
+                "«Não se aplica», «Cores à escolha» ou «Opção comercial»."
+            )
+
+
+class ColorSelect(forms.Select):
+    """Um `<select>` de cores em que cada opção leva o hex (`data-hex`).
+
+    É o que permite à ficha desenhar a bolinha da cor ao lado do campo
+    (`product_form_admin.js`) sem outra consulta. Só apresentação: o valor
+    enviado continua sendo o `id` da cor.
+    """
+
+    def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
+        option = super().create_option(name, value, label, selected, index, subindex=subindex, attrs=attrs)
+        cor = getattr(value, "instance", None)
+        if cor is not None and getattr(cor, "hex_code", ""):
+            option["attrs"]["data-hex"] = cor.hex_code
+        return option
+
+
+class ProductColorInline(admin.TabularInline):
+    """PALETA DE CORES: a descrição visual do produto. Não cria variantes."""
+
+    model = ProductColor
+    formset = ProductColorInlineFormSet
+    template = "admin/catalog/edit_inline/media_tabular.html"
+    #: Linhas compactas (cor, ordem, remover) no desktop; um card por linha
+    #: nas telas estreitas (`jd-cards`, jdprint_forms.css).
+    classes = ("collapse", "jd-cards", "jd-compact-rows")
+    extra = 0
+    fields = ("color", "sort_order")
+    verbose_name = "cor"
+    verbose_name_plural = "PALETA DE CORES — as cores do produto (não cria variantes)"
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "color":
+            kwargs["queryset"] = Color.objects.filter(is_active=True).prefetch_related("translations")
+            kwargs["widget"] = ColorSelect
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+
+class ProductMaterialCompositionInlineFormSet(forms.BaseInlineFormSet):
+    def clean(self):
+        super().clean()
+        if any(self.errors):
+            return
+        vivos = [
+            form.cleaned_data["material"]
+            for form in self.forms
+            if form.cleaned_data and not form.cleaned_data.get("DELETE") and form.cleaned_data.get("material")
+        ]
+        if len({m.pk for m in vivos}) != len(vivos):
+            raise ValidationError("O mesmo material aparece duas vezes na composição.")
+
+
+class ProductMaterialCompositionInline(admin.TabularInline):
+    """MATERIAIS: do que a peça é feita. Não cria variantes."""
+
+    model = ProductMaterialComposition
+    formset = ProductMaterialCompositionInlineFormSet
+    template = "admin/catalog/edit_inline/media_tabular.html"
+    classes = ("collapse", "jd-cards", "jd-compact-rows")
+    extra = 0
+    fields = ("material", "percentage", "sort_order")
+    verbose_name = "material"
+    verbose_name_plural = "MATERIAIS — composição de fabricação (não cria variantes)"
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "material":
+            kwargs["queryset"] = Material.objects.filter(is_active=True).prefetch_related("translations")
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
 # ---------------------------------------------------------------------------
@@ -449,21 +707,328 @@ class ProductMediaInline(admin.TabularInline):
 #: AUDITORIA não está aqui de propósito: ela é a última da página e é desenhada
 #: depois dos inlines, em `after_related_objects`.
 SECTION_ORDER = (
-    "IDENTIFICAÇÃO",
-    "CLASSIFICAÇÃO",
-    "PERSONALIZAÇÃO",
+    "INFORMAÇÕES BÁSICAS",
     ProductTranslation,  # CONTEÚDO
+    ProductMedia,  # FOTOS
+    "CORES",  # o modo de cores
+    ProductColor,  # PALETA DE CORES
+    ProductMaterialComposition,  # MATERIAIS
+    "PERSONALIZAÇÃO",
     ProductVariant,  # VARIANTES
-    ProductMedia,  # MÍDIA
+    "OUTRAS INFORMAÇÕES",
 )
+
+#: O que cada seção diz de si na ficha: a âncora e o rótulo curto da
+#: navegação rápida, o subtítulo do cabeçalho e uma explicação para o corpo.
+#: `attached` marca a seção que se apoia na anterior — a PALETA DE CORES é
+#: parte de CORES: não ganha número nem entrada no índice, mas continua
+#: recolhível e com o próprio título, como as outras.
+#:
+#: Os títulos NÃO estão aqui: vêm do nome do fieldset ou do
+#: `verbose_name_plural` do inline, como sempre. Só o que é da ficha mora
+#: nesta tabela.
+SECTION_META = {
+    "INFORMAÇÕES BÁSICAS": {
+        "slug": "basico",
+        "nav": "Básico",
+        "subtitle": "SKU, status, categoria, marca e slug",
+    },
+    ProductTranslation: {
+        "slug": "conteudo",
+        "nav": "Conteúdo",
+        "help": (
+            "Uma linha por idioma. O português é o padrão: é dele que a loja "
+            "tira o nome quando falta tradução."
+        ),
+    },
+    ProductMedia: {
+        "slug": "fotos",
+        "nav": "Fotos",
+        "help": (
+            "A imagem marcada como <b>principal</b> é a capa do produto. "
+            "Vincule a uma variante apenas quando a mídia mostrar aquela opção "
+            "específica."
+        ),
+    },
+    "CORES": {
+        "slug": "cores",
+        "nav": "Cores",
+        "subtitle": "modo e paleta — descreve a peça, não cria variantes",
+    },
+    ProductColor: {"slug": "paleta", "attached": True},
+    ProductMaterialComposition: {
+        "slug": "materiais",
+        "nav": "Materiais",
+        "help": (
+            "Do que a peça é feita — a composição física, com o percentual "
+            "quando fizer sentido. Não confundir com o <b>material comercial</b> "
+            "de uma VARIANTE: lá o material é uma opção que o cliente escolhe e "
+            "que muda oferta, preço ou SKU."
+        ),
+    },
+    "PERSONALIZAÇÃO": {
+        "slug": "personalizacao",
+        "nav": "Personalização",
+        "subtitle": "o que o cliente fornece antes de comprar",
+    },
+    ProductVariant: {"slug": "variantes", "nav": "Variantes"},
+    "OUTRAS INFORMAÇÕES": {
+        "slug": "outras",
+        "nav": "Outras",
+        "subtitle": "moeda e destaque na Home",
+    },
+}
+
+#: A AUDITORIA não passa por `SECTION_ORDER` (é desenhada depois dos inlines),
+#: mas na ficha é a última seção numerada, como as outras.
+AUDIT_META = {"slug": "auditoria", "nav": "Auditoria", "subtitle": "somente leitura"}
+
+
+def split_title(nome: str) -> tuple[str, str]:
+    """«CONTEÚDO — nome e descrições por idioma» → («CONTEÚDO», «nome e…»).
+
+    O título das seções sempre foi escrito assim, com o travessão separando
+    o nome do resumo. A ficha só passa a desenhar as duas partes em pesos
+    diferentes.
+    """
+    titulo, sep, resto = nome.partition(" — ")
+    return (titulo.strip(), resto.strip()) if sep else (nome.strip(), "")
+
+
+def activation_problems(product) -> list[str]:
+    """O que impede um produto de ser ativado — em frases para a tela.
+
+    As mesmas três regras que já existem: categoria e nome em português
+    (`Product._validate_activation`) e pelo menos uma variante ativa
+    (`ProductVariantInlineFormSet`). Aqui elas valem para o botão da lista.
+    """
+    problemas = []
+    if product.category_id is None:
+        problemas.append("Um produto ativo precisa de categoria.")
+    if not product.has_default_translation():
+        problemas.append("Um produto ativo precisa do nome em português.")
+    if not product.active_variants():
+        problemas.append(
+            "Um produto ativo precisa de pelo menos uma variante ativa — é a "
+            "variante que tem preço, estoque, peso e prazo."
+        )
+    return problemas
+
+
+def money(value, symbol: str) -> str:
+    """€29,90 — o formato da lista."""
+    return f"{symbol}{Decimal(value):.2f}".replace(".", ",")
+
+
+class QuickProductForm(forms.Form):
+    """O cadastro rápido: nome, categoria, SKU (sugerido) e status.
+
+    Não é um `ModelForm` de propósito: o nome mora em `ProductTranslation`, o
+    SKU pode vir em branco (o sistema sugere) e a primeira variante é
+    opcional. `save()` grava tudo na ordem certa e numa transação só.
+    """
+
+    name = forms.CharField(
+        label="Nome",
+        max_length=200,
+        help_text="Em português. Os outros idiomas ficam para a ficha.",
+        widget=forms.TextInput(attrs={"autofocus": True, "class": "vTextField"}),
+    )
+    category = forms.ModelChoiceField(
+        label="Categoria",
+        queryset=Category.objects.none(),
+        required=False,
+        help_text="Opcional no rascunho; obrigatória para ativar.",
+    )
+    sku = forms.CharField(
+        label="SKU",
+        max_length=64,
+        required=False,
+        help_text="Em branco, é gerado a partir da categoria e do nome. Você pode alterar.",
+        widget=forms.TextInput(attrs={"class": "vTextField", "autocomplete": "off"}),
+    )
+    status = forms.ChoiceField(
+        label="Status",
+        choices=ProductStatus.choices,
+        initial=ProductStatus.DRAFT,
+        help_text="Rascunho não aparece na loja. Para ativar é preciso preço (variante).",
+    )
+    brand = forms.ModelChoiceField(
+        label="Marca", queryset=Brand.objects.filter(is_active=True), required=False
+    )
+    sale_price = forms.DecimalField(
+        label="Preço de venda",
+        required=False,
+        min_value=Decimal("0.01"),
+        decimal_places=2,
+        max_digits=10,
+        help_text="Cria a primeira variante com este preço.",
+    )
+    stock_quantity = forms.IntegerField(
+        label="Estoque", required=False, min_value=0, help_text="Da primeira variante."
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        categorias = Category.objects.prefetch_related("translations").order_by("sort_order", "slug")
+        self.fields["category"].queryset = categorias
+        self.fields["category"].label_from_instance = lambda c: c.full_path()
+
+    def clean_sku(self):
+        sku = (self.cleaned_data.get("sku") or "").strip().upper()
+        if sku and Product.objects.filter(sku=sku).exists():
+            raise ValidationError("Já existe um produto com este SKU.")
+        return sku
+
+    def clean(self):
+        dados = super().clean()
+        if dados.get("status") == ProductStatus.ACTIVE:
+            if dados.get("category") is None:
+                self.add_error("category", "Um produto ativo precisa de categoria.")
+            if dados.get("sale_price") is None:
+                self.add_error(
+                    "status",
+                    "Um produto ativo precisa de uma variante com preço: informe o "
+                    "preço ou crie como rascunho e ative depois.",
+                )
+        if dados.get("stock_quantity") is not None and dados.get("sale_price") is None:
+            self.add_error("sale_price", "Informe o preço para criar a primeira variante.")
+        return dados
+
+    def suggested_sku(self, reserved=()) -> str:
+        return sku_rules.suggest_product_sku(
+            self.cleaned_data.get("category"), self.cleaned_data.get("name", ""), reserved
+        )
+
+    def save(self, user):
+        """Produto + nome em português + slug (+ a primeira variante).
+
+        O SKU digitado é respeitado; em branco, a sugestão entra e, se o banco
+        recusar (outro cadastro gravou o mesmo número no meio do caminho), a
+        sequência seguinte é tentada — ver `sku_rules.com_sku_livre`.
+        """
+        dados = self.cleaned_data
+        manual = dados.get("sku") or ""
+
+        def criar(sku):
+            with transaction.atomic():
+                produto = Product(
+                    sku=sku,
+                    category=dados.get("category"),
+                    brand=dados.get("brand"),
+                    status=dados["status"],
+                    created_by=user,
+                    updated_by=user,
+                )
+                # A unicidade do SKU é do banco: se ele recusar, a sequência
+                # seguinte é tentada (`com_sku_livre`). Validar aqui de novo
+                # transformaria a colisão em erro em vez de em nova tentativa.
+                produto.full_clean(validate_unique=False)
+                produto.save()
+                ProductTranslation.objects.create(
+                    master=produto, language=DEFAULT_LANGUAGE.value, name=dados["name"].strip()
+                )
+                produto.refresh_translations()
+                # O slug vem do nome, como no cadastro completo
+                # (`TranslatedSlugAdminMixin`); nunca do SKU.
+                produto.slug = unique_slugify(produto, dados["name"].strip())
+                produto.save(update_fields=["slug"])
+                if dados.get("sale_price") is not None:
+                    variante = ProductVariant(
+                        product=produto,
+                        sku=sku_rules.suggest_variant_sku(produto.sku),
+                        pricing_mode=PricingMode.PRICE,
+                        sale_price=dados["sale_price"],
+                        stock_quantity=dados.get("stock_quantity") or 0,
+                        is_active=True,
+                    )
+                    variante.full_clean()
+                    variante.save()
+                    produto.refresh_from_db()
+                return produto
+
+        if manual:
+            return criar(manual)
+        return sku_rules.com_sku_livre(self.suggested_sku, criar)
+
+
+class ProductAdminForm(forms.ModelForm):
+    """O formulário completo — com o SKU sugerido para produto NOVO.
+
+    A mesma regra do cadastro rápido (`sku_rules.suggest_product_sku`): em
+    branco, o SKU nasce da categoria e do nome em português — que aqui vem da
+    linha em português do inline CONTEÚDO, enviada no mesmo POST. Num produto
+    que já existe o campo continua obrigatório e nunca é reescrito: mudar o
+    nome ou a categoria depois não mexe no SKU.
+    """
+
+    class Meta:
+        model = Product
+        fields = "__all__"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.sku_auto = False
+        # Omitido no POST (formulários que não o conhecem), o modo de cores
+        # fica como está no registro — o padrão «não se aplica» num produto novo.
+        if "color_mode" in self.fields:
+            self.fields["color_mode"].required = False
+        # A pergunta da seção PERSONALIZAÇÃO, no lugar do nome do campo. Só o
+        # rótulo do formulário: o modelo continua «tipo de personalização».
+        if "personalization_type" in self.fields:
+            self.fields["personalization_type"].label = "Este produto pode ser personalizado?"
+        if "sku" in self.fields and not self.instance.pk:
+            self.fields["sku"].required = False
+            self.fields["sku"].help_text = (
+                "Em branco, é gerado a partir da categoria e do nome em português "
+                "(ex.: REL-LEAO-001). Você pode alterar."
+            )
+
+    def portuguese_name(self) -> str:
+        """O nome em português como está no inline CONTEÚDO deste POST."""
+        prefixo = "translations"
+        try:
+            total = int(self.data.get(f"{prefixo}-TOTAL_FORMS", 0))
+        except (TypeError, ValueError):
+            total = 0
+        for indice in range(total):
+            chave = f"{prefixo}-{indice}-"
+            if self.data.get(chave + "DELETE"):
+                continue
+            if self.data.get(chave + "language") == DEFAULT_LANGUAGE.value:
+                return (self.data.get(chave + "name") or "").strip()
+        return ""
+
+    def clean(self):
+        dados = super().clean()
+        if self.instance.pk or (dados.get("sku") or "").strip():
+            return dados
+        nome = self.portuguese_name()
+        if not nome:
+            self.add_error(
+                "sku",
+                "Informe o SKU — ou o nome em português em CONTEÚDO, para ele ser gerado.",
+            )
+            return dados
+        dados["sku"] = sku_rules.suggest_product_sku(dados.get("category"), nome)
+        self.sku_auto = True
+        return dados
 
 
 @admin.register(Product)
 class ProductAdmin(DuplicateAdminMixin, TranslatedSlugAdminMixin, AuditUserAdminMixin):
+    form = ProductAdminForm
+
     #: Quem manda na ordem da tela é `SECTION_ORDER`, não esta lista — ela só
     #: diz quais inlines existem. Mesmo assim vão na ordem final, para quem
     #: ler o arquivo não precisar cruzar os dois lugares.
-    inlines = [ProductTranslationInline, ProductVariantInline, ProductMediaInline]
+    inlines = [
+        ProductTranslationInline,
+        ProductVariantInline,
+        ProductMediaInline,
+        ProductColorInline,
+        ProductMaterialCompositionInline,
+    ]
     save_on_top = True
 
     #: -- Duplicar ---------------------------------------------------------
@@ -493,12 +1058,19 @@ class ProductAdmin(DuplicateAdminMixin, TranslatedSlugAdminMixin, AuditUserAdmin
     #:
     #: **MÍDIA** fica de fora: são arquivos. Duas linhas apontando para a mesma
     #: foto é um vínculo entre os dois produtos, não uma cópia.
+    #: **CORES** e **MATERIAIS** (etapa 2B) acompanham: são descrição da peça,
+    #: e a peça parecida costuma ter as mesmas. Apontam para as mesmas `Color`
+    #: e `Material` — nada é copiado nesses cadastros.
     duplicate_inlines = {
         ProductTranslation: (),
         ProductVariant: ("stock_quantity",),
+        ProductColor: (),
+        ProductMaterialComposition: (),
     }
 
+    #: A tabela operacional: o que identifica, o que vende e o que fazer.
     list_display = (
+        "id",
         "sku",
         "display_name",
         "category",
@@ -506,10 +1078,9 @@ class ProductAdmin(DuplicateAdminMixin, TranslatedSlugAdminMixin, AuditUserAdmin
         "price_display",
         "stock_display",
         "variant_count",
-        "personalization_badge",
-        "is_featured",
-        "updated_at",
+        "acoes",
     )
+    list_display_links = ("sku", "display_name")
     list_filter = (
         "status",
         "personalization_type",
@@ -543,6 +1114,7 @@ class ProductAdmin(DuplicateAdminMixin, TranslatedSlugAdminMixin, AuditUserAdmin
     )
 
     readonly_fields = (
+        "nome_pt",
         "created_at",
         "updated_at",
         "created_by",
@@ -554,40 +1126,55 @@ class ProductAdmin(DuplicateAdminMixin, TranslatedSlugAdminMixin, AuditUserAdmin
     #: AUDITORIA começa fechada: ela é consulta, não trabalho.
     fieldsets = (
         (
-            "IDENTIFICAÇÃO",
+            "INFORMAÇÕES BÁSICAS",
             {
                 "classes": ("collapse", "start-open"),
-                "fields": ("sku", "status", "slug"),
+                "fields": (("sku", "status"), ("category", "brand"), "nome_pt", "slug"),
                 "description": (
                     "Este cadastro é a definição <b>genérica</b> do produto. "
                     "Preço, estoque, peso, dimensões e prazo de produção ficam em "
                     "<b>VARIANTES</b> — cada variante é uma unidade vendável. "
-                    "O conteúdo traduzível (nome e descrições) fica em <b>CONTEÚDO</b>."
+                    "O nome e as descrições, por idioma, ficam em <b>CONTEÚDO</b>."
                 ),
             },
         ),
         (
-            "CLASSIFICAÇÃO",
+            "CORES",
             {
                 "classes": ("collapse", "start-open"),
-                # `is_featured` e `featured_order` vieram de CONFIGURAÇÕES, que
-                # deixou de existir. Vieram **os dois**: são a mesma
-                # funcionalidade — se o produto está em destaque, e em que
-                # posição. Deixar a ordem para trás a tornaria ineditável, e é
-                # ela que ordena a prateleira da home e a primeira passada das
-                # sugestões.
-                "fields": ("category", "brand", "currency", "is_featured", "featured_order"),
+                "fields": ("color_mode",),
+                "description": (
+                    "Use esta seção para descrever as cores do produto. Isso não cria "
+                    "variantes. «Uma cor» e «Multicolorido» usam a PALETA DE CORES logo "
+                    "abaixo; «Opção comercial» mantém a cor como eixo de cada VARIANTE."
+                ),
             },
         ),
         (
             "PERSONALIZAÇÃO",
             {
                 "classes": ("collapse", "start-open"),
-                "fields": ("personalization_type", "personalization_text_limit"),
+                "fields": (("personalization_type", "personalization_text_limit"),),
                 "description": (
                     "Define se o cliente deverá fornecer uma foto, um texto ou escolher "
                     "entre os dois antes de adicionar o produto ao carrinho. "
                     "É característica do produto — não crie categoria para isso."
+                ),
+            },
+        ),
+        (
+            "OUTRAS INFORMAÇÕES",
+            {
+                "classes": ("collapse",),
+                # `is_featured` e `featured_order` vão juntos: são a mesma
+                # funcionalidade — se o produto está em destaque, e em que
+                # posição. Deixar a ordem para trás a tornaria ineditável, e é
+                # ela que ordena a prateleira da home e a primeira passada das
+                # sugestões.
+                "fields": (("currency", "is_featured", "featured_order"),),
+                "description": (
+                    "Moeda e destaque na Home. Custos, margem, estoque, peso, "
+                    "dimensões e produção são de cada <b>VARIANTE</b>."
                 ),
             },
         ),
@@ -608,7 +1195,37 @@ class ProductAdmin(DuplicateAdminMixin, TranslatedSlugAdminMixin, AuditUserAdmin
             "admin/js/jd_modal.js",
             "admin/js/variant_admin.js",
             "admin/js/content_admin.js",
+            "admin/js/jd_tabular_cards.js",
+            "admin/js/product_list.js",
+            "admin/js/product_sku_suggest.js",
+            "admin/js/product_colors_admin.js",
+            "admin/js/jd_fields.js",
+            "admin/js/product_form_admin.js",
         )
+
+    def save_model(self, request, obj, form, change):
+        """Grava — e, se o SKU foi sugerido, tenta a sequência seguinte numa colisão.
+
+        Entre a sugestão (na validação) e a gravação outro cadastro pode ter
+        levado o mesmo número; o `unique` do banco recusa, e a mesma rotina do
+        cadastro rápido (`com_sku_livre`) pede a próxima sequência. Um SKU
+        digitado não passa por isto: colidiu, é erro para a pessoa ver.
+        """
+        if change or not getattr(form, "sku_auto", False):
+            return super().save_model(request, obj, form, change)
+
+        categoria = form.cleaned_data.get("category")
+        nome = form.portuguese_name()
+
+        def sugerir(reservados):
+            return sku_rules.suggest_product_sku(categoria, nome, reservados)
+
+        def gravar(sku):
+            obj.sku = sku
+            super(ProductAdmin, self).save_model(request, obj, form, change)
+            return obj
+
+        sku_rules.com_sku_livre(sugerir, gravar)
 
     # -- os modais (variantes e conteúdo) -----------------------------------
 
@@ -620,6 +1237,21 @@ class ProductAdmin(DuplicateAdminMixin, TranslatedSlugAdminMixin, AuditUserAdmin
         equipe. A permissão fina é conferida em cada uma.
         """
         extra = [
+            path(
+                "novo/",
+                self.admin_site.admin_view(self.quick_add_view),
+                name="catalog_product_quick_add",
+            ),
+            path(
+                "sku-sugestao/",
+                self.admin_site.admin_view(self.sku_suggestion_view),
+                name="catalog_product_sku_suggestion",
+            ),
+            path(
+                "<int:product_id>/status/",
+                self.admin_site.admin_view(self.toggle_status_view),
+                name="catalog_product_toggle_status",
+            ),
             path(
                 "<int:product_id>/variante/gravar/",
                 self.admin_site.admin_view(self.variant_save_view),
@@ -642,6 +1274,133 @@ class ProductAdmin(DuplicateAdminMixin, TranslatedSlugAdminMixin, AuditUserAdmin
             ),
         ]
         return extra + super().get_urls()
+
+    # -- cadastro rápido ------------------------------------------------------
+
+    def quick_add_view(self, request):
+        """Nome, categoria, SKU (sugerido) e status. Cadastrar primeiro."""
+        if not self.has_add_permission(request):
+            raise PermissionDenied
+
+        form = QuickProductForm(request.POST or None)
+        if request.method == "POST" and form.is_valid():
+            produto = form.save(request.user)
+            self.log_addition(request, produto, [{"added": {}}])
+            self.message_user(
+                request,
+                format_html(
+                    'Produto <b>{}</b> criado como {} com o SKU <b>{}</b>. Complete a ficha quando quiser.',
+                    produto.display_name,
+                    produto.get_status_display().lower(),
+                    produto.sku,
+                ),
+                messages.SUCCESS,
+            )
+            if "_continue" in request.POST:
+                return HttpResponseRedirect(
+                    reverse("admin:catalog_product_change", args=[produto.pk])
+                )
+            if "_addanother" in request.POST:
+                return HttpResponseRedirect(reverse("admin:catalog_product_quick_add"))
+            return HttpResponseRedirect(reverse("admin:catalog_product_changelist"))
+
+        contexto = {
+            **self.admin_site.each_context(request),
+            "opts": self.opts,
+            "title": "Novo produto",
+            "form": form,
+            "variant_sku_preview": "SKU-V01",
+        }
+        return render(request, "admin/catalog/product/quick_add.html", contexto)
+
+    def sku_suggestion_view(self, request):
+        """A sugestão de SKU para o cadastro rápido, enquanto se digita."""
+        if not self.has_add_permission(request):
+            raise PermissionDenied
+        nome = (request.GET.get("name") or "").strip()
+        categoria = None
+        chave = request.GET.get("category") or ""
+        if chave.isdigit():
+            categoria = Category.objects.filter(pk=int(chave)).first()
+        if not nome:
+            return JsonResponse({"sku": ""})
+        return JsonResponse({"sku": sku_rules.suggest_product_sku(categoria, nome)})
+
+    # -- ativar / desativar pela lista --------------------------------------------
+
+    def _safe_next(self, request):
+        destino = request.POST.get("next") or request.GET.get("next") or ""
+        if destino and url_has_allowed_host_and_scheme(destino, allowed_hosts={request.get_host()}):
+            return destino
+        return reverse("admin:catalog_product_changelist")
+
+    def toggle_status_view(self, request, product_id):
+        """Ativa um produto inativo/rascunho, ou desativa um ativo.
+
+        GET mostra a confirmação (o caminho sem JavaScript); POST executa. As
+        regras de ativação são as de sempre — `activation_problems`.
+        """
+        produto = get_object_or_404(self.get_queryset(request), pk=product_id)
+        if not self.has_change_permission(request, produto):
+            raise PermissionDenied
+
+        ativar = produto.status != ProductStatus.ACTIVE
+        problemas = activation_problems(produto) if ativar else []
+        destino = self._safe_next(request)
+
+        if request.method == "POST":
+            if problemas:
+                for problema in problemas:
+                    self.message_user(request, f"{produto.sku}: {problema}", messages.ERROR)
+            else:
+                produto.status = ProductStatus.ACTIVE if ativar else ProductStatus.INACTIVE
+                produto.updated_by = request.user
+                produto.save(update_fields=["status", "updated_by", "updated_at"])
+                self.log_change(request, produto, "Status alterado pela lista.")
+                self.message_user(
+                    request,
+                    f"{produto.sku} {'ativado' if ativar else 'desativado'}.",
+                    messages.SUCCESS,
+                )
+            return HttpResponseRedirect(destino)
+
+        contexto = {
+            **self.admin_site.each_context(request),
+            "opts": self.opts,
+            "product": produto,
+            "titulo": "Ativar produto" if ativar else "Desativar produto",
+            "problemas": problemas,
+            "next": destino,
+        }
+        return render(request, "admin/catalog/product/toggle_status.html", contexto)
+
+    # -- duplicar: sem colisão de SKU --------------------------------------------
+
+    def get_changeform_initial_data(self, request):
+        """A cópia nasce com o SKU seguinte livre (VASO-01 -> VASO-02).
+
+        O original não é tocado; só a sugestão muda, e ela continua editável.
+        As variantes copiadas acompanham a nova identidade (VASO-02-V01…), em
+        `_duplicate_inline_initial`.
+        """
+        inicial = super().get_changeform_initial_data(request)
+        origem = self.duplicate_source(request)
+        if origem is not None:
+            inicial["sku"] = sku_rules.next_product_sku_after(origem.sku)
+            request._jd_duplicate_sku = inicial["sku"]
+        return inicial
+
+    def _duplicate_inline_initial(self, request, inline, formset_class) -> list:
+        linhas = super()._duplicate_inline_initial(request, inline, formset_class)
+        if inline.model is ProductVariant and linhas:
+            novo_sku = getattr(request, "_jd_duplicate_sku", None) or sku_rules.next_product_sku_after(
+                self.duplicate_source(request).sku
+            )
+            reservados: set[str] = set()
+            for linha in linhas:
+                linha["sku"] = sku_rules.suggest_variant_sku(novo_sku, reserved=reservados)
+                reservados.add(linha["sku"])
+        return linhas
 
     # -- conteúdo -----------------------------------------------------------
 
@@ -921,13 +1680,53 @@ class ProductAdmin(DuplicateAdminMixin, TranslatedSlugAdminMixin, AuditUserAdmin
         for chave in SECTION_ORDER:
             item = por_nome.pop(chave, None) if isinstance(chave, str) else por_modelo.pop(chave, None)
             if item is not None:
+                item["meta"] = SECTION_META.get(chave, {})
                 layout.append(item)
 
         # O que sobrou (fieldset ou inline não listado) vai para o fim, na
         # ordem original — melhor no lugar errado do que invisível.
         layout.extend(item for item in por_nome.values())
         layout.extend(item for item in por_modelo.values())
+
+        # A ficha: número, âncora e subtítulo de cada seção. A seção «apoiada»
+        # (PALETA, dentro de CORES) não conta no número nem entra no índice.
+        numero = 0
+        for item in layout:
+            meta = item.get("meta") or {}
+            if item["kind"] == "fieldset":
+                titulo, resto = split_title(item["fieldset"].name or "")
+            else:
+                titulo, resto = split_title(str(item["formset"].opts.verbose_name_plural))
+            item["title"] = titulo
+            item["subtitle"] = meta.get("subtitle") or resto
+            item["help"] = meta.get("help", "")
+            item["attached"] = bool(meta.get("attached"))
+            item["slug"] = meta.get("slug") or f"secao-{len(layout)}"
+            item["nav"] = meta.get("nav", "")
+            # O id do <h2>, para o `aria-labelledby` do fieldset — o mesmo que
+            # o include do Django montaria (`fieldset-0-<índice>-heading`).
+            item["heading_id"] = (
+                f"fieldset-0-{item['index']}-heading"
+                if item["kind"] == "fieldset"
+                else f"{item['formset'].formset.prefix}-heading"
+            )
+            if item["attached"]:
+                item["number"] = ""
+            else:
+                numero += 1
+                item["number"] = numero
         return layout
+
+    def _section_nav(self, layout, with_audit):
+        """Os itens da navegação rápida: «1 · Básico», «2 · Conteúdo»…"""
+        itens = [
+            {"number": item["number"], "label": item["nav"], "slug": item["slug"]}
+            for item in layout or ()
+            if item.get("nav")
+        ]
+        if with_audit:
+            itens.append({"number": len(itens) + 1, "label": AUDIT_META["nav"], "slug": AUDIT_META["slug"]})
+        return itens
 
     def render_change_form(self, request, context, add=False, change=False, **kwargs):
         """Entrega a ordem das seções e a AUDITORIA para o template.
@@ -937,15 +1736,32 @@ class ProductAdmin(DuplicateAdminMixin, TranslatedSlugAdminMixin, AuditUserAdmin
         na edição: um produto que ainda não foi criado não tem histórico.
         """
         context["product_layout"] = self._page_layout(context)
+        context["variant_modal_groups"] = VARIANT_MODAL_GROUPS
+        context["variant_field_affix"] = VARIANT_FIELD_AFFIX
+        # A sugestão ao vivo só em produto NOVO (`product_sku_suggest.js`).
+        if add:
+            context["jd_sku_suggest_url"] = reverse("admin:catalog_product_sku_suggestion")
 
         original = context.get("original")
-        if original is not None and original.pk:
+        editando = original is not None and original.pk
+        context["jd_section_nav"] = self._section_nav(context["product_layout"], with_audit=bool(editando))
+        if editando:
             context["audit_rows"] = [
                 ("Criado em", original.created_at),
                 ("Criado por", original.created_by),
                 ("Atualizado em", original.updated_at),
                 ("Atualizado por", original.updated_by),
             ]
+            numeradas = [item for item in context["product_layout"] or () if not item.get("attached")]
+            context["audit_section"] = {**AUDIT_META, "number": len(numeradas) + 1, "title": "AUDITORIA"}
+            # O cabeçalho da ficha e os atalhos: duplicar e ver na loja.
+            context["variant_sku_next"] = sku_rules.suggest_variant_sku(original.sku)
+            context["jd_view_url"] = original.get_absolute_url()
+            if self.has_add_permission(request):
+                context["jd_duplicate_url"] = self.duplicate_url(original)
+            if self.has_change_permission(request, original):
+                context["jd_toggle_url"] = reverse("admin:catalog_product_toggle_status", args=[original.pk])
+                context["jd_toggle_label"] = "Desativar" if original.status == ProductStatus.ACTIVE else "Ativar"
         return super().render_change_form(request, context, add=add, change=change, **kwargs)
 
     def get_queryset(self, request):
@@ -953,45 +1769,86 @@ class ProductAdmin(DuplicateAdminMixin, TranslatedSlugAdminMixin, AuditUserAdmin
 
     # -- colunas calculadas ------------------------------------------------
 
-    @admin.display(description="nome")
+    @admin.display(description="produto")
     def display_name(self, obj):
         return obj.name_in(DEFAULT_LANGUAGE.value)
 
+    @admin.display(description="nome (português)")
+    def nome_pt(self, obj):
+        """O nome, na ficha — cadastrado e traduzido em CONTEÚDO."""
+        if obj is None or not obj.pk:
+            return "Cadastre o nome em CONTEÚDO, abaixo."
+        return obj.tr("name", language=DEFAULT_LANGUAGE.value, fallback=False) or mark_safe(
+            '<span class="jd-badge jd-badge-warn">sem nome em português — cadastre em CONTEÚDO</span>'
+        )
+
     @admin.display(description="status", ordering="status")
     def status_badge(self, obj):
-        colors = {
-            ProductStatus.DRAFT: "#8a8a8a",
-            ProductStatus.ACTIVE: "#1a7f37",
-            ProductStatus.INACTIVE: "#b42318",
+        classes = {
+            ProductStatus.DRAFT: "jd-badge-muted",
+            ProductStatus.ACTIVE: "jd-badge-ok",
+            ProductStatus.INACTIVE: "jd-badge-danger",
         }
         return format_html(
-            '<span style="color:{};font-weight:600">{}</span>',
-            colors.get(obj.status, "#000"),
+            '<span class="jd-badge {}">{}</span>',
+            classes.get(obj.status, "jd-badge-muted"),
             obj.get_status_display(),
         )
 
     @admin.display(description="preço")
     def price_display(self, obj):
-        """Preço das variantes: um valor, ou a faixa quando diferem."""
+        """Preço das variantes ativas: um valor, ou a faixa quando diferem.
+
+        Derivado das variantes, sempre — não há preço no produto.
+        """
         low, high = obj.price_range
         if low is None:
-            return format_html('<span style="color:#b42318">{}</span>', "sem variante")
+            return format_html('<span class="jd-muted" title="{}">—</span>', "sem variante ativa com preço")
         if low == high:
-            return f"{obj.currency_symbol} {low}"
-        return f"{obj.currency_symbol} {low} – {high}"
+            return money(low, obj.currency_symbol)
+        return f"{money(low, obj.currency_symbol)} – {money(high, obj.currency_symbol)}"
 
     @admin.display(description="variantes")
     def variant_count(self, obj):
-        """Quantas variantes — e um alerta quando não há nenhuma."""
+        """«1 opção», «3 opções» (link para a seção), ou o alerta sem variante."""
         total = len(obj.variants.all())
         ativas = len(obj.active_variants())
         if total == 0:
             return format_html(
-                '<span style="color:#b42318;font-weight:600">{}</span>', "nenhuma"
+                '<a class="jd-badge jd-badge-warn" href="{}#variants-group" title="{}">⚠ Sem configuração</a>',
+                reverse("admin:catalog_product_change", args=[obj.pk]),
+                "Solicitar informações: nenhuma variante cadastrada (sem preço, estoque nem peso).",
             )
-        if ativas == total:
-            return total
-        return f"{ativas}/{total}"
+        texto = "1 opção" if total == 1 else f"{total} opções"
+        if ativas != total:
+            texto += f" ({ativas} ativa{'s' if ativas != 1 else ''})"
+        return format_html(
+            '<a href="{}#variants-group">{}</a>',
+            reverse("admin:catalog_product_change", args=[obj.pk]),
+            texto,
+        )
+
+    @admin.display(description="ações")
+    def acoes(self, obj):
+        """Editar · Duplicar · ⋮ (ver produto, ativar/desativar)."""
+        editar = reverse("admin:catalog_product_change", args=[obj.pk])
+        alternar = reverse("admin:catalog_product_toggle_status", args=[obj.pk])
+        rotulo = "Desativar" if obj.status == ProductStatus.ACTIVE else "Ativar"
+        return format_html(
+            '<div class="jd-row-actions">'
+            '<a href="{}">Editar</a>'
+            '<a href="{}">Duplicar</a>'
+            '<details class="jd-row-menu"><summary aria-label="Mais ações">⋮</summary>'
+            '<div class="jd-row-menu-list">'
+            '<a href="{}" target="_blank" rel="noopener">Ver produto</a>'
+            '<a href="{}" data-toggle-status>{}</a>'
+            '</div></details></div>',
+            editar,
+            self.duplicate_url(obj),
+            obj.get_absolute_url(),
+            alternar,
+            rotulo,
+        )
 
     @admin.display(description="personalização", ordering="personalization_type")
     def personalization_badge(self, obj):
@@ -1015,6 +1872,10 @@ class ProductAdmin(DuplicateAdminMixin, TranslatedSlugAdminMixin, AuditUserAdmin
     def action_activate(self, request, queryset):
         activated = 0
         for product in queryset:
+            problemas = activation_problems(product)
+            if problemas:
+                self.message_user(request, f"{product.sku}: {' '.join(problemas)}", level=messages.ERROR)
+                continue
             product.status = ProductStatus.ACTIVE
             try:
                 product.full_clean()
@@ -1071,6 +1932,7 @@ class ProductVariantAdmin(DuplicateAdminMixin):
     #:
     #: Só o estoque não vem: é a contagem física da variante original.
     duplicate_exclude = ("stock_quantity",)
+    form = ProductVariantAdminForm
 
     list_display = (
         "sku",

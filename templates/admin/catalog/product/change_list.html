@@ -1,0 +1,23 @@
+{% extends "admin/change_list.html" %}
+{% load i18n admin_urls %}
+{% comment %}
+  A lista de produtos com o "+ Novo produto" levando ao cadastro rápido
+  (nome, categoria, SKU sugerido, status) e o cadastro completo de sempre ao
+  lado. Ver `ProductAdmin.quick_add_view`.
+{% endcomment %}
+
+{% block object-tools-items %}
+  {% if has_add_permission %}
+    <li>
+      <a href="{% url 'admin:catalog_product_quick_add' %}" class="addlink jd-quick-add">
+        + Novo produto
+      </a>
+    </li>
+    <li>
+      <a href="{% url 'admin:catalog_product_add' %}{% if is_popup %}?_popup=1{% endif %}" class="jd-full-add"
+         title="A ficha completa: conteúdo, variantes e fotos de uma vez">
+        Cadastro completo
+      </a>
+    </li>
+  {% endif %}
+{% endblock %}

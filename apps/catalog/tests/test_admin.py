@@ -104,6 +104,8 @@ class ProductAdminTests(TestCase):
             )
         )
         payload.update(inline_payload("media", []))
+        payload.update(inline_payload("product_colors", []))
+        payload.update(inline_payload("material_composition", []))
         payload.update(
             inline_payload("variants", [variant_row()] if variants is None else variants)
         )
@@ -119,7 +121,7 @@ class ProductAdminTests(TestCase):
     def test_add_page_loads(self):
         response = self.client.get(reverse("admin:catalog_product_add"))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "IDENTIFICAÇÃO")
+        self.assertContains(response, "INFORMAÇÕES BÁSICAS")
         self.assertContains(response, "VARIANTES")
 
     def test_add_page_no_longer_offers_a_price_on_the_product(self):
@@ -234,8 +236,8 @@ class ProductAdminTests(TestCase):
         )
         response = self.client.get(reverse("admin:catalog_product_changelist"))
 
-        self.assertContains(response, "sem variante")
-        self.assertContains(response, "nenhuma")
+        self.assertContains(response, "Sem configuração")
+        self.assertContains(response, "nenhuma variante cadastrada")
 
     def test_variant_changelist_loads(self):
         self.client.post(reverse("admin:catalog_product_add"), self.base_payload(), follow=True)

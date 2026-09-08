@@ -1,0 +1,38 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+{% comment %}
+  Confirmação de ativar/desativar um produto pela lista, para quem chega sem
+  JavaScript (com ele, o botão da lista envia o POST direto).
+{% endcomment %}
+
+{% block title %}{{ titulo }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block breadcrumbs %}
+  <div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+    &rsaquo; <a href="{% url 'admin:catalog_product_changelist' %}">Produtos</a>
+    &rsaquo; {{ titulo }}
+  </div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+  <h1>{{ titulo }}</h1>
+  <p><b>{{ product.display_name }}</b> · {{ product.sku }} · hoje: {{ product.get_status_display }}</p>
+  {% if problemas %}
+    <ul class="errorlist">
+      {% for problema in problemas %}<li>{{ problema }}</li>{% endfor %}
+    </ul>
+    <p><a href="{% url 'admin:catalog_product_change' product.pk %}">Abrir a ficha do produto</a></p>
+  {% else %}
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ next }}">
+      <div class="submit-row">
+        <input type="submit" class="default" value="{{ titulo }}">
+        <a class="button cancel-link" href="{{ next }}">Cancelar</a>
+      </div>
+    </form>
+  {% endif %}
+</div>
+{% endblock %}

@@ -34,7 +34,7 @@ from dataclasses import dataclass, field
 
 from django.db.models import Count, Prefetch
 
-from apps.catalog.models import Product, ProductStatus, ProductVariant
+from apps.catalog.models import Product, ProductStatus, ProductVariant, product_color_prefetches
 from apps.categories.models import Category
 from apps.categories.tree import CategoryTree
 from apps.home.models import (
@@ -71,6 +71,7 @@ def product_card_queryset():
             "translations",
             "media",
             "category__translations",
+            *product_color_prefetches(),
             Prefetch(
                 "variants",
                 queryset=ProductVariant.objects.select_related("color", "material")
@@ -312,6 +313,8 @@ def section_prefetches():
             "product__translations",
             "product__media",
             "product__category__translations",
+            # A paleta do card (etapa 2B), pelo mesmo caminho da vitrine.
+            Prefetch("product__product_colors", queryset=product_color_prefetches()[0].queryset),
             Prefetch(
                 "product__variants",
                 queryset=ProductVariant.objects.select_related("color", "material")

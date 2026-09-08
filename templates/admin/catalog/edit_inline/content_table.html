@@ -39,11 +39,10 @@
     <fieldset class="module {{ inline_admin_formset.classes }}"
               aria-labelledby="{{ inline_admin_formset.formset.prefix }}-heading">
       {# `<details open>`: recolhível, mas aberta — quem edita quer ver. #}
-      {% if inline_admin_formset.is_collapsible %}<details open><summary>{% endif %}
-      <h2 id="{{ inline_admin_formset.formset.prefix }}-heading" class="inline-heading">
-        {{ inline_admin_formset.opts.verbose_name_plural|capfirst }}
-      </h2>
-      {% if inline_admin_formset.is_collapsible %}</summary>{% endif %}
+      {% if inline_admin_formset.is_collapsible %}<details open>{% endif %}
+      {% include "admin/catalog/product/_section_head.html" with heading_id=inline_admin_formset.formset.prefix|add:"-heading" heading_class="inline-heading" title=inline_admin_formset.opts.verbose_name_plural|capfirst %}
+      <div class="jd-sec-body">
+      {% if jd_section.help %}<div class="description jd-sec-help">{{ jd_section.help|safe }}</div>{% endif %}
 
       {{ inline_admin_formset.formset.non_form_errors }}
 
@@ -161,6 +160,7 @@
             </div>
           </div>
         {% endfor %}
+      </div>
       </div>
       {% if inline_admin_formset.is_collapsible %}</details>{% endif %}
     </fieldset>

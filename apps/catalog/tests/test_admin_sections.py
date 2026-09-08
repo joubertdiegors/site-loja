@@ -3,8 +3,9 @@
 Duas exigências, e as duas são sobre não fazer o administrador rolar:
 
 * **toda** seção recolhe e expande;
-* a ordem é IDENTIFICAÇÃO → CLASSIFICAÇÃO → PERSONALIZAÇÃO → CONTEÚDO →
-  VARIANTES → MÍDIA → AUDITORIA, com AUDITORIA por último.
+* a ordem é INFORMAÇÕES BÁSICAS → CONTEÚDO → FOTOS → CORES → PALETA DE CORES →
+  MATERIAIS → PERSONALIZAÇÃO → VARIANTES → OUTRAS INFORMAÇÕES → AUDITORIA,
+  com AUDITORIA por último.
 
 A ordem mora em `ProductAdmin.SECTION_ORDER`, e `_page_layout` monta a partir
 dela a lista única que o `change_form.html` do catálogo percorre. Hoje ela
@@ -30,12 +31,15 @@ from apps.core.testing import LanguageResetMixin, make_category, make_product
 
 #: Na ordem em que devem aparecer, de cima para baixo.
 ORDEM = (
-    "IDENTIFICAÇÃO",
-    "CLASSIFICAÇÃO",
-    "PERSONALIZAÇÃO",
+    "INFORMAÇÕES BÁSICAS",
     "CONTEÚDO",
+    "FOTOS",
+    "CORES",
+    "PALETA DE CORES",
+    "MATERIAIS",
+    "PERSONALIZAÇÃO",
     "VARIANTES",
-    "MÍDIA",
+    "OUTRAS INFORMAÇÕES",
     "AUDITORIA",
 )
 
@@ -97,13 +101,14 @@ class SectionOrderTests(AdminSectionsBase):
         """A costura entre o último fieldset e o primeiro inline."""
         titulos = self.section_titles()
 
-        self.assertEqual(titulos[titulos.index("PERSONALIZAÇÃO") + 1], "CONTEÚDO")
+        self.assertEqual(titulos[titulos.index("INFORMAÇÕES BÁSICAS") + 1], "CONTEÚDO")
 
-    def test_variants_come_before_media(self):
-        """VARIANTES antes de MÍDIA: é o que se vende antes do que se mostra."""
+    def test_photos_come_right_after_content(self):
+        """FOTOS logo depois do CONTEÚDO: o que se mostra, junto do que se diz."""
         titulos = self.section_titles()
 
-        self.assertLess(titulos.index("VARIANTES"), titulos.index("MÍDIA"))
+        self.assertEqual(titulos[titulos.index("CONTEÚDO") + 1], "FOTOS")
+        self.assertLess(titulos.index("FOTOS"), titulos.index("VARIANTES"))
 
     def test_there_is_no_settings_section_anymore(self):
         """CONFIGURAÇÕES sumiu — e não deixou uma seção vazia no lugar."""
@@ -116,10 +121,10 @@ class SectionOrderTests(AdminSectionsBase):
         home sem tela para editar — e é ela que ordena o destaque.
         """
         corpo = self.form_html()
-        classificacao = corpo.split("CLASSIFICAÇÃO", 1)[1].split("PERSONALIZAÇÃO", 1)[0]
+        outras = corpo.split("OUTRAS INFORMAÇÕES", 1)[1].split("AUDITORIA", 1)[0]
 
-        self.assertIn('name="is_featured"', classificacao)
-        self.assertIn('name="featured_order"', classificacao)
+        self.assertIn('name="is_featured"', outras)
+        self.assertIn('name="featured_order"', outras)
 
     def test_the_featured_fields_are_still_editable(self):
         """Escondê-los do formulário os tornaria ineditáveis sem aviso."""
@@ -151,13 +156,13 @@ class SectionOrderTests(AdminSectionsBase):
         from apps.catalog import admin as catalog_admin
 
         original = catalog_admin.SECTION_ORDER
-        catalog_admin.SECTION_ORDER = ("IDENTIFICAÇÃO",)
+        catalog_admin.SECTION_ORDER = ("INFORMAÇÕES BÁSICAS",)
         try:
             titulos = self.section_titles()
         finally:
             catalog_admin.SECTION_ORDER = original
 
-        self.assertEqual(titulos[0], "IDENTIFICAÇÃO")
+        self.assertEqual(titulos[0], "INFORMAÇÕES BÁSICAS")
         for nome in ORDEM:
             with self.subTest(secao=nome):
                 self.assertIn(nome, titulos)
@@ -182,8 +187,9 @@ class SectionCollapseTests(AdminSectionsBase):
         corpo = self.form_html()
         abertos = re.findall(r"<details(\s+open)?>", corpo)
 
-        # Sete abertas; só a AUDITORIA, que é histórico, começa fechada.
-        self.assertEqual(sum(1 for aberto in abertos if aberto), len(ORDEM) - 1)
+        # Abertas as de trabalho; AUDITORIA (histórico) e OUTRAS INFORMAÇÕES
+        # (moeda e destaque, raramente editadas) começam fechadas.
+        self.assertEqual(sum(1 for aberto in abertos if aberto), len(ORDEM) - 2)
 
     def test_the_audit_starts_closed(self):
         corpo = self.form_html()
@@ -222,6 +228,14 @@ class SectionCollapseTests(AdminSectionsBase):
                 "media-INITIAL_FORMS": "0",
                 "media-MIN_NUM_FORMS": "0",
                 "media-MAX_NUM_FORMS": "1000",
+                "product_colors-TOTAL_FORMS": "0",
+                "product_colors-INITIAL_FORMS": "0",
+                "product_colors-MIN_NUM_FORMS": "0",
+                "product_colors-MAX_NUM_FORMS": "1000",
+                "material_composition-TOTAL_FORMS": "0",
+                "material_composition-INITIAL_FORMS": "0",
+                "material_composition-MIN_NUM_FORMS": "0",
+                "material_composition-MAX_NUM_FORMS": "1000",
                 "variants-TOTAL_FORMS": "0",
                 "variants-INITIAL_FORMS": "0",
                 "variants-MIN_NUM_FORMS": "0",
@@ -231,7 +245,7 @@ class SectionCollapseTests(AdminSectionsBase):
 
         self.assertEqual(resposta.status_code, 200)
         corpo = resposta.content.decode().split("<form", 1)[1]
-        identificacao = corpo.split("IDENTIFICAÇÃO", 1)[0][-400:]
+        identificacao = corpo.split("INFORMAÇÕES BÁSICAS", 1)[0][-400:]
 
         self.assertNotIn("<details>", identificacao)
 

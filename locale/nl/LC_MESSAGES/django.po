@@ -2435,3 +2435,15 @@ msgstr "terug naar Admin"
 #: templates/storefront/special_page.html apps/storefront/views.py
 msgid "Muitas tentativas. Aguarde alguns minutos e tente de novo."
 msgstr "Te veel pogingen. Wacht enkele minuten en probeer opnieuw."
+
+#: templates/components/product_card.html apps/catalog/views.py apps/catalog/models.py
+msgid "Cores à escolha"
+msgstr "Kleuren naar keuze"
+
+#: templates/components/product_card.html apps/catalog/views.py apps/catalog/models.py
+msgid "Cores"
+msgstr "Kleuren"
+
+#: templates/components/product_card.html apps/catalog/views.py apps/catalog/models.py
+msgid "Materiais"
+msgstr "Materialen"

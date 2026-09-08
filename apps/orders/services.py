@@ -243,6 +243,10 @@ def _item_from_line(order: Order, line) -> OrderItem:
             if variant is not None and variant.material_id
             else ""
         ),
+        # A descrição do produto (cores e composição), congelada aqui: mudar o
+        # cadastro depois não muda o que o cliente comprou.
+        colors_snapshot=product.colors_text[:255],
+        materials_snapshot=product.materials_text[:255],
         quantity=line.quantity,
         unit_price=taxes.money(line.unit_price),
         total=taxes.money(line.total),

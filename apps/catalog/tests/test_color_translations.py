@@ -88,6 +88,9 @@ class ColorInTheStoreTests(LanguageResetMixin, TestCase):
             category=self.category,
             status=ProductStatus.ACTIVE,
             with_variant=False,
+            # Etapa 2B: a cor é opção comercial (uma variante por cor); é o que
+            # faz o card continuar mostrando as cores das variantes.
+            color_mode="variant",
         )
         for sku, cor, tamanho in (
             ("DINO-P", self.preto, "25 cm"),

@@ -137,6 +137,9 @@
 
     this.dialog = element.querySelector(".jd-modal-dialog");
     this.titleNode = element.querySelector("[data-variant-modal-title]");
+    this.kindNode = element.querySelector("[data-variant-modal-kind]");
+    this.activeLabelNode = element.querySelector("[data-variant-active-label]");
+    this.saveStayButton = element.querySelector("[data-variant-save-stay]");
     this.totalCostNode = element.querySelector("[data-variant-total-cost]");
     this.profitNode = element.querySelector("[data-variant-profit]");
     this.saveButton = element.querySelector("[data-variant-save]");
@@ -267,9 +270,16 @@
     });
     this.row.classList.toggle("jd-row-deleted", this.checked("DELETE"));
     this.row.classList.toggle("jd-row-error", this.hasErrors());
+    /* O cabeçalho do modal: «Editar variante» (ou «Nova variante») em cima,
+       o SKU embaixo — é o que diz «estou editando ESTA variante». */
+    if (this.kindNode) {
+      this.kindNode.textContent = this.variantId() ? "Editar variante" : "Nova variante";
+    }
     if (this.titleNode) {
-      this.titleNode.textContent =
-        (this.variantId() ? "Editar variante" : "Nova variante") + " — " + dados.sku;
+      this.titleNode.textContent = dados.sku;
+    }
+    if (this.activeLabelNode) {
+      this.activeLabelNode.textContent = this.checked("is_active") ? "Ativa" : "Inativa";
     }
   };
 
@@ -337,19 +347,30 @@
     }
   };
 
-  Modal.prototype.save = function () {
+  /* `stay`: «Salvar e continuar editando» — grava e mantém o modal aberto.
+     Uma variante NOVA precisa recarregar a página de qualquer jeito (o
+     formset precisa ficar coerente); nesse caso o modal reabre sozinho
+     depois do reload, pelo id que o servidor devolveu (`reopenKey`). */
+  Modal.prototype.save = function (stay) {
     if (!this.table.saveUrl) {
       /* Cadastro: o produto ainda não existe. O modal só confirma; quem grava
          é o "Salvar" do produto, com o formset. */
       this.shell.snapshot = null;
-      this.close();
+      if (!stay) {
+        this.close();
+      }
       this.table.flash("Variante preparada. Ela será gravada ao salvar o produto.", true);
       return;
     }
 
     var self = this;
+    var botao = stay && this.saveStayButton ? this.saveStayButton : this.saveButton;
+    var rotulo = botao.textContent;
     this.saveButton.disabled = true;
-    this.saveButton.textContent = "Salvando…";
+    if (this.saveStayButton) {
+      this.saveStayButton.disabled = true;
+    }
+    botao.textContent = "Salvando…";
 
     this.shell
       .post(this.table.saveUrl, this.formData())
@@ -360,16 +381,25 @@
         }
         self.applyServerValues(r.dados);
         self.shell.snapshot = null;
-        self.close();
 
         if (r.dados.created) {
           /* Criou por fora do formset: recarregar devolve um formset coerente
              (ver o comentário no topo do arquivo). */
+          if (stay) {
+            self.table.rememberReopen(r.dados.id);
+          }
+          self.close();
           self.table.flash(r.dados.message, true);
           self.table.reload();
           return;
         }
         self.recalculate();
+        if (stay) {
+          self.shell.snapshot = self.shell.capture();
+          self.shell.clearErrors();
+        } else {
+          self.close();
+        }
         self.table.flash(r.dados.message, true);
       })
       .catch(function () {
@@ -377,7 +407,10 @@
       })
       .then(function () {
         self.saveButton.disabled = false;
-        self.saveButton.textContent = "Salvar";
+        if (self.saveStayButton) {
+          self.saveStayButton.disabled = false;
+        }
+        botao.textContent = rotulo;
       });
   };
 
@@ -434,8 +467,26 @@
     this.totalForms = document.getElementById("id_" + this.prefix + "-TOTAL_FORMS");
     this.saveUrl = root.getAttribute("data-variant-save-url") || "";
     this.deleteUrl = root.getAttribute("data-variant-delete-url") || "";
+    this.countNode = root.querySelector("[data-variant-count]");
     this.modals = [];
+    this.reopenKey = "jd-variant-reopen:" + window.location.pathname;
   }
+
+  /* Qual variante reabrir depois do reload («Salvar e continuar editando»
+     numa variante nova). Fica na sessão do navegador — só nesta aba. */
+  VariantTable.prototype.rememberReopen = function (id) {
+    try { window.sessionStorage.setItem(this.reopenKey, String(id)); } catch (erro) { /* modo privado */ }
+  };
+
+  VariantTable.prototype.takeReopen = function () {
+    try {
+      var id = window.sessionStorage.getItem(this.reopenKey);
+      window.sessionStorage.removeItem(this.reopenKey);
+      return id;
+    } catch (erro) {
+      return null;
+    }
+  };
 
   VariantTable.prototype.flash = function (mensagem, ok) {
     if (!this.flashNode) {
@@ -523,7 +574,12 @@
     });
     element.querySelectorAll("[data-variant-save]").forEach(function (botao) {
       botao.addEventListener("click", function () {
-        modal.save();
+        modal.save(false);
+      });
+    });
+    element.querySelectorAll("[data-variant-save-stay]").forEach(function (botao) {
+      botao.addEventListener("click", function () {
+        modal.save(true);
       });
     });
     element.querySelectorAll("[data-variant-remove]").forEach(function (botao) {
@@ -543,13 +599,17 @@
   };
 
   VariantTable.prototype.refreshEmptyNote = function () {
-    if (!this.emptyNote) {
-      return;
-    }
     var vivas = this.modals.filter(function (modal) {
       return !modal.checked("DELETE");
     });
-    this.emptyNote.hidden = vivas.length > 0;
+    if (this.emptyNote) {
+      this.emptyNote.hidden = vivas.length > 0;
+    }
+    /* «3 variantes cadastradas», no cabeçalho da seção. */
+    if (this.countNode) {
+      this.countNode.textContent =
+        vivas.length === 1 ? "1 variante cadastrada" : vivas.length + " variantes cadastradas";
+    }
   };
 
   VariantTable.prototype.add = function (opener) {
@@ -576,8 +636,45 @@
     this.totalForms.value = String(indice + 1);
 
     var modal = this.register(novo);
+    if (modal.fields.sku && !modal.fields.sku.value) {
+      modal.fields.sku.value = this.nextSku();
+      modal.syncRow();
+    }
     this.refreshEmptyNote();
     modal.open(opener || this.addButton);
+  };
+
+  /* PRODUTO-V01, V02…: o servidor manda a próxima sequência livre no banco
+     (`data-variant-sku-next`); as variantes ainda não gravadas desta tela
+     contam também, para dois cliques em "Adicionar" não sugerirem o mesmo.
+     No cadastro (produto sem PK) a base é o SKU digitado no formulário. */
+  VariantTable.prototype.nextSku = function () {
+    var servidor = this.root.getAttribute("data-variant-sku-next") || "";
+    var campoSku = document.getElementById("id_sku");
+    var base = servidor.replace(/\d+$/, "");
+    if (!base) {
+      var produto = campoSku ? campoSku.value.trim().toUpperCase() : "";
+      if (!produto) {
+        return "";
+      }
+      base = produto + "-V";
+    }
+    var maior = 0;
+    var m = servidor.match(/(\d+)$/);
+    if (m) {
+      maior = parseInt(m[1], 10) - 1;
+    }
+    this.modals.forEach(function (modal) {
+      var valor = modal.fields.sku ? modal.fields.sku.value.trim().toUpperCase() : "";
+      if (valor.indexOf(base) === 0) {
+        var n = parseInt(valor.slice(base.length), 10);
+        if (!isNaN(n) && n > maior) {
+          maior = n;
+        }
+      }
+    });
+    var proximo = String(maior + 1);
+    return base + (proximo.length < 2 ? "0" + proximo : proximo);
   };
 
   VariantTable.prototype.start = function () {
@@ -595,6 +692,17 @@
       });
     }
     this.refreshEmptyNote();
+
+    /* Voltou do reload de um «Salvar e continuar editando»: reabre a variante. */
+    var reabrir = this.takeReopen();
+    if (reabrir) {
+      var alvo = this.modals.filter(function (modal) {
+        return modal.variantId() === String(reabrir);
+      })[0];
+      if (alvo) {
+        alvo.open(null);
+      }
+    }
   };
 
   /* O ESC e a prisão do Tab vivem em `jd_modal.js`, para o CONTEÚDO e as

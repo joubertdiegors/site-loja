@@ -16,6 +16,8 @@ corrigir quando a regra mudar. A regra está em ``ShopView.base_queryset()``.
 """
 
 from django.conf import settings
+from collections import defaultdict
+
 from django.db.models import Count, F, OuterRef, Prefetch, Q, Subquery
 from django.db.models.functions import Coalesce, Lower
 from django.http import HttpResponsePermanentRedirect
@@ -27,6 +29,8 @@ from django.views.generic import DetailView, ListView
 
 from apps.cart.cart import max_quantity_for
 from apps.catalog.models import (
+    product_color_prefetches,
+    product_description_prefetches,
     Material,
     Product,
     ProductStatus,
@@ -191,17 +195,25 @@ class ShopView(ListView):
         if products is None:
             return []
 
-        rows = (
-            Material.objects.filter(
-                is_active=True,
-                variants__is_active=True,
-                variants__product__in=products,
-            )
-            .annotate(total=Count("variants__product", distinct=True))
-            .order_by("name")
-            .prefetch_related("translations")
+        # Etapa 2B: um material conta se é opção comercial de alguma variante
+        # ativa OU está na composição do produto. Os pares (material, produto)
+        # das duas origens são unidos em memória para um produto que tem PLA
+        # nas duas não contar duas vezes.
+        pares = defaultdict(set)
+        por_variante = Material.objects.filter(
+            is_active=True, variants__is_active=True, variants__product__in=products
+        ).values_list("pk", "variants__product_id")
+        por_composicao = Material.objects.filter(
+            is_active=True, compositions__product__in=products
+        ).values_list("pk", "compositions__product_id")
+        for material_id, product_id in list(por_variante) + list(por_composicao):
+            pares[material_id].add(product_id)
+
+        materials = list(
+            Material.objects.filter(pk__in=pares).order_by("name").prefetch_related("translations")
         )
-        materials = list(rows)
+        for material in materials:
+            material.total = len(pares[material.pk])
         # Quantas opções justificam mostrar a lista — ver `MIN_MATERIAL_OPTIONS`.
         # Devolver `[]` aqui é o que faz o bloco inteiro sumir da tela: a
         # decisão fica num lugar, e não numa condição repetida em cada template
@@ -272,7 +284,11 @@ class ShopView(ListView):
         """
         condition = Q(variants__is_active=True)
         if self.selected_material is not None:
-            condition &= Q(variants__material_id=self.selected_material.pk)
+            # Opção comercial de uma variante ativa OU material da composição do
+            # produto (etapa 2B): «PLA + PETG» aparece nos dois filtros.
+            condition &= Q(variants__material_id=self.selected_material.pk) | Q(
+                material_composition__material_id=self.selected_material.pk
+            )
         return condition
 
     def base_queryset(self):
@@ -313,6 +329,7 @@ class ShopView(ListView):
                 "translations",
                 "media",
                 "category__translations",
+                *product_color_prefetches(),
                 Prefetch(
                     "variants",
                     queryset=ProductVariant.objects.filter(is_active=True)
@@ -443,6 +460,7 @@ class ProductDetailView(DetailView):
                 "translations",
                 "media",
                 "category__translations",
+                *product_description_prefetches(),
                 Prefetch(
                     "variants",
                     queryset=ProductVariant.objects.filter(is_active=True)
@@ -652,6 +670,20 @@ class ProductDetailView(DetailView):
             if valor or alguma_variante_tem:
                 rows.append((chave, rotulo, valor))
 
+        # Etapa 2B: a descrição da PEÇA — cores e composição — vem do produto e
+        # não muda ao trocar de opção. A composição de um material só, igual ao
+        # material da variante, não é repetida.
+        if product.colors_text:
+            rows.append(("cores", _("Cores"), product.colors_text))
+        composicao = product.composition
+        repete_a_variante = (
+            len(composicao) == 1
+            and composicao[0].percentage is None
+            and composicao[0].material_id == variant.material_id
+        )
+        if composicao and not repete_a_variante:
+            rows.append(("materiais", _("Materiais"), product.materials_text))
+
         # Estas quatro sempre entram, mesmo vazias: a linha nasce escondida e o
         # JavaScript a mostra quando a variante escolhida tiver o dado.
         rows.append(("dimensoes", _("Dimensões"), variant.dimensions_display()))
@@ -698,6 +730,7 @@ class ProductDetailView(DetailView):
                 "translations",
                 "media",
                 "category__translations",
+                *product_color_prefetches(),
                 Prefetch(
                     "variants",
                     queryset=ProductVariant.objects.filter(is_active=True)
