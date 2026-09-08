@@ -87,6 +87,7 @@
               <th scope="col">Cor</th>
               <th scope="col">Tamanho</th>
               <th scope="col">Material</th>
+              <th scope="col">Opções</th>
               <th scope="col" class="jd-num jd-col-extra">Peso</th>
               <th scope="col" class="jd-num">Estoque</th>
               <th scope="col" class="jd-num">Preço</th>
@@ -172,6 +173,7 @@
                   <section class="jd-vm-group jd-vm-group-{{ grupo.slug }}" aria-label="{{ grupo.title }}">
                     <h4 class="jd-vm-group-title">{{ grupo.title }}</h4>
                     {% if grupo.hint %}<p class="jd-vm-group-hint">{{ grupo.hint }}</p>{% endif %}
+                    {% if grupo.slug == "opcoes" and form.option_fields %}<p class="jd-vm-subgroup">Eixos fixos</p>{% endif %}
                     <div class="jd-vm-grid">
                       {% if grupo.slug == "identificacao" %}
                         {# O produto pai, como contexto: a variante pertence a ele e não o edita. #}
@@ -186,6 +188,19 @@
                         {% include "admin/catalog/edit_inline/_variant_field.html" with field=form|bound_field:nome affix=variant_field_affix|get_item:nome currency_symbol=original.currency_symbol %}
                       {% endfor %}
                     </div>
+                    {% if grupo.slug == "opcoes" and form.option_fields %}
+                      {% comment %}
+                        Etapa 3C: um <select> por opção adicional do produto,
+                        criado pelo formulário (`opt_<id>`). Só aparece quando
+                        o produto tem opções; «Não definido» é o vazio.
+                      {% endcomment %}
+                      <p class="jd-vm-subgroup" data-variant-options-title>Opções adicionais</p>
+                      <div class="jd-vm-grid" data-variant-options>
+                        {% for campo in form.option_fields %}
+                          {% include "admin/catalog/edit_inline/_variant_field.html" with field=campo affix=None %}
+                        {% endfor %}
+                      </div>
+                    {% endif %}
                     {% if grupo.slug == "preco" %}
                       {% comment %}
                         Os dois valores derivados, juntos: ambos saem de custo e preço.

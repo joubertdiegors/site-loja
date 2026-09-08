@@ -13,6 +13,10 @@ não vive sem. Tudo aqui vem do snapshot gravado na compra.
         {% if item.variant_label %}
           <span style="display:block;color:#6e6880;font-size:13px;">{{ item.variant_label }}</span>
         {% endif %}
+        {# Etapa 3E: as opções adicionais, do snapshot gravado na compra. #}
+        {% for linha in item.options_lines %}
+          <span style="display:block;color:#6e6880;font-size:13px;">{{ linha }}</span>
+        {% endfor %}
         {% if show_sku and item.sku %}
           <span style="display:block;color:#6e6880;font-size:12px;font-family:monospace;">{{ item.sku }}</span>
         {% endif %}

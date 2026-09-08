@@ -82,18 +82,18 @@ class SheetHeaderAndNavTests(SheetBase):
 
         self.assertEqual(
             itens,
-            ["basico", "conteudo", "fotos", "cores", "materiais", "personalizacao", "variantes", "outras", "auditoria"],
+            ["basico", "conteudo", "fotos", "cores", "materiais", "personalizacao", "opcoes", "variantes", "outras", "auditoria"],
         )
-        # Numerados de 1 a 9, na ordem.
+        # Numerados de 1 a 10, na ordem.
         numeros = re.findall(r'jd-sheet-nav-num">(\d+)<', nav)
-        self.assertEqual(numeros, [str(n) for n in range(1, 10)])
+        self.assertEqual(numeros, [str(n) for n in range(1, 11)])
 
     def test_the_add_page_has_no_audit_entry(self):
         nav = self.html(reverse("admin:catalog_product_add")).split("data-section-nav", 1)[1].split("</nav>", 1)[0]
         itens = re.findall(r'href="#sec-([a-z]+)"', nav)
 
         self.assertNotIn("auditoria", itens)
-        self.assertEqual(len(itens), 8)
+        self.assertEqual(len(itens), 9)
 
     def test_every_nav_entry_has_its_section(self):
         html = self.html()
@@ -108,7 +108,7 @@ class SheetSectionsTests(SheetBase):
         corpo = self.form_html()
         numeros = re.findall(r'class="jd-sec-num" aria-hidden="true">(\d+)<', corpo)
 
-        self.assertEqual(numeros, [str(n) for n in range(1, 10)])
+        self.assertEqual(numeros, [str(n) for n in range(1, 11)])
 
     def test_the_palette_is_attached_to_colors_and_not_numbered(self):
         corpo = self.form_html()
@@ -127,6 +127,7 @@ class SheetSectionsTests(SheetBase):
             "modo e paleta",
             "composição de fabricação",
             "o que o cliente fornece antes de comprar",
+            "eixos a mais da variante",
             "cada uma é uma unidade vendável",
             "moeda e destaque na Home",
             "somente leitura",

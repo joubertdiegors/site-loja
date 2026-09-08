@@ -901,6 +901,11 @@
       updateSpec("dimensoes", variant.dimensions);
       updateSpec("impressao", variant.printTime);
       updateSpec("referencia", variant.sku);
+      /* As opções adicionais (etapa 3D): uma linha por opção, pela chave do
+         grupo. Nada aqui sabe quais são — vêm do payload. */
+      Object.keys(variant.optionLabels || {}).forEach(function (key) {
+        updateSpec(key, variant.optionLabels[key]);
+      });
       /* O nome da cor escolhida no rótulo do grupo ("Cor: Roxo"): as
          bolinhas não têm texto, e é aqui que ele aparece. */
       updateChoice("color", variant.colorLabel);

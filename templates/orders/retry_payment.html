@@ -46,7 +46,10 @@ com uma tentativa de pagamento a mais.
       <ul class="mt-4 space-y-1.5 border-t border-surface-line pt-4 text-sm text-ink-soft" role="list">
         {% for item in order.items.all %}
           <li class="flex justify-between gap-4">
-            <span class="min-w-0">{{ item.quantity }}× {{ item.product_name }}{% if item.variant_label %} · {{ item.variant_label }}{% endif %}</span>
+            <span class="min-w-0">
+              {{ item.quantity }}× {{ item.product_name }}{% if item.variant_label %} · {{ item.variant_label }}{% endif %}
+              {% for linha in item.options_lines %}<span class="block text-[12px] text-ink-muted">{{ linha }}</span>{% endfor %}
+            </span>
           </li>
         {% endfor %}
       </ul>

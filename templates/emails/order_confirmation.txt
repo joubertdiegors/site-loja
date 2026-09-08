@@ -9,7 +9,9 @@
 
 --- {% translate "Itens" %} ---
 {% for item in items %}{{ item.quantity }} x {{ item.product_name }}{% if item.variant_label %} ({{ item.variant_label }}){% endif %} — {{ order.currency_symbol }} {{ item.total|floatformat:2 }}
-{% if item.has_personalization %}{% if item.personalization_type == "photo" %}    {% translate "Foto enviada" %}{% if item.personalization_upload %}: {{ item.personalization_upload.original_name }}{% endif %}{% else %}    {% translate "Texto" %}: {{ item.personalization_text }}{% endif %}
+{% if item.options_lines %}    {% translate "Opções" %}:
+{% for linha in item.options_lines %}      {{ linha }}
+{% endfor %}{% endif %}{% if item.has_personalization %}{% if item.personalization_type == "photo" %}    {% translate "Foto enviada" %}{% if item.personalization_upload %}: {{ item.personalization_upload.original_name }}{% endif %}{% else %}    {% translate "Texto" %}: {{ item.personalization_text }}{% endif %}
 {% endif %}{% endfor %}
 {% translate "Subtotal" %}: {{ order.currency_symbol }} {{ order.subtotal|floatformat:2 }}
 {% translate "Entrega" %}: {{ order.currency_symbol }} {{ order.shipping_total|floatformat:2 }}{% if order.shipping_method_label %} ({{ order.shipping_method_label }}){% endif %}

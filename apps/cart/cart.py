@@ -33,7 +33,13 @@ from django.utils.translation import gettext as _
 from apps.cart.keys import customization_fingerprint, line_key
 from apps.cart.models import CustomizationUpload
 from apps.cart.storage import CART_SESSION_KEY, DatabaseStorage, SessionStorage
-from apps.catalog.models import Product, ProductStatus, ProductVariant, product_description_prefetches
+from apps.catalog.models import (
+    Product,
+    ProductStatus,
+    ProductVariant,
+    product_description_prefetches,
+    variant_option_prefetches,
+)
 
 __all__ = [
     "CART_SESSION_KEY",
@@ -91,7 +97,9 @@ def load_variants(items: dict) -> dict:
         # custaria uma consulta por linha do carrinho. As traduções de cor e
         # material, pelo mesmo motivo: a página do carrinho escreve o nome de
         # cada uma no idioma do cliente.
-        .prefetch_related("media", "color__translations", "material__translations")
+        .prefetch_related(
+            "media", "color__translations", "material__translations", *variant_option_prefetches()
+        )
     )
     return {variant.pk: variant for variant in queryset}
 

@@ -26,7 +26,7 @@ from django.core.validators import (
     MinValueValidator,
     RegexValidator,
 )
-from django.db import models, transaction
+from django.db import connection, models, transaction
 from django.utils.text import get_valid_filename, slugify
 from django.utils.translation import gettext as _
 
@@ -763,6 +763,10 @@ class Product(TranslatableMixin, AuditableModel):
         super().save(*args, **kwargs)
 
 
+#: Separa as opções em ``ProductVariant.options_text`` e no snapshot do pedido.
+OPTIONS_TEXT_SEPARATOR = " · "
+
+
 class ProductVariant(TimeStampedModel):
     """A unidade **vendável**: o que entra no carrinho e sai na caixa.
 
@@ -979,8 +983,138 @@ class ProductVariant(TimeStampedModel):
             self.color.display_name if self.color_id else "",
             self.size,
             self.material.display_name if self.material_id else "",
+            # Etapa 3B: as opções adicionais, na ordem das opções do produto.
+            *self.option_labels,
         ]
         return " · ".join(part for part in parts if part)
+
+    # -- opções adicionais (etapa 3B) ----------------------------------------
+    #
+    # Lidas de ``option_values.all()`` — com ``variant_option_prefetches()``
+    # nas listagens, percorrer em memória não custa uma consulta por variante.
+
+    #: Escolhas ainda não gravadas, para ``clean()`` comparar combinações antes
+    #: de a variante existir: ``{option_id: value_id}``. ``None`` = ler do banco.
+    _pending_option_choices = None
+
+    @property
+    def option_links(self) -> list:
+        """As escolhas gravadas, na ordem das opções do produto."""
+        if self.pk is None:
+            return []
+        return sorted(
+            self.option_values.all(), key=lambda link: (link.option.sort_order, link.option_id)
+        )
+
+    @property
+    def option_labels(self) -> list[str]:
+        """«Parede», «Fosco» — os valores, traduzidos, na ordem das opções."""
+        return [link.value.display_name for link in self.option_links]
+
+    @property
+    def options_text(self) -> str:
+        """«Instalação: Parede · Acabamento: Fosco», no idioma atual; vazio sem opções.
+
+        É este texto que o pedido congela em ``OrderItem.options_snapshot``
+        (etapas 3B/3E) — separado por ``OPTIONS_TEXT_SEPARATOR``, para que o
+        pedido consiga desmontá-lo em linhas sem voltar ao produto.
+        """
+        return OPTIONS_TEXT_SEPARATOR.join(
+            f"{link.option.display_name}: {link.value.display_name}" for link in self.option_links
+        )
+
+    def option_signature(self, choices: dict | None = None) -> frozenset:
+        """O conjunto ``{(option_id, value_id)}`` que identifica as escolhas.
+
+        ``choices`` (``{option_id: value_id}``) substitui o que está no banco:
+        é como o formulário pergunta «esta combinação já existe?» antes de
+        gravar. Sem escolhas, o conjunto é vazio — o caso de toda variante de
+        antes desta etapa.
+        """
+        if choices is None:
+            choices = self._pending_option_choices
+        if choices is not None:
+            return frozenset(
+                (int(option_id), int(value_id)) for option_id, value_id in choices.items() if value_id
+            )
+        if self.pk is None:
+            return frozenset()
+        # Só os ids: não precisa da opção carregada, ao contrário de `option_links`.
+        return frozenset((link.option_id, link.value_id) for link in self.option_values.all())
+
+    def set_option_values(self, choices: dict) -> None:
+        """Grava as escolhas da variante: ``{opção: valor ou None}``.
+
+        Opção e valor podem ser instâncias ou ids. Recusa opção de outro
+        produto, valor de outra opção e a combinação repetida com outra
+        variante do produto; ``None`` apaga a escolha daquela opção. A
+        variante precisa existir (ter pk). Tudo numa transação.
+        """
+        if self.pk is None:
+            raise ValidationError("Grave a variante antes de escolher as opções.")
+
+        def pk_de(obj):
+            return getattr(obj, "pk", obj)
+
+        normalizadas = {int(pk_de(opcao)): (int(pk_de(valor)) if valor else None) for opcao, valor in choices.items()}
+        opcoes = {o.pk: o for o in ProductOption.objects.filter(pk__in=normalizadas)}
+        erros = {}
+        for option_id in normalizadas:
+            opcao = opcoes.get(option_id)
+            if opcao is None or opcao.product_id != self.product_id:
+                erros[str(option_id)] = "A opção não pertence ao produto desta variante."
+        valores = {
+            v.pk: v
+            for v in ProductOptionValue.objects.filter(pk__in=[v for v in normalizadas.values() if v])
+        }
+        for option_id, value_id in normalizadas.items():
+            if value_id is None or str(option_id) in erros:
+                continue
+            valor = valores.get(value_id)
+            if valor is None or valor.option_id != option_id:
+                erros[str(option_id)] = "O valor não pertence a esta opção."
+        if erros:
+            raise ValidationError(erros)
+
+        # A combinação inteira (eixos fixos + escolhas) não pode repetir outra.
+        atuais = {link.option_id: link.value_id for link in self.option_links}
+        atuais.update(normalizadas)
+        self._check_duplicate_combination(self.option_signature(atuais))
+
+        with transaction.atomic():
+            for option_id, value_id in normalizadas.items():
+                if value_id is None:
+                    ProductVariantOptionValue.objects.filter(variant=self, option_id=option_id).delete()
+                    continue
+                link, criado = ProductVariantOptionValue.objects.get_or_create(
+                    variant=self, option_id=option_id, defaults={"value_id": value_id}
+                )
+                if not criado and link.value_id != value_id:
+                    link.value_id = value_id
+                    link.save(update_fields=["value", "updated_at"])
+        # O cache do prefetch, se houver, ficou velho.
+        self._pending_option_choices = None
+        if hasattr(self, "_prefetched_objects_cache"):
+            self._prefetched_objects_cache.pop("option_values", None)
+
+    def _check_duplicate_combination(self, signature: frozenset) -> None:
+        """Recusa outra variante do produto com os mesmos eixos E as mesmas escolhas."""
+        if not self.product_id:
+            return
+        candidatas = (
+            ProductVariant.objects.filter(
+                product_id=self.product_id,
+                color_id=self.color_id,
+                material_id=self.material_id,
+                size=self.size,
+            )
+            .exclude(pk=self.pk)
+            .prefetch_related("option_values")
+        )
+        for outra in candidatas:
+            if outra.option_signature() == signature:
+                campo = "size" if (self.size or not self.color_id) else "color"
+                raise ValidationError({campo: "Já existe uma variante com esta combinação neste produto."})
 
     @property
     def display_label(self) -> str:
@@ -1181,19 +1315,28 @@ class ProductVariant(TimeStampedModel):
                     "sale_price", "Uma variante ativa precisa de preço maior que zero."
                 )
 
+        if self.pk and self.product_id and not errors:
+            # Auditoria 3G: uma variante com escolhas nas opções adicionais
+            # não muda de produto — os vínculos apontariam para opções de
+            # OUTRO produto, exatamente o que `set_option_values` recusa.
+            # Quem precisa mover a variante tira as escolhas antes.
+            gravado = ProductVariant.objects.filter(pk=self.pk).values_list("product_id", flat=True).first()
+            if gravado is not None and gravado != self.product_id and self.option_values.exists():
+                errors["product"] = (
+                    "Esta variante tem escolhas nas opções adicionais do produto atual. "
+                    "Remova as escolhas antes de movê-la para outro produto."
+                )
+
         if self.product_id and not errors:
             # Dois eixos idênticos no mesmo produto seriam duas linhas que o
             # cliente não consegue distinguir. Produto de opção única (todos os
-            # eixos vazios) é legítimo — mas só pode haver um.
-            duplicates = ProductVariant.objects.filter(
-                product_id=self.product_id,
-                color_id=self.color_id,
-                material_id=self.material_id,
-                size=self.size,
-            ).exclude(pk=self.pk)
-            if duplicates.exists():
-                campo = "size" if (self.size or not self.color_id) else "color"
-                errors[campo] = "Já existe uma variante com esta combinação neste produto."
+            # eixos vazios) é legítimo — mas só pode haver um. Desde a etapa 3B
+            # a comparação inclui as opções adicionais: «Branco + Parede» e
+            # «Branco + Mesa» são duas variantes diferentes.
+            try:
+                self._check_duplicate_combination(self.option_signature())
+            except ValidationError as erro:
+                errors.update(erro.message_dict)
 
         if errors:
             raise ValidationError(errors)
@@ -1396,6 +1539,302 @@ def product_description_prefetches():
             queryset=ProductMaterialComposition.objects.select_related("material")
             .prefetch_related("material__translations")
             .order_by("sort_order", "id"),
+        ),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Opções adicionais (etapa 3B)
+#
+# Cor, tamanho e material continuam sendo os três eixos fixos da variante. O
+# que uma peça precise a mais — «Instalação: Mesa / Parede», «Acabamento:
+# Fosco / Brilhante» — é uma OPÇÃO do produto, com VALORES, e cada variante
+# escolhe no máximo um valor por opção. Estrutura relacional, com traduções
+# pelo mesmo mecanismo de ``Color``/``Material``; nada de JSON.
+# ---------------------------------------------------------------------------
+
+
+class ProductOption(TranslatableMixin, TimeStampedModel):
+    """Um eixo adicional de um produto: «Instalação», «Acabamento», «Modelo».
+
+    Pertence ao produto — dois produtos com «Instalação» têm duas opções, cada
+    uma com os seus valores. ``name`` é o nome interno em português; o que o
+    cliente lê vem de ``ProductOptionTranslation``, com o fallback de sempre.
+    """
+
+    translatable_fields = ("name",)
+
+    product = models.ForeignKey(
+        Product, verbose_name="produto", related_name="options", on_delete=models.CASCADE
+    )
+    name = models.CharField("nome interno", max_length=60)
+    sort_order = models.PositiveIntegerField("ordem", default=0)
+
+    class Meta:
+        verbose_name = "opção do produto"
+        verbose_name_plural = "opções do produto"
+        ordering = ("sort_order", "id")
+        constraints = [
+            models.UniqueConstraint(fields=["product", "name"], name="product_option_unique"),
+            models.CheckConstraint(condition=~models.Q(name=""), name="product_option_name_not_empty"),
+        ]
+        indexes = [
+            models.Index(fields=["product", "sort_order"], name="product_option_order_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return self.name
+
+    @property
+    def display_name(self) -> str:
+        """No idioma atual; sem tradução, o nome interno — que já é o português.
+
+        Sem o fallback «qualquer idioma que exista» da cor: aqui o nome
+        interno é o texto em português, e um cliente em português não pode
+        ler «Installation» só porque alguém traduziu para inglês antes.
+        """
+        return self.tr("name", fallback=False, default=self.name)
+
+    def clean(self):
+        super().clean()
+        self.name = (self.name or "").strip()
+        if not self.name:
+            raise ValidationError({"name": "O nome da opção é obrigatório."})
+
+
+class ProductOptionTranslation(TranslationBase):
+    """O nome da opção em um idioma."""
+
+    master = models.ForeignKey(
+        ProductOption, verbose_name="opção", related_name="translations", on_delete=models.CASCADE
+    )
+    name = models.CharField("nome", max_length=60)
+
+    class Meta:
+        verbose_name = "tradução da opção"
+        verbose_name_plural = "traduções da opção"
+        ordering = ("language",)
+        constraints = [
+            models.UniqueConstraint(
+                fields=["master", "language"], name="product_option_translation_unique_language"
+            ),
+            models.CheckConstraint(
+                condition=~models.Q(name=""), name="product_option_translation_name_not_empty"
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.get_language_display()}: {self.name}"
+
+
+class ProductOptionValue(TranslatableMixin, TimeStampedModel):
+    """Um valor de uma opção: «Mesa», «Parede»; «Fosco», «Brilhante»."""
+
+    translatable_fields = ("name",)
+
+    option = models.ForeignKey(
+        ProductOption, verbose_name="opção", related_name="values", on_delete=models.CASCADE
+    )
+    name = models.CharField("nome interno", max_length=60)
+    sort_order = models.PositiveIntegerField("ordem", default=0)
+
+    class Meta:
+        verbose_name = "valor da opção"
+        verbose_name_plural = "valores da opção"
+        ordering = ("sort_order", "id")
+        constraints = [
+            models.UniqueConstraint(fields=["option", "name"], name="product_option_value_unique"),
+            models.CheckConstraint(
+                condition=~models.Q(name=""), name="product_option_value_name_not_empty"
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["option", "sort_order"], name="product_option_value_order_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.option.name}: {self.name}"
+
+    @property
+    def display_name(self) -> str:
+        """No idioma atual; sem tradução, o nome interno (ver `ProductOption`)."""
+        return self.tr("name", fallback=False, default=self.name)
+
+    def clean(self):
+        super().clean()
+        self.name = (self.name or "").strip()
+        if not self.name:
+            raise ValidationError({"name": "O nome do valor é obrigatório."})
+
+
+class ProductOptionValueTranslation(TranslationBase):
+    """O nome do valor em um idioma."""
+
+    master = models.ForeignKey(
+        ProductOptionValue, verbose_name="valor", related_name="translations", on_delete=models.CASCADE
+    )
+    name = models.CharField("nome", max_length=60)
+
+    class Meta:
+        verbose_name = "tradução do valor"
+        verbose_name_plural = "traduções do valor"
+        ordering = ("language",)
+        constraints = [
+            models.UniqueConstraint(
+                fields=["master", "language"],
+                name="product_option_value_translation_unique_language",
+            ),
+            models.CheckConstraint(
+                condition=~models.Q(name=""),
+                name="product_option_value_translation_name_not_empty",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.get_language_display()}: {self.name}"
+
+
+class ProductVariantOptionValue(TimeStampedModel):
+    """A escolha de uma variante numa opção: «V01 · Instalação = Parede».
+
+    ``option`` é redundante com ``value.option`` de propósito: é ela que
+    permite ao banco garantir «um valor por opção por variante» com uma
+    constraint simples ``(variant, option)``. ``clean()`` confere a coerência
+    dos dois e que a opção é do produto da variante — e ``save()`` chama
+    ``clean()``, para a regra valer também fora de formulários.
+
+    RESTRICT na opção e no valor: apagar o que uma variante usa é recusado,
+    nunca silencioso. É RESTRICT e não PROTECT de propósito: PROTECT recusaria
+    também apagar o PRODUTO inteiro (o Django recolhe a opção pelo CASCADE do
+    produto e esbarra na escolha da variante); RESTRICT só recusa quando a
+    escolha NÃO está sendo apagada na mesma operação — e no produto ela está,
+    pelo CASCADE variante → escolha. Apagar a variante apaga só as escolhas
+    dela.
+    """
+
+    variant = models.ForeignKey(
+        ProductVariant, verbose_name="variante", related_name="option_values", on_delete=models.CASCADE
+    )
+    option = models.ForeignKey(
+        ProductOption, verbose_name="opção", related_name="variant_links", on_delete=models.RESTRICT
+    )
+    value = models.ForeignKey(
+        ProductOptionValue, verbose_name="valor", related_name="variant_links", on_delete=models.RESTRICT
+    )
+
+    class Meta:
+        verbose_name = "opção da variante"
+        verbose_name_plural = "opções da variante"
+        ordering = ("option__sort_order", "option_id")
+        constraints = [
+            models.UniqueConstraint(fields=["variant", "option"], name="variant_option_unique"),
+        ]
+        indexes = [
+            models.Index(fields=["variant", "value"], name="variant_option_value_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.variant_id} · {self.option_id} = {self.value_id}"
+
+    def clean(self):
+        super().clean()
+        if self.option_id and self.value_id and self.value.option_id != self.option_id:
+            raise ValidationError({"value": "O valor não pertence a esta opção."})
+        if self.option_id and self.variant_id and self.option.product_id != self.variant.product_id:
+            raise ValidationError({"option": "A opção não pertence ao produto desta variante."})
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        super().save(*args, **kwargs)
+
+
+def copy_product_options(origem, destino) -> tuple[dict, dict]:
+    """Etapa 3F: copia as opções adicionais de ``origem`` para ``destino``.
+
+    Cria registros **novos** — ``ProductOption``, ``ProductOptionValue`` e as
+    traduções dos dois — com o mesmo nome, a mesma ordem e os mesmos idiomas,
+    e devolve os mapas ``{id da opção original: opção nova}`` e ``{id do valor
+    original: valor novo}``: é com eles que quem duplica religa as variantes
+    (``ProductVariantOptionValue``) ao produto novo, nunca ao antigo.
+
+    Nada de ``origem`` é reaproveitado ou tocado; nenhum objeto fica em comum.
+    Custo fixo: uma leitura com prefetch (quatro consultas) e quatro gravações
+    em lote, sejam duas opções ou vinte. Tudo numa transação.
+    """
+    if destino.pk is None:
+        raise ValueError("Grave o produto de destino antes de copiar as opções.")
+    if origem.pk == destino.pk:
+        raise ValueError("Um produto não copia as próprias opções.")
+
+    opcoes = list(
+        origem.options.prefetch_related("translations", "values__translations").order_by("sort_order", "id")
+    )
+    option_map: dict = {}
+    value_map: dict = {}
+    if not opcoes:
+        return option_map, value_map
+
+    def em_lote(model, objetos):
+        """``bulk_create`` devolvendo os pks; um a um onde o banco não os devolve."""
+        if not objetos:
+            return []
+        if connection.features.can_return_rows_from_bulk_insert:
+            return model.objects.bulk_create(objetos)
+        for obj in objetos:
+            obj.save()
+        return objetos
+
+    with transaction.atomic():
+        novas = em_lote(
+            ProductOption,
+            [ProductOption(product=destino, name=o.name, sort_order=o.sort_order) for o in opcoes],
+        )
+        option_map = {o.pk: nova for o, nova in zip(opcoes, novas)}
+        em_lote(
+            ProductOptionTranslation,
+            [
+                ProductOptionTranslation(master=option_map[o.pk], language=t.language, name=t.name)
+                for o in opcoes
+                for t in o.translations.all()
+            ],
+        )
+        valores = [
+            v
+            for o in opcoes
+            for v in sorted(o.values.all(), key=lambda valor: (valor.sort_order, valor.pk))
+        ]
+        novos = em_lote(
+            ProductOptionValue,
+            [
+                ProductOptionValue(option=option_map[v.option_id], name=v.name, sort_order=v.sort_order)
+                for v in valores
+            ],
+        )
+        value_map = {v.pk: novo for v, novo in zip(valores, novos)}
+        em_lote(
+            ProductOptionValueTranslation,
+            [
+                ProductOptionValueTranslation(master=value_map[v.pk], language=t.language, name=t.name)
+                for v in valores
+                for t in v.translations.all()
+            ],
+        )
+    return option_map, value_map
+
+
+def variant_option_prefetches():
+    """As escolhas da variante, para ``label`` e ``options_text``: 3 consultas.
+
+    Opção e valor vêm no mesmo SELECT das escolhas; as traduções dos dois
+    custam mais duas. Variante sem escolha custa uma. Usar onde quer que
+    ``label`` seja lido em lista — carrinho, página do produto, admin.
+    """
+    return (
+        models.Prefetch(
+            "option_values",
+            queryset=ProductVariantOptionValue.objects.select_related("option", "value")
+            .prefetch_related("option__translations", "value__translations")
+            .order_by("option__sort_order", "option_id"),
         ),
     )
 

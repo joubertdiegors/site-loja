@@ -1,0 +1,208 @@
+{% load catalog_admin %}
+{% comment %}
+  OPÇÕES ADICIONAIS (etapa 3C): um card por opção do produto, os valores
+  como chips, e dois modais — o da opção e o do valor — na mesma casca das
+  variantes e do conteúdo (`jd_modal.js`, `.jd-modal*`).
+
+  Os textos são literais em português, como no resto do Admin.
+
+  ## Onde grava
+
+  Sempre por AJAX, em `admin:catalog_product_option_save` e companhia, e a
+  página recarrega em seguida: o modal da variante desenha um `<select>` por
+  opção, e a lista precisa nascer de novo. Num produto ainda não salvo a seção
+  só avisa — não existe a que prender uma opção, e não se inventa id.
+
+  Os campos dos modais levam o prefixo `jdopt-` no `name` de propósito: eles
+  vivem dentro do `<form>` do produto e não podem se confundir com campos dele.
+  O JavaScript monta o POST com os nomes que o servidor espera (`name`,
+  `sort_order`, `name_fr`…).
+{% endcomment %}
+<div class="inline-group jd-options"
+     id="options-group"
+     data-options-inline
+     {% if original and original.pk %}data-option-save-url="{% url 'admin:catalog_product_option_save' original.pk %}"
+     data-option-delete-url="{% url 'admin:catalog_product_option_delete' original.pk 0 %}"
+     data-value-save-url="{% url 'admin:catalog_product_option_value_save' original.pk 0 %}"
+     data-value-delete-url="{% url 'admin:catalog_product_option_value_delete' original.pk 0 0 %}"{% endif %}>
+  <fieldset class="module collapse" aria-labelledby="options-heading">
+    <details open>
+    {% include "admin/catalog/product/_section_head.html" with heading_id="options-heading" heading_class="inline-heading" badge_text=product_options|length|default:"" %}
+    <div class="jd-sec-body">
+      {% if jd_section.help %}<div class="description jd-sec-help">{{ jd_section.help|safe }}</div>{% endif %}
+
+      <p class="jd-variant-flash" data-options-flash role="status" hidden></p>
+
+      {% if not original or not original.pk %}
+        {% if jd_duplicate_source %}
+          {# Etapa 3F: cópia de outro produto — as opções acompanham ao salvar. #}
+          <p class="jd-variant-help jd-variant-hint jd-options-wait">
+            {% if jd_duplicate_options %}
+              Ao salvar, as {{ jd_duplicate_options|length }} opção(ões) adicionais de
+              <b>{{ jd_duplicate_source.sku }}</b> ({{ jd_duplicate_values }} valor(es), com as
+              traduções) serão copiadas para este produto, e cada variante abaixo nasce com as
+              escolhas que já mostra. Depois de salvo, esta seção fica disponível normalmente.
+            {% else %}
+              <b>{{ jd_duplicate_source.sku }}</b> não tem opções adicionais; nada será copiado aqui.
+              Depois de salvo, esta seção fica disponível normalmente.
+            {% endif %}
+          </p>
+        {% else %}
+        <p class="jd-variant-help jd-variant-hint jd-options-wait">
+          Salve o produto primeiro para adicionar opções adicionais. Depois de salvo,
+          esta seção fica disponível normalmente.
+        </p>
+        {% endif %}
+      {% else %}
+        <div class="jd-option-cards" data-option-cards>
+          {% for item in product_options %}
+            {% with option=item.option %}
+            <article class="jd-option-card"
+                     data-option-card
+                     data-option-id="{{ option.pk }}"
+                     data-option-name="{{ option.name }}"
+                     data-option-order="{{ option.sort_order }}"
+                     {% for code in option_translation_languages %}data-option-name-{{ code }}="{{ item.translations|get_item:code }}" {% endfor %}>
+              <header class="jd-option-head">
+                <span class="jd-option-num" aria-hidden="true">{{ forloop.counter|stringformat:"02d" }}</span>
+                <h4 class="jd-option-title">{{ option.name }}</h4>
+                <span class="jd-option-langs" title="Traduções">
+                  {% for code in option_translation_languages %}{% with t=item.translations|get_item:code %}<span class="jd-option-lang{% if t %} is-on{% endif %}">{{ code|upper }}</span>{% endwith %}{% endfor %}
+                </span>
+                <button type="button" class="jd-option-edit" data-option-edit>Editar</button>
+              </header>
+              <div class="jd-option-values">
+                {% for linha in item.values %}
+                  {% with value=linha.value %}
+                  <button type="button" class="jd-option-chip"
+                          data-value-edit
+                          data-value-id="{{ value.pk }}"
+                          data-value-name="{{ value.name }}"
+                          data-value-order="{{ value.sort_order }}"
+                          {% for code in option_translation_languages %}data-value-name-{{ code }}="{{ linha.translations|get_item:code }}" {% endfor %}
+                          title="Editar o valor «{{ value.name }}»">{{ value.name }}</button>
+                  {% endwith %}
+                {% empty %}
+                  <span class="jd-option-empty">Sem valores ainda.</span>
+                {% endfor %}
+                <button type="button" class="jd-option-chip jd-option-chip-add" data-value-add>+ Adicionar valor</button>
+              </div>
+            </article>
+            {% endwith %}
+          {% empty %}
+            <p class="jd-option-none" data-options-empty>
+              Nenhuma opção adicional. Este produto vende só com cor, tamanho e material —
+              ou sem nenhum eixo.
+            </p>
+          {% endfor %}
+        </div>
+
+        <p class="jd-variant-actions">
+          <button type="button" class="jd-variant-add" data-option-add>+ Adicionar opção</button>
+        </p>
+
+        {# ---- o modal da OPÇÃO ------------------------------------------------ #}
+        <div class="jd-modal" data-option-modal hidden>
+          <div class="jd-modal-backdrop" aria-hidden="true"></div>
+          <div class="jd-modal-dialog jd-om" role="dialog" aria-modal="true" aria-labelledby="option-modal-titulo">
+            <header class="jd-modal-head jd-vm-head">
+              <div class="jd-vm-head-title">
+                <span class="jd-vm-eyebrow">Opção adicional</span>
+                <h3 class="jd-modal-title" id="option-modal-titulo" data-option-modal-title>Nova opção</h3>
+              </div>
+              <button type="button" class="jd-modal-x" data-option-cancel aria-label="Fechar sem salvar">&times;</button>
+            </header>
+            <div class="jd-modal-body jd-vm-body">
+              <p class="errornote" data-modal-error hidden></p>
+              <input type="hidden" name="jdopt-option_id" data-option-field="option_id">
+              <section class="jd-vm-group" aria-label="Identificação">
+                <h4 class="jd-vm-group-title">Identificação</h4>
+                <div class="jd-vm-grid jd-om-grid">
+                  <div class="jd-modal-field jd-vm-field jd-om-name">
+                    <label for="jdopt-name">Nome da opção (português)</label>
+                    <input type="text" id="jdopt-name" name="jdopt-name" maxlength="60" data-option-field="name" placeholder="Ex.: Instalação">
+                    <p class="jd-variant-help">É o nome que o cliente lê em português — e o que os outros idiomas usam quando não têm tradução.</p>
+                  </div>
+                  <div class="jd-modal-field jd-vm-field">
+                    <label for="jdopt-sort_order">Ordem</label>
+                    <input type="number" id="jdopt-sort_order" name="jdopt-sort_order" min="0" value="0" data-option-field="sort_order">
+                    <p class="jd-variant-help">Menor aparece primeiro — na ficha e no rótulo da variante.</p>
+                  </div>
+                </div>
+              </section>
+              <section class="jd-vm-group" aria-label="Traduções">
+                <h4 class="jd-vm-group-title">Traduções</h4>
+                <p class="jd-vm-group-hint">Em branco, a loja mostra o nome em português.</p>
+                <div class="jd-vm-grid">
+                  {% for code in option_translation_languages %}
+                    <div class="jd-modal-field jd-vm-field">
+                      <label for="jdopt-name_{{ code }}">{{ code|upper }}</label>
+                      <input type="text" id="jdopt-name_{{ code }}" name="jdopt-name_{{ code }}" maxlength="60" data-option-field="name_{{ code }}">
+                    </div>
+                  {% endfor %}
+                </div>
+              </section>
+            </div>
+            <footer class="jd-modal-foot jd-vm-foot">
+              <button type="button" class="jd-modal-danger" data-option-remove hidden>Excluir opção</button>
+              <span class="jd-modal-spacer"></span>
+              <button type="button" class="jd-modal-cancel" data-option-cancel>Cancelar</button>
+              <button type="button" class="jd-modal-save" data-option-save>Salvar</button>
+            </footer>
+          </div>
+        </div>
+
+        {# ---- o modal do VALOR ------------------------------------------------ #}
+        <div class="jd-modal" data-value-modal hidden>
+          <div class="jd-modal-backdrop" aria-hidden="true"></div>
+          <div class="jd-modal-dialog jd-om" role="dialog" aria-modal="true" aria-labelledby="value-modal-titulo">
+            <header class="jd-modal-head jd-vm-head">
+              <div class="jd-vm-head-title">
+                <span class="jd-vm-eyebrow" data-value-modal-kind>Valor da opção</span>
+                <h3 class="jd-modal-title" id="value-modal-titulo" data-value-modal-title>Novo valor</h3>
+              </div>
+              <button type="button" class="jd-modal-x" data-value-cancel aria-label="Fechar sem salvar">&times;</button>
+            </header>
+            <div class="jd-modal-body jd-vm-body">
+              <p class="errornote" data-modal-error hidden></p>
+              <input type="hidden" name="jdval-option_id" data-value-field="option_id">
+              <input type="hidden" name="jdval-value_id" data-value-field="value_id">
+              <section class="jd-vm-group" aria-label="Identificação">
+                <h4 class="jd-vm-group-title">Identificação</h4>
+                <div class="jd-vm-grid jd-om-grid">
+                  <div class="jd-modal-field jd-vm-field jd-om-name">
+                    <label for="jdval-name">Nome do valor (português)</label>
+                    <input type="text" id="jdval-name" name="jdval-name" maxlength="60" data-value-field="name" placeholder="Ex.: Parede">
+                  </div>
+                  <div class="jd-modal-field jd-vm-field">
+                    <label for="jdval-sort_order">Ordem</label>
+                    <input type="number" id="jdval-sort_order" name="jdval-sort_order" min="0" value="0" data-value-field="sort_order">
+                  </div>
+                </div>
+              </section>
+              <section class="jd-vm-group" aria-label="Traduções">
+                <h4 class="jd-vm-group-title">Traduções</h4>
+                <p class="jd-vm-group-hint">Em branco, a loja mostra o nome em português.</p>
+                <div class="jd-vm-grid">
+                  {% for code in option_translation_languages %}
+                    <div class="jd-modal-field jd-vm-field">
+                      <label for="jdval-name_{{ code }}">{{ code|upper }}</label>
+                      <input type="text" id="jdval-name_{{ code }}" name="jdval-name_{{ code }}" maxlength="60" data-value-field="name_{{ code }}">
+                    </div>
+                  {% endfor %}
+                </div>
+              </section>
+            </div>
+            <footer class="jd-modal-foot jd-vm-foot">
+              <button type="button" class="jd-modal-danger" data-value-remove hidden>Excluir valor</button>
+              <span class="jd-modal-spacer"></span>
+              <button type="button" class="jd-modal-cancel" data-value-cancel>Cancelar</button>
+              <button type="button" class="jd-modal-save" data-value-save>Salvar</button>
+            </footer>
+          </div>
+        </div>
+      {% endif %}
+    </div>
+    </details>
+  </fieldset>
+</div>

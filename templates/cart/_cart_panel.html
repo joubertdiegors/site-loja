@@ -64,6 +64,10 @@ trocas, quando publicadas — cadastro do Admin, não texto escrito aqui.
               {% if line.variant.material_id %}
                 <li class="cart-chip">{{ line.variant.material.display_name }}</li>
               {% endif %}
+              {# Etapa 3D: as opções adicionais da variante, na ordem das opções do produto. #}
+              {% for link in line.variant.option_links %}
+                <li class="cart-chip">{{ link.value.display_name }}</li>
+              {% endfor %}
               {# Etapa 2B: a descrição da peça, quando a variante não tem a sua própria. #}
               {% if not line.variant.color_id and line.product.colors_text %}
                 <li class="cart-chip">

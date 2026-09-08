@@ -4,7 +4,8 @@ Duas exigências, e as duas são sobre não fazer o administrador rolar:
 
 * **toda** seção recolhe e expande;
 * a ordem é INFORMAÇÕES BÁSICAS → CONTEÚDO → FOTOS → CORES → PALETA DE CORES →
-  MATERIAIS → PERSONALIZAÇÃO → VARIANTES → OUTRAS INFORMAÇÕES → AUDITORIA,
+  MATERIAIS → PERSONALIZAÇÃO → OPÇÕES ADICIONAIS → VARIANTES → OUTRAS
+  INFORMAÇÕES → AUDITORIA,
   com AUDITORIA por último.
 
 A ordem mora em `ProductAdmin.SECTION_ORDER`, e `_page_layout` monta a partir
@@ -38,6 +39,7 @@ ORDEM = (
     "PALETA DE CORES",
     "MATERIAIS",
     "PERSONALIZAÇÃO",
+    "OPÇÕES ADICIONAIS",
     "VARIANTES",
     "OUTRAS INFORMAÇÕES",
     "AUDITORIA",

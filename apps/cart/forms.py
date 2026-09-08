@@ -64,6 +64,7 @@ class AddToCartForm(forms.Form):
                 pk=variant_id, product=self.product, is_active=True
             )
             .select_related("color", "material", "product")
+            .prefetch_related("option_values")
             .first()
         )
         if self.variant is None:
@@ -124,27 +125,62 @@ class AddToCartForm(forms.Form):
 
     # -- a variante ---------------------------------------------------------
 
+    #: O prefixo dos eixos das opções adicionais no POST: ``option_opt-<id>``
+    #: (o mesmo ``opt-<id>`` dos grupos da página).
+    OPTION_PREFIX = "option_opt-"
+
+    def product_option_ids(self) -> set:
+        """Os ids das opções adicionais DESTE produto — os únicos aceitos."""
+        cache = getattr(self, "_product_option_ids", None)
+        if cache is None:
+            cache = self._product_option_ids = set(self.product.options.values_list("pk", flat=True))
+        return cache
+
     def axes_from(self, cleaned) -> dict:
         """Eixos que vieram no POST, só os preenchidos.
 
         Cor e material chegam como PK em texto; tamanho é o próprio texto do
         catálogo. Eixo ausente não restringe nada — a página só desenha botões
         para o eixo que varia.
+
+        Etapa 3D: as opções adicionais chegam como ``option_opt-<id>`` com o
+        id do valor. Uma opção que não é deste produto, ou um id que não é
+        número, é uma combinação que não existe — e é assim que é tratada.
         """
         enviados = {
             "color": (cleaned.get("option_color") or "").strip(),
             "size": (cleaned.get("option_size") or "").strip(),
             "material": (cleaned.get("option_material") or "").strip(),
         }
-        return {eixo: valor for eixo, valor in enviados.items() if valor}
+        eixos = {eixo: valor for eixo, valor in enviados.items() if valor}
+        for nome in self.data:
+            if not nome.startswith(self.OPTION_PREFIX):
+                continue
+            valor = (self.data.get(nome) or "").strip()
+            if not valor:
+                continue
+            option_id = nome[len(self.OPTION_PREFIX):]
+            if not option_id.isdigit() or int(option_id) not in self.product_option_ids() or not valor.isdigit():
+                eixos[nome[len("option_"):]] = "?"  # nunca casa com variante nenhuma
+                continue
+            eixos[nome[len("option_"):]] = valor
+        return eixos
 
     def variant_axes(self, variant) -> dict:
-        """Os eixos desta variante, no mesmo formato do POST."""
-        return {
+        """Os eixos desta variante, no mesmo formato do POST.
+
+        As opções adicionais entram como ``opt-<id>`` com o id do valor; a
+        opção sem escolha na variante não entra — e um valor pedido para ela
+        diverge, como deve.
+        """
+        eixos = {
             "color": str(variant.color_id) if variant.color_id else "",
             "size": variant.size or "",
             "material": str(variant.material_id) if variant.material_id else "",
         }
+        for link in variant.option_values.all():
+            eixos[f"opt-{link.option_id}"] = str(link.value_id)
+        return eixos
 
     def _resolve_variant(self, cleaned):
         """Decide qual variante está sendo comprada — ou recusa a compra.
@@ -183,6 +219,13 @@ class AddToCartForm(forms.Form):
                 if all(
                     self.variant_axes(variante).get(eixo, "") == valor
                     for eixo, valor in eixos.items()
+                )
+                # Etapa 3D: a variante com uma escolha que o POST não pediu não
+                # é «a» combinação pedida — «Parede» sozinho não é «Parede + Fosco».
+                and all(
+                    eixo in eixos
+                    for eixo in self.variant_axes(variante)
+                    if eixo.startswith("opt-")
                 )
             ]
             if len(candidatas) == 1:

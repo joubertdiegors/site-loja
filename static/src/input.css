@@ -3662,6 +3662,19 @@
     color: var(--color-brand-600);
   }
 
+  /* O título que separa os eixos fixos das opções adicionais (etapa 3D). */
+  .product-opt-heading {
+    margin: 4px 0 -8px;
+    padding-top: 14px;
+    border-top: 1px solid var(--color-surface-line);
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-ink-muted);
+  }
+
   .product-opt-list {
     display: flex;
     flex-wrap: wrap;

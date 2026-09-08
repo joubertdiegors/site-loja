@@ -164,9 +164,11 @@ class AuthenticatedCartTests(PersistentCartTestCase):
         # 19: as fotos das variantes, para a linha mostrar a peça que foi
         # comprada e não a foto de abertura do produto. E dois na etapa 2B: a
         # paleta de cores e a composição de materiais do produto, que a linha
-        # mostra quando a variante não tem cor/material próprio. Continua
-        # **fixo** — não cresce com a quantidade de linhas, que é o que importa.
-        with self.assertNumQueries(11):
+        # mostra quando a variante não tem cor/material próprio. E um na etapa
+        # 3B: as opções adicionais da variante, que entram no rótulo da linha.
+        # Continua **fixo** — não cresce com a quantidade de linhas, que é o
+        # que importa.
+        with self.assertNumQueries(12):
             lines = self.fresh_cart().lines()
             [(line.display_name, line.unit_price) for line in lines]
 

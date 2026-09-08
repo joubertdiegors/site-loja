@@ -821,16 +821,25 @@ class OrderAdmin(admin.ModelAdmin):
                         _("arquivo enviado"),
                     )
                 )
+            # Etapa 3E: as opções adicionais, do snapshot gravado na compra — e
+            # nunca do produto de hoje. Pedido anterior às opções mostra «—»:
+            # não há o que reconstruir, e não se inventa histórico.
+            opcoes = item.options_lines
             linhas.append(
                 (
                     item.sku or "—",
                     format_html(
-                        "<b>{}</b>{}",
+                        "<b>{}</b>{}{}",
                         item.description,
                         format_html('<br><span class="jd-muted">{}</span>',
                                     format_html_join(" · ", "{}", ((d,) for d in detalhe)))
                         if detalhe
                         else "",
+                        format_html(
+                            '<span class="jd-muted jd-opcoes"><span class="jd-opcoes-rotulo">{}:</span> {}</span>',
+                            _("Opções"),
+                            format_html_join(mark_safe("<br>"), "{}", ((o,) for o in opcoes)) if opcoes else "—",
+                        ),
                     ),
                     item.get_fulfillment_type_display(),
                     item.quantity,

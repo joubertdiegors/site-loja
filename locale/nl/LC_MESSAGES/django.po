@@ -2447,3 +2447,10 @@ msgstr "Kleuren"
 #: templates/components/product_card.html apps/catalog/views.py apps/catalog/models.py
 msgid "Materiais"
 msgstr "Materialen"
+
+#: templates/catalog/product_detail.html
+msgid "Opções adicionais"
+msgstr "Extra opties"
+
+msgid "Opções"
+msgstr "Opties"

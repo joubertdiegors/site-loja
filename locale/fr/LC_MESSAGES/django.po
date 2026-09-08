@@ -2447,3 +2447,10 @@ msgstr "Couleurs"
 #: templates/components/product_card.html apps/catalog/views.py apps/catalog/models.py
 msgid "Materiais"
 msgstr "Matériaux"
+
+#: templates/catalog/product_detail.html
+msgid "Opções adicionais"
+msgstr "Options supplémentaires"
+
+msgid "Opções"
+msgstr "Options"

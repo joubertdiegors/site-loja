@@ -1699,3 +1699,170 @@ details.jd-row-menu summary::-webkit-details-marker {
     margin-left: 0;
   }
 }
+
+
+/* =============================================================================
+   OPÇÕES ADICIONAIS (etapa 3C)
+   -----------------------------------------------------------------------------
+   Um card por opção, os valores como chips, e os modais na casca de sempre.
+   No modal da variante, os selects das opções ficam num subgrupo abaixo dos
+   eixos fixos. */
+
+.jd-option-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  margin: 8px 8px 0;
+}
+
+.jd-option-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 12px 12px;
+  border: 1px solid var(--hairline-color, #e0e0e0);
+  border-radius: 8px;
+  background: var(--body-bg, #fff);
+  min-width: 0;
+}
+
+.jd-option-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.jd-option-num {
+  flex: none;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--darkened-bg, #f0f0f0);
+  color: var(--body-quiet-color, #666);
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.jd-option-title {
+  flex: 1 1 auto;
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.jd-option-langs {
+  display: inline-flex;
+  gap: 3px;
+  flex: none;
+}
+
+.jd-option-lang {
+  padding: 0 4px;
+  border-radius: 3px;
+  border: 1px solid var(--hairline-color, #e0e0e0);
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--body-quiet-color, #aaa);
+}
+
+.jd-option-lang.is-on {
+  background: #dcfce7;
+  border-color: #bbf7d0;
+  color: #14532d;
+}
+
+.jd-option-edit {
+  flex: none;
+  cursor: pointer;
+  border: 1px solid var(--border-color, #ccc);
+  border-radius: 4px;
+  background: var(--button-bg, #f8f8f8);
+  padding: 3px 10px;
+  font-size: 0.75rem;
+}
+
+.jd-option-values {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.jd-option-chip {
+  cursor: pointer;
+  max-width: 100%;
+  padding: 4px 10px;
+  border: 1px solid var(--border-color, #ccc);
+  border-radius: 999px;
+  background: var(--body-bg, #fff);
+  color: var(--body-fg, #333);
+  font-size: 0.8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.jd-option-chip:hover,
+.jd-option-chip:focus-visible {
+  border-color: var(--primary, #417690);
+}
+
+.jd-option-chip-add {
+  border-style: dashed;
+  color: var(--link-fg, #417690);
+  font-weight: 600;
+}
+
+.jd-option-empty,
+.jd-option-none {
+  color: var(--body-quiet-color, #666);
+  font-size: 0.8rem;
+}
+
+.jd-option-none {
+  margin: 10px 8px 0;
+}
+
+.jd-options-wait {
+  margin-top: 10px;
+}
+
+/* O modal de opção/valor é menor que o da variante. */
+.jd-modal-dialog.jd-om {
+  width: min(600px, 100%);
+}
+
+.jd-om-grid {
+  grid-template-columns: minmax(0, 2fr) minmax(110px, 1fr);
+}
+
+/* Subgrupos no grupo «Opções da variante»: eixos fixos / opções adicionais. */
+.jd-vm-subgroup {
+  margin: 0 0 8px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--body-quiet-color, #9aa5b1);
+}
+
+.jd-vm-grid + .jd-vm-subgroup {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--hairline-color, #e3e8ed);
+}
+
+@media (max-width: 600px) {
+  .jd-om-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .jd-option-cards {
+    grid-template-columns: minmax(0, 1fr);
+    margin: 8px 0 0;
+  }
+}

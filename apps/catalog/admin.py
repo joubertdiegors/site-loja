@@ -11,6 +11,7 @@ from django.contrib import admin, messages
 from django.contrib.admin.widgets import RelatedFieldWidgetWrapper
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
+from django.db.models import ProtectedError, RestrictedError
 from django.http import HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.urls import path, reverse
@@ -35,9 +36,15 @@ from apps.catalog.models import (
     ProductColor,
     ProductMaterialComposition,
     ProductMedia,
+    ProductOption,
+    ProductOptionTranslation,
+    ProductOptionValue,
+    ProductOptionValueTranslation,
     ProductStatus,
     ProductTranslation,
     ProductVariant,
+    copy_product_options,
+    variant_option_prefetches,
 )
 from apps.categories.models import Category
 from apps.core.admin_mixins import (
@@ -46,6 +53,8 @@ from apps.core.admin_mixins import (
     TranslatedSlugAdminMixin,
 )
 from apps.core.constants import DEFAULT_LANGUAGE, Language
+from apps.core.i18n import normalize_language
+from apps.core.models import SiteLanguage
 from apps.core.utils import unique_slugify
 
 # ---------------------------------------------------------------------------
@@ -344,6 +353,16 @@ _no_modal = {campo for grupo in VARIANT_MODAL_GROUPS for campo in grupo["fields"
 assert _no_modal == set(VARIANT_FIELDS), sorted(_no_modal ^ set(VARIANT_FIELDS))
 
 
+#: O prefixo dos campos dinâmicos das opções adicionais no formulário da
+#: variante: ``opt_<id da opção>``. Um campo por opção do produto, criado em
+#: `VariantSkuAutoMixin.__init__` — nunca um campo fixo por tipo de opção.
+OPTION_FIELD_PREFIX = "opt_"
+
+
+def option_field_name(option) -> str:
+    return f"{OPTION_FIELD_PREFIX}{option.pk}"
+
+
 class VariantSkuAutoMixin:
     """SKU da variante em branco = a próxima sequência do produto (V01, V02…).
 
@@ -361,7 +380,7 @@ class VariantSkuAutoMixin:
     #: modelo (zero): custo e estoque se detalham depois.
     optional_with_default = ("filament_cost", "energy_cost", "stock_quantity")
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, product_options=None, **kwargs):
         super().__init__(*args, **kwargs)
         if "sku" in self.fields:
             self.fields["sku"].required = False
@@ -371,6 +390,57 @@ class VariantSkuAutoMixin:
         for nome in self.optional_with_default:
             if nome in self.fields:
                 self.fields[nome].required = False
+        # -- opções adicionais (etapa 3C) ----------------------------------
+        # Um `<select>` por opção do produto, com os valores daquela opção e
+        # «Não definido» como vazio. Só entram quando quem instancia o
+        # formulário passa as opções (o formset da ficha e o modal): a tela
+        # própria da variante não as conhece e, por isso, não as toca.
+        self.product_options = list(product_options or ())
+        escolhidos = {}
+        if self.instance.pk:
+            escolhidos = {link.option_id: link.value_id for link in self.instance.option_values.all()}
+        for option in self.product_options:
+            nome = option_field_name(option)
+            # `TypedChoiceField` a partir dos valores JÁ carregados (o formset
+            # faz o prefetch uma vez): um `ModelChoiceField` refaria a consulta
+            # em cada linha do inline. Só os ids dos valores desta opção são
+            # escolhas válidas — valor de outra opção é recusado aqui mesmo, e
+            # `set_option_values` confere de novo ao gravar.
+            campo = forms.TypedChoiceField(
+                choices=[("", "Não definido")] + [(valor.pk, valor.name) for valor in option.values.all()],
+                coerce=int,
+                empty_value=None,
+                required=False,
+                label=option.name,
+                initial=escolhidos.get(option.pk),
+            )
+            campo.widget.attrs["data-variant-option"] = nome
+            self.fields[nome] = campo
+
+    @property
+    def option_fields(self) -> list:
+        """Os campos dinâmicos das opções adicionais, na ordem das opções."""
+        return [self[option_field_name(option)] for option in self.product_options]
+
+    #: Etapa 3F — ``(option_map, value_map)`` de ``copy_product_options``: na
+    #: duplicação, os `<select>` da tela foram montados com as opções do produto
+    #: **de origem**; ao gravar, cada escolha é traduzida para a opção e o valor
+    #: recém-criados no produto novo. Fora da duplicação fica ``None``.
+    option_maps = None
+
+    def option_choices(self) -> dict:
+        """``{id da opção: id do valor ou None}`` — o que foi escolhido na tela."""
+        escolhas = {
+            option.pk: self.cleaned_data.get(option_field_name(option))
+            for option in self.product_options
+        }
+        if self.option_maps:
+            option_map, value_map = self.option_maps
+            escolhas = {
+                option_map[option_id].pk: (value_map[value_id].pk if value_id else None)
+                for option_id, value_id in escolhas.items()
+            }
+        return escolhas
 
     def _variant_product(self):
         produto = self.cleaned_data.get("product") if "product" in self.fields else None
@@ -396,6 +466,35 @@ class VariantSkuAutoMixin:
         dados["sku"] = sku_rules.suggest_variant_sku(sku_produto, reserved=reservados)
         reservados.add(dados["sku"])
         return dados
+
+    def _post_clean(self):
+        # Antes de o modelo validar (`full_clean` em `_post_clean`): as escolhas
+        # ainda não gravadas, para a combinação repetida ser recusada já aqui.
+        if self.product_options:
+            self.instance._pending_option_choices = self.option_choices()
+        super()._post_clean()
+
+    def save(self, commit=True):
+        """Grava a variante e, por `set_option_values`, as escolhas — uma só API.
+
+        Com ``commit=False`` (o formset do Django), as escolhas ficam para o
+        ``save_m2m`` que o Django chama logo depois: o vínculo precisa da pk.
+        """
+        instance = super().save(commit=commit)
+        if not self.product_options:
+            return instance
+        escolhas = self.option_choices()
+        if commit:
+            instance.set_option_values(escolhas)
+        else:
+            original = self.save_m2m
+
+            def save_m2m():
+                original()
+                instance.set_option_values(escolhas)
+
+            self.save_m2m = save_m2m
+        return instance
 
 
 class ProductVariantModalForm(VariantSkuAutoMixin, forms.ModelForm):
@@ -436,10 +535,28 @@ class ProductVariantInlineFormSet(forms.BaseInlineFormSet):
     variante que está sendo criada na mesma tela. O formset enxerga.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, product_options=None, **kwargs):
         super().__init__(*args, **kwargs)
         # Compartilhado pelas linhas: V01, V02… sem repetir dentro do cadastro.
         self.reserved_skus: set[str] = set()
+        # As opções adicionais do produto, lidas UMA vez para todas as linhas
+        # (e para o molde do «Adicionar variante»). Produto novo não tem —
+        # salvo na duplicação (etapa 3F), em que o `ProductAdmin` passa as
+        # opções do produto de origem para as linhas copiadas já virem com
+        # as escolhas de cada variante.
+        if product_options is not None:
+            self.product_options = list(product_options)
+        else:
+            self.product_options = (
+                list(self.instance.options.prefetch_related("values"))
+                if getattr(self.instance, "pk", None)
+                else []
+            )
+
+    def get_form_kwargs(self, index):
+        kwargs = super().get_form_kwargs(index)
+        kwargs["product_options"] = self.product_options
+        return kwargs
 
     def _construct_form(self, i, **kwargs):
         form = super()._construct_form(i, **kwargs)
@@ -509,7 +626,7 @@ class ProductVariantInline(admin.StackedInline):
             super()
             .get_queryset(request)
             .select_related("color", "material")
-            .prefetch_related("color__translations", "material__translations")
+            .prefetch_related("color__translations", "material__translations", *variant_option_prefetches())
         )
 
 
@@ -551,6 +668,10 @@ class ProductMediaInline(admin.TabularInline):
         kwargs["queryset"] = (
             ProductVariant.objects.filter(product=produto)
             .select_related("color", "material")
+            # O rótulo de cada `<option>` é `str(variante)`, que lê as opções
+            # adicionais (etapa 3C): sem o prefetch, uma consulta por variante
+            # em cada linha de foto.
+            .prefetch_related(*variant_option_prefetches())
             .order_by("sort_order", "id")
             if produto is not None
             # Produto novo ainda não tem variante gravada: a lista fica vazia,
@@ -700,6 +821,127 @@ class ProductMaterialCompositionInline(admin.TabularInline):
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# Opções adicionais (etapa 3C): os formulários dos modais
+# ---------------------------------------------------------------------------
+
+
+def option_translation_languages() -> list[str]:
+    """Os idiomas que a loja oferece além do português: FR, NL, EN.
+
+    Vêm dos idiomas ativos da loja (`SiteLanguage`), não da lista inteira de
+    `Language` — nove caixas por opção seriam seis a mais do que a loja usa.
+    Sem idioma ativo cadastrado, os três da loja. O português é o nome interno
+    da opção: é o fallback.
+    """
+    idiomas = []
+    for code in SiteLanguage.objects.active().values_list("code", flat=True):
+        normalizado = normalize_language(code)
+        if normalizado != DEFAULT_LANGUAGE.value and normalizado not in idiomas:
+            idiomas.append(normalizado)
+    return idiomas or ["fr", "nl", "en"]
+
+
+def _erros_por_campo(erros) -> dict:
+    """`form.errors` ou `ValidationError` → `{campo: [mensagens]}` para o modal."""
+    if isinstance(erros, ValidationError):
+        if hasattr(erros, "error_dict"):
+            return {campo: [str(m) for m in lista] for campo, lista in erros.message_dict.items()}
+        return {"__all__": [str(m) for m in erros.messages]}
+    return {campo: [str(m) for m in lista] for campo, lista in erros.items()}
+
+
+class TranslatedNameModalForm(forms.ModelForm):
+    """Nome interno (PT), ordem e uma caixa por idioma (FR, NL, EN).
+
+    O nome interno é o texto em português — não existe uma linha PT na tabela
+    de tradução, ao contrário da cor: `display_name` cai nele quando falta o
+    idioma. As outras caixas gravam, atualizam ou apagam a linha do idioma.
+    """
+
+    translation_model = None  # a tabela de tradução (master, language, name)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["name"].label = "Nome (português)"
+        existentes = self.instance.translations_by_language() if self.instance.pk else {}
+        for code in option_translation_languages():
+            self.fields[f"name_{code}"] = forms.CharField(
+                label=Language(code).label,
+                max_length=60,
+                required=False,
+                initial=existentes[code].name if code in existentes else "",
+            )
+
+    def clean_name(self):
+        return (self.cleaned_data.get("name") or "").strip()
+
+    def _post_clean(self):
+        # Já recusado pelo formulário (nome repetido): não pedir ao modelo para
+        # validar uma instância sem o nome, que o Django tirou de `cleaned_data`.
+        if self.errors:
+            return
+        super()._post_clean()
+
+    def save(self, commit=True):
+        obj = super().save(commit=commit)
+        for code in option_translation_languages():
+            texto = (self.cleaned_data.get(f"name_{code}") or "").strip()
+            linha = self.translation_model.objects.filter(master=obj, language=code).first()
+            if texto:
+                if linha is None:
+                    self.translation_model.objects.create(master=obj, language=code, name=texto)
+                elif linha.name != texto:
+                    linha.name = texto
+                    linha.save(update_fields=["name"])
+            elif linha is not None:
+                linha.delete()
+        obj.refresh_translations()
+        return obj
+
+
+class ProductOptionModalForm(TranslatedNameModalForm):
+    translation_model = ProductOptionTranslation
+
+    class Meta:
+        model = ProductOption
+        fields = ("name", "sort_order")
+
+    def __init__(self, *args, product, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.instance.product = product
+
+    def clean(self):
+        dados = super().clean()
+        nome = dados.get("name")
+        if nome and ProductOption.objects.filter(product=self.instance.product, name=nome).exclude(pk=self.instance.pk).exists():
+            self.add_error("name", "Já existe uma opção com este nome neste produto.")
+        return dados
+
+
+class ProductOptionValueModalForm(TranslatedNameModalForm):
+    translation_model = ProductOptionValueTranslation
+
+    class Meta:
+        model = ProductOptionValue
+        fields = ("name", "sort_order")
+
+    def __init__(self, *args, option, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.instance.option = option
+
+    def clean(self):
+        dados = super().clean()
+        nome = dados.get("name")
+        if nome and ProductOptionValue.objects.filter(option=self.instance.option, name=nome).exclude(pk=self.instance.pk).exists():
+            self.add_error("name", "Já existe um valor com este nome nesta opção.")
+        return dados
+
+
+#: A seção das opções adicionais em `SECTION_ORDER`: não é fieldset nem inline.
+OPTIONS_SECTION = "OPÇÕES ADICIONAIS"
+
+
 #: A ordem das seções na tela do produto, de cima para baixo. Fieldsets entram
 #: pelo nome; inlines, pelo modelo. É a única lista que precisa mudar quando a
 #: ordem mudar — nem o template nem os `fieldsets` sabem dela.
@@ -714,6 +956,7 @@ SECTION_ORDER = (
     ProductColor,  # PALETA DE CORES
     ProductMaterialComposition,  # MATERIAIS
     "PERSONALIZAÇÃO",
+    OPTIONS_SECTION,  # OPÇÕES ADICIONAIS (etapa 3C): nem fieldset nem inline
     ProductVariant,  # VARIANTES
     "OUTRAS INFORMAÇÕES",
 )
@@ -770,6 +1013,16 @@ SECTION_META = {
         "slug": "personalizacao",
         "nav": "Personalização",
         "subtitle": "o que o cliente fornece antes de comprar",
+    },
+    "OPÇÕES ADICIONAIS": {
+        "slug": "opcoes",
+        "nav": "Opções",
+        "subtitle": "eixos a mais da variante — Instalação, Acabamento, Modelo…",
+        "help": (
+            "Opções que o cliente escolhe além de cor, tamanho e material. Cada "
+            "opção tem os seus valores («Instalação: Mesa / Parede»); cada VARIANTE "
+            "escolhe um valor por opção, na seção seguinte. Isto não cria variantes."
+        ),
     },
     ProductVariant: {"slug": "variantes", "nav": "Variantes"},
     "OUTRAS INFORMAÇÕES": {
@@ -1201,6 +1454,7 @@ class ProductAdmin(DuplicateAdminMixin, TranslatedSlugAdminMixin, AuditUserAdmin
             "admin/js/product_colors_admin.js",
             "admin/js/jd_fields.js",
             "admin/js/product_form_admin.js",
+            "admin/js/product_options_admin.js",
         )
 
     def save_model(self, request, obj, form, change):
@@ -1271,6 +1525,27 @@ class ProductAdmin(DuplicateAdminMixin, TranslatedSlugAdminMixin, AuditUserAdmin
                 "<int:product_id>/conteudo/<int:translation_id>/excluir/",
                 self.admin_site.admin_view(self.content_delete_view),
                 name="catalog_product_content_delete",
+            ),
+            # Opções adicionais (etapa 3C): opção e valor, gravar e excluir.
+            path(
+                "<int:product_id>/opcao/gravar/",
+                self.admin_site.admin_view(self.option_save_view),
+                name="catalog_product_option_save",
+            ),
+            path(
+                "<int:product_id>/opcao/<int:option_id>/excluir/",
+                self.admin_site.admin_view(self.option_delete_view),
+                name="catalog_product_option_delete",
+            ),
+            path(
+                "<int:product_id>/opcao/<int:option_id>/valor/gravar/",
+                self.admin_site.admin_view(self.option_value_save_view),
+                name="catalog_product_option_value_save",
+            ),
+            path(
+                "<int:product_id>/opcao/<int:option_id>/valor/<int:value_id>/excluir/",
+                self.admin_site.admin_view(self.option_value_delete_view),
+                name="catalog_product_option_value_delete",
             ),
         ]
         return extra + super().get_urls()
@@ -1393,14 +1668,80 @@ class ProductAdmin(DuplicateAdminMixin, TranslatedSlugAdminMixin, AuditUserAdmin
     def _duplicate_inline_initial(self, request, inline, formset_class) -> list:
         linhas = super()._duplicate_inline_initial(request, inline, formset_class)
         if inline.model is ProductVariant and linhas:
+            origem = self.duplicate_source(request)
             novo_sku = getattr(request, "_jd_duplicate_sku", None) or sku_rules.next_product_sku_after(
-                self.duplicate_source(request).sku
+                origem.sku
             )
             reservados: set[str] = set()
-            for linha in linhas:
+            # Etapa 3F: cada linha copiada traz as escolhas da variante de
+            # origem nas opções adicionais (`opt_<id da opção de origem>`).
+            # A mesma consulta — e a mesma ordem — que montou `linhas`, já com
+            # as escolhas no prefetch: nenhuma consulta por variante.
+            variantes = list(inline.get_queryset(request).filter(product=origem))
+            for linha, variante in zip(linhas, variantes):
                 linha["sku"] = sku_rules.suggest_variant_sku(novo_sku, reserved=reservados)
                 reservados.add(linha["sku"])
+                for link in variante.option_values.all():
+                    linha[f"{OPTION_FIELD_PREFIX}{link.option_id}"] = link.value_id
         return linhas
+
+    def _duplicate_options(self, request) -> list:
+        """As opções do produto de origem, lidas uma vez por requisição (3F)."""
+        cache = getattr(request, "_jd_duplicate_options", None)
+        if cache is None:
+            origem = self.duplicate_source(request)
+            cache = request._jd_duplicate_options = (
+                list(origem.options.prefetch_related("values").order_by("sort_order", "id"))
+                if origem is not None
+                else []
+            )
+        return cache
+
+    def get_formset_kwargs(self, request, obj, inline, prefix):
+        """Na duplicação, o formset das variantes nasce com as opções de origem.
+
+        É o que faz os `<select>` das opções adicionais aparecerem nas linhas
+        copiadas — na tela (GET) e na leitura do envio (POST). Fora da
+        duplicação, e na edição, nada muda.
+        """
+        kwargs = super().get_formset_kwargs(request, obj, inline, prefix)
+        # Na criação o Django passa o produto ainda não gravado (pk vazio), e
+        # não `None`: é o pk que diz se esta é a tela de criação.
+        if (
+            getattr(obj, "pk", None) is None
+            and inline.model is ProductVariant
+            and self.duplicate_source(request) is not None
+        ):
+            kwargs["product_options"] = self._duplicate_options(request)
+        return kwargs
+
+    def save_formset(self, request, form, formset, change):
+        """Ao gravar a cópia, as opções nascem no produto novo antes das variantes.
+
+        Etapa 3F. O produto acabou de ser gravado (`save_model`) e as variantes
+        ainda não: aqui as opções, os valores e as traduções da origem são
+        copiados para o produto novo (`copy_product_options`) e os mapas
+        entram nas linhas, para cada escolha ser religada à opção e ao valor
+        novos — nunca aos da origem. Tudo dentro da transação da tela do
+        admin: se qualquer coisa falhar, não sobra produto, opção nem variante.
+        """
+        if (
+            not change
+            and isinstance(formset, ProductVariantInlineFormSet)
+            and formset.product_options
+            and self.duplicate_source(request) is not None
+        ):
+            origem = self.duplicate_source(request)
+            mapas = copy_product_options(origem, form.instance)
+            for linha in formset.forms:
+                linha.option_maps = mapas
+            self.message_user(
+                request,
+                f"Opções adicionais copiadas de {origem.sku}: {len(mapas[0])} opção(ões) e "
+                f"{len(mapas[1])} valor(es), com as traduções e as escolhas de cada variante.",
+                messages.INFO,
+            )
+        super().save_formset(request, form, formset, change)
 
     # -- conteúdo -----------------------------------------------------------
 
@@ -1531,9 +1872,18 @@ class ProductAdmin(DuplicateAdminMixin, TranslatedSlugAdminMixin, AuditUserAdmin
         def texto(valor):
             return "" if valor is None else str(valor)
 
+        # As escolhas nas opções adicionais: vazio para a opção sem valor.
+        escolhas = {
+            option_field_name(option): ""
+            for option in ProductOption.objects.filter(product_id=variant.product_id)
+        }
+        for link in variant.option_values.all():
+            escolhas[f"{OPTION_FIELD_PREFIX}{link.option_id}"] = texto(link.value_id)
+
         return {
             "id": variant.pk,
             "fields": {
+                **escolhas,
                 "sku": variant.sku,
                 "sort_order": texto(variant.sort_order),
                 "is_active": variant.is_active,
@@ -1575,7 +1925,11 @@ class ProductAdmin(DuplicateAdminMixin, TranslatedSlugAdminMixin, AuditUserAdmin
         if variant_id:
             instance = get_object_or_404(ProductVariant, pk=variant_id, product=product)
 
-        form = ProductVariantModalForm(request.POST, instance=instance)
+        form = ProductVariantModalForm(
+            request.POST,
+            instance=instance,
+            product_options=list(product.options.prefetch_related("values")),
+        )
         form.instance.product = product
 
         if not form.is_valid():
@@ -1585,8 +1939,17 @@ class ProductAdmin(DuplicateAdminMixin, TranslatedSlugAdminMixin, AuditUserAdmin
             )
 
         criada = instance is None
-        variant = form.save()
+        try:
+            with transaction.atomic():
+                variant = form.save()
+        except ValidationError as erro:
+            # `set_option_values` recusou (combinação repetida com as escolhas):
+            # nada foi gravado, e o modal mostra o motivo.
+            return JsonResponse({"ok": False, "errors": _erros_por_campo(erro)}, status=400)
 
+        variant = (
+            ProductVariant.objects.prefetch_related(*variant_option_prefetches()).get(pk=variant.pk)
+        )
         return JsonResponse(
             {
                 "ok": True,
@@ -1635,6 +1998,137 @@ class ProductAdmin(DuplicateAdminMixin, TranslatedSlugAdminMixin, AuditUserAdmin
         variant.delete()
         return JsonResponse({"ok": True, "message": f"Variante {sku} excluída."})
 
+    # -- opções adicionais (etapa 3C) -----------------------------------------
+
+    def _options_for_sheet(self, product) -> list:
+        """As opções do produto para a seção da ficha: opção, valores e traduções.
+
+        Três consultas fixas (opções, traduções, valores com traduções), e o
+        template só percorre listas. As traduções vão como dicionário por
+        idioma, para os modais abrirem preenchidos sem outra consulta.
+        """
+        idiomas = option_translation_languages()
+
+        def traducoes(obj):
+            tabela = obj.translations_by_language()
+            return {code: (tabela[code].name if code in tabela else "") for code in idiomas}
+
+        opcoes = (
+            product.options.prefetch_related("translations", "values__translations")
+            .order_by("sort_order", "id")
+        )
+        return [
+            {
+                "option": option,
+                "translations": traducoes(option),
+                "values": [{"value": value, "translations": traducoes(value)} for value in option.values.all()],
+            }
+            for option in opcoes
+        ]
+
+    def _option_permission(self, request, product):
+        """Quem pode alterar o produto pode mexer nas opções dele."""
+        return self.has_change_permission(request, product)
+
+    @method_decorator(require_POST)
+    def option_save_view(self, request, product_id):
+        """Grava **uma** opção (e as traduções). Cria quando não vem `option_id`."""
+        product = get_object_or_404(Product, pk=product_id)
+        if not self._option_permission(request, product):
+            return JsonResponse({"ok": False, "detail": "Sem permissão."}, status=403)
+
+        option_id = request.POST.get("option_id") or ""
+        instance = get_object_or_404(ProductOption, pk=option_id, product=product) if option_id else None
+        form = ProductOptionModalForm(request.POST, instance=instance, product=product)
+        if not form.is_valid():
+            return JsonResponse({"ok": False, "errors": _erros_por_campo(form.errors)}, status=400)
+
+        criada = instance is None
+        with transaction.atomic():
+            option = form.save()
+        return JsonResponse(
+            {
+                "ok": True,
+                "created": criada,
+                "id": option.pk,
+                "message": f"Opção «{option.name}» " + ("criada." if criada else "atualizada."),
+            }
+        )
+
+    @method_decorator(require_POST)
+    def option_delete_view(self, request, product_id, option_id):
+        """Exclui uma opção — recusando, com mensagem, a que alguma variante usa."""
+        product = get_object_or_404(Product, pk=product_id)
+        if not self._option_permission(request, product):
+            return JsonResponse({"ok": False, "detail": "Sem permissão."}, status=403)
+        option = get_object_or_404(ProductOption, pk=option_id, product=product)
+        nome = option.name
+        try:
+            with transaction.atomic():
+                option.delete()
+        except (RestrictedError, ProtectedError):
+            return JsonResponse(
+                {
+                    "ok": False,
+                    "detail": (
+                        f"A opção «{nome}» está sendo usada por uma ou mais variantes e não "
+                        "pode ser removida. Tire-a das variantes primeiro."
+                    ),
+                },
+                status=400,
+            )
+        return JsonResponse({"ok": True, "message": f"Opção «{nome}» excluída."})
+
+    @method_decorator(require_POST)
+    def option_value_save_view(self, request, product_id, option_id):
+        """Grava **um** valor de uma opção do produto. Cria quando não vem `value_id`."""
+        product = get_object_or_404(Product, pk=product_id)
+        if not self._option_permission(request, product):
+            return JsonResponse({"ok": False, "detail": "Sem permissão."}, status=403)
+        option = get_object_or_404(ProductOption, pk=option_id, product=product)
+
+        value_id = request.POST.get("value_id") or ""
+        instance = get_object_or_404(ProductOptionValue, pk=value_id, option=option) if value_id else None
+        form = ProductOptionValueModalForm(request.POST, instance=instance, option=option)
+        if not form.is_valid():
+            return JsonResponse({"ok": False, "errors": _erros_por_campo(form.errors)}, status=400)
+
+        criado = instance is None
+        with transaction.atomic():
+            value = form.save()
+        return JsonResponse(
+            {
+                "ok": True,
+                "created": criado,
+                "id": value.pk,
+                "message": f"Valor «{value.name}» " + ("criado." if criado else "atualizado."),
+            }
+        )
+
+    @method_decorator(require_POST)
+    def option_value_delete_view(self, request, product_id, option_id, value_id):
+        product = get_object_or_404(Product, pk=product_id)
+        if not self._option_permission(request, product):
+            return JsonResponse({"ok": False, "detail": "Sem permissão."}, status=403)
+        option = get_object_or_404(ProductOption, pk=option_id, product=product)
+        value = get_object_or_404(ProductOptionValue, pk=value_id, option=option)
+        nome = value.name
+        try:
+            with transaction.atomic():
+                value.delete()
+        except (RestrictedError, ProtectedError):
+            return JsonResponse(
+                {
+                    "ok": False,
+                    "detail": (
+                        f"O valor «{nome}» está sendo usado por uma ou mais variantes e não "
+                        "pode ser removido. Troque o valor nas variantes primeiro."
+                    ),
+                },
+                status=400,
+            )
+        return JsonResponse({"ok": True, "message": f"Valor «{nome}» excluído."})
+
     def _page_layout(self, context):
         """As seções da página na ordem de `SECTION_ORDER`, numa lista só.
 
@@ -1677,7 +2171,14 @@ class ProductAdmin(DuplicateAdminMixin, TranslatedSlugAdminMixin, AuditUserAdmin
             por_modelo[formset.opts.model] = {"kind": "formset", "formset": formset}
 
         layout = []
+        opcoes_desenhadas = False
         for chave in SECTION_ORDER:
+            if chave == OPTIONS_SECTION:
+                # A seção das opções adicionais: nem fieldset nem inline —
+                # cards e modais próprios (`product/_options_section.html`).
+                layout.append({"kind": "options", "meta": SECTION_META.get(chave, {}), "index": None})
+                opcoes_desenhadas = True
+                continue
             item = por_nome.pop(chave, None) if isinstance(chave, str) else por_modelo.pop(chave, None)
             if item is not None:
                 item["meta"] = SECTION_META.get(chave, {})
@@ -1687,6 +2188,8 @@ class ProductAdmin(DuplicateAdminMixin, TranslatedSlugAdminMixin, AuditUserAdmin
         # ordem original — melhor no lugar errado do que invisível.
         layout.extend(item for item in por_nome.values())
         layout.extend(item for item in por_modelo.values())
+        if not opcoes_desenhadas:
+            layout.append({"kind": "options", "meta": SECTION_META.get(OPTIONS_SECTION, {}), "index": None})
 
         # A ficha: número, âncora e subtítulo de cada seção. A seção «apoiada»
         # (PALETA, dentro de CORES) não conta no número nem entra no índice.
@@ -1695,6 +2198,8 @@ class ProductAdmin(DuplicateAdminMixin, TranslatedSlugAdminMixin, AuditUserAdmin
             meta = item.get("meta") or {}
             if item["kind"] == "fieldset":
                 titulo, resto = split_title(item["fieldset"].name or "")
+            elif item["kind"] == "options":
+                titulo, resto = OPTIONS_SECTION, ""
             else:
                 titulo, resto = split_title(str(item["formset"].opts.verbose_name_plural))
             item["title"] = titulo
@@ -1705,11 +2210,12 @@ class ProductAdmin(DuplicateAdminMixin, TranslatedSlugAdminMixin, AuditUserAdmin
             item["nav"] = meta.get("nav", "")
             # O id do <h2>, para o `aria-labelledby` do fieldset — o mesmo que
             # o include do Django montaria (`fieldset-0-<índice>-heading`).
-            item["heading_id"] = (
-                f"fieldset-0-{item['index']}-heading"
-                if item["kind"] == "fieldset"
-                else f"{item['formset'].formset.prefix}-heading"
-            )
+            if item["kind"] == "fieldset":
+                item["heading_id"] = f"fieldset-0-{item['index']}-heading"
+            elif item["kind"] == "options":
+                item["heading_id"] = "options-heading"
+            else:
+                item["heading_id"] = f"{item['formset'].formset.prefix}-heading"
             if item["attached"]:
                 item["number"] = ""
             else:
@@ -1738,6 +2244,8 @@ class ProductAdmin(DuplicateAdminMixin, TranslatedSlugAdminMixin, AuditUserAdmin
         context["product_layout"] = self._page_layout(context)
         context["variant_modal_groups"] = VARIANT_MODAL_GROUPS
         context["variant_field_affix"] = VARIANT_FIELD_AFFIX
+        context["option_translation_languages"] = option_translation_languages()
+        context["product_options"] = []
         # A sugestão ao vivo só em produto NOVO (`product_sku_suggest.js`).
         if add:
             context["jd_sku_suggest_url"] = reverse("admin:catalog_product_sku_suggestion")
@@ -1745,6 +2253,15 @@ class ProductAdmin(DuplicateAdminMixin, TranslatedSlugAdminMixin, AuditUserAdmin
         original = context.get("original")
         editando = original is not None and original.pk
         context["jd_section_nav"] = self._section_nav(context["product_layout"], with_audit=bool(editando))
+        if add:
+            # Etapa 3F: na duplicação, a seção OPÇÕES ADICIONAIS diz o que vai
+            # acontecer ao salvar, em vez de «salve o produto primeiro».
+            origem = self.duplicate_source(request)
+            if origem is not None:
+                opcoes = self._duplicate_options(request)
+                context["jd_duplicate_source"] = origem
+                context["jd_duplicate_options"] = opcoes
+                context["jd_duplicate_values"] = sum(len(o.values.all()) for o in opcoes)
         if editando:
             context["audit_rows"] = [
                 ("Criado em", original.created_at),
@@ -1754,6 +2271,8 @@ class ProductAdmin(DuplicateAdminMixin, TranslatedSlugAdminMixin, AuditUserAdmin
             ]
             numeradas = [item for item in context["product_layout"] or () if not item.get("attached")]
             context["audit_section"] = {**AUDIT_META, "number": len(numeradas) + 1, "title": "AUDITORIA"}
+            # As opções adicionais, com valores e traduções, em três consultas.
+            context["product_options"] = self._options_for_sheet(original)
             # O cabeçalho da ficha e os atalhos: duplicar e ver na loja.
             context["variant_sku_next"] = sku_rules.suggest_variant_sku(original.sku)
             context["jd_view_url"] = original.get_absolute_url()
@@ -2002,7 +2521,9 @@ class ProductVariantAdmin(DuplicateAdminMixin):
         A coluna do produto imprime o nome traduzido; sem este prefetch, cada
         linha da lista custa uma consulta a mais.
         """
-        return super().get_queryset(request).prefetch_related("product__translations")
+        return super().get_queryset(request).prefetch_related(
+            "product__translations", *variant_option_prefetches()
+        )
 
     @admin.display(description="opção")
     def label_display(self, obj):

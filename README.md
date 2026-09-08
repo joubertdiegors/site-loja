@@ -572,6 +572,32 @@ telas estreitas — e cada opção do `<select>` de cor leva `data-hex`
 mesmo script abre a seção ao clicar no índice e esconde o limite de texto da
 personalização quando o tipo não aceita texto. O cadastro rápido não mudou.
 
+### Opções adicionais da variante (etapas 3B e 3C)
+
+Além de cor, tamanho e material, um produto pode ter quantos eixos precisar:
+`ProductOption` («Instalação», «Acabamento», «Modelo») com os seus
+`ProductOptionValue` («Mesa / Parede»), traduzidos pelo mecanismo de sempre
+(`ProductOptionTranslation`, `ProductOptionValueTranslation`; sem tradução, o
+nome interno em português). Cada variante escolhe no máximo um valor por opção
+em `ProductVariantOptionValue` (única por variante e opção; `RESTRICT` no que
+está em uso, para o produto inteiro ainda poder ser apagado). `label` acrescenta
+os valores na ordem das opções («Preto · 25 cm · PLA · Parede · Fosco»), a
+combinação repetida passa a comparar também as escolhas, e o pedido congela
+`options_snapshot` no idioma da compra. `variant_option_prefetches()` entra
+onde `label` é lido em lista. Migrations `catalog.0013` e `orders.0014`, só
+schema. Na ficha, a seção 7 «OPÇÕES ADICIONAIS» (cards com chips, modais na
+casca de sempre, endpoints sob a URL do produto) e, no modal da variante, um
+`<select>` por opção (`opt_<id>`, campos dinâmicos de `VariantSkuAutoMixin`,
+gravados por `set_option_values`). Produto novo cadastra as opções depois de
+salvo; a tela própria da variante não toca nelas (e recusa mover uma variante
+com escolhas para outro produto). Na loja (3D) cada opção vira um grupo de
+botões sob «Opções adicionais», o servidor revalida a combinação inteira no
+carrinho e as escolhas aparecem no carrinho e na gaveta. O pedido (3E) mostra
+`options_snapshot` no Admin, na conta do cliente e nos e-mails (HTML e texto),
+sempre do snapshot, nunca do catálogo de hoje. Duplicar um produto (3F) copia
+opções, valores, traduções e vínculos como registros novos
+(`copy_product_options`), religando cada variante copiada pelos mapas de ids.
+
 ### A composição da Home
 
 Desde a etapa 20 a Home é uma **lista de seções** (`home.HomeSection`), na

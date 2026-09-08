@@ -31,6 +31,8 @@ from apps.cart.cart import max_quantity_for
 from apps.catalog.models import (
     product_color_prefetches,
     product_description_prefetches,
+    variant_option_prefetches,
+    ProductOptionValue,
     Material,
     Product,
     ProductStatus,
@@ -461,12 +463,25 @@ class ProductDetailView(DetailView):
                 "media",
                 "category__translations",
                 *product_description_prefetches(),
+                # Etapa 3D: as opções adicionais do produto, com valores e
+                # traduções — os grupos de botões saem daqui, em três consultas.
+                "options__translations",
+                Prefetch(
+                    "options__values",
+                    queryset=ProductOptionValue.objects.prefetch_related("translations").order_by(
+                        "sort_order", "id"
+                    ),
+                ),
                 Prefetch(
                     "variants",
                     queryset=ProductVariant.objects.filter(is_active=True)
                     .select_related("color", "material")
                     .prefetch_related(
-                        "color__translations", "material__translations", "media"
+                        "color__translations",
+                        "material__translations",
+                        "media",
+                        # Etapa 3B: o `label` (seletor e payload) lê as opções.
+                        *variant_option_prefetches(),
                     )
                     .order_by("sort_order", "id"),
                 ),
@@ -483,7 +498,23 @@ class ProductDetailView(DetailView):
 
     # -- variantes ---------------------------------------------------------
 
-    def variant_options(self, variants):
+    @staticmethod
+    def option_key(option) -> str:
+        """A chave de um grupo/eixo de opção adicional: ``opt-<id>``.
+
+        É a mesma nos botões da página (``data-variant-group``), no payload
+        (``variant["opt-3"]``), na ficha técnica (``data-spec``) e no POST do
+        carrinho (``option_opt-3``): o JavaScript e o `AddToCartForm` casam a
+        escolha por ela.
+        """
+        return f"opt-{option.pk}"
+
+    @staticmethod
+    def variant_choices(variant) -> dict:
+        """``{option_id: ProductOptionValue}`` da variante, do prefetch."""
+        return {link.option_id: link.value for link in variant.option_values.all()}
+
+    def variant_options(self, variants, product=None):
         """Agrupa as variantes nos eixos que existirem: cor, tamanho, material.
 
         Um eixo só vira botões quando cumpre **duas** condições:
@@ -551,6 +582,28 @@ class ProductDetailView(DetailView):
                 }
             )
 
+        # Etapa 3D: as opções adicionais do produto («Instalação», «Acabamento»),
+        # na ordem cadastrada, com a MESMA regra dos eixos fixos: o grupo só
+        # existe quando varia e está preenchido em todas as variantes ativas.
+        # Os valores vêm na ordem da opção, e só os que alguma variante usa.
+        if product is not None:
+            escolhas = [self.variant_choices(variant) for variant in variants]
+            for option in product.options.all():
+                usados = {c[option.pk].pk for c in escolhas if option.pk in c}
+                if len(usados) > 1 and all(option.pk in c for c in escolhas):
+                    groups.append(
+                        {
+                            "key": self.option_key(option),
+                            "kind": "option",
+                            "label": option.display_name,
+                            "options": [
+                                {"value": str(value.pk), "label": value.display_name, "hex": ""}
+                                for value in option.values.all()
+                                if value.pk in usados
+                            ],
+                        }
+                    )
+
         return groups
 
     def variant_payload(self, product, variants):
@@ -560,8 +613,26 @@ class ProductDetailView(DetailView):
         prazo de produção e ficha técnica. Trocar de cor no seletor não pode
         deixar na tela o peso da outra.
         """
-        return [
-            {
+        options = list(product.options.all())
+
+        def option_entries(variant):
+            """``opt-<id>`` → id do valor (ou vazio) para cada opção do produto."""
+            escolhas = self.variant_choices(variant)
+            keys = {
+                self.option_key(option): (str(escolhas[option.pk].pk) if option.pk in escolhas else "")
+                for option in options
+            }
+            labels = {
+                self.option_key(option): (escolhas[option.pk].display_name if option.pk in escolhas else "")
+                for option in options
+            }
+            return keys, labels
+
+        def entry(variant):
+            keys, labels = option_entries(variant)
+            return {
+                **keys,
+                "optionLabels": labels,
                 "id": variant.pk,
                 "color": str(variant.color_id) if variant.color_id else "",
                 "size": variant.size,
@@ -600,8 +671,8 @@ class ProductDetailView(DetailView):
                 "mediaUrl": self.variant_media_url(variant),
                 "mediaAlt": self.variant_media_alt(variant, product),
             }
-            for variant in variants
-        ]
+
+        return [entry(variant) for variant in variants]
 
     def variant_media_url(self, variant) -> str:
         """URL da foto vinculada a esta variante, ou vazio."""
@@ -669,6 +740,17 @@ class ProductDetailView(DetailView):
         for chave, rotulo, valor, alguma_variante_tem in eixos:
             if valor or alguma_variante_tem:
                 rows.append((chave, rotulo, valor))
+
+        # Etapa 3D: uma linha por opção adicional que alguma variante use —
+        # «Instalação: Parede». A chave é a do grupo, e o JavaScript a acompanha.
+        escolhas = self.variant_choices(variant)
+        usadas = set()
+        for outra in variants:
+            usadas.update(self.variant_choices(outra))
+        for option in product.options.all():
+            if option.pk in usadas:
+                valor = escolhas[option.pk].display_name if option.pk in escolhas else ""
+                rows.append((self.option_key(option), option.display_name, valor))
 
         # Etapa 2B: a descrição da PEÇA — cores e composição — vem do produto e
         # não muda ao trocar de opção. A composição de um material só, igual ao
@@ -787,7 +869,7 @@ class ProductDetailView(DetailView):
                 # todas estiverem esgotadas, a primeira, para a página ainda
                 # ter preço e ficha ao anunciar que acabou.
                 "selected_variant": selected,
-                "variant_options": self.variant_options(variants),
+                "variant_options": self.variant_options(variants, product),
                 # Objeto puro: o template usa |json_script, que escapa com
                 # segurança. Passar a string pronta faria o Django escapar as
                 # aspas e o JSON chegaria quebrado no navegador.

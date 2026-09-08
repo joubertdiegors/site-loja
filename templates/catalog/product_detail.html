@@ -282,7 +282,15 @@ em vez de por descendência.
             {% endcomment %}
             <div class="product-opts" data-variant-groups hidden>
               {% for group in variant_options %}
-                <fieldset class="product-opt" data-variant-group="{{ group.key }}">
+                {% comment %}
+                  Etapa 3D: os grupos das opções adicionais vêm depois dos
+                  eixos fixos, com um título entre os dois — os botões são os
+                  mesmos, e o JavaScript não distingue um grupo do outro.
+                {% endcomment %}
+                {% ifchanged group.kind %}{% if group.kind == "option" %}
+                  <p class="product-opt-heading">{% translate "Opções adicionais" %}</p>
+                {% endif %}{% endifchanged %}
+                <fieldset class="product-opt" data-variant-group="{{ group.key }}"{% if group.kind %} data-variant-group-kind="{{ group.kind }}"{% endif %}>
                   <legend class="product-opt-label">
                     {{ group.label }}{% if group.key == "color" %}: <b data-variant-choice="color">{% if selected_variant.color_id %}{{ selected_variant.color.display_name }}{% endif %}</b>{% endif %}
                   </legend>

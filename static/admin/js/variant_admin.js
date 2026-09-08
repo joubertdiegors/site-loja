@@ -117,6 +117,16 @@
     CAMPOS.concat(["id", "DELETE"]).forEach(function (nome) {
       self.fields[nome] = element.querySelector('[name$="-' + nome + '"]');
     });
+    /* Etapa 3C: os <select> das opções adicionais (`opt_<id>`), um por opção
+       do produto. Entram no mesmo dicionário: Cancelar desfaz, o servidor
+       reescreve e o POST leva todos — sem lista fixa, porque a lista é do
+       produto, não do código. */
+    this.optionFields = [];
+    element.querySelectorAll("[data-variant-option]").forEach(function (select) {
+      var nome = select.getAttribute("data-variant-option");
+      self.fields[nome] = select;
+      self.optionFields.push(nome);
+    });
 
     /* A casca compartilhada (jd_modal.js) cuida de abrir, fechar, ESC, foco,
        trava de rolagem, desfazer no Cancelar e pintar erros por campo. Aqui
@@ -238,11 +248,16 @@
     var estoque = parseNumber(this.value("stock_quantity"));
     var peso = parseNumber(this.value("weight_grams"));
     var dias = parseNumber(this.value("production_lead_time_days"));
+    var self = this;
+    var opcoes = this.optionFields
+      .map(function (nome) { return self.label(nome); })
+      .filter(function (texto) { return !!texto; });
     return {
       sku: this.value("sku") || "(sem SKU)",
       color: this.label("color") || "—",
       size: this.value("size") || "—",
       material: this.label("material") || "—",
+      options: opcoes.length ? opcoes.join(" · ") : "—",
       weight: peso === null ? "—" : peso.toFixed(0) + " g",
       stock: estoque === null ? "—" : String(estoque),
       price: formatMoney(parseNumber(this.value("sale_price"))),
@@ -313,7 +328,7 @@
       dados.append("variant_id", this.variantId());
     }
     var self = this;
-    CAMPOS.forEach(function (nome) {
+    CAMPOS.concat(this.optionFields).forEach(function (nome) {
       var campo = self.fields[nome];
       if (!campo) {
         return;
@@ -451,7 +466,7 @@
   /* ---- A tabela ---------------------------------------------------------- */
 
   var COLUNAS = [
-    "sku", "color", "size", "material",
+    "sku", "color", "size", "material", "options",
     "weight", "stock", "price", "production", "status"
   ];
   var NUMERICAS = ["weight", "stock", "price", "production"];

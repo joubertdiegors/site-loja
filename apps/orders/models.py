@@ -836,7 +836,10 @@ class OrderItem(models.Model):
     # Snapshot — é daqui que toda tela lê.
     product_name = models.CharField("produto (snapshot)", max_length=200)
     sku = models.CharField("SKU (snapshot)", max_length=64, blank=True)
-    variant_label = models.CharField("opção (snapshot)", max_length=160, blank=True)
+    # 500 desde a etapa 3B: com as opções adicionais o rótulo cresce («Preto ·
+    # 25 cm · PLA · Parede · Fosco»), e um texto maior que o campo falha no
+    # PostgreSQL em vez de ser cortado. Nada é cortado ao gravar.
+    variant_label = models.CharField("opção (snapshot)", max_length=500, blank=True)
     color_name = models.CharField("cor", max_length=60, blank=True)
     size_name = models.CharField("tamanho", max_length=60, blank=True)
     material_name = models.CharField("material", max_length=80, blank=True)
@@ -848,6 +851,10 @@ class OrderItem(models.Model):
     materials_snapshot = models.CharField(
         "composição de materiais (snapshot)", max_length=255, blank=True, default=""
     )
+    # Etapa 3B: as opções adicionais da VARIANTE comprada, no idioma do cliente
+    # («Instalação: Parede · Acabamento: Fosco»). Texto sem limite: nunca é
+    # cortado. Pedidos anteriores ficam vazios e nunca são preenchidos.
+    options_snapshot = models.TextField("opções adicionais (snapshot)", blank=True, default="")
 
     quantity = models.PositiveIntegerField("quantidade", default=1, validators=[MinValueValidator(1)])
     unit_price = models.DecimalField("preço unitário", max_digits=10, decimal_places=2, default=ZERO)
@@ -904,6 +911,23 @@ class OrderItem(models.Model):
         if self.variant_label:
             return f"{self.product_name} — {self.variant_label}"
         return self.product_name
+
+    @property
+    def options_lines(self) -> list[str]:
+        """O snapshot das opções, uma por linha: ``["Instalação: Parede", "Acabamento: Fosco"]``.
+
+        Etapa 3E. Lê **só** o texto gravado na compra — no idioma em que o
+        cliente comprou — e nunca o produto, a opção ou o valor de hoje. Vazio
+        nos itens sem opção e nos pedidos anteriores às opções adicionais, que
+        nunca são preenchidos retroativamente.
+        """
+        from apps.catalog.models import OPTIONS_TEXT_SEPARATOR
+
+        return [
+            parte.strip()
+            for parte in (self.options_snapshot or "").split(OPTIONS_TEXT_SEPARATOR)
+            if parte.strip()
+        ]
 
     @property
     def total_weight_grams(self) -> int:

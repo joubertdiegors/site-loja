@@ -247,6 +247,9 @@ def _item_from_line(order: Order, line) -> OrderItem:
         # cadastro depois não muda o que o cliente comprou.
         colors_snapshot=product.colors_text[:255],
         materials_snapshot=product.materials_text[:255],
+        # Etapa 3B: as escolhas da variante nas opções adicionais, congeladas
+        # com os nomes que o cliente leu. Renomear a opção depois não muda isto.
+        options_snapshot=variant.options_text if variant is not None else "",
         quantity=line.quantity,
         unit_price=taxes.money(line.unit_price),
         total=taxes.money(line.total),

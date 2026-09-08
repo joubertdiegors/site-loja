@@ -68,6 +68,10 @@ internas ficam no admin.
                     {{ item.variant_label }}
                   </p>
                 {% endif %}
+                {# Etapa 3E: as opções adicionais, do snapshot gravado na compra. #}
+                {% for linha in item.options_lines %}
+                  <p class="text-[12px] text-ink-soft">{{ linha }}</p>
+                {% endfor %}
                 {% if item.sku %}
                   <p class="font-mono text-[10.5px] text-ink-muted">{{ item.sku }}</p>
                 {% endif %}
