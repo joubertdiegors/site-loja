@@ -172,8 +172,7 @@ Espera: `addresses`, `selected_address`, `draft`, `form`.
     <div id="checkout-summary" hx-swap-oob="true">
       {% include "orders/_summary.html" %}
     </div>
-    <span id="checkout-cta-total" hx-swap-oob="true">
-      {% blocktranslate with total=draft.total|floatformat:2 %}Pagar €&nbsp;{{ total }}{% endblocktranslate %}
-    </span>
+    {# Etapa 4A: o botão inteiro — estado e texto — e não só o valor. #}
+    {% include "orders/_checkout_submit.html" with oob=True %}
   {% endif %}
 </div>

@@ -1,0 +1,28 @@
+{% load i18n jdprint %}
+{% comment %}
+O botão de finalizar. Mora num arquivo próprio porque aparece em dois lugares:
+
+* na tela inteira (`checkout.html`);
+* na resposta parcial do HTMX (`_delivery.html`, com `oob=True`), trocado
+  **fora de banda** pelo `id`.
+
+Etapa 4A. Antes só o texto do valor voltava na troca; o `disabled`, decidido
+no primeiro desenho, ficava. Quem abria o checkout com um endereço sem
+tarifa e trocava para um com tarifa via os métodos aparecerem — e o botão
+continuar morto. Agora o botão inteiro acompanha o endereço: estado e texto
+saem do mesmo `draft` que desenhou as opções de entrega.
+
+Espera: `draft`, `problems`, `payment_available`, `payment_provider`.
+{% endcomment %}
+<button type="submit" id="checkout-submit" class="btn-primary btn-lg mt-5 w-full"
+        {% if oob %}hx-swap-oob="true"{% endif %}
+        {% if not draft.has_shipping or problems or not payment_available %}disabled{% endif %}>
+  {% icon "credit-card" "h-4 w-4" %}
+  <span id="checkout-cta-total">
+    {% if payment_provider == "transfer" %}
+      {% blocktranslate with total=draft.total|floatformat:2 %}Confirmar pedido · €&nbsp;{{ total }}{% endblocktranslate %}
+    {% else %}
+      {% blocktranslate with total=draft.total|floatformat:2 %}Pagar €&nbsp;{{ total }}{% endblocktranslate %}
+    {% endif %}
+  </span>
+</button>

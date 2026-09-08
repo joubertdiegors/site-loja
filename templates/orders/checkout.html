@@ -178,21 +178,12 @@ com o resumo antes do botão de pagar — é o que o cliente confere por último
                   </p>
                 {% endif %}
 
-                <button type="submit" class="btn-primary btn-lg mt-5 w-full"
-                        {% if not draft.has_shipping or problems or not payment_available %}disabled{% endif %}>
-                  {% icon "credit-card" "h-4 w-4" %}
-                  {% comment %}
-                    O valor mora fora do bloco que o HTMX troca; por isso ele tem
-                    id próprio e volta como troca fora de banda (ver _delivery).
-                  {% endcomment %}
-                  <span id="checkout-cta-total">
-                    {% if payment_provider == "transfer" %}
-                      {% blocktranslate with total=draft.total|floatformat:2 %}Confirmar pedido · €&nbsp;{{ total }}{% endblocktranslate %}
-                    {% else %}
-                      {% blocktranslate with total=draft.total|floatformat:2 %}Pagar €&nbsp;{{ total }}{% endblocktranslate %}
-                    {% endif %}
-                  </span>
-                </button>
+                {% comment %}
+                  O botão mora fora do bloco que o HTMX troca; por isso ele
+                  tem id próprio e volta inteiro, fora de banda, na resposta
+                  parcial (ver _delivery e _checkout_submit).
+                {% endcomment %}
+                {% include "orders/_checkout_submit.html" %}
 
                 <p class="mt-3 text-center font-mono text-[10.5px] uppercase tracking-label text-ink-muted">
                   {% if payment_provider == "transfer" %}
