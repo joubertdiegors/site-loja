@@ -11,8 +11,8 @@ from django.contrib import admin, messages
 from django.contrib.admin.widgets import RelatedFieldWidgetWrapper
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
-from django.db.models import ProtectedError, RestrictedError
-from django.http import HttpResponseRedirect, JsonResponse
+from django.db.models import ProtectedError, Q, RestrictedError
+from django.http import Http404, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.urls import path, reverse
 from django.utils.decorators import method_decorator
@@ -43,7 +43,9 @@ from apps.catalog.models import (
     ProductStatus,
     ProductTranslation,
     ProductVariant,
+    copy_product_content,
     copy_product_options,
+    product_content_copy_plan,
     variant_option_prefetches,
 )
 from apps.categories.models import Category
@@ -53,6 +55,9 @@ from apps.core.admin_mixins import (
     TranslatedSlugAdminMixin,
 )
 from apps.core.constants import DEFAULT_LANGUAGE, Language
+from apps.core.languages import active_languages
+from apps.core.richtext import sanitize_rich_text
+from apps.core.widgets import RichTextWidget
 from apps.core.i18n import normalize_language
 from apps.core.models import SiteLanguage
 from apps.core.utils import unique_slugify
@@ -126,8 +131,72 @@ def translations_column(obj):
     )
 
 
-class MaterialTranslationInline(NameTranslationInline):
+class MaterialTranslationForm(forms.ModelForm):
+    """Nome e descrição do material em um idioma.
+
+    A descrição é HTML: ela chega do editor e sai daqui **limpa**, pela lista
+    de permissões de `apps.core.richtext`. Gravar já sanitizado é o que
+    permite a página do produto desenhar o conteúdo sem confiar em quem o
+    escreveu — e a limpeza acontece de novo na hora de exibir, porque o banco
+    também recebe conteúdo de importação e de `shell`.
+    """
+
+    class Meta:
+        model = MaterialTranslation
+        fields = ("language", "name", "description")
+        widgets = {"description": RichTextWidget()}
+
+    def clean_description(self):
+        return sanitize_rich_text(self.cleaned_data.get("description") or "")
+
+
+class MaterialTranslationInline(admin.StackedInline):
+    """As traduções do material, uma por idioma — com a descrição que o cliente lê.
+
+    Empilhado, e não em tabela como o de cor: o editor de texto rico não cabe
+    numa célula. A mecânica é a mesma de sempre — uma linha por idioma, nenhum
+    campo `descricao_fr` no modelo — e as linhas em branco seguem os idiomas
+    que a loja oferece **hoje** (`SiteLanguage`), então ligar um idioma novo o
+    faz aparecer aqui sem tocar em código.
+    """
+
     model = MaterialTranslation
+    form = MaterialTranslationForm
+    extra = 0
+    fields = ("language", "name", "description")
+    verbose_name = "tradução"
+    verbose_name_plural = (
+        "TRADUÇÕES — o nome e a descrição que o cliente lê na página do produto. "
+        "Sem o idioma cadastrado, a loja mostra o português."
+    )
+
+    def _missing_languages(self, obj) -> list:
+        """Idiomas ativos da loja que este material ainda não tem."""
+        existentes = set(obj.translations.values_list("language", flat=True)) if obj else set()
+        codigos = []
+        for language in active_languages():
+            codigo = normalize_language(language.code)
+            if codigo not in existentes and codigo not in codigos:
+                codigos.append(codigo)
+        return codigos
+
+    def get_extra(self, request, obj=None, **kwargs):
+        return len(self._missing_languages(obj))
+
+    def get_formset(self, request, obj=None, **kwargs):
+        """Pré-seleciona, em cada linha vazia, um idioma que falta."""
+        formset = super().get_formset(request, obj, **kwargs)
+        faltando = self._missing_languages(obj)
+
+        class Formset(formset):
+            def _construct_form(self, index, **form_kwargs):
+                form = super()._construct_form(index, **form_kwargs)
+                vazio = index - self.initial_form_count()
+                if 0 <= vazio < len(faltando):
+                    form.fields["language"].initial = faltando[vazio]
+                return form
+
+        return Formset
 
 
 @admin.register(Material)
@@ -145,7 +214,7 @@ class MaterialAdmin(DuplicateAdminMixin):
     duplicate_inlines = {MaterialTranslation: ()}
 
     inlines = [MaterialTranslationInline]
-    list_display = ("name", "translations_display", "slug", "description", "is_active")
+    list_display = ("name", "translations_display", "descriptions_display", "slug", "is_active")
     list_filter = ("is_active",)
     search_fields = ("name", "slug", "translations__name")
     prepopulated_fields = {"slug": ("name",)}
@@ -160,6 +229,22 @@ class MaterialAdmin(DuplicateAdminMixin):
     @admin.display(description="traduções")
     def translations_display(self, obj):
         return translations_column(obj)
+
+    @admin.display(description="descrição")
+    def descriptions_display(self, obj):
+        """Em quais idiomas a descrição já foi escrita.
+
+        O nome é obrigatório e quase sempre está lá; a descrição é o trabalho
+        de verdade, e é ela que falta. A coluna mostra onde.
+        """
+        com_texto = sorted(
+            t.language.upper() for t in obj.translations.all() if (t.description or "").strip()
+        )
+        if not com_texto:
+            # `format_html` exige ao menos um argumento no Django 6; o traço
+            # vai como valor, e não embutido na string.
+            return format_html('<span style="color:#b42318">{}</span>', "—")
+        return format_html('<span style="color:#1a7f37">{}</span>', " · ".join(com_texto))
 
 
 class ColorTranslationInline(NameTranslationInline):
@@ -1526,6 +1611,22 @@ class ProductAdmin(DuplicateAdminMixin, TranslatedSlugAdminMixin, AuditUserAdmin
                 self.admin_site.admin_view(self.content_delete_view),
                 name="catalog_product_content_delete",
             ),
+            # «Copiar de…» (etapa 4C.2): procurar a origem, ver o plano, copiar.
+            path(
+                "<int:product_id>/conteudo/copiar/buscar/",
+                self.admin_site.admin_view(self.content_copy_search_view),
+                name="catalog_product_content_copy_search",
+            ),
+            path(
+                "<int:product_id>/conteudo/copiar/<int:source_id>/plano/",
+                self.admin_site.admin_view(self.content_copy_plan_view),
+                name="catalog_product_content_copy_plan",
+            ),
+            path(
+                "<int:product_id>/conteudo/copiar/",
+                self.admin_site.admin_view(self.content_copy_view),
+                name="catalog_product_content_copy",
+            ),
             # Opções adicionais (etapa 3C): opção e valor, gravar e excluir.
             path(
                 "<int:product_id>/opcao/gravar/",
@@ -1817,6 +1918,144 @@ class ProductAdmin(DuplicateAdminMixin, TranslatedSlugAdminMixin, AuditUserAdmin
                 **self._content_payload(translation),
             }
         )
+
+    # -- «Copiar de…» (etapa 4C.2) -----------------------------------------
+    #
+    # Três endpoints pequenos em vez de um grande: procurar, ver o que vai
+    # acontecer, e só então copiar. A confirmação precisa do plano, e o plano
+    # precisa da origem — separá-los deixa cada resposta com uma pergunta só.
+
+    def _copy_source(self, request, product, source_id):
+        """O produto de origem, ou 404.
+
+        Procurado dentro do `get_queryset` do usuário: um id de produto que
+        ele não enxerga não vira origem, mesmo digitado na URL. E a origem
+        nunca é o próprio destino — copiar de si mesmo não é uma operação.
+        """
+        if str(source_id) == str(product.pk):
+            raise Http404("A origem não pode ser o próprio produto.")
+        return get_object_or_404(self.get_queryset(request), pk=source_id)
+
+    def _copy_permission(self, request, product) -> bool:
+        """Quem pode **alterar o destino** pode copiar para ele."""
+        return self.has_change_permission(request, product)
+
+    def content_copy_search_view(self, request, product_id):
+        """Procura o produto de origem por nome ou SKU.
+
+        Lista curta e do servidor: o Admin de uma loja com milhares de
+        produtos não pode mandar todos para o navegador só para preencher um
+        `<select>`. Sem busca, devolve os últimos alterados — é a lista mais
+        provável de conter o irmão que acabou de ser cadastrado.
+        """
+        product = get_object_or_404(Product, pk=product_id)
+        if not self._copy_permission(request, product):
+            return JsonResponse({"ok": False, "detail": "Sem permissão."}, status=403)
+
+        termo = (request.GET.get("q") or "").strip()
+        produtos = (
+            self.get_queryset(request)
+            .exclude(pk=product.pk)
+            .select_related("category")
+            .prefetch_related("translations", "category__translations")
+        )
+        if termo:
+            produtos = produtos.filter(
+                Q(sku__icontains=termo) | Q(translations__name__icontains=termo)
+            ).distinct()
+        produtos = produtos.order_by("-updated_at")[:20]
+
+        return JsonResponse(
+            {
+                "ok": True,
+                "query": termo,
+                "results": [
+                    {
+                        "id": item.pk,
+                        "name": item.display_name,
+                        "sku": item.sku,
+                        "category": item.category.name if item.category_id else "",
+                        "languages": sorted(
+                            t.language.upper() for t in item.translations.all()
+                        ),
+                    }
+                    for item in produtos
+                ],
+            }
+        )
+
+    def content_copy_plan_view(self, request, product_id, source_id):
+        """O que a cópia faria, idioma a idioma — para a tela confirmar."""
+        product = get_object_or_404(Product, pk=product_id)
+        if not self._copy_permission(request, product):
+            return JsonResponse({"ok": False, "detail": "Sem permissão."}, status=403)
+        origem = self._copy_source(request, product, source_id)
+
+        plano = product_content_copy_plan(origem, product)
+        rotulo = dict(Language.choices)
+        return JsonResponse(
+            {
+                "ok": True,
+                "source": {"id": origem.pk, "name": origem.display_name, "sku": origem.sku},
+                "target": {"id": product.pk, "name": product.display_name, "sku": product.sku},
+                "plan": {
+                    chave: [
+                        {"code": code, "label": rotulo.get(code, code.upper())}
+                        for code in plano[chave]
+                    ]
+                    for chave in ("replace", "create", "keep")
+                },
+                "empty": not (plano["replace"] or plano["create"]),
+            }
+        )
+
+    @method_decorator(require_POST)
+    def content_copy_view(self, request, product_id):
+        """Executa a cópia. Só aqui alguma coisa é gravada."""
+        product = get_object_or_404(Product, pk=product_id)
+        if not self._copy_permission(request, product):
+            return JsonResponse({"ok": False, "detail": "Sem permissão."}, status=403)
+
+        source_id = (request.POST.get("source_id") or "").strip()
+        if not source_id.isdigit():
+            return JsonResponse(
+                {"ok": False, "detail": "Escolha o produto de origem."}, status=400
+            )
+        origem = self._copy_source(request, product, source_id)
+
+        plano = copy_product_content(origem, product)
+        copiadas = len(plano["replace"]) + len(plano["create"])
+        if not copiadas:
+            return JsonResponse(
+                {
+                    "ok": False,
+                    "detail": (
+                        f"«{origem.display_name}» não tem conteúdo cadastrado para copiar."
+                    ),
+                },
+                status=400,
+            )
+
+        # O mesmo histórico que o resto do Admin usa (`LogEntry`), e não um
+        # registro paralelo: a operação aparece em "Histórico" do produto.
+        mensagem = (
+            f"Descrições copiadas de {origem.sku} — {origem.display_name}: "
+            f"{copiadas} tradução(ões)."
+        )
+        if plano["keep"]:
+            mensagem += f" {len(plano['keep'])} preservada(s)."
+        self.log_change(request, product, mensagem)
+
+        aviso = (
+            f"Descrições copiadas com sucesso de «{origem.display_name}». "
+            f"{copiadas} tradução(ões) copiada(s)."
+        )
+        if plano["keep"]:
+            aviso += (
+                f" {len(plano['keep'])} tradução(ões) existente(s) preservada(s), "
+                "porque a origem não tem esse idioma."
+            )
+        return JsonResponse({"ok": True, "message": aviso, "plan": plano, "copied": copiadas})
 
     @method_decorator(require_POST)
     def content_delete_view(self, request, product_id, translation_id):

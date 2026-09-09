@@ -3957,6 +3957,104 @@
     white-space: pre-line;
   }
 
+  /* ---- 6.1 A descrição do material (etapa 4C.3) ------------------------
+     O texto vem do cadastro do material, escrito num editor rico, e é o
+     mesmo para todos os produtos daquele material. A aparência é a do
+     acordeão: mesma família, mesmo corpo, mesma cor de texto — o que muda é
+     a hierarquia interna, que o administrador cria com subtítulos e listas. */
+
+  .product-material + .product-material {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid var(--color-surface-line);
+  }
+
+  .product-material-name {
+    margin: 0 0 8px;
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 15px;
+    line-height: 1.4;
+    color: var(--color-ink);
+  }
+
+  .product-rich {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 15px;
+    line-height: 1.6;
+    color: var(--color-ink-soft);
+  }
+
+  .product-rich > :first-child {
+    margin-top: 0;
+  }
+
+  .product-rich > :last-child {
+    margin-bottom: 0;
+  }
+
+  .product-rich p {
+    margin: 0 0 10px;
+  }
+
+  /* Os subtítulos que o administrador escreve dentro do texto («LIMPEZA»,
+     «CALOR»). Menores que o nome do material: são seções de dentro dele. */
+  .product-rich h2,
+  .product-rich h3,
+  .product-rich h4 {
+    margin: 16px 0 6px;
+    font-family: var(--font-sans);
+    font-weight: 800;
+    line-height: 1.35;
+    color: var(--color-ink);
+  }
+
+  .product-rich h2 {
+    font-size: 14px;
+  }
+
+  .product-rich h3,
+  .product-rich h4 {
+    font-size: 13.5px;
+  }
+
+  .product-rich ul,
+  .product-rich ol {
+    margin: 0 0 10px;
+    padding-left: 20px;
+  }
+
+  .product-rich ul {
+    list-style: disc;
+  }
+
+  .product-rich ol {
+    list-style: decimal;
+  }
+
+  .product-rich li {
+    margin: 3px 0;
+  }
+
+  .product-rich strong,
+  .product-rich b {
+    font-weight: 800;
+    color: var(--color-ink);
+  }
+
+  .product-rich a {
+    color: var(--color-brand-700);
+    text-decoration: underline;
+  }
+
+  .product-rich blockquote {
+    margin: 0 0 10px;
+    padding-left: 12px;
+    border-left: 3px solid var(--color-surface-line);
+    color: var(--color-ink-muted);
+  }
+
   .product-specs {
     display: flex;
     flex-direction: column;

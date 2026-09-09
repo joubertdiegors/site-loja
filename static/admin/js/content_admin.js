@@ -402,9 +402,299 @@
     this.refreshEmptyNote();
   };
 
+  /* ---- «Copiar de…» (etapa 4C.2) ----------------------------------------
+
+     Traz os textos de outro produto para este, idioma a idioma. Duas etapas
+     na mesma casca de modal: procurar a origem e confirmar o que vai
+     acontecer. Nada é gravado antes do segundo passo.
+
+     A busca é do servidor, com espera: uma loja com milhares de produtos não
+     manda todos para o navegador, e uma requisição por tecla digitada seria
+     uma consulta por tecla no banco.
+
+     Depois de copiar, a página recarrega — a tabela de idiomas e os
+     formulários do formset precisam nascer com o que foi gravado. Por isso a
+     tela avisa e **impede** a cópia quando há alteração não salva no
+     formulário do produto: recarregar perderia o que a pessoa digitou. */
+
+  function CopyPanel(root, table) {
+    this.root = root;
+    this.table = table;
+    this.element = root.querySelector("[data-copy-modal]");
+    if (!this.element || !window.JDModal) {
+      return;
+    }
+    this.shell = new window.JDModal(this.element, {});
+    this.urls = {
+      search: root.getAttribute("data-copy-search-url") || "",
+      plan: root.getAttribute("data-copy-plan-url") || "",
+      copy: root.getAttribute("data-copy-url") || ""
+    };
+    this.alvo = root.getAttribute("data-copy-target") || "";
+    this.campoBusca = this.element.querySelector("[data-copy-search]");
+    this.resultados = this.element.querySelector("[data-copy-results]");
+    this.status = this.element.querySelector("[data-copy-status]");
+    this.passoBusca = this.element.querySelector('[data-copy-step="search"]');
+    this.passoConfirma = this.element.querySelector('[data-copy-step="confirm"]');
+    this.resumo = this.element.querySelector("[data-copy-summary]");
+    this.plano = this.element.querySelector("[data-copy-plan]");
+    this.aviso = this.element.querySelector("[data-copy-dirty]");
+    this.botaoVoltar = this.element.querySelector("[data-copy-back]");
+    this.botaoConfirmar = this.element.querySelector("[data-copy-confirm]");
+    this.escolhido = null;
+    this.timer = null;
+    /* Fotografia do formulário do produto ao abrir a página: é com ela que se
+       sabe, na hora de copiar, se há coisa não salva para não perder. */
+    this.form = root.closest("form");
+    this.limpo = this.snapshot();
+  }
+
+  CopyPanel.prototype.snapshot = function () {
+    if (!this.form) {
+      return "";
+    }
+    try {
+      return new URLSearchParams(new FormData(this.form)).toString();
+    } catch (erro) {
+      return "";
+    }
+  };
+
+  CopyPanel.prototype.sujo = function () {
+    return this.form ? this.snapshot() !== this.limpo : false;
+  };
+
+  CopyPanel.prototype.mostrarPasso = function (nome) {
+    var busca = nome === "search";
+    this.passoBusca.hidden = !busca;
+    this.passoConfirma.hidden = busca;
+    this.botaoVoltar.hidden = busca;
+    this.botaoConfirmar.hidden = busca;
+  };
+
+  CopyPanel.prototype.open = function (opener) {
+    this.escolhido = null;
+    this.mostrarPasso("search");
+    this.resultados.innerHTML = "";
+    if (this.campoBusca) {
+      this.campoBusca.value = "";
+    }
+    this.shell.open(opener);
+    this.buscar("");
+  };
+
+  CopyPanel.prototype.dizer = function (texto) {
+    if (this.status) {
+      this.status.textContent = texto || "";
+    }
+  };
+
+  CopyPanel.prototype.buscar = function (termo) {
+    var self = this;
+    this.dizer("Procurando…");
+    fetch(this.urls.search + "?q=" + encodeURIComponent(termo), {
+      credentials: "same-origin",
+      headers: { "X-Requested-With": "XMLHttpRequest" }
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (dados) {
+        if (!dados.ok) {
+          self.dizer(dados.detail || "Não foi possível procurar.");
+          return;
+        }
+        self.desenhar(dados.results, termo);
+      })
+      .catch(function () {
+        self.dizer("Não foi possível falar com o servidor.");
+      });
+  };
+
+  CopyPanel.prototype.desenhar = function (itens, termo) {
+    var self = this;
+    this.resultados.innerHTML = "";
+    if (!itens.length) {
+      this.dizer(termo ? "Nenhum produto encontrado." : "Nenhum outro produto cadastrado.");
+      return;
+    }
+    this.dizer(termo ? itens.length + " produto(s) encontrado(s)." : "Alterados recentemente:");
+
+    itens.forEach(function (item) {
+      var linha = document.createElement("div");
+      linha.className = "jd-copy-row";
+
+      var texto = document.createElement("div");
+      texto.className = "jd-copy-info";
+
+      var nome = document.createElement("b");
+      nome.textContent = item.name;
+      texto.appendChild(nome);
+
+      var meta = document.createElement("span");
+      meta.className = "jd-copy-meta";
+      var partes = [item.sku];
+      if (item.category) {
+        partes.push(item.category);
+      }
+      if (item.languages && item.languages.length) {
+        partes.push(item.languages.join(" · "));
+      }
+      meta.textContent = partes.join(" — ");
+      texto.appendChild(meta);
+
+      var botao = document.createElement("button");
+      botao.type = "button";
+      botao.className = "jd-copy-pick";
+      botao.textContent = "Selecionar";
+      botao.addEventListener("click", function () {
+        self.escolher(item);
+      });
+
+      linha.appendChild(texto);
+      linha.appendChild(botao);
+      self.resultados.appendChild(linha);
+    });
+  };
+
+  CopyPanel.prototype.escolher = function (item) {
+    var self = this;
+    this.escolhido = item;
+    this.shell.clearErrors();
+    fetch(this.urls.plan.replace(/\/0\/plano\/$/, "/" + item.id + "/plano/"), {
+      credentials: "same-origin",
+      headers: { "X-Requested-With": "XMLHttpRequest" }
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (dados) {
+        if (!dados.ok) {
+          self.shell.showErrors(null, dados.detail || "Não foi possível ler o produto.");
+          return;
+        }
+        self.confirmar(dados);
+      })
+      .catch(function () {
+        self.shell.showErrors(null, "Não foi possível falar com o servidor.");
+      });
+  };
+
+  CopyPanel.prototype.confirmar = function (dados) {
+    this.resumo.innerHTML = "";
+    this.resumo.appendChild(document.createTextNode("Você está prestes a copiar as descrições de "));
+    var origem = document.createElement("b");
+    origem.textContent = dados.source.name;
+    this.resumo.appendChild(origem);
+    this.resumo.appendChild(document.createTextNode(" para "));
+    var destino = document.createElement("b");
+    destino.textContent = dados.target.name;
+    this.resumo.appendChild(destino);
+    this.resumo.appendChild(document.createTextNode(". As traduções são copiadas uma a uma, por idioma."));
+
+    this.plano.innerHTML = "";
+    var self = this;
+    var linhas = [
+      ["replace", "serão substituída(s)"],
+      ["create", "será(ão) criada(s)"],
+      ["keep", "existente(s) não será(ão) alterada(s), porque a origem não tem esse idioma"]
+    ];
+    linhas.forEach(function (par) {
+      var lista = dados.plan[par[0]] || [];
+      if (!lista.length) {
+        return;
+      }
+      var item = document.createElement("p");
+      item.className = "jd-copy-plan-line jd-copy-" + par[0];
+      var forte = document.createElement("b");
+      forte.textContent = lista.length + " tradução(ões) ";
+      item.appendChild(forte);
+      item.appendChild(document.createTextNode(par[1] + ": " + lista.map(function (l) { return l.label; }).join(", ")));
+      self.plano.appendChild(item);
+    });
+
+    var sujo = this.sujo();
+    this.aviso.hidden = !sujo;
+    this.botaoConfirmar.disabled = sujo || dados.empty;
+    if (dados.empty) {
+      this.shell.showErrors(null, "Este produto de origem não tem conteúdo cadastrado.");
+    }
+    this.mostrarPasso("confirm");
+  };
+
+  CopyPanel.prototype.copiar = function () {
+    var self = this;
+    if (!this.escolhido || this.botaoConfirmar.disabled) {
+      return;
+    }
+    this.botaoConfirmar.disabled = true;
+    var dados = new FormData();
+    dados.append("source_id", String(this.escolhido.id));
+    this.shell
+      .post(this.urls.copy, dados)
+      .then(function (r) {
+        if (!r.dados.ok) {
+          self.shell.showErrors(null, r.dados.detail || "Não foi possível copiar.");
+          self.botaoConfirmar.disabled = false;
+          return;
+        }
+        self.shell.snapshot = null;
+        self.table.flash(r.dados.message, true);
+        self.shell.close();
+        /* A tabela e os formulários do formset precisam nascer com o que foi
+           gravado — a mesma recarga que criar e remover idioma já fazem. */
+        window.setTimeout(function () {
+          window.location.reload();
+        }, 900);
+      })
+      .catch(function () {
+        self.shell.showErrors(null, "Não foi possível falar com o servidor.");
+        self.botaoConfirmar.disabled = false;
+      });
+  };
+
+  CopyPanel.prototype.start = function () {
+    if (!this.element) {
+      return;
+    }
+    var self = this;
+    var abrir = this.root.querySelector("[data-copy-open]");
+    if (abrir) {
+      abrir.addEventListener("click", function () {
+        self.open(abrir);
+      });
+    }
+    this.element.querySelectorAll("[data-copy-cancel]").forEach(function (botao) {
+      botao.addEventListener("click", function () {
+        self.shell.close();
+      });
+    });
+    this.botaoVoltar.addEventListener("click", function () {
+      self.shell.clearErrors();
+      self.mostrarPasso("search");
+    });
+    this.botaoConfirmar.addEventListener("click", function () {
+      self.copiar();
+    });
+    if (this.campoBusca) {
+      this.campoBusca.addEventListener("input", function () {
+        window.clearTimeout(self.timer);
+        var termo = self.campoBusca.value;
+        self.timer = window.setTimeout(function () {
+          self.buscar(termo);
+        }, 250);
+      });
+      this.campoBusca.addEventListener("keydown", function (evento) {
+        if (evento.key === "Enter") {
+          evento.preventDefault();  /* Enter aqui não envia o produto */
+          window.clearTimeout(self.timer);
+          self.buscar(self.campoBusca.value);
+        }
+      });
+    }
+  };
+
   document.addEventListener("DOMContentLoaded", function () {
     document.querySelectorAll("[data-content-inline]").forEach(function (root) {
-      new ContentTable(root).start();
+      var tabela = new ContentTable(root);
+      tabela.start();
+      new CopyPanel(root, tabela).start();
     });
   });
 })();

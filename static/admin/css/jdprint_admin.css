@@ -1866,3 +1866,128 @@ details.jd-row-menu summary::-webkit-details-marker {
     margin: 8px 0 0;
   }
 }
+
+/* ---- «Copiar de…» no CONTEÚDO do produto (etapa 4C.2) --------------------
+   Modal de duas etapas na casca de sempre (`.jd-modal*`): procurar a origem e
+   confirmar o que acontece com cada idioma. As medidas seguem as dos outros
+   modais desta tela; o que é novo aqui é a lista de resultados. */
+
+.jd-modal-dialog.jd-copy {
+  max-width: 640px;
+}
+
+.jd-copy-results {
+  margin-top: 8px;
+  max-height: 20rem;
+  overflow-y: auto;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+}
+
+.jd-copy-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+}
+
+.jd-copy-row + .jd-copy-row {
+  border-top: 1px solid var(--border-color);
+}
+
+.jd-copy-row:hover {
+  background: var(--darkened-bg, #f8f8f8);
+}
+
+.jd-copy-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.jd-copy-info b {
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.jd-copy-meta {
+  font-size: 11.5px;
+  color: var(--body-quiet-color);
+  overflow-wrap: anywhere;
+}
+
+.jd-copy-pick {
+  flex: none;
+  padding: 4px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  background: var(--body-bg);
+  color: var(--body-fg);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.jd-copy-pick:hover,
+.jd-copy-pick:focus-visible {
+  background: var(--selected-bg, #e4e4e4);
+}
+
+.jd-copy-question {
+  margin: 0 0 6px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.jd-copy-plan {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--darkened-bg, #f8f8f8);
+}
+
+.jd-copy-plan-line {
+  margin: 0 0 4px;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.jd-copy-plan-line:last-child {
+  margin-bottom: 0;
+}
+
+/* O idioma que fica como está é o que costuma surpreender: ele ganha destaque
+   próprio para ninguém descobrir depois de copiar. */
+.jd-copy-keep {
+  color: #8a5a00;
+}
+
+.jd-copy-warn {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-left: 3px solid #b42318;
+  color: #b42318;
+}
+
+/* O Admin flutua os rótulos dentro de `.aligned` (`forms.css`), e no modal
+   estreito o rótulo e o campo se sobrepunham. O modal da variante já resolve
+   isso empilhando; aqui vale o mesmo. */
+.jd-copy .jd-modal-field label {
+  display: block;
+  float: none;
+  width: auto;
+  margin: 0 0 4px;
+  padding: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--body-fg);
+}
+
+.jd-copy .jd-modal-field input[type="search"] {
+  width: 100%;
+  box-sizing: border-box;
+  height: 34px;
+  padding: 0 12px;
+}

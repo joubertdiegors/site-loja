@@ -1,0 +1,49 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+{% comment %}
+  O histórico das categorias: o registro do Admin (`LogEntry`) lido pelo lado
+  do assunto, e não de um objeto só. Somente leitura.
+{% endcomment %}
+
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'admin/css/jdprint_categories.css' %}">{% endblock %}
+
+{% block breadcrumbs %}
+  <div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">Início</a>
+    &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">Loja</a>
+    &rsaquo; <a href="{{ jd_back }}">Categorias</a>
+    &rsaquo; Histórico
+  </div>
+{% endblock %}
+
+{% block content %}
+<div class="jd-cat">
+  <div class="jd-cat-card">
+    <div class="jd-cat-head">
+      <div class="jd-cat-head-text">
+        <h1>Histórico das categorias</h1>
+        <span class="jd-cat-summary">As últimas {{ jd_log|length }} alterações registradas pelo Admin</span>
+      </div>
+      <div class="jd-cat-head-actions">
+        <a class="jd-cat-btn" href="{{ jd_back }}">Voltar às categorias</a>
+      </div>
+    </div>
+
+    <div class="jd-cat-thead jd-cat-log-grid">
+      <span>QUANDO</span><span>CATEGORIA</span><span>O QUÊ</span><span>QUEM</span>
+    </div>
+    {% for linha in jd_log %}
+      <div class="jd-cat-row jd-cat-log-grid">
+        <span class="jd-cat-mono jd-cat-log-when">{{ linha.when }}</span>
+        <span class="jd-cat-log-what">
+          {% if linha.url %}<a href="{{ linha.url }}">{{ linha.what }}</a>{% else %}{{ linha.what }}{% endif %}
+        </span>
+        <span class="jd-cat-log-detail">{{ linha.detail|default:"—" }}</span>
+        <span class="jd-cat-log-who">{{ linha.who }}</span>
+      </div>
+    {% empty %}
+      <div class="jd-cat-empty">Nenhuma alteração registrada ainda.</div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

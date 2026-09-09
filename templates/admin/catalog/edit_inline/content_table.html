@@ -32,7 +32,11 @@
      id="{{ inline_admin_formset.formset.prefix }}-group"
      data-content-inline
      {% if original %}data-content-save-url="{% url 'admin:catalog_product_content_save' original.pk %}"
-     data-content-delete-url="{% url 'admin:catalog_product_content_delete' original.pk 0 %}"{% endif %}>
+     data-content-delete-url="{% url 'admin:catalog_product_content_delete' original.pk 0 %}"
+     data-copy-search-url="{% url 'admin:catalog_product_content_copy_search' original.pk %}"
+     data-copy-plan-url="{% url 'admin:catalog_product_content_copy_plan' original.pk 0 %}"
+     data-copy-url="{% url 'admin:catalog_product_content_copy' original.pk %}"
+     data-copy-target="{{ original.display_name }}"{% endif %}>
   <div class="tabular inline-related">
     {{ inline_admin_formset.formset.management_form }}
 
@@ -79,6 +83,19 @@
         <button type="button" class="jd-variant-add" data-content-add>
           + Adicionar idioma
         </button>
+        {% comment %}
+          «Copiar de…» (etapa 4C.2): traz os textos de outro produto para este,
+          idioma a idioma. Só na tela de edição — sem produto gravado não há
+          destino, e a cópia grava direto no banco.
+
+          Não é duplicação de produto (que já existe e faz outra coisa) nem
+          vínculo entre os dois: depois da cópia cada um segue o seu caminho.
+        {% endcomment %}
+        {% if original %}
+          <button type="button" class="jd-variant-add jd-copy-open" data-copy-open>
+            Copiar de…
+          </button>
+        {% endif %}
       </p>
 
       {% comment %}
@@ -161,6 +178,73 @@
           </div>
         {% endfor %}
       </div>
+
+      {% if original %}
+        {% comment %}
+          O modal do «Copiar de…», em duas etapas dentro da mesma casca
+          (`jd_modal.js`): procurar a origem e, escolhida ela, confirmar o que
+          vai acontecer com cada idioma. Nada é gravado antes do segundo passo.
+        {% endcomment %}
+        <div class="jd-modal" data-copy-modal hidden>
+          <div class="jd-modal-backdrop" aria-hidden="true"></div>
+          <div class="jd-modal-dialog jd-copy" role="dialog" aria-modal="true"
+               aria-labelledby="copy-modal-titulo">
+            <header class="jd-modal-head">
+              <h3 class="jd-modal-title" id="copy-modal-titulo" data-copy-title>
+                Copiar descrições de outro produto
+              </h3>
+              <button type="button" class="jd-modal-x" data-copy-cancel
+                      aria-label="Fechar sem copiar">&times;</button>
+            </header>
+
+            <div class="jd-modal-body">
+              <p class="errornote" data-modal-error hidden></p>
+
+              {# ---- passo 1: procurar ---- #}
+              <div data-copy-step="search">
+                <p class="jd-variant-help">
+                  Procure pelo nome ou pelo SKU. A cópia traz as descrições do
+                  produto escolhido para <b>{{ original.display_name }}</b>, em
+                  todos os idiomas que ele tiver — o nome não é copiado.
+                </p>
+                <div class="jd-modal-field">
+                  <label for="jdcopy-q">Produto de origem</label>
+                  <input type="search" id="jdcopy-q" data-copy-search
+                         placeholder="Ex.: Kit para Colorir, REL-LEAO-001"
+                         autocomplete="off">
+                </div>
+                <p class="jd-variant-note" data-copy-status role="status"></p>
+                <div class="jd-copy-results" data-copy-results></div>
+              </div>
+
+              {# ---- passo 2: confirmar ---- #}
+              <div data-copy-step="confirm" hidden>
+                <p class="jd-copy-question">Copiar descrições?</p>
+                <p class="jd-variant-help" data-copy-summary></p>
+                <div class="jd-copy-plan" data-copy-plan></div>
+                <p class="jd-variant-note jd-copy-warn" data-copy-dirty hidden>
+                  Há alterações não salvas nesta tela. A cópia grava no banco e
+                  recarrega a página — salve o produto primeiro para não perder
+                  o que você acabou de digitar.
+                </p>
+              </div>
+            </div>
+
+            <footer class="jd-modal-foot">
+              <button type="button" class="jd-modal-cancel" data-copy-back hidden>
+                Voltar
+              </button>
+              <span class="jd-modal-spacer"></span>
+              <button type="button" class="jd-modal-cancel" data-copy-cancel>
+                Cancelar
+              </button>
+              <button type="button" class="jd-modal-save" data-copy-confirm hidden>
+                Copiar descrições
+              </button>
+            </footer>
+          </div>
+        </div>
+      {% endif %}
       </div>
       {% if inline_admin_formset.is_collapsible %}</details>{% endif %}
     </fieldset>

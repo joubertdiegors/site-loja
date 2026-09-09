@@ -1,0 +1,304 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+{% comment %}
+  A lista de categorias em árvore.
+
+  Substitui a `change_list` padrão porque uma categoria não se lê em linha: ela
+  se lê dentro de onde está. Aqui a hierarquia é indentada, os filhos recolhem,
+  e buscar, filtrar, ordenar, ativar, criar e editar acontecem nesta tela.
+
+  O que a página monta vem do servidor (`CategoryAdmin._changelist_context`):
+  as linhas já filtradas e ordenadas, as colunas com o link da próxima ordem,
+  os idiomas ativos da loja e as permissões. O JavaScript
+  (`admin/js/category_admin.js`) cuida do que é de tela — recolher, selecionar,
+  abrir o modal — e grava sempre pelos endpoints do Admin.
+
+  Sem JavaScript a lista continua legível e a ficha completa continua
+  acessível pelo link "Editar" de cada linha.
+{% endcomment %}
+
+{% comment %}
+  `media` é o CSS e o JavaScript declarados no `Media` do `CategoryAdmin`. A
+  `change_list` padrão do Django o inclui sozinha; como esta tela estende a
+  base do Admin diretamente, ela precisa pedir — sem isto a página nasce sem
+  o modal e sem a árvore que recolhe.
+{% endcomment %}
+{% block extrahead %}{{ block.super }}{{ media }}{% endblock %}
+
+{% block breadcrumbs %}
+  <div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">Início</a>
+    &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">Loja</a>
+    &rsaquo; Categorias
+  </div>
+{% endblock %}
+
+{% comment %}
+  O título da página é o do cartão. O «Selecione categoria para modificar» da
+  `change_list` padrão apareceria acima dele, dizendo a mesma coisa duas vezes.
+{% endcomment %}
+{% block content_title %}{% endblock %}
+
+{% block content %}
+<div class="jd-cat"
+     data-cat-root
+     data-url-save="{{ jd_urls.save }}"
+     data-url-data="{{ jd_urls.data }}"
+     data-url-delete="{{ jd_urls.delete }}"
+     data-url-toggle="{{ jd_urls.toggle }}"
+     data-url-bulk="{{ jd_urls.bulk }}"
+     data-can-change="{{ jd_can_change|yesno:'1,' }}"
+     data-can-delete="{{ jd_can_delete|yesno:'1,' }}">
+  {% csrf_token %}
+
+  <div class="jd-cat-card">
+
+    {# ---- cabeçalho ---------------------------------------------------- #}
+    <div class="jd-cat-head">
+      <div class="jd-cat-head-text">
+        <h1>Categorias</h1>
+        <span class="jd-cat-summary">{{ jd_summary }}</span>
+      </div>
+      <div class="jd-cat-head-actions">
+        <a class="jd-cat-btn" href="{% url 'admin:categories_category_history_all' %}">Histórico</a>
+        {% if jd_can_add %}
+          <button type="button" class="jd-cat-btn jd-cat-btn-primary" data-cat-new>+ Nova categoria</button>
+        {% endif %}
+      </div>
+    </div>
+
+    {# ---- filtros e ações em massa -------------------------------------- #}
+    <form class="jd-cat-filters" method="get" action="" data-cat-filters>
+      <label class="jd-cat-search">
+        <span aria-hidden="true">⌕</span>
+        <input type="search" name="q" value="{{ jd_query }}" placeholder="Buscar categoria ou slug"
+               aria-label="Buscar categoria ou slug">
+      </label>
+      <select name="status" aria-label="Filtrar por situação" data-cat-status>
+        <option value="all"{% if jd_status == "all" %} selected{% endif %}>Todas</option>
+        <option value="active"{% if jd_status == "active" %} selected{% endif %}>Ativas</option>
+        <option value="inactive"{% if jd_status == "inactive" %} selected{% endif %}>Inativas</option>
+      </select>
+      <button type="submit" class="jd-cat-btn jd-cat-btn-quiet">Filtrar</button>
+      <span class="jd-cat-grow"></span>
+      <span class="jd-cat-selected" data-cat-selected-label></span>
+      {% if jd_can_change or jd_can_delete %}
+        <select aria-label="Ações em massa" data-cat-bulk>
+          <option value="">Ações em massa…</option>
+          {% if jd_can_change %}
+            <option value="activate">Ativar</option>
+            <option value="deactivate">Desativar</option>
+          {% endif %}
+          {% if jd_can_delete %}<option value="delete">Excluir</option>{% endif %}
+        </select>
+        <button type="button" class="jd-cat-btn" data-cat-bulk-run>Executar</button>
+      {% endif %}
+    </form>
+
+    {# ---- tabela --------------------------------------------------------- #}
+    <div class="jd-cat-thead">
+      <div><input type="checkbox" aria-label="Selecionar tudo" data-cat-all></div>
+      {% for col in jd_columns %}
+        <a class="jd-cat-col{% if col.is_sorted %} is-sorted{% endif %}" href="{{ col.url }}"
+           style="justify-content:{{ col.justify }}" title="Ordenar">
+          <span>{{ col.label }}</span>
+          <span class="jd-cat-caret">{{ col.caret }}</span>
+        </a>
+      {% endfor %}
+      <div></div>
+    </div>
+
+    <div data-cat-rows>
+      {% for row in jd_rows %}
+        <div class="jd-cat-row{% if row.depth %} is-child{% endif %}"
+             data-cat-row
+             data-id="{{ row.id }}"
+             data-depth="{{ row.depth }}"
+             data-parent="{{ row.obj.parent_id|default_if_none:'' }}">
+          <div><input type="checkbox" aria-label="Selecionar {{ row.name }}" data-cat-check value="{{ row.id }}"></div>
+
+          <div class="jd-cat-name" style="padding-left:{{ row.indent }}px" data-slug="{{ row.slug }}">
+            {% if row.has_children %}
+              <button type="button" class="jd-cat-toggle" data-cat-toggle aria-expanded="true"
+                      aria-label="Recolher subcategorias de {{ row.name }}">▾</button>
+            {% else %}
+              <span class="jd-cat-toggle" aria-hidden="true"></span>
+            {% endif %}
+            <span class="jd-cat-swatch" aria-hidden="true"></span>
+            <a href="{{ row.change_url }}" data-cat-edit>{{ row.name }}</a>
+          </div>
+
+          <div class="jd-cat-slug">{{ row.slug }}</div>
+          <div class="jd-cat-num" data-label="produtos:">{{ row.products }}</div>
+          <div class="jd-cat-num jd-cat-order" data-label="ordem:">{{ row.order }}</div>
+          <div class="jd-cat-status">
+            <button type="button" class="jd-cat-pill{% if row.is_active %} is-on{% endif %}"
+                    data-cat-active {% if not jd_can_change %}disabled{% endif %}
+                    title="Clique para alternar">
+              <span class="jd-cat-dot" aria-hidden="true"></span>{% if row.is_active %}Ativa{% else %}Inativa{% endif %}
+            </button>
+          </div>
+          <div class="jd-cat-actions"><a href="{{ row.change_url }}" data-cat-edit>Editar</a></div>
+        </div>
+      {% endfor %}
+    </div>
+
+    {% if not jd_rows %}
+      <div class="jd-cat-empty">Nenhuma categoria corresponde aos filtros.</div>
+    {% endif %}
+
+    {# ---- rodapé --------------------------------------------------------- #}
+    <div class="jd-cat-foot">
+      <span data-cat-footer>{{ jd_footer }}</span>
+      <div class="jd-cat-foot-links">
+        <a href="{{ jd_clear_sort_url }}">Limpar ordenação</a>
+        <a href="{{ jd_clear_sort_url }}" title="A ordem manual é o campo «Ordem» de cada categoria">Reordenar manualmente</a>
+      </div>
+    </div>
+  </div>
+
+  {# ---- o modal --------------------------------------------------------- #}
+  <div class="jd-modal jd-cat-modal" data-cat-modal hidden>
+    <div class="jd-modal-backdrop" aria-hidden="true"></div>
+    <div class="jd-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="jd-cat-modal-title">
+      <header class="jd-modal-head jd-cat-modal-head">
+        <div class="jd-cat-modal-title">
+          <span class="jd-cat-kicker" data-cat-kicker>NOVA CATEGORIA</span>
+          <h2 class="jd-modal-title" id="jd-cat-modal-title" data-cat-title>Nova categoria</h2>
+        </div>
+        <div class="jd-cat-modal-tools">
+          <a href="#" class="jd-cat-view" data-cat-view hidden>Ver no site ↗</a>
+          <button type="button" class="jd-modal-x" data-cat-close aria-label="Fechar sem salvar">&times;</button>
+        </div>
+      </header>
+
+      <div class="jd-cat-tabs" role="tablist">
+        <button type="button" class="jd-cat-tab is-on" role="tab" data-cat-tab="id">Identificação</button>
+        <button type="button" class="jd-cat-tab" role="tab" data-cat-tab="trad">Traduções</button>
+        <button type="button" class="jd-cat-tab" role="tab" data-cat-tab="children">
+          Subcategorias <span class="jd-cat-tab-badge" data-cat-children-badge>0</span>
+        </button>
+        <button type="button" class="jd-cat-tab" role="tab" data-cat-tab="audit">Auditoria</button>
+      </div>
+
+      <div class="jd-modal-body jd-cat-modal-body">
+        <p class="errornote" data-modal-error hidden></p>
+        <input type="hidden" data-cat-field="category_id">
+
+        {# ---- aba 1: identificação --------------------------------------- #}
+        <div class="jd-cat-panel" data-cat-panel="id">
+          <div class="jd-modal-field jd-cat-field">
+            <label for="jdcat-name">Nome (português)</label>
+            <input type="text" id="jdcat-name" maxlength="200" data-cat-field="name" data-cat-sync="name_pt">
+          </div>
+          <div class="jd-cat-grid">
+            <div class="jd-modal-field jd-cat-field">
+              <label for="jdcat-parent">Categoria pai</label>
+              <select id="jdcat-parent" data-cat-field="parent">
+                <option value="">— nenhuma (primeiro nível)</option>
+                {% for parent in jd_parents %}
+                  <option value="{{ parent.id }}">{{ parent.name }}</option>
+                {% endfor %}
+              </select>
+              <span class="jd-cat-hint">Vazio = categoria de primeiro nível.</span>
+            </div>
+            <div class="jd-modal-field jd-cat-field">
+              <label for="jdcat-sort_order">Ordem</label>
+              <input type="number" id="jdcat-sort_order" min="0" value="0" data-cat-field="sort_order">
+              <span class="jd-cat-hint">Menor valor aparece primeiro.</span>
+            </div>
+          </div>
+          <div class="jd-modal-field jd-cat-field">
+            <label for="jdcat-slug">Slug</label>
+            <input type="text" id="jdcat-slug" maxlength="220" class="jd-cat-mono" data-cat-field="slug">
+            <span class="jd-cat-hint">Gerado a partir do nome quando em branco.</span>
+          </div>
+          <div class="jd-cat-switch-row">
+            <div>
+              <span class="jd-cat-switch-title">Categoria ativa</span>
+              <span class="jd-cat-hint">Inativa não aparece na loja.</span>
+            </div>
+            <button type="button" class="jd-cat-switch" data-cat-switch aria-pressed="true" aria-label="Categoria ativa">
+              <span class="jd-cat-knob"></span>
+            </button>
+            <input type="checkbox" class="jd-hidden" data-cat-field="is_active" checked>
+          </div>
+        </div>
+
+        {# ---- aba 2: traduções ------------------------------------------- #}
+        <div class="jd-cat-panel" data-cat-panel="trad" hidden>
+          <div class="jd-cat-panel-head">
+            <span class="jd-cat-panel-title">Traduções</span>
+            <span class="jd-cat-hint">Português obrigatório</span>
+          </div>
+          <div class="jd-cat-table">
+            <div class="jd-cat-table-head jd-cat-lang-grid">
+              <span>IDIOMA</span><span>NOME</span><span>DESCRIÇÃO</span><span></span>
+            </div>
+            {% for lang in jd_languages %}
+              <div class="jd-cat-lang-grid jd-cat-lang-row">
+                <span class="jd-cat-lang-label">{{ lang.label }}</span>
+                <input type="text" maxlength="200" aria-label="Nome em {{ lang.label }}"
+                       data-cat-field="name_{{ lang.code }}"
+                       {% if lang.is_default %}data-cat-sync="name"{% endif %}>
+                <input type="text" placeholder="Descrição" aria-label="Descrição em {{ lang.label }}"
+                       data-cat-field="description_{{ lang.code }}">
+                <button type="button" class="jd-cat-clear" data-cat-clear="{{ lang.code }}"
+                        title="Limpar" aria-label="Limpar {{ lang.label }}">×</button>
+              </div>
+            {% endfor %}
+            <div class="jd-cat-table-foot">
+              <a href="{% url 'admin:core_sitelanguage_changelist' %}">+ Adicionar idioma</a>
+            </div>
+          </div>
+        </div>
+
+        {# ---- aba 3: subcategorias --------------------------------------- #}
+        <div class="jd-cat-panel" data-cat-panel="children" hidden>
+          <div class="jd-cat-panel-head">
+            <span class="jd-cat-panel-title">Subcategorias</span>
+            <span class="jd-cat-hint" data-cat-children-hint>Salve a categoria para adicionar filhos</span>
+          </div>
+          <div class="jd-cat-table">
+            <div class="jd-cat-table-head jd-cat-child-grid">
+              <span></span><span>NOME</span><span>SLUG</span><span class="jd-cat-num">PRODUTOS</span><span class="jd-cat-status">ATIVA</span>
+            </div>
+            <div data-cat-children></div>
+            <div class="jd-cat-empty jd-cat-empty-small" data-cat-children-empty hidden>
+              Esta categoria ainda não tem subcategorias.
+            </div>
+            <div class="jd-cat-table-foot">
+              <a href="#" data-cat-add-child>+ Adicionar subcategoria</a>
+            </div>
+          </div>
+        </div>
+
+        {# ---- aba 4: auditoria -------------------------------------------- #}
+        <div class="jd-cat-panel" data-cat-panel="audit" hidden>
+          <div class="jd-cat-grid">
+            <div class="jd-cat-audit-box">
+              <span class="jd-cat-audit-label">CRIADA EM</span>
+              <span class="jd-cat-audit-value" data-cat-created>—</span>
+            </div>
+            <div class="jd-cat-audit-box">
+              <span class="jd-cat-audit-label">ATUALIZADA EM</span>
+              <span class="jd-cat-audit-value" data-cat-updated>—</span>
+            </div>
+          </div>
+          <div class="jd-cat-table" data-cat-log></div>
+          <a href="#" data-cat-history hidden>Ver histórico completo</a>
+        </div>
+      </div>
+
+      <footer class="jd-modal-foot jd-cat-modal-foot">
+        {% if jd_can_delete %}
+          <button type="button" class="jd-modal-danger" data-cat-delete hidden>Excluir</button>
+        {% endif %}
+        <span class="jd-modal-spacer"></span>
+        <button type="button" class="jd-modal-cancel" data-cat-close>Cancelar</button>
+        <button type="button" class="jd-modal-save" data-cat-save>Salvar</button>
+      </footer>
+    </div>
+  </div>
+</div>
+{% endblock %}

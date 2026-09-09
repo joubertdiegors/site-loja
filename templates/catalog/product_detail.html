@@ -453,7 +453,7 @@ em vez de por descendência.
         {% endwith %}
 
         {# ---- Descrição, ficha técnica e extras ------------------------- #}
-        {% if product.display_description or specifications or product.display_extra_information %}
+        {% if product.display_description or specifications or product.display_extra_information or product.material_notes %}
           {% comment %}
             O acordeão da referência, em `<details>` nativo: abre e fecha sem
             JavaScript, com teclado, e o conteúdo continua no HTML para quem
@@ -482,6 +482,34 @@ em vez de por descendência.
                     </div>
                   {% endfor %}
                 </dl>
+              </details>
+            {% endif %}
+
+            {% comment %}
+              Etapa 4C.3: o que cada material deste produto tem a dizer —
+              limpeza, calor, cuidados —, escrito uma vez no cadastro do
+              material e lido aqui por referência. Mudar a descrição do PLA
+              muda todos os produtos que o usam, sem tocar em nenhum deles.
+
+              `rich_html` desenha o HTML depois de passar pela lista de
+              permissões (`apps/core/richtext.py`); nada chega à tela sem ela.
+            {% endcomment %}
+            {% if product.material_notes %}
+              <details class="product-acc-item">
+                {% comment %}
+                  «Materiais» já é o rótulo da composição na ficha técnica
+                  («PLA 80% + PETG 20%»); dois títulos iguais na mesma página
+                  fariam o cliente procurar a diferença.
+                {% endcomment %}
+                <summary>{% translate "Sobre os materiais" %}</summary>
+                <div class="product-acc-body">
+                  {% for material in product.material_notes %}
+                    <article class="product-material">
+                      <h3 class="product-material-name">{{ material.display_name }}</h3>
+                      <div class="product-rich">{% rich_html material.display_description %}</div>
+                    </article>
+                  {% endfor %}
+                </div>
               </details>
             {% endif %}
 

@@ -17,6 +17,7 @@ Duas telas, dois comportamentos, e a diferença está escrita na própria tela:
 """
 
 import json
+import re
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
@@ -101,7 +102,15 @@ class ContentTableTests(ContentModalBase):
         bloco = self.content_html()
 
         # Um por idioma gravado, mais o molde do "+ Adicionar idioma".
-        self.assertEqual(bloco.count('class="jd-modal"'), 3)
+        #
+        # Conta `data-content-modal`, e não a classe: desde a etapa 4C.2 a
+        # seção tem também o modal do «Copiar de…», que é um `.jd-modal` e não
+        # é um idioma.
+        # O limite evita casar com `data-content-modal-title`, que vive dentro
+        # de cada um deles.
+        self.assertEqual(len(re.findall(r"data-content-modal(?![-\w])", bloco)), 3)
+        self.assertEqual(bloco.count("data-copy-modal"), 1)
+        self.assertEqual(bloco.count('class="jd-modal"'), 4)
 
     def test_there_is_a_button_to_add_a_language(self):
         self.assertIn("data-content-add", self.content_html())

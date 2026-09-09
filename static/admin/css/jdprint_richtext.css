@@ -1,0 +1,168 @@
+/* O editor de texto rico do Admin (etapa 4C.3).
+
+   Segue o Admin, e não a loja: as cores saem das variáveis do próprio Django
+   (`--border-color`, `--body-fg`, ...), então o campo acompanha o tema claro e
+   o escuro sem uma segunda paleta para manter. */
+
+.jd-rt {
+  max-width: 46rem;
+}
+
+.jd-rt-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 6px;
+  border: 1px solid var(--border-color);
+  border-bottom: 0;
+  border-radius: 4px 4px 0 0;
+  background: var(--darkened-bg, #f8f8f8);
+}
+
+.jd-rt-btn {
+  min-width: 26px;
+  height: 26px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--body-fg);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.jd-rt-btn:hover,
+.jd-rt-btn:focus-visible {
+  border-color: var(--border-color);
+  background: var(--body-bg);
+}
+
+.jd-rt-btn.is-on {
+  border-color: var(--border-color);
+  background: var(--selected-bg, #e4e4e4);
+}
+
+.jd-rt-code {
+  font-family: ui-monospace, Menlo, monospace;
+}
+
+.jd-rt-sep {
+  width: 1px;
+  height: 18px;
+  margin: 0 4px;
+  background: var(--border-color);
+}
+
+.jd-rt-select {
+  height: 26px;
+  margin: 0;
+  padding: 0 4px;
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  background: var(--body-bg);
+  color: var(--body-fg);
+  font-size: 12px;
+  /* A lista aberta é pintada pelo navegador conforme o `color-scheme`
+     herdado; aqui ele é o do Admin, e por isso não se declara nada. */
+}
+
+/* A área editável. `min-height` e não `height`: a descrição de um material
+   pode ter três linhas ou trinta, e o campo cresce com ela. */
+.jd-rt-area {
+  min-height: 11rem;
+  max-height: 32rem;
+  overflow-y: auto;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 0 0 4px 4px;
+  background: var(--body-bg);
+  color: var(--body-fg);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.jd-rt-area:focus-visible {
+  outline: 2px solid var(--body-quiet-color);
+  outline-offset: -2px;
+}
+
+/* O conteúdo dentro da área, para o administrador ver o que vai sair. Não é a
+   aparência da loja — é a mesma hierarquia, em escala de formulário. */
+.jd-rt-area > :first-child {
+  margin-top: 0;
+}
+
+.jd-rt-area > :last-child {
+  margin-bottom: 0;
+}
+
+/* O Admin desenha `h2` como faixa azul de seção (`.module h2`). Aqui dentro
+   o `h2` é o subtítulo que o lojista escreveu — «LIMPEZA», «CALOR» —, e tem
+   que parecer texto, não cabeçalho do Admin. */
+.jd-rt-area h2,
+.jd-rt-area h3,
+.jd-rt-area h4 {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--body-fg);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.jd-rt-area h2 {
+  margin: 0.9em 0 0.35em;
+  font-size: 1.15em;
+  font-weight: 700;
+}
+
+.jd-rt-area h3 {
+  margin: 0.8em 0 0.3em;
+  font-size: 1.05em;
+  font-weight: 700;
+}
+
+.jd-rt-area h4 {
+  margin: 0.7em 0 0.3em;
+  font-size: 1em;
+  font-weight: 700;
+}
+
+.jd-rt-area p {
+  margin: 0 0 0.6em;
+}
+
+.jd-rt-area ul,
+.jd-rt-area ol {
+  margin: 0 0 0.6em;
+  padding-left: 1.4em;
+}
+
+.jd-rt-area li {
+  margin: 0.15em 0;
+}
+
+.jd-rt-area blockquote {
+  margin: 0 0 0.6em;
+  padding-left: 0.8em;
+  border-left: 3px solid var(--border-color);
+  color: var(--body-quiet-color);
+}
+
+/* O `textarea` de origem sai de cena quando o editor assume, mas continua no
+   formulário: é ele que envia o valor. */
+.jd-rt-hidden {
+  display: none;
+}
+
+/* O Admin põe o campo num `.flex-container`, e um item flex encolhe até o
+   tamanho do conteúdo — o editor nascia com a largura da barra, mais estreito
+   que o «Nome» logo acima. Dentro do inline ele passa a ocupar a coluna
+   inteira, como os outros campos; fora dele, a medida de leitura continua. */
+.inline-group .jd-rt {
+  flex: 1 1 auto;
+  max-width: none;
+}

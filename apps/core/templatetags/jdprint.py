@@ -236,6 +236,26 @@ def rich_text(value: str):
     return mark_safe("".join(partes))
 
 
+@register.simple_tag
+def rich_html(value: str):
+    """HTML rico do Admin, desenhado depois de passar pela lista de permissões.
+
+    Irmão de `rich_text`, e não substituto dele: aquele recebe texto puro e
+    inventa a marcação; este recebe HTML de um editor e devolve **só** o que
+    `apps.core.richtext` permite.
+
+    Sanitiza de novo na hora de exibir, mesmo o que já foi limpo ao gravar. O
+    banco tem conteúdo anterior a este arquivo, e um dia terá conteúdo vindo de
+    uma importação ou de um `shell` — o que a tela desenha não pode depender de
+    todo mundo ter passado pelo formulário certo.
+    """
+    from django.utils.safestring import mark_safe
+
+    from apps.core.richtext import sanitize_rich_text
+
+    return mark_safe(sanitize_rich_text(value))
+
+
 # ---------------------------------------------------------------------------
 # Estáticos com versão na URL
 #

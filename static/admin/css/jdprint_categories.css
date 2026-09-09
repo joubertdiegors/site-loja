@@ -1,0 +1,1125 @@
+/* Categorias: a lista em árvore e o modal.
+
+   As medidas e as cores vêm do desenho aprovado desta tela: cartão branco
+   sobre fundo cinza, tabela densa de 44px por linha, tipografia de 13px e o
+   azul #417690 do Admin como única cor de ação. Estão escritas aqui uma vez
+   em vez de repetidas em cada elemento do template.
+
+   A grade da tabela é a mesma no cabeçalho e nas linhas — é o que mantém as
+   colunas alinhadas sem tabela HTML, e o que permite a uma linha inteira ser
+   um `grid` com o nome indentado por `padding-left`.
+
+   Abaixo de 1000px a coluna do slug some (ele reaparece sob o nome) e abaixo
+   de 760px cada linha vira um cartão: a hierarquia continua legível por
+   indentação, e nada fica cortado. */
+
+.jd-cat {
+  --cat-line: #e8ecee;
+  --cat-line-soft: #eef2f3;
+  --cat-border: #dfe4e7;
+  --cat-field: #d3dbdf;
+  --cat-ink: #25333a;
+  --cat-ink-soft: #41525b;
+  --cat-muted: #79868f;
+  --cat-quiet: #8b969d;
+  --cat-faint: #9aa5ab;
+  --cat-brand: #417690;
+  --cat-brand-dark: #356279;
+  --cat-soft: #f7f9fa;
+  --cat-grid: 36px minmax(200px, 1.7fr) minmax(0, 1fr) 84px 72px 104px 76px;
+  color: var(--cat-ink);
+  font-size: 13px;
+}
+
+.jd-cat *,
+.jd-cat *::before,
+.jd-cat *::after {
+  box-sizing: border-box;
+}
+
+/* O Admin sublinha todo link fora do cabeçalho e da barra lateral, com uma
+   regra de especificidade alta (`a:not(#header a, ...)`). Nesta tela o
+   sublinhado brigaria com a densidade da tabela — os nomes das categorias e as
+   colunas viram um bloco riscado —, então a exceção é declarada com o mesmo
+   peso, ancorada no `#content` do próprio Admin. O foco continua sublinhado. */
+#content .jd-cat a,
+#content .jd-cat a:link,
+#content .jd-cat a:visited {
+  color: var(--cat-brand);
+  text-decoration: none;
+}
+
+#content .jd-cat a:focus-visible {
+  text-decoration: underline;
+}
+
+#content .jd-cat .jd-cat-name > a {
+  color: var(--cat-ink);
+}
+
+#content .jd-cat .jd-cat-name > a:hover {
+  color: var(--cat-brand);
+}
+
+/* O checkbox de «ativa» existe para o POST; quem se vê é o interruptor. */
+.jd-cat [data-cat-field="is_active"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.jd-cat-modal .errornote[hidden] {
+  display: none;
+}
+
+.jd-cat a:hover {
+  color: #205067;
+}
+
+/* ---- o cartão ---------------------------------------------------------- */
+
+.jd-cat-card {
+  background: #fff;
+  border: 1px solid var(--cat-border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.jd-cat-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--cat-line);
+}
+
+.jd-cat-head-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.jd-cat-head h1 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--cat-ink);
+  line-height: 1.2;
+}
+
+.jd-cat-summary {
+  font-size: 13px;
+  color: var(--cat-muted);
+}
+
+.jd-cat-head-actions {
+  display: flex;
+  gap: 8px;
+  flex: none;
+}
+
+.jd-cat-btn {
+  font-size: 13px;
+  padding: 8px 14px;
+  border: 1px solid #ccd4d8;
+  background: #fff;
+  color: var(--cat-ink-soft);
+  border-radius: 3px;
+  cursor: pointer;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.jd-cat-btn:hover {
+  background: #f4f7f8;
+  color: var(--cat-ink-soft);
+}
+
+.jd-cat-btn-primary {
+  border: 0;
+  background: var(--cat-brand);
+  color: #fff;
+  font-weight: 500;
+}
+
+.jd-cat-btn-primary:hover {
+  background: var(--cat-brand-dark);
+  color: #fff;
+}
+
+.jd-cat-btn-quiet {
+  padding: 7px 12px;
+}
+
+/* ---- filtros ----------------------------------------------------------- */
+
+.jd-cat-filters {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  background: var(--cat-soft);
+  border-bottom: 1px solid var(--cat-line);
+  flex-wrap: wrap;
+}
+
+.jd-cat-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  max-width: 320px;
+  background: #fff;
+  border: 1px solid var(--cat-field);
+  border-radius: 3px;
+  padding: 7px 10px;
+}
+
+.jd-cat-search > span {
+  color: var(--cat-faint);
+  font-size: 13px;
+}
+
+.jd-cat-search input {
+  border: 0;
+  outline: 0;
+  font-size: 13px;
+  width: 100%;
+  min-width: 0;
+  color: var(--cat-ink);
+  background: transparent;
+  padding: 0;
+  margin: 0;
+}
+
+.jd-cat-filters select {
+  font-size: 13px;
+  padding: 7px 10px;
+  border: 1px solid var(--cat-field);
+  border-radius: 3px;
+  background: #fff;
+  color: var(--cat-ink-soft);
+  max-width: 100%;
+}
+
+/* A lista aberta do `<select>` é pintada pelo navegador, e não pelo cartão.
+   Ela seguia o `color-scheme: dark` que o Admin declara na raiz no tema
+   escuro (`dark_mode.css`) — e, como `color-scheme` é herdado, o popup nascia
+   escuro com o texto escuro dos campos deste cartão. As opções («Ações em
+   massa…», «Ativar», «Desativar», «Excluir») ficavam ilegíveis ao abrir.
+
+   Aqui não se herda nada: o esquema, o fundo e a cor do texto são declarados
+   no próprio `<select>` e em cada `<option>`, com `!important` para que
+   nenhuma regra de tema — atual ou futura — volte a pintá-los. O campo
+   fechado continua exatamente como estava. */
+/* A altura é a causa do texto cortado: o Admin fixa `select { height:
+   1.875rem }` (30px) e este cartão usa `box-sizing: border-box` com
+   `padding: 7px 10px`. Sobravam 14px de área de conteúdo para uma linha de
+   13px, e o navegador cortava as letras pela metade — no «Ações em massa» e
+   no «Categoria pai». Deixar o campo se dimensionar pelo próprio conteúdo
+   resolve, e mantém a mesma altura visual dos `<input>` ao lado. */
+.jd-cat select {
+  height: auto;
+  min-height: 0;
+  line-height: 1.35;
+  color-scheme: light !important;
+  background-color: #fff !important;
+  color: #25333a !important;
+}
+
+.jd-cat select option,
+.jd-cat select optgroup {
+  background-color: #fff !important;
+  color: #25333a !important;
+}
+
+.jd-cat select option:checked,
+.jd-cat select option:hover {
+  background-color: #eaf0f3 !important;
+  color: #25333a !important;
+}
+
+.jd-cat-grow {
+  flex: 1;
+}
+
+.jd-cat-selected {
+  font-size: 12.5px;
+  color: var(--cat-quiet);
+}
+
+/* ---- tabela ------------------------------------------------------------ */
+
+.jd-cat-thead,
+.jd-cat-row {
+  display: grid;
+  grid-template-columns: var(--cat-grid);
+  align-items: center;
+  padding: 0 20px;
+}
+
+.jd-cat-thead {
+  background: #fff;
+  border-bottom: 1px solid var(--cat-line);
+}
+
+.jd-cat-col {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 10px 0;
+  user-select: none;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  color: var(--cat-quiet);
+  line-height: 1;
+}
+
+.jd-cat-col:hover,
+.jd-cat-col.is-sorted {
+  color: var(--cat-brand);
+}
+
+.jd-cat-caret {
+  font-size: 9px;
+  color: #c2cbd1;
+}
+
+.jd-cat-col.is-sorted .jd-cat-caret {
+  color: var(--cat-brand);
+}
+
+.jd-cat-row {
+  border-bottom: 1px solid var(--cat-line-soft);
+  min-height: 44px;
+  background: #fff;
+}
+
+.jd-cat-row.is-child {
+  background: #fbfcfc;
+}
+
+.jd-cat-row:hover {
+  background: #f2f7f9;
+}
+
+.jd-cat-row[hidden] {
+  display: none;
+}
+
+.jd-cat-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding-right: 16px;
+}
+
+.jd-cat-name > a {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--cat-ink);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.jd-cat-row.is-child .jd-cat-name > a {
+  font-weight: 400;
+}
+
+.jd-cat-name > a:hover {
+  color: var(--cat-brand);
+}
+
+.jd-cat-toggle {
+  width: 14px;
+  flex: none;
+  font-size: 11px;
+  color: var(--cat-quiet);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.jd-cat-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 3px;
+  background: #eaf0f3;
+  border: 1px solid #dde5e9;
+  flex: none;
+}
+
+.jd-cat-slug {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 13px;
+  color: var(--cat-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding-right: 12px;
+}
+
+.jd-cat-num {
+  text-align: right;
+  font-size: 13px;
+  color: var(--cat-ink-soft);
+  padding-right: 12px;
+}
+
+.jd-cat-order {
+  color: var(--cat-muted);
+}
+
+.jd-cat-status {
+  display: flex;
+  justify-content: center;
+}
+
+.jd-cat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 3px 8px;
+  border-radius: 11px;
+  border: 0;
+  background: #f1f4f5;
+  color: var(--cat-quiet);
+  line-height: 1.5;
+}
+
+.jd-cat-pill[disabled] {
+  cursor: default;
+}
+
+.jd-cat-pill.is-on {
+  background: #eaf4ec;
+  color: #2f6b41;
+}
+
+.jd-cat-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #c2cbd1;
+  flex: none;
+}
+
+.jd-cat-pill.is-on .jd-cat-dot {
+  background: #4a8a5c;
+}
+
+.jd-cat-actions {
+  text-align: right;
+}
+
+.jd-cat-actions a {
+  font-size: 12.5px;
+}
+
+.jd-cat-empty {
+  padding: 36px 20px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--cat-quiet);
+}
+
+.jd-cat-empty-small {
+  padding: 22px 12px;
+  font-size: 12.5px;
+  color: var(--cat-faint);
+}
+
+.jd-cat-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 20px;
+  background: var(--cat-soft);
+  font-size: 12.5px;
+  color: var(--cat-muted);
+  flex-wrap: wrap;
+}
+
+.jd-cat-foot-links {
+  display: flex;
+  gap: 16px;
+}
+
+.jd-cat-foot-links a {
+  font-size: 12.5px;
+}
+
+/* ---- histórico --------------------------------------------------------- */
+
+.jd-cat-log-grid {
+  grid-template-columns: 130px minmax(140px, 1fr) minmax(0, 2fr) 120px;
+  gap: 12px;
+}
+
+.jd-cat-thead.jd-cat-log-grid > span {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  color: var(--cat-quiet);
+  padding: 10px 0;
+}
+
+.jd-cat-row.jd-cat-log-grid > span {
+  padding: 10px 0;
+  overflow-wrap: anywhere;
+}
+
+.jd-cat-log-when {
+  color: var(--cat-faint);
+  font-size: 12px;
+}
+
+.jd-cat-log-detail,
+.jd-cat-log-who {
+  color: var(--cat-muted);
+  font-size: 12.5px;
+}
+
+.jd-cat-mono {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+}
+
+/* ---- o modal ----------------------------------------------------------- */
+
+.jd-cat-modal .jd-modal-dialog {
+  width: 100%;
+  max-width: 640px;
+  background: #fff;
+  border-radius: 6px;
+  box-shadow: 0 18px 50px rgba(20, 30, 36, 0.28);
+  display: flex;
+  flex-direction: column;
+  color: var(--cat-ink);
+  padding: 0;
+  border: 0;
+}
+
+.jd-cat-modal .jd-modal-backdrop {
+  background: rgba(25, 36, 42, 0.45);
+}
+
+.jd-cat-modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--cat-line);
+  background: #fff;
+}
+
+.jd-cat-modal-title {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.jd-cat-kicker {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 11px;
+  line-height: 1;
+  letter-spacing: 0.07em;
+  color: var(--cat-quiet);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.jd-cat-modal-head .jd-modal-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--cat-ink);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.jd-cat-modal-tools {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: none;
+}
+
+.jd-cat-view {
+  font-size: 12.5px;
+}
+
+.jd-cat-modal .jd-modal-x {
+  font-size: 16px;
+  color: var(--cat-faint);
+}
+
+.jd-cat-modal .jd-modal-x:hover {
+  color: var(--cat-ink-soft);
+}
+
+/* abas */
+
+.jd-cat-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 0 22px;
+  border-bottom: 1px solid var(--cat-line);
+  overflow-x: auto;
+}
+
+.jd-cat-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--cat-muted);
+  padding: 11px 12px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.jd-cat-tab:hover {
+  color: var(--cat-ink-soft);
+}
+
+.jd-cat-tab.is-on {
+  font-weight: 600;
+  color: var(--cat-brand);
+  border-bottom-color: var(--cat-brand);
+}
+
+.jd-cat-tab-badge {
+  font-size: 11px;
+  color: var(--cat-faint);
+}
+
+/* corpo */
+
+.jd-cat-modal-body {
+  padding: 0;
+  background: #fff;
+}
+
+.jd-cat-panel {
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.jd-cat-panel[hidden] {
+  display: none;
+}
+
+.jd-cat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.jd-cat-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.jd-cat-field label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--cat-ink-soft);
+}
+
+.jd-cat-field input,
+.jd-cat-field select,
+.jd-cat-lang-row input {
+  font-size: 13.5px;
+  padding: 8px 10px;
+  border: 1px solid var(--cat-field);
+  border-radius: 3px;
+  color: var(--cat-ink);
+  background: #fff;
+  width: 100%;
+  min-width: 0;
+}
+
+.jd-cat-field input.jd-cat-mono {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 13.5px;
+}
+
+.jd-cat-hint {
+  font-size: 11.5px;
+  color: var(--cat-faint);
+}
+
+.jd-cat-switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+  background: var(--cat-soft);
+  border: 1px solid var(--cat-line);
+  border-radius: 4px;
+}
+
+.jd-cat-switch-row > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.jd-cat-switch-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--cat-ink-soft);
+}
+
+.jd-cat-switch {
+  width: 38px;
+  height: 22px;
+  border-radius: 11px;
+  background: #ccd4d8;
+  position: relative;
+  flex: none;
+  cursor: pointer;
+  border: 0;
+  padding: 0;
+}
+
+.jd-cat-switch[aria-pressed="true"] {
+  background: #4a8a5c;
+}
+
+.jd-cat-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  transition: left 0.15s;
+}
+
+.jd-cat-switch[aria-pressed="true"] .jd-cat-knob {
+  left: 19px;
+}
+
+/* tabelas internas (traduções, filhos, histórico) */
+
+.jd-cat-panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.jd-cat-panel-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--cat-ink-soft);
+}
+
+.jd-cat-table {
+  border: 1px solid #e3e8eb;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.jd-cat-table-head {
+  padding: 8px 12px;
+  background: var(--cat-soft);
+  border-bottom: 1px solid var(--cat-line);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--cat-quiet);
+}
+
+.jd-cat-lang-grid {
+  display: grid;
+  grid-template-columns: 96px 1fr 1fr 28px;
+  gap: 10px;
+  align-items: center;
+}
+
+.jd-cat-lang-row {
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--cat-line-soft);
+}
+
+.jd-cat-lang-row:nth-child(odd) {
+  background: #fbfcfd;
+}
+
+.jd-cat-lang-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--cat-ink-soft);
+}
+
+.jd-cat-lang-row input {
+  font-size: 13px;
+  padding: 6px 8px;
+  border-color: #d8dfe3;
+}
+
+.jd-cat-clear {
+  font-size: 13px;
+  color: #c2cbd1;
+  text-align: center;
+  cursor: pointer;
+  background: none;
+  border: 0;
+  padding: 0;
+}
+
+.jd-cat-clear:hover {
+  color: #a04141;
+}
+
+.jd-cat-table-foot {
+  padding: 9px 12px;
+  background: #fbfcfd;
+}
+
+.jd-cat-table-foot a {
+  font-size: 12.5px;
+}
+
+.jd-cat-child-grid {
+  display: grid;
+  grid-template-columns: 26px 1fr 150px 78px 96px;
+  gap: 10px;
+  align-items: center;
+}
+
+.jd-cat-child-row {
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--cat-line-soft);
+}
+
+.jd-cat-child-row a {
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.jd-cat-child-slug {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 12px;
+  color: var(--cat-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.jd-cat-child-grid .jd-cat-num {
+  font-size: 12.5px;
+  color: var(--cat-muted);
+  padding-right: 0;
+}
+
+.jd-cat-child-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  background: none;
+  border: 0;
+  color: var(--cat-quiet);
+}
+
+.jd-cat-child-status.is-on {
+  color: #2f6b41;
+}
+
+.jd-cat-child-status .jd-cat-dot {
+  width: 6px;
+  height: 6px;
+}
+
+.jd-cat-child-status.is-on .jd-cat-dot {
+  background: #4a8a5c;
+}
+
+/* auditoria */
+
+.jd-cat-audit-box {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 12px 14px;
+  background: var(--cat-soft);
+  border: 1px solid var(--cat-line);
+  border-radius: 4px;
+}
+
+.jd-cat-audit-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--cat-quiet);
+  line-height: 1;
+}
+
+.jd-cat-audit-value {
+  font-size: 13px;
+  color: var(--cat-ink);
+}
+
+.jd-cat-log-row {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--cat-line-soft);
+}
+
+.jd-cat-log-row:nth-child(even) {
+  background: #fbfcfd;
+}
+
+.jd-cat-log-row > span:first-child {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 12px;
+  color: var(--cat-faint);
+}
+
+.jd-cat-log-row > span:last-child {
+  font-size: 12.5px;
+  color: var(--cat-ink-soft);
+  overflow-wrap: anywhere;
+}
+
+/* rodapé do modal */
+
+.jd-cat-modal-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 22px;
+  border-top: 1px solid var(--cat-line);
+  background: var(--cat-soft);
+}
+
+.jd-cat-modal-foot .jd-modal-danger {
+  font-size: 12.5px;
+  color: #a04141;
+  background: none;
+  border: 0;
+  padding: 0;
+}
+
+.jd-cat-modal-foot .jd-modal-cancel {
+  font-size: 13px;
+  padding: 8px 14px;
+  border: 1px solid #ccd4d8;
+  background: #fff;
+  color: var(--cat-ink-soft);
+  border-radius: 3px;
+}
+
+.jd-cat-modal-foot .jd-modal-save {
+  font-size: 13px;
+  padding: 8px 16px;
+  border: 0;
+  background: var(--cat-brand);
+  color: #fff;
+  border-radius: 3px;
+  font-weight: 500;
+}
+
+.jd-cat-modal-foot .jd-modal-save:hover {
+  background: var(--cat-brand-dark);
+}
+
+.jd-cat-modal .errornote {
+  margin: 16px 22px 0;
+}
+
+/* ---- tablet ------------------------------------------------------------ */
+
+@media (max-width: 1000px) {
+  .jd-cat {
+    --cat-grid: 32px minmax(160px, 1.6fr) 76px 64px 96px 68px;
+  }
+
+  .jd-cat-thead > .jd-cat-col:nth-child(3),
+  .jd-cat-row > .jd-cat-slug {
+    display: none;
+  }
+
+  /* O slug não some da tela: ele passa a viver sob o nome. */
+  .jd-cat-name {
+    flex-wrap: wrap;
+  }
+
+  .jd-cat-name::after {
+    content: attr(data-slug);
+    flex-basis: 100%;
+    padding-left: 30px;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 11.5px;
+    color: var(--cat-faint);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .jd-cat-row {
+    min-height: 52px;
+  }
+}
+
+/* ---- celular ----------------------------------------------------------- */
+
+@media (max-width: 760px) {
+  .jd-cat-thead {
+    display: none;
+  }
+
+  .jd-cat-row {
+    grid-template-columns: 28px 1fr auto;
+    grid-template-areas:
+      "check name name"
+      "check meta status";
+    gap: 4px 8px;
+    padding: 10px 14px;
+    align-items: center;
+  }
+
+  .jd-cat-row > div:first-child {
+    grid-area: check;
+  }
+
+  .jd-cat-name {
+    grid-area: name;
+    padding-right: 0;
+  }
+
+  .jd-cat-row > .jd-cat-num {
+    grid-area: meta;
+    text-align: left;
+    font-size: 12px;
+    color: var(--cat-muted);
+    padding-right: 0;
+  }
+
+  /* Produtos e ordem numa linha só, com rótulo — sem cabeçalho para explicá-los. */
+  .jd-cat-row > .jd-cat-num::before {
+    content: attr(data-label) " ";
+    color: var(--cat-faint);
+  }
+
+  .jd-cat-row > .jd-cat-order {
+    grid-area: meta;
+    justify-self: end;
+    padding-right: 84px;
+  }
+
+  .jd-cat-status {
+    grid-area: status;
+    justify-content: flex-end;
+  }
+
+  .jd-cat-actions {
+    display: none;
+  }
+
+  .jd-cat-name > a {
+    white-space: normal;
+    overflow: visible;
+  }
+
+  .jd-cat-head,
+  .jd-cat-filters,
+  .jd-cat-foot {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .jd-cat-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .jd-cat-search {
+    max-width: none;
+    flex-basis: 100%;
+  }
+
+  .jd-cat-grow {
+    display: none;
+  }
+
+  .jd-cat-modal .jd-modal-dialog {
+    max-width: none;
+  }
+
+  .jd-cat-grid,
+  .jd-cat-lang-grid,
+  .jd-cat-child-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .jd-cat-table-head {
+    display: none;
+  }
+
+  .jd-cat-lang-row,
+  .jd-cat-child-row {
+    padding: 12px;
+  }
+
+  .jd-cat-child-row .jd-cat-num,
+  .jd-cat-child-slug {
+    text-align: left;
+  }
+
+  .jd-cat-panel {
+    padding: 16px;
+  }
+
+  .jd-cat-modal-head,
+  .jd-cat-modal-foot {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .jd-cat-tabs {
+    padding: 0 8px;
+  }
+
+  .jd-cat-log-row {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}

@@ -91,7 +91,7 @@ class Material(TranslatableMixin, TimeStampedModel):
     "Madeira" não — e era isso que aparecia em português numa loja francesa.
     """
 
-    translatable_fields = ("name",)
+    translatable_fields = ("name", "description")
 
     name = models.CharField(
         "nome interno",
@@ -121,6 +121,26 @@ class Material(TranslatableMixin, TimeStampedModel):
         que um espaço em branco na ficha técnica.
         """
         return self.tr("name", default=self.name)
+
+    @property
+    def display_description(self) -> str:
+        """A descrição rica no idioma atual — ou em português, ou nada.
+
+        O fallback é mais estreito de propósito do que o de `display_name`.
+        Um nome sem tradução vale em qualquer idioma («PLA» é PLA), e por isso
+        `tr()` vasculha todos até achar algum. Um **texto** não: mostrar dois
+        parágrafos em francês a um cliente holandês não é um fallback, é o
+        idioma errado na tela. Então são duas tentativas — o idioma pedido e o
+        padrão da loja — e, se nenhuma existir, a seção simplesmente não
+        aparece.
+
+        O HTML volta limpo: o que está no banco foi sanitizado ao gravar, e
+        `{% rich_html %}` sanitiza de novo ao desenhar.
+        """
+        atual = self.tr("description", fallback=False)
+        if atual:
+            return atual
+        return self.tr("description", language=DEFAULT_LANGUAGE.value, fallback=False)
 
     def save(self, *args, **kwargs):
         if not self.slug:
@@ -613,6 +633,38 @@ class Product(TranslatableMixin, AuditableModel):
     def composition(self) -> list:
         """As linhas de ``ProductMaterialComposition``, na ordem."""
         return sorted(self.material_composition.all(), key=lambda c: (c.sort_order, c.pk or 0))
+
+    @property
+    def related_materials(self) -> list:
+        """Os materiais que este produto usa, sem repetir, na ordem de leitura.
+
+        Duas origens, porque o material entra no produto por dois caminhos: a
+        **composição** (do que a peça é feita: «PLA 80% + PETG 20%») e a
+        **variante** (o material comercial daquela unidade vendável). Quem
+        cadastrou só um dos dois não deve ficar sem a descrição por causa da
+        escolha de cadastro.
+
+        Percorre o que já veio no `prefetch_related` da página: nenhuma
+        consulta a mais, seja com um material ou com cinco. O produto continua
+        apenas **apontando** para o material — a descrição mora lá, e alterá-la
+        muda todos os produtos de uma vez.
+        """
+        encontrados = {}
+        for linha in self.composition:
+            encontrados.setdefault(linha.material_id, linha.material)
+        for variant in self.active_variants():
+            if variant.material_id and variant.material_id not in encontrados:
+                encontrados[variant.material_id] = variant.material
+        return list(encontrados.values())
+
+    @property
+    def material_notes(self) -> list:
+        """Os materiais que têm o que dizer no idioma atual — os outros ficam de fora.
+
+        É o que a página desenha: material sem descrição no idioma pedido nem
+        em português não vira seção vazia.
+        """
+        return [material for material in self.related_materials if material.display_description]
 
     @property
     def materials_text(self) -> str:
@@ -1358,9 +1410,11 @@ class ProductVariant(TimeStampedModel):
 
 
 class MaterialTranslation(TranslationBase):
-    """O nome do material em um idioma.
+    """O que o cliente lê sobre o material, em um idioma: nome e descrição.
 
-    Só o nome: slug, descrição interna e estado não mudam com o idioma.
+    Slug, nome interno e estado não mudam com o idioma e ficam em `Material`.
+    Acrescentar um idioma continua sendo inserir uma linha — nenhum campo
+    `descricao_fr` existe, nem existirá.
     """
 
     master = models.ForeignKey(
@@ -1370,6 +1424,17 @@ class MaterialTranslation(TranslationBase):
         on_delete=models.CASCADE,
     )
     name = models.CharField("nome", max_length=80)
+    #: Etapa 4C.3: a descrição que o cliente lê na página do produto.
+    #:
+    #: Um campo só, e HTML: o administrador estrutura ali dentro o que aquele
+    #: material precisa dizer — limpeza, calor, cuidados — com subtítulos,
+    #: listas e destaque. Campos fixos por assunto envelheceriam mal (o
+    #: próximo material pede um assunto que os outros não têm) e não seriam
+    #: traduzíveis sem multiplicar colunas.
+    #:
+    #: O conteúdo é limpo por `apps.core.richtext.sanitize_rich_text` ao
+    #: gravar e de novo ao exibir; nada aqui é renderizado sem passar por lá.
+    description = models.TextField("descrição", blank=True)
 
     class Meta:
         verbose_name = "tradução do material"
@@ -1746,6 +1811,92 @@ class ProductVariantOptionValue(TimeStampedModel):
     def save(self, *args, **kwargs):
         self.clean()
         super().save(*args, **kwargs)
+
+
+#: Os textos que «Copiar de…» leva de um produto para outro.
+#:
+#: O `name` fica **de fora**, e é a decisão que dá sentido à ação: o nome é a
+#: identidade do produto («Dinossauros — Kit para Colorir»), não a descrição
+#: dele. Copiar o nome renomearia o destino para o nome da origem — o oposto
+#: do que quem clica quer. O que se reaproveita é o texto que se repete entre
+#: produtos irmãos.
+CONTENT_COPY_FIELDS = ("short_description", "description", "extra_information")
+
+
+def product_content_copy_plan(origem, destino) -> dict:
+    """O que aconteceria numa cópia, idioma a idioma — sem gravar nada.
+
+    É o que a confirmação mostra antes de executar, porque a regra tem uma
+    assimetria que ninguém adivinha: um idioma que existe no destino e **não**
+    existe na origem fica como está. Sobrescrever com vazio seria apagar
+    trabalho; ignorar em silêncio seria pior ainda.
+
+    Devolve três listas de códigos de idioma:
+
+    * ``replace`` — existe nos dois: o texto do destino é substituído;
+    * ``create``  — só na origem: nasce uma tradução nova no destino;
+    * ``keep``    — só no destino: não é tocada.
+    """
+    da_origem = {t.language: t for t in origem.translations.all()}
+    do_destino = {t.language: t for t in destino.translations.all()}
+    return {
+        "replace": sorted(code for code in da_origem if code in do_destino),
+        "create": sorted(code for code in da_origem if code not in do_destino),
+        "keep": sorted(code for code in do_destino if code not in da_origem),
+    }
+
+
+def copy_product_content(origem, destino) -> dict:
+    """Copia os textos de ``origem`` para ``destino``, um idioma por vez.
+
+    Etapa 4C.2. Nasce de uma repetição real do catálogo: «Pets — Kit para
+    Colorir» e «Dinossauros — Kit para Colorir» têm o mesmo texto de
+    apresentação em quatro idiomas, e só o assunto muda.
+
+    ## O que isto **não** é
+
+    Não é duplicação de produto (essa já existe, e faz outra coisa), não é
+    biblioteca de textos e não é herança: depois da cópia os dois produtos não
+    se conhecem. Cada tradução é uma linha própria do destino; editar um lado
+    depois não mexe no outro.
+
+    ## Idiomas
+
+    Nenhum código de idioma aparece aqui. O que a origem tiver, o destino
+    recebe — quatro idiomas hoje, sete amanhã, sem alterar esta função.
+
+    O nome não é copiado (ver `CONTENT_COPY_FIELDS`). Num idioma que o destino
+    ainda não tinha, a tradução nasce com o nome que o destino usa em
+    português: é o que a loja já mostraria ali por fallback, e fica visível
+    para quem for traduzir depois.
+
+    Tudo numa transação: ou todos os idiomas entram, ou nenhum.
+    """
+    if origem.pk == destino.pk:
+        raise ValueError("Um produto não copia as descrições de si mesmo.")
+
+    plano = product_content_copy_plan(origem, destino)
+    nome_padrao = destino.name_in(DEFAULT_LANGUAGE.value) or destino.sku
+
+    with transaction.atomic():
+        do_destino = {t.language: t for t in destino.translations.all()}
+        for traducao in origem.translations.all():
+            campos = {campo: getattr(traducao, campo) for campo in CONTENT_COPY_FIELDS}
+            atual = do_destino.get(traducao.language)
+            if atual is None:
+                ProductTranslation.objects.create(
+                    master=destino,
+                    language=traducao.language,
+                    name=nome_padrao,
+                    **campos,
+                )
+            else:
+                for campo, valor in campos.items():
+                    setattr(atual, campo, valor)
+                atual.save(update_fields=list(campos))
+
+    destino.refresh_translations()
+    return plano
 
 
 def copy_product_options(origem, destino) -> tuple[dict, dict]:
