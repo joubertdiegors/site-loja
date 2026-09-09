@@ -6,12 +6,15 @@ inlines: traduções, variantes e mídias.
 
 from decimal import Decimal
 
+from urllib.parse import urlencode
+
 from django import forms
 from django.contrib import admin, messages
+from django.contrib.admin.views.main import ORDER_VAR, PAGE_VAR, SEARCH_VAR, ChangeList
 from django.contrib.admin.widgets import RelatedFieldWidgetWrapper
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
-from django.db.models import ProtectedError, Q, RestrictedError
+from django.db.models import Count, ProtectedError, Q, RestrictedError
 from django.http import Http404, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.urls import path, reverse
@@ -22,6 +25,12 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from apps.catalog import sku as sku_rules
+from apps.catalog.admin_filters import (
+    FILTROS_DE_PRODUTO,
+    PrecoFiltro,
+    arvore_de_categorias,
+    caminho_de_categoria,
+)
 
 from apps.catalog.models import (
     Brand,
@@ -1353,6 +1362,69 @@ class ProductAdminForm(forms.ModelForm):
         return dados
 
 
+class ProdutoChangeList(ChangeList):
+    """O `ChangeList` da lista de produtos: acrescenta "itens por página".
+
+    `get_results` é o gancho certo para isso. Quando ele roda, `__init__` já
+    gravou `self.list_per_page`, e é dessa atribuição que sai o paginador —
+    trocar o valor na `ModelAdmin` não serviria: a instância dela é
+    compartilhada por todas as requisições do processo.
+    """
+
+    #: As três opções da tela. Um número fora daqui é ignorado: `?por_pagina=`
+    #: não é um jeito de pedir dez mil linhas ao banco.
+    POR_PAGINA = (12, 24, 48)
+    POR_PAGINA_PADRAO = 24
+    PARAMETRO_POR_PAGINA = "por_pagina"
+
+    def escolha_por_pagina(self) -> int:
+        for bruto in reversed(self.filter_params.get(self.PARAMETRO_POR_PAGINA, [])):
+            try:
+                valor = int(bruto)
+            except (TypeError, ValueError):
+                continue
+            if valor in self.POR_PAGINA:
+                return valor
+        return self.POR_PAGINA_PADRAO
+
+    def get_filters_params(self, params=None):
+        """`por_pagina` não é filtro.
+
+        Sem esta remoção ele sobraria em `remaining_lookup_params` e o
+        `ChangeList` tentaria `filter(por_pagina=24)` — que é um `FieldError`
+        virando "Please correct the error below" na tela. Sai daqui, mas
+        continua em `filter_params`: é por isso que ele sobrevive à paginação,
+        aos chips e ao "Limpar tudo".
+        """
+        limpos = super().get_filters_params(params)
+        limpos.pop(self.PARAMETRO_POR_PAGINA, None)
+        return limpos
+
+    def get_results(self, request):
+        self.list_per_page = self.escolha_por_pagina()
+        super().get_results(request)
+        # O caminho completo da categoria, carimbado nas linhas desta página a
+        # partir da árvore que a requisição já carregou. A coluna não pode
+        # buscá-lo sozinha: ela recebe só o objeto, e `str(categoria)` sobe
+        # pelos pais com uma consulta por ancestral.
+        arvore = arvore_de_categorias(request)
+        for produto in self.result_list:
+            produto.jd_caminho = caminho_de_categoria(arvore, produto.category_id)
+
+
+#: As pílulas de visão: atalhos para combinações de filtro que se usa todo
+#: dia. Não são um mecanismo à parte — cada uma só escreve na URL os mesmos
+#: parâmetros que o painel escreveria, e por isso aparecem como chip, saem no
+#: "Limpar tudo" e combinam com o resto.
+VISOES_DA_LISTA = (
+    ("todos", "Todos", {}),
+    ("rascunhos", "Rascunhos", {"status": [ProductStatus.DRAFT]}),
+    ("estoque", "Estoque baixo", {"estoque": ["baixo"]}),
+    ("pendentes", "Sem configuração", {"variantes": ["sem"]}),
+    ("destaques", "Destaques", {"destaque": ["sim"]}),
+)
+
+
 @admin.register(Product)
 class ProductAdmin(DuplicateAdminMixin, TranslatedSlugAdminMixin, AuditUserAdminMixin):
     form = ProductAdminForm
@@ -1411,7 +1483,7 @@ class ProductAdmin(DuplicateAdminMixin, TranslatedSlugAdminMixin, AuditUserAdmin
         "id",
         "sku",
         "display_name",
-        "category",
+        "categoria",
         "status_badge",
         "price_display",
         "stock_display",
@@ -1419,15 +1491,12 @@ class ProductAdmin(DuplicateAdminMixin, TranslatedSlugAdminMixin, AuditUserAdmin
         "acoes",
     )
     list_display_links = ("sku", "display_name")
-    list_filter = (
-        "status",
-        "personalization_type",
-        "is_featured",
-        "category",
-        "brand",
-        "currency",
-        "variants__material",
-    )
+    #: O painel da lista (ver `admin_filters.py`). São filtros do Admin de
+    #: verdade: quem os combina, preserva na querystring e leva para a próxima
+    #: página é o `ChangeList`, não código nosso.
+    list_filter = FILTROS_DE_PRODUTO
+    #: `get_search_results` faz o trabalho de verdade; esta lista fica porque
+    #: `ChangeList` só monta o campo de busca quando ela existe.
     search_fields = (
         "sku",
         "slug",
@@ -1437,7 +1506,7 @@ class ProductAdmin(DuplicateAdminMixin, TranslatedSlugAdminMixin, AuditUserAdmin
     )
     ordering = ("-created_at",)
     date_hierarchy = "created_at"
-    list_per_page = 30
+    list_per_page = ProdutoChangeList.POR_PAGINA_PADRAO
     autocomplete_fields = ("category", "brand")
     #: `DuplicateAdminMixin.actions` entra explicitamente porque o Django monta
     #: a lista a partir de `self.actions` e só dela: declarar ações aqui
@@ -1527,7 +1596,14 @@ class ProductAdmin(DuplicateAdminMixin, TranslatedSlugAdminMixin, AuditUserAdmin
     audit_fields = ("created_at", "created_by", "updated_at", "updated_by")
 
     class Media:
-        css = {"all": ("admin/css/jdprint_admin.css",)}
+        css = {
+            "all": (
+                "admin/css/jdprint_admin.css",
+                # A lista de produtos. Fica em arquivo próprio porque é a
+                # única tela do Admin com o painel de filtros.
+                "admin/css/jdprint_product_list.css",
+            )
+        }
         # `jd_modal.js` primeiro: e a casca que os outros dois usam.
         js = (
             "admin/js/jd_modal.js",
@@ -2523,13 +2599,418 @@ class ProductAdmin(DuplicateAdminMixin, TranslatedSlugAdminMixin, AuditUserAdmin
         return super().render_change_form(request, context, add=add, change=change, **kwargs)
 
     def get_queryset(self, request):
-        return super().get_queryset(request).for_listing().prefetch_related("variants")
+        return super().get_queryset(request).for_admin_list()
+
+    def get_changelist(self, request, **kwargs):
+        return ProdutoChangeList
+
+    def get_search_results(self, request, queryset, search_term):
+        """A busca da lista: nome, SKU, categoria (com os pais) e marca.
+
+        Escrita com `pk__in` de subconsultas em vez de `join`, ao contrário da
+        busca de fábrica: `join` traria o produto repetido (uma linha por
+        tradução, uma por variante) e obrigaria a um `distinct()` — que é
+        justamente o que estragaria a soma de estoque anotada na lista. Por
+        isso a segunda posição da tupla devolvida é `False`.
+
+        A categoria entra com os **ancestrais**: procurar "Religiosos" acha o
+        produto que está em "Religiosos › Santos › Nossa Senhora", que é o que
+        quem procura espera — a categoria do produto é sempre a folha.
+        """
+        termo = (search_term or "").strip()
+        if not termo:
+            return queryset, False
+
+        procura = (
+            Q(sku__icontains=termo)
+            | Q(slug__icontains=termo)
+            | Q(pk__in=ProductTranslation.objects.filter(
+                Q(name__icontains=termo) | Q(short_description__icontains=termo)
+            ).values("master_id"))
+            | Q(pk__in=ProductVariant.objects.filter(sku__icontains=termo).values("product_id"))
+            | Q(brand__name__icontains=termo)
+        )
+
+        categorias = self._categorias_da_busca(request, termo)
+        if categorias:
+            procura |= Q(category_id__in=categorias)
+        return queryset.filter(procura), False
+
+    @staticmethod
+    def _categorias_da_busca(request, termo) -> set:
+        """Categorias cujo nome (ou o de um ancestral) casa com o termo."""
+        arvore = arvore_de_categorias(request)
+        encontradas = {
+            categoria.pk
+            for categoria in arvore.by_id.values()
+            if termo.lower() in categoria.name_in(DEFAULT_LANGUAGE.value).lower()
+            or termo.lower() in categoria.slug.lower()
+        }
+        alcance = set()
+        for categoria_id in encontradas:
+            alcance.update(arvore.subtree_ids(categoria_id))
+        return alcance
+
+    # -- o painel da lista -------------------------------------------------
+    #
+    # Nada aqui filtra nem ordena: quem faz isso são os filtros do Admin e o
+    # `ChangeList`. O que estes métodos montam é só o que a tela precisa
+    # desenhar — rótulos, contagens e URLs.
+
+    def changelist_view(self, request, extra_context=None):
+        """Acrescenta o contexto do painel à resposta que o Django já montou.
+
+        Pós-processar a `TemplateResponse` em vez de reimplementar a view:
+        o `cl` só existe depois que `super()` roda, e é dele que sai tudo —
+        inclusive o queryset já recortado por permissão.
+        """
+        resposta = super().changelist_view(request, extra_context)
+        dados = getattr(resposta, "context_data", None)
+        if not dados or "cl" not in dados:
+            # POST de ação, redirecionamento após "Ir", `?e=1`: nada a fazer.
+            return resposta
+        dados.update(self._contexto_da_lista(request, dados["cl"]))
+        return resposta
+
+    def _contexto_da_lista(self, request, cl) -> dict:
+        # `cl.get_queryset()` reatribui `cl.filter_specs` a cada chamada (é
+        # como as facetas do Django funcionam), então a lista é copiada antes
+        # de contar — senão as instâncias mudariam debaixo do laço.
+        especificacoes = list(cl.filter_specs)
+        preco = next((e for e in especificacoes if isinstance(e, PrecoFiltro)), None)
+        grupos = [e for e in especificacoes if e is not preco]
+
+        inicio = (cl.page_num - 1) * cl.list_per_page + 1 if cl.result_count else 0
+        return {
+            "jd_total": cl.full_result_count if cl.full_result_count is not None else cl.result_count,
+            "jd_resultados": cl.result_count,
+            "jd_busca": cl.query,
+            "jd_visoes": self._visoes(request, cl),
+            "jd_grupos": [self._grupo(request, cl, grupo) for grupo in grupos],
+            "jd_preco": {
+                "minimo": "" if preco is None or preco.minimo is None else preco.minimo,
+                "maximo": "" if preco is None or preco.maximo is None else preco.maximo,
+                "campo_minimo": PrecoFiltro.MINIMO,
+                "campo_maximo": PrecoFiltro.MAXIMO,
+            },
+            "jd_chips": self._chips(cl, especificacoes),
+            "jd_url_limpar_tudo": self._url_limpar_tudo(cl),
+            "jd_ocultos": self._ocultos(cl, especificacoes),
+            "jd_ordenacoes": self._ordenacoes(cl),
+            "jd_por_pagina": self._por_pagina(cl),
+            "jd_paginas": self._paginas(cl),
+            "jd_faixa": (
+                f"Mostrando {inicio}–{inicio + len(cl.result_list) - 1} de {cl.result_count}"
+                if cl.result_count
+                else ""
+            ),
+            "jd_parametro_por_pagina": ProdutoChangeList.PARAMETRO_POR_PAGINA,
+            "jd_parametro_busca": SEARCH_VAR,
+            "jd_parametro_ordem": ORDER_VAR,
+            "jd_ordem_atual": cl.params.get(ORDER_VAR, ""),
+        }
+
+    # -- URLs --------------------------------------------------------------
+
+    @staticmethod
+    def _querystring(parametros) -> str:
+        limpos = {chave: valores for chave, valores in parametros.items() if valores}
+        return "?" + urlencode(sorted(limpos.items()), doseq=True) if limpos else "?"
+
+    @staticmethod
+    def _parametros(cl) -> dict:
+        """Cópia mutável do que está na URL, sem a página.
+
+        Sem a página de propósito: mudar um filtro e continuar na página 7 é
+        um jeito confiável de cair numa lista vazia.
+        """
+        parametros = {chave: list(valores) for chave, valores in cl.filter_params.items()}
+        parametros.pop(PAGE_VAR, None)
+        return parametros
+
+    def _url_sem(self, cl, nome, valor=None) -> str:
+        """A URL de agora menos **um** valor — é o que o × do chip faz.
+
+        Um valor, e não o parâmetro inteiro: os grupos são multi-seleção, e
+        tirar "PLA" não pode levar "PETG" junto.
+        """
+        parametros = self._parametros(cl)
+        if valor is None:
+            parametros.pop(nome, None)
+        else:
+            restantes = [item for item in parametros.get(nome, []) if str(item) != str(valor)]
+            if restantes:
+                parametros[nome] = restantes
+            else:
+                parametros.pop(nome, None)
+        return self._querystring(parametros)
+
+    def _url_limpar_tudo(self, cl) -> str:
+        """Zera busca e filtros; ordenação e itens por página ficam.
+
+        São preferências de leitura da tela, não um recorte do catálogo.
+        """
+        guardados = {
+            chave: cl.filter_params[chave]
+            for chave in (ORDER_VAR, ProdutoChangeList.PARAMETRO_POR_PAGINA)
+            if chave in cl.filter_params
+        }
+        return self._querystring(guardados)
+
+    def _ocultos(self, cl, especificacoes) -> list:
+        """O que está na URL e não tem campo no formulário do painel.
+
+        A hierarquia de datas, por exemplo: sem estes `hidden` ela seria
+        apagada assim que alguém digitasse na busca.
+        """
+        donos = {SEARCH_VAR, ORDER_VAR, ProdutoChangeList.PARAMETRO_POR_PAGINA, PAGE_VAR}
+        for especificacao in especificacoes:
+            donos.update(especificacao.expected_parameters())
+        return [
+            {"nome": nome, "valor": valor}
+            for nome, valores in sorted(cl.filter_params.items())
+            if nome not in donos
+            for valor in valores
+        ]
+
+    # -- pedaços do painel -------------------------------------------------
+
+    def _visoes(self, request, cl) -> list:
+        """As pílulas, com quantos produtos existem em cada estado.
+
+        A contagem é do catálogo inteiro (recortado por permissão), não do
+        resultado atual: a pílula responde "quantos existem assim", que é o
+        que faz dela um atalho útil mesmo com filtros ligados.
+        """
+        from apps.catalog.admin_filters import EstoqueFiltro
+
+        base = self.model.objects.filter(
+            pk__in=cl.root_queryset.order_by().values("pk")
+        ).with_admin_annotations()
+        contagens = base.aggregate(
+            todos=Count("pk", distinct=True),
+            rascunhos=Count("pk", filter=Q(status=ProductStatus.DRAFT), distinct=True),
+            estoque=Count("pk", filter=EstoqueFiltro._pedacos()["baixo"], distinct=True),
+            pendentes=Count("pk", filter=Q(_variantes_ativas=0), distinct=True),
+            destaques=Count("pk", filter=Q(is_featured=True), distinct=True),
+        )
+
+        donos = set()
+        for _chave, _rotulo, parametros in VISOES_DA_LISTA:
+            donos.update(parametros)
+
+        atuais = self._parametros(cl)
+        visoes = []
+        for chave, rotulo, parametros in VISOES_DA_LISTA:
+            alvo = {nome: valores for nome, valores in atuais.items() if nome not in donos}
+            alvo.update({nome: list(valores) for nome, valores in parametros.items()})
+            ativa = all(
+                [str(item) for item in atuais.get(nome, [])] == [str(item) for item in parametros.get(nome, [])]
+                for nome in donos
+            )
+            visoes.append(
+                {
+                    "chave": chave,
+                    "rotulo": rotulo,
+                    "contagem": contagens.get(chave) or 0,
+                    "url": self._querystring(alvo),
+                    "ativa": ativa,
+                }
+            )
+        return visoes
+
+    def _grupo(self, request, cl, especificacao) -> dict:
+        """Um grupo do painel, com a contagem de cada opção.
+
+        A contagem sai do queryset filtrado por **todos os outros** grupos e
+        pela busca, mas não por este — `exclude_parameters` é exatamente isso.
+        Sem essa exclusão, marcar "PLA" zeraria a contagem de "PETG" e a tela
+        diria que não existe PETG nenhum no catálogo.
+        """
+        pool = cl.get_queryset(request, exclude_parameters=especificacao.expected_parameters())
+        base = self.model.objects.filter(pk__in=pool.order_by().values("pk"))
+        contagens = especificacao.contar(base)
+
+        escolhidos = list(especificacao.escolhidos)
+        rotulos = [
+            opcao["rotulo"] for opcao in especificacao.opcoes if opcao["valor"] in escolhidos
+        ]
+        if not rotulos:
+            texto = especificacao.vazio
+        elif len(rotulos) == 1:
+            texto = rotulos[0]
+        else:
+            texto = ", ".join(rotulos[:2])
+
+        return {
+            "titulo": especificacao.title,
+            "parametro": especificacao.parametro,
+            "texto": texto,
+            "quantidade": len(escolhidos),
+            "ativo": bool(escolhidos),
+            "url_limpar": self._url_sem(cl, especificacao.parametro),
+            "opcoes": [
+                {
+                    "valor": opcao["valor"],
+                    "rotulo": opcao["rotulo"],
+                    "recuo": opcao["nivel"] * 14,
+                    "marcada": opcao["valor"] in escolhidos,
+                    "contagem": contagens.get(opcao["valor"], 0),
+                }
+                for opcao in especificacao.opcoes
+            ],
+        }
+
+    def _chips(self, cl, especificacoes) -> list:
+        chips = []
+        if cl.query:
+            chips.append(
+                {"rotulo": f"Busca: “{cl.query}”", "url": self._url_sem(cl, SEARCH_VAR)}
+            )
+        for especificacao in especificacoes:
+            if isinstance(especificacao, PrecoFiltro):
+                if especificacao.minimo is not None:
+                    chips.append(
+                        {
+                            "rotulo": f"Preço ≥ €{especificacao.minimo}",
+                            "url": self._url_sem(cl, PrecoFiltro.MINIMO),
+                        }
+                    )
+                if especificacao.maximo is not None:
+                    chips.append(
+                        {
+                            "rotulo": f"Preço ≤ €{especificacao.maximo}",
+                            "url": self._url_sem(cl, PrecoFiltro.MAXIMO),
+                        }
+                    )
+                continue
+            rotulos = {opcao["valor"]: opcao["rotulo"] for opcao in especificacao.opcoes}
+            for valor in especificacao.escolhidos:
+                chips.append(
+                    {
+                        "rotulo": f"{especificacao.title}: {rotulos.get(valor, valor)}",
+                        "url": self._url_sem(cl, especificacao.parametro, valor),
+                    }
+                )
+        return chips
+
+    def _ordenacoes(self, cl) -> list:
+        """O `<select>` de ordenação fala a mesma língua do cabeçalho da tabela.
+
+        Ele escreve o mesmo `?o=` que o clique no `<th>` escreve, e o índice
+        sai do `cl.list_display` de verdade — assim mexer em `list_display`
+        não deixa o select apontando para a coluna errada.
+        """
+        colunas = list(cl.list_display)
+
+        def indice(nome):
+            return colunas.index(nome) if nome in colunas else None
+
+        atual = cl.params.get(ORDER_VAR, "")
+        opcoes = [{"rotulo": "Mais recentes", "valor": "", "ativa": not atual}]
+        for rotulo, coluna, decrescente in (
+            ("Mais antigos", "id", False),
+            ("Nome (A–Z)", "display_name", False),
+            ("Preço ↑", "price_display", False),
+            ("Preço ↓", "price_display", True),
+            ("Estoque ↑", "stock_display", False),
+            ("Estoque ↓", "stock_display", True),
+        ):
+            posicao = indice(coluna)
+            if posicao is None:
+                continue
+            valor = f"-{posicao}" if decrescente else str(posicao)
+            opcoes.append({"rotulo": rotulo, "valor": valor, "ativa": atual == valor})
+        if atual and not any(opcao["ativa"] for opcao in opcoes):
+            # Ordenação vinda de um clique no cabeçalho da tabela (que aceita
+            # combinações que o select não lista). Sem esta entrada o select
+            # cairia na primeira opção e o próximo envio apagaria a escolha.
+            opcoes.append({"rotulo": "Ordenação da tabela", "valor": atual, "ativa": True})
+        return opcoes
+
+    def _por_pagina(self, cl) -> list:
+        return [
+            {
+                "valor": str(quantidade),
+                "rotulo": f"{quantidade} por página",
+                "ativa": cl.list_per_page == quantidade,
+            }
+            for quantidade in ProdutoChangeList.POR_PAGINA
+        ]
+
+    def _paginas(self, cl) -> list:
+        if cl.paginator.num_pages <= 1:
+            return []
+        paginas = []
+        for numero in cl.paginator.get_elided_page_range(cl.page_num, on_each_side=2, on_ends=1):
+            if numero == cl.paginator.ELLIPSIS:
+                paginas.append({"reticencias": True, "rotulo": str(numero)})
+                continue
+            paginas.append(
+                {
+                    "reticencias": False,
+                    "rotulo": str(numero),
+                    "url": cl.get_query_string({PAGE_VAR: numero}),
+                    "atual": numero == cl.page_num,
+                }
+            )
+        return paginas
 
     # -- colunas calculadas ------------------------------------------------
 
-    @admin.display(description="produto")
+    @admin.display(description="categoria", ordering="category")
+    def categoria(self, obj):
+        """O caminho inteiro, como no modelo: «Religiosos › Santos › Aparecida».
+
+        O texto vem carimbado por `ProdutoChangeList.get_results`. Sem ele
+        (numa listagem montada fora do changelist) cai no `str` de sempre, que
+        dá o mesmo resultado pagando consultas.
+        """
+        caminho = getattr(obj, "jd_caminho", None)
+        if caminho is None:
+            caminho = str(obj.category) if obj.category_id else ""
+        return caminho or format_html('<span class="jd-muted">{}</span>', "—")
+
+    #: Os tipos de mídia que servem de miniatura na lista.
+    MIDIA_VISIVEL = (MediaType.IMAGE, MediaType.GIF)
+
+    @admin.display(description="produto", ordering="_nome_pt")
     def display_name(self, obj):
-        return obj.name_in(DEFAULT_LANGUAGE.value)
+        """Miniatura e nome, como na linha do modelo.
+
+        A foto sai do `prefetch_related("media")` que a listagem já faz — não
+        custa uma consulta por linha. Sem foto entra um retângulo listrado do
+        mesmo tamanho: assim a coluna não muda de altura de linha para linha,
+        e a falta da foto fica visível em vez de invisível.
+        """
+        nome = obj.name_in(DEFAULT_LANGUAGE.value)
+        endereco = self._miniatura(obj)
+        if endereco is None:
+            return format_html(
+                '<span class="jd-produto"><span class="jd-thumb jd-thumb-vazio"></span>'
+                '<span class="jd-produto-nome">{}</span></span>',
+                nome,
+            )
+        return format_html(
+            '<span class="jd-produto">'
+            '<img class="jd-thumb" src="{}" alt="" loading="lazy" width="34" height="34">'
+            '<span class="jd-produto-nome">{}</span></span>',
+            endereco,
+            nome,
+        )
+
+    def _miniatura(self, obj):
+        """A foto principal do produto, ou a primeira que existir."""
+        imagens = [item for item in obj.media.all() if item.media_type in self.MIDIA_VISIVEL]
+        escolhida = next((item for item in imagens if item.is_primary), None) or next(
+            iter(imagens), None
+        )
+        if escolhida is None or not escolhida.file:
+            return None
+        try:
+            return escolhida.file.url
+        except ValueError:  # arquivo sem storage configurado
+            return None
 
     @admin.display(description="nome (português)")
     def nome_pt(self, obj):
@@ -2553,7 +3034,7 @@ class ProductAdmin(DuplicateAdminMixin, TranslatedSlugAdminMixin, AuditUserAdmin
             obj.get_status_display(),
         )
 
-    @admin.display(description="preço")
+    @admin.display(description="preço", ordering="_preco_ordem")
     def price_display(self, obj):
         """Preço das variantes ativas: um valor, ou a faixa quando diferem.
 
@@ -2566,7 +3047,7 @@ class ProductAdmin(DuplicateAdminMixin, TranslatedSlugAdminMixin, AuditUserAdmin
             return money(low, obj.currency_symbol)
         return f"{money(low, obj.currency_symbol)} – {money(high, obj.currency_symbol)}"
 
-    @admin.display(description="variantes")
+    @admin.display(description="variantes", ordering="_variantes_ativas")
     def variant_count(self, obj):
         """«1 opção», «3 opções» (link para a seção), ou o alerta sem variante."""
         total = len(obj.variants.all())
@@ -2614,7 +3095,7 @@ class ProductAdmin(DuplicateAdminMixin, TranslatedSlugAdminMixin, AuditUserAdmin
             return "—"
         return obj.get_personalization_type_display()
 
-    @admin.display(description="estoque")
+    @admin.display(description="estoque", ordering="_estoque")
     def stock_display(self, obj):
         """Somado das variantes, ou o rótulo de sob encomenda."""
         if not obj.has_variants:

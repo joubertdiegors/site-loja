@@ -1,23 +1,149 @@
 {% extends "admin/change_list.html" %}
-{% load i18n admin_urls %}
+{% load i18n admin_urls admin_list %}
 {% comment %}
-  A lista de produtos com o "+ Novo produto" levando ao cadastro rápido
-  (nome, categoria, SKU sugerido, status) e o cadastro completo de sempre ao
-  lado. Ver `ProductAdmin.quick_add_view`.
+  A lista de produtos.
+
+  O bloco `content` é reescrito inteiro porque a anatomia é outra: o painel de
+  filtros fica **em cima** dos resultados, em uma grade de grupos, e não na
+  barra lateral de fábrica. O que continua sendo do Django é o que importa —
+  `result_list` desenha a tabela, `admin_actions` desenha as ações em massa,
+  `date_hierarchy` desenha os atalhos de data, e o `<form method="post">` com
+  o `csrf_token` é o mesmo. Nenhuma consulta, nenhum filtro e nenhuma
+  permissão passam por aqui.
+
+  São dois formulários irmãos, nunca aninhados:
+
+  * `#jd-painel`, GET, leva busca, filtros, ordenação e itens por página;
+  * `#changelist-form`, POST, leva a seleção e as ações em massa.
+
+  Os controles da barra de ferramentas ficam fisicamente na área do POST e
+  dizem `form="jd-painel"`, que é como o HTML permite um campo pertencer a um
+  formulário que não é o seu pai.
 {% endcomment %}
 
-{% block object-tools-items %}
-  {% if has_add_permission %}
-    <li>
-      <a href="{% url 'admin:catalog_product_quick_add' %}" class="addlink jd-quick-add">
-        + Novo produto
-      </a>
-    </li>
-    <li>
-      <a href="{% url 'admin:catalog_product_add' %}{% if is_popup %}?_popup=1{% endif %}" class="jd-full-add"
-         title="A ficha completa: conteúdo, variantes e fotos de uma vez">
-        Cadastro completo
-      </a>
-    </li>
+{% block bodyclass %}{{ block.super }} jd-lista-produtos{% endblock %}
+
+{% comment %}
+  As duas chamadas para ação sobem para o cabeçalho da página, como no modelo:
+  a barra `object-tools` de fábrica fica vazia.
+{% endcomment %}
+{% block object-tools %}{% endblock %}
+
+{% comment %}
+  O `<h1>` da página é o do cabeçalho da lista. Sem isto a tela teria dois
+  títulos — "Selecione produto para modificar" logo acima de "Produtos".
+{% endcomment %}
+{% block content_title %}{% endblock %}
+
+{% block content %}
+<div id="content-main">
+  {% if cl.formset and cl.formset.errors %}
+    <p class="errornote">
+      {% blocktranslate count counter=cl.formset.total_error_count %}Please correct the error below.{% plural %}Please correct the errors below.{% endblocktranslate %}
+    </p>
+    {{ cl.formset.non_form_errors }}
   {% endif %}
+
+  <div id="changelist" class="jd-lista">
+
+    <header class="jd-lista-head">
+      <div class="jd-lista-titulo">
+        <h1>{{ cl.opts.verbose_name_plural|capfirst }}</h1>
+        <p class="jd-lista-contador">
+          {{ jd_total }} produto{{ jd_total|pluralize }} no catálogo
+          <span class="jd-ponto" aria-hidden="true">·</span>
+          {{ jd_resultados }} resultado{{ jd_resultados|pluralize }} com os filtros atuais
+        </p>
+      </div>
+      {% if has_add_permission %}
+        <div class="jd-lista-cta">
+          <a class="jd-btn jd-btn-claro jd-full-add"
+             href="{% url 'admin:catalog_product_add' %}{% if is_popup %}?_popup=1{% endif %}"
+             title="A ficha completa: conteúdo, variantes e fotos de uma vez">
+            Cadastro completo
+          </a>
+          <a class="jd-btn jd-btn-destaque addlink jd-quick-add"
+             href="{% url 'admin:catalog_product_quick_add' %}">
+            + Novo produto
+          </a>
+        </div>
+      {% endif %}
+    </header>
+
+    {% if jd_visoes %}
+      <nav class="jd-visoes" aria-label="Visões rápidas">
+        {% for visao in jd_visoes %}
+          <a class="jd-visao{% if visao.ativa %} is-on{% endif %}" href="{{ visao.url }}"
+             {% if visao.ativa %}aria-current="true"{% endif %}>
+            <span>{{ visao.rotulo }}</span>
+            <span class="jd-visao-n">{{ visao.contagem }}</span>
+          </a>
+        {% endfor %}
+      </nav>
+    {% endif %}
+
+    {% include "admin/catalog/product/_lista_painel.html" %}
+
+    <div class="jd-barra">
+      {% comment %}
+        Espelho do "selecionar tudo" que o Django desenha no cabeçalho da
+        tabela. Nasce escondido e só aparece com JavaScript, porque é ele quem
+        mantém os dois em sincronia; sem JavaScript, o do cabeçalho continua
+        sendo o único e continua funcionando.
+      {% endcomment %}
+      <label class="jd-selecionar" data-jd-selecionar hidden>
+        <input type="checkbox" data-jd-selecionar-caixa>
+        <span>Selecionar os {{ cl.result_list|length }} desta página</span>
+      </label>
+      <div class="jd-barra-controles">
+        <label class="jd-oculto-visual" for="jd-ordem">Ordenar por</label>
+        <select id="jd-ordem" name="{{ jd_parametro_ordem }}" form="jd-painel" data-jd-envia>
+          {% for opcao in jd_ordenacoes %}
+            <option value="{{ opcao.valor }}"{% if opcao.ativa %} selected{% endif %}>{{ opcao.rotulo }}</option>
+          {% endfor %}
+        </select>
+        <label class="jd-oculto-visual" for="jd-por-pagina">Itens por página</label>
+        <select id="jd-por-pagina" name="{{ jd_parametro_por_pagina }}" form="jd-painel" data-jd-envia>
+          {% for opcao in jd_por_pagina %}
+            <option value="{{ opcao.valor }}"{% if opcao.ativa %} selected{% endif %}>{{ opcao.rotulo }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <form id="changelist-form" method="post"{% if cl.formset and cl.formset.is_multipart %} enctype="multipart/form-data"{% endif %} novalidate>{% csrf_token %}
+      {% if cl.formset %}<div>{{ cl.formset.management_form }}</div>{% endif %}
+
+      {% block result_list %}
+        <div class="jd-tabela">{% result_list cl %}</div>
+
+        {% if not cl.result_count %}
+          <div class="jd-vazio">
+            <p class="jd-vazio-titulo">Nenhum produto encontrado</p>
+            <p class="jd-vazio-texto">Ajuste a busca ou remova alguns filtros para ver mais resultados.</p>
+            <a class="jd-btn jd-btn-destaque" href="{{ jd_url_limpar_tudo }}">Limpar filtros</a>
+          </div>
+        {% endif %}
+
+        {% if action_form and cl.show_admin_actions %}
+          {% comment %}
+            A barra de ações em massa. É o `admin_actions` de sempre — mesmo
+            `<select>`, mesmo botão, mesmo contador que o `actions.js` do
+            Django atualiza —, só que dentro de uma barra que o JavaScript
+            gruda no rodapé quando há alguma linha marcada. Sem JavaScript ela
+            é uma barra comum embaixo da tabela.
+          {% endcomment %}
+          <div class="jd-massa" data-jd-massa>{% admin_actions %}</div>
+        {% endif %}
+      {% endblock %}
+
+      {% block pagination %}
+        {% include "admin/catalog/product/_lista_paginacao.html" %}
+        {% if cl.formset and cl.result_count %}
+          <input type="submit" name="_save" class="default" value="{% translate 'Save' %}">
+        {% endif %}
+      {% endblock %}
+    </form>
+  </div>
+</div>
 {% endblock %}

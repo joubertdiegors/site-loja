@@ -1,0 +1,26 @@
+{% comment %}
+  A paginação: a faixa mostrada à esquerda, as páginas à direita.
+
+  Desenhada aqui, e não pelo `{% templatetag openblock %} pagination {% templatetag closeblock %}`
+  do Django, porque a anatomia é outra — mas os links continuam saindo de
+  `cl.get_query_string`, que é o que preserva busca, filtros, ordenação e
+  itens por página ao virar a página.
+{% endcomment %}
+{% if jd_faixa or jd_paginas %}
+  <nav class="jd-paginacao" aria-label="Paginação">
+    <span class="jd-paginacao-faixa">{{ jd_faixa }}</span>
+    {% if jd_paginas %}
+      <div class="jd-paginas">
+        {% for pagina in jd_paginas %}
+          {% if pagina.reticencias %}
+            <span class="jd-pagina jd-pagina-reticencias" aria-hidden="true">{{ pagina.rotulo }}</span>
+          {% elif pagina.atual %}
+            <span class="jd-pagina is-on" aria-current="page">{{ pagina.rotulo }}</span>
+          {% else %}
+            <a class="jd-pagina" href="{{ pagina.url }}">{{ pagina.rotulo }}</a>
+          {% endif %}
+        {% endfor %}
+      </div>
+    {% endif %}
+  </nav>
+{% endif %}

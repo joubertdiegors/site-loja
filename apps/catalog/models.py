@@ -27,6 +27,7 @@ from django.core.validators import (
     RegexValidator,
 )
 from django.db import connection, models, transaction
+from django.db.models.functions import Coalesce
 from django.utils.text import get_valid_filename, slugify
 from django.utils.translation import gettext as _
 
@@ -317,6 +318,80 @@ class ProductQuerySet(models.QuerySet):
         return self.select_related("category", "brand").prefetch_related(
             "translations", "media", "category__translations", "variants"
         )
+
+    def with_admin_annotations(self):
+        """As anotações da lista do Admin, sem o `prefetch` da listagem.
+
+        Separada de `for_admin_list` de propósito: as contagens de cada opção
+        de filtro precisam destas colunas, mas não precisam carregar
+        traduções, mídia nem variantes — e carregá-las para depois só contar
+        seria trabalho jogado fora.
+
+        Preço, estoque e contagem de variantes são propriedades Python
+        derivadas de ``active_variants()`` — e propriedade Python não filtra
+        nem ordena no banco. Aqui cada uma ganha uma anotação equivalente.
+
+        Por **subquery**, e não ``Sum``/``Count`` sobre o join: a busca do
+        Admin junta ``translations``, e um agregado sobre join é multiplicado
+        pelo número de linhas juntadas — o produto com quatro idiomas
+        mostraria quatro vezes o estoque. A subquery agrupa dentro de si, e é
+        indiferente ao que acontece fora.
+
+        ``Coalesce`` porque a subquery não devolve linha nenhuma para o
+        produto sem variante: soma e contagem precisam valer zero, não nulo,
+        para "estoque zerado" e "sem variantes" filtrarem esse produto.
+        """
+        ativas = ProductVariant.objects.filter(product=models.OuterRef("pk"), is_active=True)
+        todas = ProductVariant.objects.filter(product=models.OuterRef("pk"))
+
+        def agregado(consulta, expressao, tipo):
+            return models.Subquery(
+                consulta.order_by().values("product").annotate(valor=expressao).values("valor")[:1],
+                output_field=tipo,
+            )
+
+        dinheiro = models.DecimalField(max_digits=10, decimal_places=2)
+        inteiro = models.IntegerField()
+        return self.annotate(
+            # O nome em português, para a coluna "produto" poder ser ordenada:
+            # ele mora em `ProductTranslation`, e `display_name` é Python. Sem
+            # tradução cai no SKU — que é exatamente o que a coluna imprime.
+            _nome_pt=Coalesce(
+                models.Subquery(
+                    ProductTranslation.objects.filter(
+                        master=models.OuterRef("pk"), language=DEFAULT_LANGUAGE.value
+                    ).values("name")[:1],
+                    output_field=models.CharField(),
+                ),
+                models.F("sku"),
+            ),
+            _preco_min=agregado(ativas, models.Min("sale_price"), dinheiro),
+            _preco_max=agregado(ativas, models.Max("sale_price"), dinheiro),
+            _estoque=Coalesce(agregado(ativas, models.Sum("stock_quantity"), inteiro), 0),
+            _variantes_ativas=Coalesce(agregado(ativas, models.Count("pk"), inteiro), 0),
+            _variantes_total=Coalesce(agregado(todas, models.Count("pk"), inteiro), 0),
+            # Chave de ordenação por preço. Separada de `_preco_min` porque
+            # aquele **precisa** ser nulo (produto sem preço fica fora de
+            # qualquer faixa) e este não pode ser: SQLite ordena nulo primeiro
+            # e o PostgreSQL ordena por último, e a lista mudaria de ordem
+            # entre o desenvolvimento e a produção. Com -1 os sem preço ficam
+            # sempre no mesmo lugar: antes do mais barato.
+            _preco_ordem=Coalesce(
+                agregado(ativas, models.Min("sale_price"), dinheiro), Decimal("-1")
+            ),
+            _sob_encomenda=models.Exists(ativas.filter(made_to_order=True)),
+            _disponivel=models.Exists(
+                ativas.filter(
+                    models.Q(made_to_order=True)
+                    | models.Q(allow_backorder=True)
+                    | models.Q(stock_quantity__gt=0)
+                )
+            ),
+        )
+
+    def for_admin_list(self):
+        """A lista do Admin: as relações da listagem mais as anotações."""
+        return self.for_listing().with_admin_annotations()
 
 
 class Product(TranslatableMixin, AuditableModel):

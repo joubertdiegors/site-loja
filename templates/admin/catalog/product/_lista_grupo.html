@@ -1,0 +1,44 @@
+{% comment %}
+  Um grupo do painel: rótulo, botão com o resumo do que está escolhido e o
+  painel de opções.
+
+  As opções são caixas de seleção porque o grupo é multi-seleção: marcar duas
+  vale "uma **ou** a outra". Entre grupos vale "**e**", e quem faz isso é o
+  `ChangeList`, encadeando um filtro no queryset do outro.
+
+  A contagem ao lado de cada opção considera os **outros** filtros ativos, mas
+  não este — senão escolher "PLA" faria a tela dizer que não existe PETG.
+
+  O recuo vem do nível da categoria na árvore, sem profundidade máxima; por
+  isso é `style` e não uma classe por nível.
+{% endcomment %}
+<div class="jd-grupo{% if grupo.ativo %} is-on{% endif %}" data-jd-grupo>
+  <span class="jd-grupo-rotulo" id="jd-rotulo-{{ grupo.parametro }}">{{ grupo.titulo }}</span>
+  <details class="jd-grupo-caixa">
+    <summary class="jd-grupo-botao" aria-describedby="jd-rotulo-{{ grupo.parametro }}">
+      <span class="jd-grupo-texto">{{ grupo.texto }}</span>
+      <span class="jd-grupo-fim">
+        {% if grupo.quantidade > 1 %}
+          <span class="jd-grupo-n">{{ grupo.quantidade }}</span>
+        {% endif %}
+        <span class="jd-grupo-seta" aria-hidden="true">▾</span>
+      </span>
+    </summary>
+    <div class="jd-grupo-painel">
+      <div class="jd-grupo-lista">
+        {% for opcao in grupo.opcoes %}
+          <label class="jd-opcao{% if opcao.marcada %} is-on{% endif %}">
+            <input type="checkbox" name="{{ grupo.parametro }}" value="{{ opcao.valor }}"
+                   {% if opcao.marcada %}checked{% endif %}>
+            <span class="jd-opcao-rotulo" style="padding-left:{{ opcao.recuo }}px">{{ opcao.rotulo }}</span>
+            <span class="jd-opcao-n">{{ opcao.contagem }}</span>
+          </label>
+        {% endfor %}
+      </div>
+      <div class="jd-grupo-pe">
+        <a class="jd-grupo-limpar" href="{{ grupo.url_limpar }}">Limpar</a>
+        <button type="submit" class="jd-grupo-aplicar">Aplicar</button>
+      </div>
+    </div>
+  </details>
+</div>

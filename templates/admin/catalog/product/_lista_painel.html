@@ -1,0 +1,79 @@
+{% load admin_list %}
+{% comment %}
+  O painel de filtros: um único `<form method="get">`.
+
+  Tudo aqui é campo de formulário de verdade — caixas de seleção, dois campos
+  de preço, o campo de busca. Sem JavaScript o painel continua inteiro: os
+  grupos abrem porque são `<details>`, "Aplicar" é um `submit`, "Limpar" e os
+  chips são links. O JavaScript só fecha o grupo aberto ao clicar fora e envia
+  o formulário quando a ordenação muda.
+
+  Os `hidden` do fim carregam o que está na URL e não tem campo aqui (a
+  hierarquia de datas, por exemplo): sem eles, digitar na busca apagaria esse
+  recorte sem avisar.
+{% endcomment %}
+<search class="jd-painel" aria-label="Filtros">
+  <form id="jd-painel" method="get" action="">
+    <div class="jd-painel-topo">
+      <div class="jd-busca">
+        <span class="jd-busca-lupa" aria-hidden="true"></span>
+        <label class="jd-oculto-visual" for="jd-q">Buscar produtos</label>
+        <input type="search" id="jd-q" name="{{ jd_parametro_busca }}" value="{{ jd_busca }}"
+               autocomplete="off"
+               placeholder="Buscar por nome, SKU, categoria ou marca…">
+      </div>
+      <button type="submit" class="jd-btn jd-btn-claro">Buscar</button>
+      <a class="jd-btn jd-btn-vazado" href="{{ jd_url_limpar_tudo }}">Limpar tudo</a>
+    </div>
+
+    <div class="jd-painel-grade">
+      {% for grupo in jd_grupos %}
+        {% include "admin/catalog/product/_lista_grupo.html" %}
+      {% endfor %}
+
+      <div class="jd-grupo jd-grupo-preco{% if jd_preco.minimo != '' or jd_preco.maximo != '' %} is-on{% endif %}">
+        <span class="jd-grupo-rotulo" id="jd-rotulo-preco">Preço (€)</span>
+        <div class="jd-preco">
+          <label class="jd-oculto-visual" for="jd-preco-min">Preço mínimo</label>
+          <input type="number" id="jd-preco-min" name="{{ jd_preco.campo_minimo }}"
+                 value="{{ jd_preco.minimo }}" min="0" step="0.01" placeholder="mín"
+                 aria-describedby="jd-rotulo-preco">
+          <span class="jd-preco-traco" aria-hidden="true">—</span>
+          <label class="jd-oculto-visual" for="jd-preco-max">Preço máximo</label>
+          <input type="number" id="jd-preco-max" name="{{ jd_preco.campo_maximo }}"
+                 value="{{ jd_preco.maximo }}" min="0" step="0.01" placeholder="máx"
+                 aria-describedby="jd-rotulo-preco">
+        </div>
+      </div>
+    </div>
+
+    {% if jd_chips %}
+      <div class="jd-chips">
+        <span class="jd-chips-rotulo">Filtros ativos</span>
+        {% for chip in jd_chips %}
+          <a class="jd-chip" href="{{ chip.url }}" title="Remover este filtro">
+            <span>{{ chip.rotulo }}</span>
+            <span class="jd-chip-x" aria-hidden="true">×</span>
+          </a>
+        {% endfor %}
+        <a class="jd-chips-limpar" href="{{ jd_url_limpar_tudo }}">Limpar filtros</a>
+      </div>
+    {% endif %}
+
+    {% for oculto in jd_ocultos %}
+      <input type="hidden" name="{{ oculto.nome }}" value="{{ oculto.valor }}">
+    {% endfor %}
+  </form>
+
+  {% comment %}
+    A hierarquia de datas do Django, que este cadastro já tinha. Fica no pé do
+    cartão, como mais uma faixa de recorte, em vez de solta entre o painel e a
+    tabela — e continua sendo a tag de fábrica.
+  {% endcomment %}
+  {% if cl.date_hierarchy %}
+    <div class="jd-datas">
+      <span class="jd-datas-rotulo">Período</span>
+      {% date_hierarchy cl %}
+    </div>
+  {% endif %}
+</search>
