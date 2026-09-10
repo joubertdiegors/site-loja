@@ -56,6 +56,10 @@ as opções em uma linha discreta, e embaixo a quantidade e o total da linha.
               <p class="cd-meta">{{ line.variant_label }}</p>
             {% endif %}
 
+            {% if line.has_choices %}
+              <p class="cd-meta">{{ line.choices_text }}</p>
+            {% endif %}
+
             {% if line.has_customization %}
               <p class="cd-meta cd-meta-custom">
                 {% if line.customization_type == "photo" %}

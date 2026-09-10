@@ -25,7 +25,12 @@ from apps.cart.cart import Cart, CartResult
 from apps.cart.forms import AddToCartForm
 from apps.core.security import ip_is_throttled
 from apps.core.uploads import private_file_response
-from apps.catalog.models import Product, ProductStatus
+from apps.catalog.models import (
+    Product,
+    ProductStatus,
+    color_prefetches,
+    product_description_prefetches,
+)
 
 
 def _is_htmx(request) -> bool:
@@ -59,7 +64,12 @@ def _get_product(request) -> Product:
 
     return get_object_or_404(
         Product.objects.select_related("category").prefetch_related(
-            "translations", "variants", "media"
+            "translations",
+            "variants",
+            "media",
+            # A paleta, com cor e traduções: é dela que saem as escolhas do
+            # cliente em «Cores à escolha», e o formulário as resolve.
+            *product_description_prefetches(),
         ),
         pk=product_id,
         status=ProductStatus.ACTIVE,
@@ -132,7 +142,7 @@ def recommended_for(lines, limit: int = RECOMMENDED_LIMIT) -> list:
                 "variants",
                 queryset=ProductVariant.objects.filter(is_active=True)
                 .select_related("color", "material")
-                .prefetch_related("color__translations")
+                .prefetch_related(*color_prefetches())
                 .order_by("sort_order", "id"),
             ),
         )
@@ -219,6 +229,7 @@ def add(request):
         variant=form.variant,
         quantity=form.cleaned_data["quantity"],
         customization=customization,
+        choices=form.raw_choices,
     )
     return _respond(request, cart, result, open_drawer=True)
 

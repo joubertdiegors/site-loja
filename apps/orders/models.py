@@ -855,9 +855,22 @@ class OrderItem(models.Model):
     # («Instalação: Parede · Acabamento: Fosco»). Texto sem limite: nunca é
     # cortado. Pedidos anteriores ficam vazios e nunca são preenchidos.
     options_snapshot = models.TextField("opções adicionais (snapshot)", blank=True, default="")
+    # «Cores à escolha do cliente»: as escolhas feitas ACIMA da variante, no
+    # idioma do cliente e com o adicional que valia na compra («Cor: Dourado
+    # (+ € 2,00)»). Separado de `options_snapshot` de propósito: aquele é o
+    # que a variante É; este é o que o cliente ESCOLHEU. Pedidos anteriores
+    # ficam vazios e nunca são preenchidos.
+    choices_snapshot = models.TextField("escolhas do cliente (snapshot)", blank=True, default="")
 
     quantity = models.PositiveIntegerField("quantidade", default=1, validators=[MinValueValidator(1)])
     unit_price = models.DecimalField("preço unitário", max_digits=10, decimal_places=2, default=ZERO)
+    # Quanto das escolhas do cliente entrou em `unit_price` (a soma dos
+    # adicionais, por unidade). `unit_price` continua sendo o preço final que
+    # o cliente pagou; este campo só diz de onde veio a diferença — e o
+    # catálogo de hoje nunca é consultado para refazê-la.
+    price_adjustment = models.DecimalField(
+        "adicional das escolhas (unitário)", max_digits=10, decimal_places=2, default=ZERO
+    )
     total = models.DecimalField("total da linha", max_digits=10, decimal_places=2, default=ZERO)
 
     unit_weight_grams = models.PositiveIntegerField("peso unitário (g)", default=0)
@@ -928,6 +941,27 @@ class OrderItem(models.Model):
             for parte in (self.options_snapshot or "").split(OPTIONS_TEXT_SEPARATOR)
             if parte.strip()
         ]
+
+    @property
+    def choices_lines(self) -> list[str]:
+        """O snapshot das escolhas do cliente, uma por linha: ``["Cor: Dourado (+ € 2,00)"]``.
+
+        Como `options_lines`: lê **só** o texto gravado na compra — no idioma
+        em que o cliente comprou — e nunca a paleta, a cor ou o adicional de
+        hoje. Vazio nos itens sem escolha e nos pedidos anteriores.
+        """
+        from apps.catalog.models import OPTIONS_TEXT_SEPARATOR
+
+        return [
+            parte.strip()
+            for parte in (self.choices_snapshot or "").split(OPTIONS_TEXT_SEPARATOR)
+            if parte.strip()
+        ]
+
+    @property
+    def base_unit_price(self):
+        """O preço da variante na compra: o unitário menos o adicional das escolhas."""
+        return self.unit_price - self.price_adjustment
 
     @property
     def total_weight_grams(self) -> int:

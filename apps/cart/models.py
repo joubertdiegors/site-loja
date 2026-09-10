@@ -134,6 +134,13 @@ class CartItem(TimeStampedModel):
     )
     quantity = models.PositiveIntegerField("quantidade", default=1)
 
+    # As escolhas do cliente acima da variante (etapa «Cores à escolha»):
+    # ``{"color": 12}`` — a chave do grupo e o **id** da opção, nunca o texto.
+    # JSON porque isto é o espelho fiel do item da sessão, que já é um
+    # dicionário; o catálogo das escolhas continua relacional (a paleta), e
+    # é dele que nome, cor e adicional são lidos a cada carga do carrinho.
+    choices = models.JSONField("escolhas do cliente", default=dict, blank=True)
+
     customization_type = models.CharField("tipo de personalização", max_length=20, blank=True)
     customization_text = models.TextField("texto", blank=True)
     customization_notes = models.TextField("observações", blank=True)
@@ -175,20 +182,26 @@ class CartItem(TimeStampedModel):
         }
 
     def to_item(self) -> dict:
+        from apps.cart.keys import normalize_choices
+
         return {
             "product_id": self.product_id,
             "variant_id": self.variant_id,
             "quantity": self.quantity,
             "customization": self.customization(),
+            "choices": normalize_choices(self.choices),
         }
 
     @staticmethod
     def fields_from_item(item: dict) -> dict:
+        from apps.cart.keys import normalize_choices
+
         customization = item.get("customization") or {}
         return {
             "product_id": item["product_id"],
             "variant_id": item.get("variant_id") or None,
             "quantity": int(item.get("quantity", 0)),
+            "choices": normalize_choices(item.get("choices")),
             "customization_type": customization.get("type") or "",
             "customization_text": customization.get("text") or "",
             "customization_notes": customization.get("notes") or "",

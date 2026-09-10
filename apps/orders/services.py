@@ -24,6 +24,7 @@ from django.utils import timezone
 from django.utils.translation import gettext as _
 
 from apps.cart.cart import max_quantity_for
+from apps.catalog.choices import choice_groups
 from apps.catalog.models import ProductStatus
 from apps.orders import taxes
 from apps.orders.models import (
@@ -113,6 +114,20 @@ def validate_lines(lines) -> list[CartProblem]:
             problems.append(
                 CartProblem(line.key, _("%(name)s precisa de personalização.") % {"name": name})
             )
+
+        # «Cores à escolha do cliente»: o produto oferece a escolha e a linha
+        # não a tem — o item entrou antes de o produto pedir cor, ou a cor
+        # escolhida saiu da paleta. O carrinho já recalculou o adicional a
+        # partir do banco; o que falta aqui é só a decisão do cliente.
+        for grupo in choice_groups(product):
+            if grupo.required and not any(c.key == grupo.key for c in line.choices):
+                problems.append(
+                    CartProblem(
+                        line.key,
+                        _("%(name)s precisa da escolha: %(group)s.")
+                        % {"name": name, "group": grupo.label},
+                    )
+                )
 
     return problems
 
@@ -216,6 +231,18 @@ def _fulfillment_type(line) -> str:
     return FulfillmentType.STOCK
 
 
+def _fit_snapshot(value: str, field: str) -> str:
+    """O texto cortado ao ``max_length`` do campo de ``OrderItem``.
+
+    O mesmo cuidado de ``colors_snapshot[:255]``, sem repetir o número: o
+    limite vem do campo. O nome de uma cor composta («Branco Pérola + Azul
+    Marinho + …») pode passar dos 60 caracteres de ``color_name``, e no
+    PostgreSQL um texto maior que a coluna derruba o checkout.
+    """
+    limite = OrderItem._meta.get_field(field).max_length
+    return value[:limite] if limite else value
+
+
 def _item_from_line(order: Order, line) -> OrderItem:
     """Copia a linha do carrinho para dentro do pedido.
 
@@ -234,8 +261,9 @@ def _item_from_line(order: Order, line) -> OrderItem:
         variant_label=variant.label if variant is not None else "",
         # No idioma do cliente, como o nome do produto logo acima: o pedido
         # guarda o que ele leu, não o nome interno do Admin.
-        color_name=(
-            variant.color.display_name if variant is not None and variant.color_id else ""
+        color_name=_fit_snapshot(
+            variant.color.display_name if variant is not None and variant.color_id else "",
+            "color_name",
         ),
         size_name=(variant.size if variant is not None else ""),
         material_name=(
@@ -250,6 +278,11 @@ def _item_from_line(order: Order, line) -> OrderItem:
         # Etapa 3B: as escolhas da variante nas opções adicionais, congeladas
         # com os nomes que o cliente leu. Renomear a opção depois não muda isto.
         options_snapshot=variant.options_text if variant is not None else "",
+        # «Cores à escolha do cliente»: a escolha feita acima da variante e o
+        # adicional que valia agora — mudar o adicional da cor amanhã não
+        # mexe neste pedido. `unit_price` já traz o adicional somado.
+        choices_snapshot=line.choices_text,
+        price_adjustment=taxes.money(line.price_adjustment),
         quantity=line.quantity,
         unit_price=taxes.money(line.unit_price),
         total=taxes.money(line.total),

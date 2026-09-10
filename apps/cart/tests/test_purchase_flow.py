@@ -318,7 +318,15 @@ class UntrustedInputTests(FlowBase):
 
         guardado = self.client.session[CART_SESSION_KEY]
         for item in guardado.values():
-            self.assertEqual(set(item) - {"customization"}, {"product_id", "variant_id", "quantity"})
+            # `choices` («Cores à escolha do cliente») guarda só ids: a chave
+            # do grupo e o id da opção. O adicional é lido do banco a cada
+            # leitura, como o preço da variante.
+            self.assertEqual(
+                set(item) - {"customization", "choices"}, {"product_id", "variant_id", "quantity"}
+            )
+            for chave, valor in (item.get("choices") or {}).items():
+                self.assertIsInstance(valor, int, chave)
+            self.assertFalse([chave for chave in item if "price" in chave or "preco" in chave])
 
     def test_a_price_changed_in_the_admin_reaches_the_open_cart(self):
         """O carrinho lê o preço a cada leitura, não uma cópia da adição."""

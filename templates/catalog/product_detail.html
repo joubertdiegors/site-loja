@@ -189,9 +189,16 @@ em vez de por descendência.
           mesmo gancho da ficha técnica).
         {% endcomment %}
         <div class="product-price-row">
-          <span data-price class="product-price tabular-price">
-            {% if selected_variant.sale_price %}
-              {{ product.currency_symbol }}&nbsp;{{ selected_variant.sale_price|floatformat:2 }}
+          {% comment %}
+            `data-price-base` é o preço da VARIANTE, e é o que a página mostra
+            ao abrir: em «Cores à escolha» nenhuma cor abre marcada. O
+            JavaScript soma o adicional ao trocar de variante ou de cor; o
+            servidor refaz a soma, do banco, no carrinho e no pedido.
+          {% endcomment %}
+          <span data-price class="product-price tabular-price"
+                data-price-base="{% if selected_variant.sale_price %}{{ selected_variant.sale_price|stringformat:'s' }}{% endif %}">
+            {% if initial_price %}
+              {{ product.currency_symbol }}&nbsp;{{ initial_price|floatformat:2 }}
             {% else %}
               {% translate "Sob consulta" %}
             {% endif %}
@@ -281,6 +288,15 @@ em vez de por descendência.
               troca a cor sozinho, para uma variante que existe de verdade.
             {% endcomment %}
             <div class="product-opts" data-variant-groups hidden>
+              {% comment %}
+                Com cor da variante E cor à escolha na página, este bloco se
+                chama «Variação» e o de baixo «Sua escolha»: dois títulos no
+                mesmo molde do «Opções adicionais», para as duas perguntas não
+                parecerem uma só.
+              {% endcomment %}
+              {% if two_colour_selections %}
+                <p class="product-opt-heading product-opt-heading-first">{% translate "Variação" %}</p>
+              {% endif %}
               {% for group in variant_options %}
                 {% comment %}
                   Etapa 3D: os grupos das opções adicionais vêm depois dos
@@ -296,8 +312,8 @@ em vez de por descendência.
                   </legend>
                   <div class="product-opt-list">
                     {% for option in group.options %}
-                      {% if option.hex %}
-                        <label class="variant-swatch" style="background-color: {{ option.hex }}" title="{{ option.label }}">
+                      {% if option.swatch %}
+                        <label class="variant-swatch" style="{{ option.swatch }}" title="{{ option.label }}">
                           <input type="radio" name="option_{{ group.key }}" value="{{ option.value }}"
                                  class="sr-only" data-variant-option>
                           <span class="sr-only">{{ option.label }}</span>
@@ -322,6 +338,56 @@ em vez de por descendência.
             </div>
 
             {{ variant_payload|json_script:"variant-data" }}
+          {% endif %}
+
+          {# ---- Escolhas do cliente (acima da variante) ----------------- #}
+          {% if customer_choice_groups %}
+            {% comment %}
+              «Cores à escolha do cliente»: o que o cliente decide DEPOIS da
+              variante e que não muda a unidade vendida — só o acabamento e,
+              quando a cor tem adicional, o preço. Por isso não é um
+              `data-variant-group`: nada aqui resolve variante, e o `<select>`
+              acima continua sendo quem manda o `variant_id`.
+
+              Nenhuma cor abre marcada: escolher é do cliente. O botão de
+              comprar continua clicável; clicar sem cor mostra a mensagem do
+              grupo (`data-choice-message`) e não envia nada — e o servidor
+              recusa de novo um POST sem `choice_<grupo>` (`AddToCartForm`),
+              com a mesma mensagem. O POST leva `choice_<grupo>=<id>`; o
+              servidor confere o id contra a paleta do produto e lê o
+              adicional do banco. Sem JavaScript tudo isto continua valendo —
+              só a prévia do preço deixa de acompanhar o clique.
+            {% endcomment %}
+            <div class="product-opts" data-choice-groups>
+              {% if two_colour_selections %}
+                <p class="product-opt-heading">{% translate "Sua escolha" %}</p>
+              {% endif %}
+              {% for group in customer_choice_groups %}
+                <fieldset class="product-opt product-choice" data-choice-group="{{ group.key }}"
+                          aria-describedby="choice-{{ group.key }}-message">
+                  <legend class="product-opt-label">
+                    {{ group.label }}<span data-choice-label-wrap hidden>: <b data-choice-label="{{ group.key }}"></b></span>
+                  </legend>
+                  <div class="product-opt-list">
+                    {% for option in group.options %}
+                      <label class="variant-option product-choice-option" title="{{ option.value_text }}">
+                        <input type="radio" name="choice_{{ group.key }}" value="{{ option.value_id }}"
+                               class="sr-only" data-choice-option
+                               data-choice-delta="{{ option.price_delta|stringformat:'s' }}"
+                               data-choice-text="{{ option.value_text }}">
+                        <span class="product-choice-dot" aria-hidden="true"{% if option.swatch_style %} style="{{ option.swatch_style }}"{% endif %}></span>
+                        <span>{{ option.value_label }}</span>
+                        {% if option.delta_display %}<small class="product-choice-delta">{{ option.delta_display }}</small>{% endif %}
+                      </label>
+                    {% endfor %}
+                  </div>
+                  <p class="product-choice-message" id="choice-{{ group.key }}-message"
+                     data-choice-message role="alert" hidden>{{ group.missing_message }}</p>
+                </fieldset>
+              {% endfor %}
+            </div>
+            {{ choice_payload|json_script:"choice-data" }}
+            {{ price_format|json_script:"price-format" }}
           {% endif %}
 
           {# ---- Personalização ---------------------------------------- #}

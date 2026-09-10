@@ -28,7 +28,9 @@ from django.utils.translation import ngettext
 from django.views.generic import DetailView, ListView
 
 from apps.cart.cart import max_quantity_for
+from apps.catalog.choices import choice_groups
 from apps.catalog.models import (
+    color_prefetches,
     product_color_prefetches,
     product_description_prefetches,
     variant_option_prefetches,
@@ -336,7 +338,7 @@ class ShopView(ListView):
                     "variants",
                     queryset=ProductVariant.objects.filter(is_active=True)
                     .select_related("color", "material")
-                    .prefetch_related("color__translations", "material__translations")
+                    .prefetch_related(*color_prefetches(), "material__translations")
                     .order_by("sort_order", "id"),
                 ),
             )
@@ -477,7 +479,7 @@ class ProductDetailView(DetailView):
                     queryset=ProductVariant.objects.filter(is_active=True)
                     .select_related("color", "material")
                     .prefetch_related(
-                        "color__translations",
+                        *color_prefetches(),
                         "material__translations",
                         "media",
                         # Etapa 3B: o `label` (seletor e payload) lê as opções.
@@ -547,6 +549,9 @@ class ProductDetailView(DetailView):
                             "value": str(color.pk),
                             "label": color.display_name,
                             "hex": color.hex_code,
+                            # O fundo da bolinha: o hex da cor simples, o degradê
+                            # das componentes na composta (`Color.swatch_style`).
+                            "swatch": color.swatch_style,
                         }
                         for color in colors
                     ],
@@ -817,7 +822,7 @@ class ProductDetailView(DetailView):
                     "variants",
                     queryset=ProductVariant.objects.filter(is_active=True)
                     .select_related("color", "material")
-                    .prefetch_related("color__translations")
+                    .prefetch_related(*color_prefetches())
                     .order_by("sort_order", "id"),
                 ),
             )
@@ -861,15 +866,54 @@ class ProductDetailView(DetailView):
                 node = tree.by_id.get(node.parent_id)
             breadcrumb = list(reversed(chain))
 
+        # «Cores à escolha do cliente»: o que o cliente escolhe ACIMA da
+        # variante (ver `apps.catalog.choices`). A página abre SEM cor
+        # marcada — escolher é do cliente, não da página — e o preço mostrado
+        # é o da variante. O JavaScript soma o adicional ao clique (prévia);
+        # o servidor refaz a soma, do banco, no carrinho e no pedido.
+        grupos_de_escolha = choice_groups(product)
+        preco_inicial = None
+        if selected is not None and selected.sale_price is not None:
+            preco_inicial = selected.sale_price
+
+        opcoes_de_variante = self.variant_options(variants, product)
+        # Cor da VARIANTE e cor À ESCOLHA na mesma página: cada bloco ganha um
+        # título («Variação», «Sua escolha»). São duas perguntas diferentes, e
+        # as duas se chamavam «Cor».
+        duas_cores = bool(grupos_de_escolha) and any(
+            grupo["key"] == "color" for grupo in opcoes_de_variante
+        )
+
         context.update(
             {
+                "customer_choice_groups": grupos_de_escolha,
+                "initial_price": preco_inicial,
+                # `choice-data`: adicional por opção, para o JavaScript somar
+                # ao preço da variante na tela. Só ids e números — o servidor
+                # não confia em nada disto na hora de cobrar.
+                "choice_payload": {
+                    grupo.key: {str(opcao.value_id): str(opcao.price_delta) for opcao in grupo.options}
+                    for grupo in grupos_de_escolha
+                },
+                # Os separadores do idioma atual, para o JavaScript escrever
+                # «€ 22,00» como o servidor escreveria.
+                "price_format": {
+                    "symbol": product.currency_symbol,
+                    "decimal": formats.get_format("DECIMAL_SEPARATOR"),
+                    "thousand": (
+                        formats.get_format("THOUSAND_SEPARATOR")
+                        if getattr(settings, "USE_THOUSAND_SEPARATOR", False)
+                        else ""
+                    ),
+                },
                 "gallery": self.gallery(product),
                 "variants": variants,
                 # A variante que abre selecionada: a primeira disponível; se
                 # todas estiverem esgotadas, a primeira, para a página ainda
                 # ter preço e ficha ao anunciar que acabou.
                 "selected_variant": selected,
-                "variant_options": self.variant_options(variants, product),
+                "variant_options": opcoes_de_variante,
+                "two_colour_selections": duas_cores,
                 # Objeto puro: o template usa |json_script, que escapa com
                 # segurança. Passar a string pronta faria o Django escapar as
                 # aspas e o JSON chegaria quebrado no navegador.

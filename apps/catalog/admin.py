@@ -35,6 +35,7 @@ from apps.catalog.admin_filters import (
 from apps.catalog.models import (
     Brand,
     Color,
+    ColorComponent,
     ColorMode,
     ColorTranslation,
     Material,
@@ -55,6 +56,8 @@ from apps.catalog.models import (
     copy_product_content,
     copy_product_options,
     product_content_copy_plan,
+    color_prefetches,
+    validate_composition,
     variant_option_prefetches,
 )
 from apps.categories.models import Category
@@ -260,19 +263,82 @@ class ColorTranslationInline(NameTranslationInline):
     model = ColorTranslation
 
 
+class ColorComponentInlineFormSet(forms.BaseInlineFormSet):
+    """As regras de conjunto da cor composta, com a mensagem legível.
+
+    Linha a linha o modelo já confere (`ColorComponent.clean`); aqui entra o
+    que só se vê olhando a lista inteira: duas ou mais componentes, nenhuma
+    repetida, e nenhuma outra cor com a mesma composição.
+    """
+
+    def clean(self):
+        super().clean()
+        if any(self.errors):
+            return
+        vivas = [
+            form.cleaned_data["component"].pk
+            for form in self.forms
+            if form.cleaned_data
+            and not form.cleaned_data.get("DELETE")
+            and form.cleaned_data.get("component")
+        ]
+        validate_composition(self.instance, vivas)
+
+
+class ColorComponentInline(admin.TabularInline):
+    """COMPONENTES: vazio para a cor simples; duas ou mais para a composta."""
+
+    model = ColorComponent
+    fk_name = "color"
+    formset = ColorComponentInlineFormSet
+    extra = 0
+    fields = ("component", "sort_order")
+    verbose_name = "componente"
+    verbose_name_plural = (
+        "COMPONENTES — deixe vazio para uma cor simples; duas ou mais cores simples, "
+        "em ordem, fazem uma cor composta («Branco + Azul»)"
+    )
+
+    def get_formset(self, request, obj=None, **kwargs):
+        self._parent_color = obj
+        return super().get_formset(request, obj, **kwargs)
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "component":
+            # Só cores simples, e nunca a própria: é a regra do modelo, oferecida
+            # antes de ser cobrada. O `ColorSelect` traz o hex para a bolinha.
+            queryset = Color.objects.filter(is_composite=False).prefetch_related("translations")
+            pai = getattr(self, "_parent_color", None)
+            if pai is not None and pai.pk:
+                queryset = queryset.exclude(pk=pai.pk)
+            kwargs["queryset"] = queryset
+            kwargs["widget"] = ColorSelect
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+
 @admin.register(Color)
 class ColorAdmin(DuplicateAdminMixin):
-    """A cor é uma só; o que muda por idioma é o nome que o cliente lê."""
+    """A cor é uma só; o que muda por idioma é o nome que o cliente lê.
+
+    Uma cor composta («Branco + Azul») cadastra-se aqui mesmo: é uma cor com
+    componentes, na ordem em que se lê. Ela aparece em todo `<select>` de
+    cor como qualquer outra — a variante, a paleta e o filtro não precisam
+    saber que é composta.
+    """
 
     #: Mesma decisão do material: `name` copiado (é a identidade `unique`),
     #: `slug` vazio (o `save()` o gera). O HEX acompanha — duas cores próximas
-    #: partem do mesmo tom e é justamente isso que se quer ajustar.
+    #: partem do mesmo tom e é justamente isso que se quer ajustar. As
+    #: componentes não vão junto: a cópia nasce simples, e uma composição
+    #: idêntica seria recusada de todo modo.
     duplicate_exclude = ("slug",)
     duplicate_inlines = {ColorTranslation: ()}
 
-    inlines = [ColorTranslationInline]
-    list_display = ("name", "swatch", "translations_display", "hex_code", "slug", "is_active")
-    list_filter = ("is_active",)
+    inlines = [ColorTranslationInline, ColorComponentInline]
+    list_display = (
+        "name", "swatch", "composition_display", "translations_display", "hex_code", "slug", "is_active",
+    )
+    list_filter = ("is_active", "is_composite")
     search_fields = ("name", "slug", "hex_code", "translations__name")
     prepopulated_fields = {"slug": ("name",)}
     fields = ("name", "slug", "hex_code", "is_active")
@@ -281,17 +347,33 @@ class ColorAdmin(DuplicateAdminMixin):
         css = {"all": ("admin/css/jdprint_admin.css",)}
 
     def get_queryset(self, request):
-        return super().get_queryset(request).prefetch_related("translations")
+        return (
+            super()
+            .get_queryset(request)
+            .prefetch_related(*color_prefetches(""))
+        )
+
+    def save_related(self, request, form, formsets, change):
+        """Depois das componentes gravadas, o espelho `is_composite` é acertado."""
+        super().save_related(request, form, formsets, change)
+        form.instance.refresh_composite_flag()
 
     @admin.display(description="amostra")
     def swatch(self, obj):
-        if not obj.hex_code:
+        fundo = obj.swatch_background
+        if not fundo:
             return "—"
         return format_html(
             '<span style="display:inline-block;width:22px;height:22px;border-radius:4px;'
             'border:1px solid #bbb;background:{}"></span>',
-            obj.hex_code,
+            fundo,
         )
+
+    @admin.display(description="composição", ordering="is_composite")
+    def composition_display(self, obj):
+        if not obj.is_composite:
+            return format_html('<span class="jd-muted">{}</span>', "simples")
+        return " + ".join(componente.name for componente in obj.component_list)
 
     @admin.display(description="traduções")
     def translations_display(self, obj):
@@ -330,7 +412,9 @@ class ProductTranslationInlineFormSet(forms.BaseInlineFormSet):
 #: Os campos de conteúdo, num lugar só — usados pelo inline e pelo modal.
 #: Com duas listas, um campo acrescentado numa delas apareceria na tela e
 #: sumiria ao gravar pelo modal, sem ninguém perceber.
-CONTENT_FIELDS = ("language", "name", "short_description", "description", "extra_information")
+CONTENT_FIELDS = (
+    "language", "name", "short_description", "description", "extra_information", "color_choice_label",
+)
 
 
 class ProductTranslationModalForm(forms.ModelForm):
@@ -720,7 +804,7 @@ class ProductVariantInline(admin.StackedInline):
             super()
             .get_queryset(request)
             .select_related("color", "material")
-            .prefetch_related("color__translations", "material__translations", *variant_option_prefetches())
+            .prefetch_related(*color_prefetches(), "material__translations", *variant_option_prefetches())
         )
 
 
@@ -830,6 +914,12 @@ class ProductColorInlineFormSet(forms.BaseInlineFormSet):
         if len({cor.pk for cor in vivas}) != len(vivas):
             raise ValidationError("A mesma cor aparece duas vezes na paleta.")
         modo = getattr(self.instance, "color_mode", ColorMode.NONE)
+        if modo == ColorMode.CUSTOM:
+            self._refuse_discounts_that_zero_the_price()
+        # «Cores à escolha do cliente» aceita paleta vazia de propósito: sem
+        # cor cadastrada não há o que escolher, e a compra segue como sempre
+        # (ver `Product.customer_color_rows`). As regras abaixo são as dos
+        # modos descritivos, e não mudaram.
         if modo == ColorMode.SINGLE and len(vivas) > 1:
             raise ValidationError(
                 "No modo «Uma cor» cadastre uma cor só — para várias, use «Multicolorido»."
@@ -839,6 +929,35 @@ class ProductColorInlineFormSet(forms.BaseInlineFormSet):
                 "Cadastre ao menos uma cor na paleta — ou mude o modo de cores para "
                 "«Não se aplica», «Cores à escolha» ou «Opção comercial»."
             )
+
+    def _refuse_discounts_that_zero_the_price(self):
+        """Desconto é permitido; preço final zero ou negativo, não.
+
+        Confere cada adicional negativo contra a variante ativa mais barata
+        do produto — a que o desconto atinge primeiro. Produto ainda sem
+        variante com preço não tem contra o que conferir; o carrinho recusa
+        a compra de todo modo (`Cart.add`).
+        """
+        if not self.instance.pk:
+            return
+        mais_barata = (
+            self.instance.variants.filter(is_active=True, sale_price__isnull=False)
+            .order_by("sale_price", "id")
+            .first()
+        )
+        if mais_barata is None:
+            return
+        for form in self.forms:
+            if not form.cleaned_data or form.cleaned_data.get("DELETE"):
+                continue
+            adicional = form.cleaned_data.get("price_delta") or Decimal("0.00")
+            if adicional < 0 and mais_barata.sale_price + adicional <= 0:
+                form.add_error(
+                    "price_delta",
+                    "Este desconto deixaria «%(variante)s» (€ %(preco)s) com preço zero ou "
+                    "negativo. Reduza o desconto."
+                    % {"variante": mais_barata.display_label, "preco": mais_barata.sale_price},
+                )
 
 
 class ColorSelect(forms.Select):
@@ -852,28 +971,62 @@ class ColorSelect(forms.Select):
     def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
         option = super().create_option(name, value, label, selected, index, subindex=subindex, attrs=attrs)
         cor = getattr(value, "instance", None)
-        if cor is not None and getattr(cor, "hex_code", ""):
+        if cor is None:
+            return option
+        # A composta pinta com todas as componentes (`swatch_background`) —
+        # mesmo sem hex próprio; a simples leva o próprio hex, como sempre.
+        fundo = cor.swatch_background
+        if fundo:
+            option["attrs"]["data-swatch"] = fundo
+        if getattr(cor, "hex_code", ""):
             option["attrs"]["data-hex"] = cor.hex_code
         return option
 
 
+class ProductColorInlineForm(forms.ModelForm):
+    """Uma linha da paleta. Adicional em branco vale zero.
+
+    O campo é opcional no formulário (a coluna some nos modos descritivos),
+    mas a coluna do banco não aceita nulo: quem não digitou nada não quer
+    adicional nenhum.
+    """
+
+    class Meta:
+        model = ProductColor
+        fields = ("color", "price_delta", "sort_order")
+
+    def clean_price_delta(self):
+        valor = self.cleaned_data.get("price_delta")
+        return Decimal("0.00") if valor is None else valor
+
+
 class ProductColorInline(admin.TabularInline):
-    """PALETA DE CORES: a descrição visual do produto. Não cria variantes."""
+    """PALETA DE CORES: a descrição visual do produto — e, em «Cores à escolha
+    do cliente», as cores que o cliente escolhe na compra, com o adicional de
+    cada uma. Não cria variantes em modo nenhum.
+    """
 
     model = ProductColor
+    form = ProductColorInlineForm
     formset = ProductColorInlineFormSet
     template = "admin/catalog/edit_inline/media_tabular.html"
-    #: Linhas compactas (cor, ordem, remover) no desktop; um card por linha
-    #: nas telas estreitas (`jd-cards`, jdprint_forms.css).
+    #: Linhas compactas (cor, adicional, ordem, remover) no desktop; um card
+    #: por linha nas telas estreitas (`jd-cards`, jdprint_forms.css). A coluna
+    #: do adicional só aparece em «Cores à escolha» (`product_colors_admin.js`):
+    #: nos outros modos ela não teria efeito nenhum.
     classes = ("collapse", "jd-cards", "jd-compact-rows")
     extra = 0
-    fields = ("color", "sort_order")
+    fields = ("color", "price_delta", "sort_order")
     verbose_name = "cor"
     verbose_name_plural = "PALETA DE CORES — as cores do produto (não cria variantes)"
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         if db_field.name == "color":
-            kwargs["queryset"] = Color.objects.filter(is_active=True).prefetch_related("translations")
+            # As componentes vêm junto: a bolinha da composta (`data-swatch`)
+            # não pode custar consultas por cor a cada linha da paleta.
+            kwargs["queryset"] = Color.objects.filter(is_active=True).prefetch_related(
+                *color_prefetches("")
+            )
             kwargs["widget"] = ColorSelect
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
@@ -1553,7 +1706,10 @@ class ProductAdmin(DuplicateAdminMixin, TranslatedSlugAdminMixin, AuditUserAdmin
                 "description": (
                     "Use esta seção para descrever as cores do produto. Isso não cria "
                     "variantes. «Uma cor» e «Multicolorido» usam a PALETA DE CORES logo "
-                    "abaixo; «Opção comercial» mantém a cor como eixo de cada VARIANTE."
+                    "abaixo; «Cores à escolha do cliente» oferece as cores da PALETA na "
+                    "compra — cada uma com o seu adicional de preço, somado ao preço da "
+                    "VARIANTE escolhida —; «Opção comercial» mantém a cor como eixo de "
+                    "cada VARIANTE."
                 ),
             },
         ),
@@ -1616,6 +1772,45 @@ class ProductAdmin(DuplicateAdminMixin, TranslatedSlugAdminMixin, AuditUserAdmin
             "admin/js/jd_fields.js",
             "admin/js/product_form_admin.js",
             "admin/js/product_options_admin.js",
+        )
+
+    def save_related(self, request, form, formsets, change):
+        super().save_related(request, form, formsets, change)
+        # O aviso depois de salvar vai para a lista; com «Salvar e continuar»
+        # a própria ficha o mostra ao reabrir (ver `render_change_form`).
+        if "_continue" not in request.POST:
+            self._avisar_cor_repetida(request, form.instance)
+
+    def _avisar_cor_repetida(self, request, produto):
+        """«Cores à escolha»: a mesma cor na paleta e numa variante ativa.
+
+        Não é erro — corpo Preto com pompom Preto é legítimo —, mas quase
+        sempre é um produto que oferece a mesma parte duas vezes. Fica o aviso
+        para o administrador conferir, e o salvamento segue.
+        """
+        if produto is None or not produto.pk or produto.color_mode != ColorMode.CUSTOM:
+            return
+        nas_variantes = set(
+            produto.variants.filter(is_active=True, color__isnull=False).values_list("color_id", flat=True)
+        )
+        if not nas_variantes:
+            return
+        repetidas = list(
+            Color.objects.filter(pk__in=nas_variantes, product_uses__product=produto)
+            .order_by("name")
+            .values_list("name", flat=True)
+        )
+        if not repetidas:
+            return
+        nomes = ", ".join(f"«{nome}»" for nome in repetidas)
+        if len(repetidas) == 1:
+            frase = f"{nomes}: esta cor também está sendo usada nas variantes deste produto."
+        else:
+            frase = f"{nomes}: estas cores também estão sendo usadas nas variantes deste produto."
+        self.message_user(
+            request,
+            f"⚠️ {frase} Verifique se as duas cores representam partes diferentes do produto.",
+            messages.WARNING,
         )
 
     def save_model(self, request, obj, form, change):
@@ -2578,6 +2773,10 @@ class ProductAdmin(DuplicateAdminMixin, TranslatedSlugAdminMixin, AuditUserAdmin
                 context["jd_duplicate_options"] = opcoes
                 context["jd_duplicate_values"] = sum(len(o.values.all()) for o in opcoes)
         if editando:
+            if request.method == "GET":
+                # «Cores à escolha»: a mesma cor na paleta e numa variante —
+                # aviso ao abrir a ficha, nunca bloqueio.
+                self._avisar_cor_repetida(request, original)
             context["audit_rows"] = [
                 ("Criado em", original.created_at),
                 ("Criado por", original.created_by),
@@ -3242,7 +3441,7 @@ class ProductVariantAdmin(DuplicateAdminMixin):
         linha da lista custa uma consulta a mais.
         """
         return super().get_queryset(request).prefetch_related(
-            "product__translations", *variant_option_prefetches()
+            "product__translations", *color_prefetches(), *variant_option_prefetches()
         )
 
     @admin.display(description="opção")

@@ -17,6 +17,10 @@ não vive sem. Tudo aqui vem do snapshot gravado na compra.
         {% for linha in item.options_lines %}
           <span style="display:block;color:#6e6880;font-size:13px;">{{ linha }}</span>
         {% endfor %}
+        {# «Cores à escolha do cliente»: a escolha congelada na compra. #}
+        {% for linha in item.choices_lines %}
+          <span style="display:block;color:#6e6880;font-size:13px;">{{ linha }}</span>
+        {% endfor %}
         {% if show_sku and item.sku %}
           <span style="display:block;color:#6e6880;font-size:12px;font-family:monospace;">{{ item.sku }}</span>
         {% endif %}

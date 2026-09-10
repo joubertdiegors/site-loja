@@ -17,7 +17,10 @@ resto é lido do catálogo na hora::
                                                "text": "", "notes": "..."}},
     }
 
-A chave da linha é ``produto:variante:personalização`` (ver ``keys.py``).
+Desde «Cores à escolha do cliente» o item leva também ``"choices"`` — as
+escolhas acima da variante, só ids: ``{"color": 5}`` — e a chave da linha é
+``produto:variante:personalização[:escolhas]`` (ver ``keys.py``). Item sem
+escolha continua com a chave de antes.
 
 O formato antigo (``{"12": {"quantity": 2}}``, da etapa 3) é convertido na
 primeira leitura: nenhum carrinho em sessão se perde.
@@ -30,13 +33,21 @@ from django.conf import settings
 from django.db.models import Prefetch
 from django.utils.translation import gettext as _
 
-from apps.cart.keys import customization_fingerprint, line_key
+from apps.cart.keys import customization_fingerprint, line_key, normalize_choices
 from apps.cart.models import CustomizationUpload
+from apps.catalog.choices import (
+    ChoiceError,
+    choices_text,
+    price_adjustment,
+    raw_from,
+    resolve_choices,
+)
 from apps.cart.storage import CART_SESSION_KEY, DatabaseStorage, SessionStorage
 from apps.catalog.models import (
     Product,
     ProductStatus,
     ProductVariant,
+    color_prefetches,
     product_description_prefetches,
     variant_option_prefetches,
 )
@@ -46,6 +57,7 @@ __all__ = [
     "Cart",
     "CartLine",
     "CartResult",
+    "choices_price_is_positive",
     "customization_fingerprint",
     "line_key",
     "load_products",
@@ -76,7 +88,7 @@ def load_products(items: dict) -> dict:
             Prefetch(
                 "variants",
                 queryset=ProductVariant.objects.select_related("color", "material")
-                .prefetch_related("color__translations", "material__translations")
+                .prefetch_related(*color_prefetches(), "material__translations")
                 .order_by(
                     "sort_order", "id"
                 ),
@@ -98,7 +110,7 @@ def load_variants(items: dict) -> dict:
         # material, pelo mesmo motivo: a página do carrinho escreve o nome de
         # cada uma no idioma do cliente.
         .prefetch_related(
-            "media", "color__translations", "material__translations", *variant_option_prefetches()
+            "media", *color_prefetches(), "material__translations", *variant_option_prefetches()
         )
     )
     return {variant.pk: variant for variant in queryset}
@@ -113,6 +125,18 @@ def load_uploads(items: dict) -> dict:
     if not ids:
         return {}
     return {upload.pk: upload for upload in CustomizationUpload.objects.filter(pk__in=ids)}
+
+
+def choices_price_is_positive(variant, choices) -> bool:
+    """O preço da variante somado aos adicionais das escolhas fica acima de zero?
+
+    A regra de «Cores à escolha do cliente» com desconto: o desconto pode
+    existir, o preço final não pode virar zero nem negativo. Sem escolha não
+    há o que conferir aqui — a variante sem preço é assunto do checkout.
+    """
+    if not choices or variant is None:
+        return True
+    return (variant.sale_price or Decimal("0.00")) + price_adjustment(choices) > Decimal("0.00")
 
 
 def max_quantity_for(product: Product, variant: ProductVariant | None = None) -> int:
@@ -141,13 +165,33 @@ class CartLine:
     quantity: int
     customization: dict | None = None
     upload: CustomizationUpload | None = None
+    #: As escolhas do cliente acima da variante, já resolvidas contra o
+    #: catálogo (``apps.catalog.choices.CustomerChoice``). Vazio é o normal.
+    choices: tuple = ()
 
     @property
-    def unit_price(self) -> Decimal:
-        """Sempre o preço da variante. O produto não tem preço."""
+    def base_unit_price(self) -> Decimal:
+        """O preço da variante, e só dele. O produto não tem preço."""
         if self.variant is None:
             return Decimal("0.00")
         return self.variant.sale_price or Decimal("0.00")
+
+    @property
+    def price_adjustment(self) -> Decimal:
+        """A soma dos adicionais das escolhas — do banco, nunca do navegador."""
+        return price_adjustment(self.choices)
+
+    @property
+    def unit_price(self) -> Decimal:
+        """Preço da variante + adicionais das escolhas: o que o cliente paga.
+
+        É o único lugar em que essa soma acontece. Subtotal, gaveta, página do
+        carrinho, checkout e ``OrderItem`` leem daqui — e por isso recebem o
+        mesmo número.
+        """
+        if self.variant is None:
+            return Decimal("0.00")
+        return self.base_unit_price + self.price_adjustment
 
     @property
     def total(self) -> Decimal:
@@ -216,6 +260,22 @@ class CartLine:
     @property
     def has_customization(self) -> bool:
         return bool(self.customization)
+
+    # -- escolhas do cliente -----------------------------------------------
+
+    @property
+    def has_choices(self) -> bool:
+        return bool(self.choices)
+
+    @property
+    def choices_text(self) -> str:
+        """«Cor: Dourado (+ € 2,00)», no idioma atual — vazio sem escolha."""
+        return choices_text(self.choices)
+
+    @property
+    def raw_choices(self) -> dict:
+        """``{chave: id}`` — o que o carrinho guarda."""
+        return raw_from(self.choices)
 
 
 @dataclass(frozen=True)
@@ -322,6 +382,26 @@ class Cart:
                 if upload is None:  # arquivo sumiu do storage
                     continue
 
+            # As escolhas do cliente, conferidas de novo contra o catálogo de
+            # agora — é daqui que sai o adicional, nunca da sessão. Uma
+            # escolha que deixou de existir (a cor saiu da paleta, o modo do
+            # produto mudou) some com a linha, como a variante desativada.
+            # A linha que **passou** a precisar de uma escolha continua: é o
+            # checkout que avisa (`validate_lines`), para o cliente saber o
+            # que fazer em vez de ver o item sumir.
+            raw_choices = normalize_choices(item.get("choices"))
+            try:
+                choices = resolve_choices(product, raw_choices)
+            except ChoiceError as erro:
+                if erro.reason != "missing":
+                    continue
+                choices = ()
+                raw_choices = {}
+            # O desconto que passou a engolir o preço tira a linha, como a
+            # cor que saiu da paleta: não há preço honesto para mostrar.
+            if not choices_price_is_positive(variant, choices):
+                continue
+
             lines.append(
                 CartLine(
                     key=key,
@@ -330,6 +410,7 @@ class Cart:
                     quantity=quantity,
                     customization=customization,
                     upload=upload,
+                    choices=choices,
                 )
             )
             cleaned[key] = {
@@ -337,6 +418,7 @@ class Cart:
                 "variant_id": variant.pk if variant else None,
                 "quantity": quantity,
                 "customization": customization,
+                "choices": raw_choices,
             }
 
         if cleaned != items:
@@ -364,9 +446,19 @@ class Cart:
         variant: ProductVariant | None = None,
         quantity: int = 1,
         customization: dict | None = None,
+        choices: dict | None = None,
     ) -> CartResult:
         if product.status != ProductStatus.ACTIVE:
             return CartResult(False, _("Este produto não está disponível."), "error")
+
+        # As escolhas do cliente («Cor: Dourado»), conferidas aqui também — e
+        # não só no formulário: este método é a porta de todo mundo que grava
+        # no carrinho, e o adicional de preço nasce da opção resolvida.
+        raw_choices = normalize_choices(choices)
+        try:
+            escolhas = resolve_choices(product, raw_choices)
+        except ChoiceError as erro:
+            return CartResult(False, erro.message, "error")
 
         if variant is not None and (not variant.is_active or variant.product_id != product.pk):
             return CartResult(False, _("Esta opção não está disponível."), "error")
@@ -379,12 +471,17 @@ class Cart:
         if variant is None:
             return CartResult(False, _("Este produto não está disponível."), "error")
 
+        # O desconto de uma cor nunca leva o preço a zero ou abaixo: uma linha
+        # assim não é vendável, e é melhor recusar aqui do que no checkout.
+        if not choices_price_is_positive(variant, escolhas):
+            return CartResult(False, _("Esta cor não está disponível."), "error")
+
         quantity = max(1, int(quantity))
         allowed = max_quantity_for(product, variant)
         if allowed <= 0:
             return CartResult(False, _("Produto esgotado no momento."), "error")
 
-        key = line_key(product.pk, variant.pk, customization)
+        key = line_key(product.pk, variant.pk, customization, raw_choices)
         wanted = self.quantity_of(key) + quantity
         final = min(wanted, allowed)
 
@@ -394,6 +491,7 @@ class Cart:
             "variant_id": variant.pk,
             "quantity": final,
             "customization": customization,
+            "choices": raw_choices,
         }
         self._save(items)
 

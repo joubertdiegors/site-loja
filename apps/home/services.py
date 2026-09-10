@@ -34,7 +34,13 @@ from dataclasses import dataclass, field
 
 from django.db.models import Count, Prefetch
 
-from apps.catalog.models import Product, ProductStatus, ProductVariant, product_color_prefetches
+from apps.catalog.models import (
+    Product,
+    ProductStatus,
+    ProductVariant,
+    color_prefetches,
+    product_color_prefetches,
+)
 from apps.categories.models import Category
 from apps.categories.tree import CategoryTree
 from apps.home.models import (
@@ -75,7 +81,7 @@ def product_card_queryset():
             Prefetch(
                 "variants",
                 queryset=ProductVariant.objects.select_related("color", "material")
-                .prefetch_related("color__translations", "material__translations")
+                .prefetch_related(*color_prefetches(), "material__translations")
                 .order_by(
                     "sort_order", "id"
                 ),
@@ -318,7 +324,7 @@ def section_prefetches():
             Prefetch(
                 "product__variants",
                 queryset=ProductVariant.objects.select_related("color", "material")
-                .prefetch_related("color__translations", "material__translations")
+                .prefetch_related(*color_prefetches(), "material__translations")
                 .order_by(
                     "sort_order", "id"
                 ),

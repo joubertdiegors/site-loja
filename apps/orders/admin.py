@@ -825,11 +825,14 @@ class OrderAdmin(admin.ModelAdmin):
             # nunca do produto de hoje. Pedido anterior às opções mostra «—»:
             # não há o que reconstruir, e não se inventa histórico.
             opcoes = item.options_lines
+            # «Cores à escolha do cliente»: a escolha congelada na compra, com
+            # o adicional que valia então — nunca a paleta de hoje.
+            escolhas = item.choices_lines
             linhas.append(
                 (
                     item.sku or "—",
                     format_html(
-                        "<b>{}</b>{}{}",
+                        "<b>{}</b>{}{}{}",
                         item.description,
                         format_html('<br><span class="jd-muted">{}</span>',
                                     format_html_join(" · ", "{}", ((d,) for d in detalhe)))
@@ -840,6 +843,13 @@ class OrderAdmin(admin.ModelAdmin):
                             _("Opções"),
                             format_html_join(mark_safe("<br>"), "{}", ((o,) for o in opcoes)) if opcoes else "—",
                         ),
+                        format_html(
+                            '<span class="jd-muted jd-opcoes"><span class="jd-opcoes-rotulo">{}:</span> {}</span>',
+                            _("Escolhas"),
+                            format_html_join(mark_safe("<br>"), "{}", ((e,) for e in escolhas)),
+                        )
+                        if escolhas
+                        else "",
                     ),
                     item.get_fulfillment_type_display(),
                     item.quantity,

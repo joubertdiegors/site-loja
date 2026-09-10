@@ -16,6 +16,8 @@
     SKU: {{ item.sku|default:"—" }} · {{ item.get_fulfillment_type_display }}{% if item.production_days %} · {% blocktranslate with days=item.production_days %}produção {{ days }} dia(s){% endblocktranslate %}{% endif %}
 {% if item.options_lines %}    {% translate "Opções" %}:
 {% for linha in item.options_lines %}      {{ linha }}
+{% endfor %}{% endif %}{% if item.choices_lines %}    {% translate "Escolhas" %}:
+{% for linha in item.choices_lines %}      {{ linha }}
 {% endfor %}{% endif %}{% if item.has_personalization %}{% if item.personalization_type == "photo" %}    {% translate "FOTO" %}: {% if item.personalization_upload %}{{ item.personalization_upload.original_name }} — {{ site_url }}{{ item.personalization_upload.file.url }}{% endif %}{% else %}    {% translate "TEXTO" %}: {{ item.personalization_text }}{% endif %}
 {% endif %}{% if item.personalization_notes %}    {% translate "Observações" %}: {{ item.personalization_notes }}
 {% endif %}    {{ order.currency_symbol }} {{ item.total|floatformat:2 }}

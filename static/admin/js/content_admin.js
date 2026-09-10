@@ -23,7 +23,7 @@
 (function () {
   "use strict";
 
-  var CAMPOS = ["language", "name", "short_description", "description", "extra_information"];
+  var CAMPOS = ["language", "name", "short_description", "description", "extra_information", "color_choice_label"];
 
   function corta(texto, limite) {
     var limpo = String(texto || "").replace(/\s+/g, " ").trim();

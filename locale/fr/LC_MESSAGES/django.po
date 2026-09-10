@@ -2452,5 +2452,27 @@ msgstr "Matériaux"
 msgid "Opções adicionais"
 msgstr "Options supplémentaires"
 
+msgid "Variação"
+msgstr "Déclinaison"
+
+msgid "Sua escolha"
+msgstr "Votre choix"
+
 msgid "Opções"
 msgstr "Options"
+
+# «Cores à escolha do cliente»
+msgid "Escolha uma cor antes de continuar."
+msgstr "Choisissez une couleur avant de continuer."
+
+msgid "Esta cor não está disponível."
+msgstr "Cette couleur n'est pas disponible."
+
+msgid "Escolher cor"
+msgstr "Choisir la couleur"
+
+msgid "%(name)s precisa da escolha: %(group)s."
+msgstr "%(name)s a besoin d'un choix : %(group)s."
+
+msgid "Escolhas"
+msgstr "Choix"

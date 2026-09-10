@@ -226,6 +226,11 @@ class ColorAdminTests(TestCase):
             "translations-1-name": "Turquoise",
             "translations-1-id": "",
             "translations-1-master": "",
+            # O inline de componentes (cores compostas): vazio = cor simples.
+            "component_links-TOTAL_FORMS": "0",
+            "component_links-INITIAL_FORMS": "0",
+            "component_links-MIN_NUM_FORMS": "0",
+            "component_links-MAX_NUM_FORMS": "1000",
         }
         self.client.post(reverse("admin:catalog_color_add"), payload, follow=True)
 

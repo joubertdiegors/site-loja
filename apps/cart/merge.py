@@ -3,9 +3,9 @@
 Acontece no sinal ``user_logged_in`` (ver ``signals.py``), o que cobre os dois
 caminhos com o mesmo código — quem acabou de se cadastrar e quem só entrou.
 
-Regra do merge: a linha é **produto + variante + personalização**. Quantidades
-de linhas idênticas somam; linhas que diferem em qualquer um dos três
-convivem::
+Regra do merge: a linha é **produto + variante + escolhas do cliente +
+personalização**. Quantidades de linhas idênticas somam; linhas que diferem em
+qualquer um dos quatro convivem (Branco e Dourado são duas linhas)::
 
     sessão:  A/Preto/25cm × 2   B × 1
     conta:   A/Preto/25cm × 1              C × 3
@@ -21,8 +21,16 @@ from dataclasses import dataclass, field
 
 from django.utils.translation import gettext as _
 
-from apps.cart.cart import load_products, load_variants, load_uploads, max_quantity_for
+from apps.cart.cart import (
+    choices_price_is_positive,
+    load_products,
+    load_uploads,
+    load_variants,
+    max_quantity_for,
+)
+from apps.cart.keys import normalize_choices
 from apps.cart.storage import DatabaseStorage, SessionStorage
+from apps.catalog.choices import ChoiceError, resolve_choices
 
 
 @dataclass
@@ -124,6 +132,22 @@ def clamp_items(items: dict) -> tuple[dict, list[str], int]:
                 dropped += 1
                 continue
 
+        # A mesma regra de `Cart.lines()`: escolha que saiu do catálogo
+        # descarta a linha; escolha que passou a faltar fica para o checkout
+        # avisar.
+        raw_choices = normalize_choices(item.get("choices"))
+        try:
+            escolhas = resolve_choices(product, raw_choices)
+        except ChoiceError as erro:
+            if erro.reason != "missing":
+                dropped += 1
+                continue
+            escolhas = ()
+            raw_choices = {}
+        if not choices_price_is_positive(variant, escolhas):
+            dropped += 1
+            continue
+
         wanted = max(0, int(item.get("quantity", 0)))
         allowed = max_quantity_for(product, variant)
         quantity = min(wanted, allowed)
@@ -139,6 +163,7 @@ def clamp_items(items: dict) -> tuple[dict, list[str], int]:
             "variant_id": variant.pk if variant else None,
             "quantity": quantity,
             "customization": customization,
+            "choices": raw_choices,
         }
 
     return clamped, limited, dropped

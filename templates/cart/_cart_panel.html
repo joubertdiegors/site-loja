@@ -54,7 +54,7 @@ trocas, quando publicadas — cadastro do Admin, não texto escrito aqui.
               {% if line.variant.color_id %}
                 <li class="cart-chip">
                   <span class="cart-chip-dot" aria-hidden="true"
-                        {% if line.variant.color.hex_code %}style="background-color: {{ line.variant.color.hex_code }}"{% endif %}></span>
+                        {% if line.variant.color.swatch_style %}style="{{ line.variant.color.swatch_style }}"{% endif %}></span>
                   {{ line.variant.color.display_name }}
                 </li>
               {% endif %}
@@ -68,10 +68,17 @@ trocas, quando publicadas — cadastro do Admin, não texto escrito aqui.
               {% for link in line.variant.option_links %}
                 <li class="cart-chip">{{ link.value.display_name }}</li>
               {% endfor %}
-              {# Etapa 2B: a descrição da peça, quando a variante não tem a sua própria. #}
-              {% if not line.variant.color_id and line.product.colors_text %}
+              {# «Cores à escolha do cliente»: a escolha feita acima da variante, com o adicional. #}
+              {% for choice in line.choices %}
                 <li class="cart-chip">
-                  {% for color in line.product.display_colors|slice:":4" %}<span class="cart-chip-dot" aria-hidden="true"{% if color.hex_code %} style="background-color: {{ color.hex_code }}"{% endif %}></span>{% endfor %}
+                  {% if choice.swatch_style %}<span class="cart-chip-dot" aria-hidden="true" style="{{ choice.swatch_style }}"></span>{% endif %}
+                  {{ choice.text }}
+                </li>
+              {% endfor %}
+              {# Etapa 2B: a descrição da peça, quando a variante não tem a sua própria. #}
+              {% if not line.variant.color_id and not line.has_choices and line.product.colors_text %}
+                <li class="cart-chip">
+                  {% for color in line.product.display_colors|slice:":4" %}<span class="cart-chip-dot" aria-hidden="true"{% if color.swatch_style %} style="{{ color.swatch_style }}"{% endif %}></span>{% endfor %}
                   {{ line.product.colors_text }}
                 </li>
               {% endif %}

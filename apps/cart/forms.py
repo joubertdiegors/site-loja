@@ -10,6 +10,7 @@ from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 
 from apps.cart.models import CustomizationUpload
+from apps.catalog.choices import ChoiceError, choice_groups, raw_from, resolve_choices
 from apps.catalog.models import PersonalizationType, ProductVariant
 
 # O reconhecimento por assinatura mora em `apps.core.uploads`: o comprovante de
@@ -44,6 +45,8 @@ class AddToCartForm(forms.Form):
         self.product = product
         self.variant = None
         self.upload = None
+        #: As escolhas do cliente acima da variante, resolvidas em `clean()`.
+        self.choices = ()
 
     # -- campos ------------------------------------------------------------
 
@@ -120,8 +123,39 @@ class AddToCartForm(forms.Form):
             return cleaned
 
         self._resolve_variant(cleaned)
+        self._resolve_choices()
         self._validate_personalization(cleaned)
         return cleaned
+
+    # -- as escolhas do cliente -----------------------------------------------
+
+    #: O prefixo dos campos de escolha no POST: ``choice_color``. Não é o
+    #: ``option_color`` dos eixos: aquele confere a variante, este escolhe
+    #: por cima dela.
+    CHOICE_PREFIX = "choice_"
+
+    def _resolve_choices(self):
+        """Do POST para as escolhas válidas — ou um erro para o cliente.
+
+        Só o que o produto oferece é lido (`choice_groups`), e só **ids**:
+        ``price``, ``price_delta`` ou qualquer valor de dinheiro que venha na
+        requisição não é campo deste formulário e morre aqui. O adicional é
+        lido do banco pela opção resolvida.
+        """
+        bruto = {
+            grupo.key: (self.data.get(f"{self.CHOICE_PREFIX}{grupo.key}") or "").strip()
+            for grupo in choice_groups(self.product)
+        }
+        try:
+            self.choices = resolve_choices(self.product, bruto)
+        except ChoiceError as erro:
+            self.choices = ()
+            self.add_error(None, erro.message)
+
+    @property
+    def raw_choices(self) -> dict:
+        """``{chave: id}`` — o que vai para o carrinho."""
+        return raw_from(self.choices)
 
     # -- a variante ---------------------------------------------------------
 

@@ -77,7 +77,7 @@ que guarda o produto; para o visitante, um link para o login. O estado sai de
         {% with colors=product.display_colors %}
           {% if colors %}
             <p class="product-card-colors">
-              <span class="product-card-swatches" aria-hidden="true">{% for color in colors|slice:":5" %}<span class="product-card-swatch"{% if color.hex_code %} style="background-color: {{ color.hex_code }}"{% endif %}></span>{% endfor %}{% if colors|length > 5 %}<span class="product-card-swatch-more">+{{ colors|length|add:"-5" }}</span>{% endif %}</span>
+              <span class="product-card-swatches" aria-hidden="true">{% for color in colors|slice:":5" %}<span class="product-card-swatch"{% if color.swatch_style %} style="{{ color.swatch_style }}"{% endif %}></span>{% endfor %}{% if colors|length > 5 %}<span class="product-card-swatch-more">+{{ colors|length|add:"-5" }}</span>{% endif %}</span>
               {% blocktranslate count total=colors|length %}{{ total }} cor{% plural %}{{ total }} cores{% endblocktranslate %}
               <span class="sr-only">: {% for color in colors %}{{ color.display_name }}{% if not forloop.last %}, {% endif %}{% endfor %}</span>
             </p>
@@ -115,6 +115,12 @@ que guarda o produto; para o visitante, um link para o login. O estado sai de
         {# Personalização pendente: a página do produto resolve. #}
         <a href="{{ product.get_absolute_url }}" class="product-card-button">
           {% translate "Personalizar" %}
+        </a>
+
+      {% elif product.offers_customer_colors %}
+        {# «Cores à escolha do cliente»: a cor se escolhe na página do produto. #}
+        <a href="{{ product.get_absolute_url }}" class="product-card-button">
+          {% translate "Escolher cor" %}
         </a>
 
       {% elif product.has_multiple_variants %}

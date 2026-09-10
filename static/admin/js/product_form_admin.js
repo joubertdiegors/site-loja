@@ -69,8 +69,10 @@
       select.parentNode.insertBefore(bolinha, select);
     }
     var opcao = select.options[select.selectedIndex];
-    var hex = opcao ? opcao.getAttribute("data-hex") : "";
-    bolinha.style.background = hex || "transparent";
+    /* `data-swatch` traz o fundo inteiro (a cor composta é um degradê com
+       todas as componentes); `data-hex` continua existindo para a simples. */
+    var fundo = opcao ? opcao.getAttribute("data-swatch") || opcao.getAttribute("data-hex") : "";
+    bolinha.style.background = fundo || "transparent";
   }
 
   function ligarPaleta() {

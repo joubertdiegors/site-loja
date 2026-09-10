@@ -171,6 +171,21 @@ class Color(TranslatableMixin, TimeStampedModel):
 
     RGB não é armazenado: é derivado do HEX (ver ``rgb``), evitando dois
     campos que podem divergir.
+
+    ## Cor composta
+
+    «Branco + Azul» é **uma** cor do catálogo — um *colourway* que a gráfica
+    produz —, feita de duas ou mais cores simples (``ColorComponent``, em
+    ordem). A variante continua apontando para uma cor só (``ProductVariant.
+    color``); o que muda é que essa cor pode ter componentes. Assim SKU,
+    estoque, preço, carrinho e pedido não precisam saber que a cor é composta.
+
+    Regras: cor simples não tem componentes; composta tem duas ou mais;
+    componente é sempre cor simples (não se aninha); a mesma composição não
+    existe duas vezes. ``is_composite`` é um espelho gravado de «tem
+    componentes», mantido por ``ColorComponent`` e por ``set_components`` —
+    existe para as listagens não pagarem uma consulta por cor só para saber
+    que ela é simples.
     """
 
     translatable_fields = ("name",)
@@ -190,6 +205,21 @@ class Color(TranslatableMixin, TimeStampedModel):
         help_text="Ex.: #000000",
     )
     is_active = models.BooleanField("ativa", default=True)
+    is_composite = models.BooleanField(
+        "cor composta",
+        default=False,
+        editable=False,
+        help_text="Marcada sozinha quando a cor tem componentes.",
+    )
+    components = models.ManyToManyField(
+        "self",
+        through="ColorComponent",
+        through_fields=("color", "component"),
+        symmetrical=False,
+        related_name="composites",
+        verbose_name="componentes",
+        blank=True,
+    )
 
     class Meta:
         verbose_name = "cor"
@@ -209,16 +239,151 @@ class Color(TranslatableMixin, TimeStampedModel):
             return None
         return tuple(int(value[index : index + 2], 16) for index in (0, 2, 4))
 
+    # -- composição ---------------------------------------------------------
+
+    @property
+    def component_list(self) -> list:
+        """As componentes, na ordem cadastrada — vazio para a cor simples.
+
+        A cor simples não consulta nada: o espelho ``is_composite`` responde
+        antes. A composta lê ``component_links`` **uma vez por instância** e
+        guarda (como ``translations_by_language``): nome, hexes e bolinha
+        chamam isto várias vezes na mesma página. Com o prefetch de
+        ``color_prefetches`` custa zero; sem ele, duas consultas — as
+        ligações com a componente na mesma consulta, e as traduções das
+        componentes na outra — e nunca uma por componente.
+        """
+        if not self.is_composite:
+            return []
+        cache = getattr(self, "_component_list_cache", None)
+        if cache is None:
+            prefetched = getattr(self, "_prefetched_objects_cache", {})
+            if "component_links" in prefetched:
+                links = self.component_links.all()
+            else:
+                links = self.component_links.select_related("component").prefetch_related(
+                    "component__translations"
+                )
+            links = sorted(links, key=lambda link: (link.sort_order, link.pk or 0))
+            cache = [link.component for link in links]
+            self._component_list_cache = cache
+        return cache
+
+    @property
+    def hex_codes(self) -> list:
+        """``[hex]`` da cor simples; ``[hex de cada componente]`` da composta.
+
+        A composta sem componentes carregadas (ou com componentes sem HEX)
+        cai no próprio ``hex_code``: sempre há o que pintar quando houver
+        algum HEX.
+        """
+        if self.is_composite:
+            hexes = [c.hex_code for c in self.component_list if c.hex_code]
+            if hexes:
+                return hexes
+        return [self.hex_code] if self.hex_code else []
+
+    @property
+    def swatch_background(self) -> str:
+        """O valor CSS de ``background`` que pinta esta cor — ou vazio.
+
+        Uma cor: o próprio HEX. Composta: faixas iguais, uma por componente,
+        na ordem cadastrada («Branco + Azul» é metade branca, metade azul).
+        É este valor que todo lugar que pintava ``background-color: hex``
+        passa a usar — a cor simples pinta exatamente como antes.
+        """
+        hexes = self.hex_codes
+        if not hexes:
+            return ""
+        if len(hexes) == 1:
+            return hexes[0]
+        passo = 100 / len(hexes)
+        faixas = []
+        for indice, hexa in enumerate(hexes):
+            inicio = f"{indice * passo:g}%"
+            fim = f"{(indice + 1) * passo:g}%"
+            faixas.append(f"{hexa} {inicio}, {hexa} {fim}")
+        return "linear-gradient(90deg, " + ", ".join(faixas) + ")"
+
+    @property
+    def swatch_style(self) -> str:
+        """O ``style`` pronto da bolinha, ou vazio.
+
+        A cor simples continua escrevendo exatamente o que sempre escreveu
+        (``background-color: #hex``); só a composta usa ``background`` com o
+        degradê — é o que deixa cada template antigo igual ao que era.
+        """
+        hexes = self.hex_codes
+        if not hexes:
+            return ""
+        if len(hexes) == 1:
+            return f"background-color: {hexes[0]}"
+        return f"background: {self.swatch_background}"
+
+    # -- nome ---------------------------------------------------------------
+
+    def name_in(self, language: str | None = None) -> str:
+        """O nome que o cliente lê num idioma (``None`` = o idioma atual).
+
+        Cor simples: a tradução pedida, senão português, senão qualquer uma,
+        senão o nome interno — o fallback de sempre, intacto.
+
+        Cor composta: a tradução **própria** naquele idioma, quando existe
+        («Bicolore», digamos); senão o nome se monta pelas componentes, cada
+        uma no idioma pedido com o seu próprio fallback («Blanc + Bleu»).
+        Assim uma composta nova fala os quatro idiomas sem tradução nenhuma
+        — e quem quiser um nome especial ainda pode cadastrá-lo.
+        """
+        if self.is_composite:
+            proprio = self.tr("name", language=language, fallback=False)
+            if proprio:
+                return proprio
+            componentes = self.component_list
+            if componentes:
+                return " + ".join(componente.name_in(language) for componente in componentes)
+        return self.tr("name", language=language, default=self.name)
+
     @property
     def display_name(self) -> str:
-        """O nome que o cliente lê, no idioma de conteúdo atual.
+        """O nome que o cliente lê, no idioma de conteúdo atual (ver ``name_in``)."""
+        return self.name_in(None)
 
-        Sem tradução no idioma pedido, cai no português e depois em qualquer
-        uma que exista — o mesmo fallback de produto e categoria. Sem tradução
-        nenhuma, devolve o nome interno: melhor "Preto" em francês do que um
-        espaço em branco no seletor.
+    # -- composição: escrita ---------------------------------------------------
+
+    def set_components(self, components) -> None:
+        """Define as componentes, na ordem dada. Lista vazia = cor simples.
+
+        Instâncias ou ids. Valida tudo (``validate_composition``) e grava
+        numa transação: apaga o que saiu, cria o que entrou, reordena o que
+        ficou, e acerta ``is_composite``.
         """
-        return self.tr("name", default=self.name)
+        ids = [int(getattr(item, "pk", item)) for item in components]
+        validate_composition(self, ids)
+        with transaction.atomic():
+            ColorComponent.objects.filter(color=self).exclude(component_id__in=ids).delete()
+            existentes = {
+                link.component_id: link for link in ColorComponent.objects.filter(color=self)
+            }
+            for ordem, component_id in enumerate(ids):
+                link = existentes.get(component_id)
+                if link is None:
+                    ColorComponent.objects.create(color=self, component_id=component_id, sort_order=ordem)
+                elif link.sort_order != ordem:
+                    link.sort_order = ordem
+                    link.save(update_fields=["sort_order", "updated_at"])
+            self.refresh_composite_flag()
+
+    def refresh_composite_flag(self) -> None:
+        """Acerta o espelho ``is_composite`` pelo que há no banco."""
+        if self.pk is None:
+            return
+        valor = ColorComponent.objects.filter(color=self).exists()
+        if valor != self.is_composite:
+            Color.objects.filter(pk=self.pk).update(is_composite=valor)
+        self.is_composite = valor
+        self._component_list_cache = None
+        if hasattr(self, "_prefetched_objects_cache"):
+            self._prefetched_objects_cache.pop("component_links", None)
 
     def save(self, *args, **kwargs):
         if self.hex_code:
@@ -226,6 +391,170 @@ class Color(TranslatableMixin, TimeStampedModel):
         if not self.slug:
             self.slug = unique_slugify(self, self.name)
         super().save(*args, **kwargs)
+
+
+def validate_composition(color, component_ids) -> None:
+    """As regras da cor composta, num lugar só — para o Admin e para a API.
+
+    ``component_ids`` é a composição inteira que se quer gravar em ``color``
+    (vazia = cor simples). Levanta ``ValidationError`` com a mensagem para
+    quem cadastra.
+    """
+    ids = [int(item) for item in component_ids]
+    if not ids:
+        return
+    if len(ids) == 1:
+        raise ValidationError(
+            "Uma cor composta precisa de pelo menos duas componentes. "
+            "Para uma cor só, deixe a lista de componentes vazia."
+        )
+    if len(set(ids)) != len(ids):
+        raise ValidationError("A mesma cor aparece duas vezes nas componentes.")
+    if color.pk is not None and color.pk in ids:
+        raise ValidationError("Uma cor não pode ser componente de si mesma.")
+
+    componentes = {c.pk: c for c in Color.objects.filter(pk__in=ids)}
+    faltando = [item for item in ids if item not in componentes]
+    if faltando:
+        raise ValidationError("Componente desconhecida.")
+    compostas = [c.name for c in componentes.values() if c.is_composite]
+    if compostas:
+        raise ValidationError(
+            "«%(nomes)s» já é uma cor composta: componentes têm de ser cores simples."
+            % {"nomes": "», «".join(sorted(compostas))}
+        )
+    if color.pk is not None:
+        usada_em = ColorComponent.objects.filter(component=color).select_related("color").first()
+        if usada_em is not None:
+            raise ValidationError(
+                "«%(cor)s» é componente de «%(composta)s» e não pode virar uma cor composta."
+                % {"cor": color.name, "composta": usada_em.color.name}
+            )
+
+    equivalente = find_equivalent_composition(ids, exclude_pk=color.pk)
+    if equivalente is not None:
+        raise ValidationError(
+            "Já existe a cor «%(nome)s» com estas mesmas componentes."
+            % {"nome": equivalente.name}
+        )
+
+
+def find_equivalent_composition(component_ids, exclude_pk=None):
+    """Outra cor composta com exatamente este conjunto de componentes, ou ``None``.
+
+    A ordem não distingue: «Branco + Azul» e «Azul + Branco» são a mesma
+    composição, e a segunda seria só uma cor a mais para errar.
+    """
+    alvo = set(int(item) for item in component_ids)
+    if not alvo:
+        return None
+    candidatas = (
+        ColorComponent.objects.filter(component_id__in=alvo)
+        .exclude(color_id=exclude_pk)
+        .values_list("color_id", flat=True)
+        .distinct()
+    )
+    for color_id in candidatas:
+        conjunto = set(
+            ColorComponent.objects.filter(color_id=color_id).values_list("component_id", flat=True)
+        )
+        if conjunto == alvo:
+            return Color.objects.get(pk=color_id)
+    return None
+
+
+class ColorComponent(TimeStampedModel):
+    """Uma componente de uma cor composta: «Branco + Azul» tem duas destas.
+
+    ``sort_order`` é a ordem em que a cor se lê e se pinta. ``PROTECT`` na
+    componente: apagar «Branco» enquanto «Branco + Azul» existir é recusado
+    — a composta ficaria sem metade do nome. ``CASCADE`` na composta: apagar
+    a composta apaga só as suas ligações, nunca as cores simples.
+
+    As regras de linha (não é a própria cor, a componente é simples, a
+    composta não é componente de ninguém) moram em ``clean()``, que ``save()``
+    chama — como nas opções da variante, a regra vale fora de formulários. As
+    regras de conjunto (duas ou mais, composição repetida) ficam em
+    ``validate_composition``, que o Admin e ``set_components`` chamam.
+    """
+
+    color = models.ForeignKey(
+        Color, verbose_name="cor composta", related_name="component_links", on_delete=models.CASCADE
+    )
+    component = models.ForeignKey(
+        Color, verbose_name="componente", related_name="composed_in", on_delete=models.PROTECT
+    )
+    sort_order = models.PositiveIntegerField("ordem", default=0)
+
+    class Meta:
+        verbose_name = "componente da cor"
+        verbose_name_plural = "componentes da cor"
+        ordering = ("sort_order", "id")
+        constraints = [
+            models.UniqueConstraint(fields=["color", "component"], name="color_component_unique"),
+            models.CheckConstraint(
+                condition=~models.Q(color=models.F("component")), name="color_component_not_self"
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["color", "sort_order"], name="color_component_order_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.color_id} · {self.component_id}"
+
+    def clean(self):
+        super().clean()
+        if self.color_id and self.component_id:
+            if self.color_id == self.component_id:
+                raise ValidationError({"component": "Uma cor não pode ser componente de si mesma."})
+            if self.component.is_composite:
+                raise ValidationError(
+                    {"component": "Componentes têm de ser cores simples — esta já é composta."}
+                )
+            if ColorComponent.objects.filter(component_id=self.color_id).exists():
+                raise ValidationError(
+                    {"color": "Esta cor é componente de outra e não pode virar composta."}
+                )
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        super().save(*args, **kwargs)
+        Color.objects.filter(pk=self.color_id, is_composite=False).update(is_composite=True)
+
+    def delete(self, *args, **kwargs):
+        color_id = self.color_id
+        resultado = super().delete(*args, **kwargs)
+        if not ColorComponent.objects.filter(color_id=color_id).exists():
+            Color.objects.filter(pk=color_id, is_composite=True).update(is_composite=False)
+        return resultado
+
+
+def color_component_prefetch(path: str = "component_links"):
+    """O ``Prefetch`` das componentes de uma cor.
+
+    As ligações vêm com a componente na mesma consulta e as traduções dela na
+    seguinte. Numa listagem sem cor composta custa uma consulta (vazia); com
+    compostas, duas — nunca uma por cor, nem por componente.
+    """
+    return models.Prefetch(
+        path,
+        queryset=ColorComponent.objects.select_related("component")
+        .prefetch_related("component__translations")
+        .order_by("sort_order", "id"),
+    )
+
+
+def color_prefetches(path: str = "color"):
+    """Tudo o que ler uma cor precisa: as traduções e as componentes.
+
+    ``path`` é o caminho até a cor a partir do queryset (``"color"`` numa
+    variante, ``""`` num queryset de ``Color``). É o que todo lugar que já
+    pedia ``color__translations`` passa a pedir: a cor composta pinta e se
+    nomeia sem consulta nenhuma, e a simples continua exatamente como estava.
+    """
+    prefixo = f"{path}__" if path else ""
+    return (f"{prefixo}translations", color_component_prefetch(f"{prefixo}component_links"))
 
 
 # ---------------------------------------------------------------------------
@@ -254,8 +583,11 @@ class ColorMode(models.TextChoices):
 
     * **descrição visual** — a peça é preta, ou preta e branca, ou de seis
       cores. Vem de ``ProductColor`` (uma lista ordenada) e não cria variante;
-    * **à escolha do cliente** — a peça é produzida na cor que ele pedir.
-      Também não cria variante; nesta etapa é só informação;
+    * **à escolha do cliente** — a peça é produzida na cor que o cliente
+      escolher na compra, entre as da paleta (``ProductColor``), cada uma com
+      um adicional de preço opcional. Também não cria variante: a escolha é
+      uma camada acima dela (ver ``apps.catalog.choices``) — SKU, estoque e
+      preço base continuam sendo da variante;
     * **opção comercial** — o cliente escolhe entre preto e branco e cada um
       tem estoque e SKU próprios. Aí a cor continua sendo o eixo
       ``ProductVariant.color``, como sempre foi.
@@ -412,7 +744,9 @@ class Product(TranslatableMixin, AuditableModel):
     ``ProductQuerySet.sellable`` e ``is_sellable``.
     """
 
-    translatable_fields = ("name", "short_description", "description", "extra_information")
+    translatable_fields = (
+        "name", "short_description", "description", "extra_information", "color_choice_label",
+    )
 
     # -- identificação -----------------------------------------------------
     sku = models.CharField(
@@ -484,8 +818,9 @@ class Product(TranslatableMixin, AuditableModel):
         help_text=(
             "Como a cor funciona neste produto. «Uma cor» e «Multicolorido» "
             "descrevem a peça (lista abaixo, não cria variantes); «Cores à "
-            "escolha» é informativo; «Opção comercial» mantém a cor como eixo "
-            "de cada variante."
+            "escolha do cliente» oferece as cores da paleta na compra, com "
+            "adicional opcional, sem criar variantes; «Opção comercial» mantém "
+            "a cor como eixo de cada variante."
         ),
     )
 
@@ -703,6 +1038,42 @@ class Product(TranslatableMixin, AuditableModel):
         if self.color_mode == ColorMode.CUSTOM:
             return _("Cores à escolha")
         return ""
+
+    # -- cores à escolha do cliente -----------------------------------------
+    #
+    # A paleta é a mesma lista de sempre (``product_colors``); o que muda em
+    # «Cores à escolha do cliente» é o papel dela: cada linha vira uma opção
+    # que o cliente escolhe na compra, com o adicional que ela carregar. Quem
+    # resolve, valida e precifica a escolha é ``apps.catalog.choices``.
+
+    @property
+    def customer_color_rows(self) -> list:
+        """As linhas da paleta que o cliente pode escolher — só no modo «custom».
+
+        Vazia nos outros modos, por definição: «Uma cor» e «Multicolorido»
+        descrevem a peça, «Opção comercial» resolve a cor pela variante, e
+        «Não se aplica» não fala de cor. Vazia também em «custom» com paleta
+        vazia — aí não há o que escolher, e a compra segue como antes.
+        """
+        if self.color_mode != ColorMode.CUSTOM:
+            return []
+        return sorted(self.product_colors.all(), key=lambda pc: (pc.sort_order, pc.pk or 0))
+
+    @property
+    def offers_customer_colors(self) -> bool:
+        return bool(self.customer_color_rows)
+
+    @property
+    def color_choice_label(self) -> str:
+        """O rótulo do grupo «Cores à escolha», no idioma atual — «Cor do pompom».
+
+        Vem de ``ProductTranslation.color_choice_label``. Sem rótulo **no
+        idioma pedido**, vale «Cor» traduzido: melhor a palavra certa no idioma
+        do cliente do que o rótulo de outro idioma — por isso sem o fallback
+        pt → qualquer que os textos usam.
+        """
+        proprio = (self.tr("color_choice_label", fallback=False) or "").strip()
+        return proprio or _("Cor")
 
     @property
     def composition(self) -> list:
@@ -1564,11 +1935,17 @@ class ColorTranslation(TranslationBase):
 
 
 class ProductColor(TimeStampedModel):
-    """Uma cor da descrição visual do produto — na ordem em que aparece.
+    """Uma cor da paleta do produto — na ordem em que aparece.
 
-    É a lista que «Uma cor» e «Multicolorido» usam. Aponta para a ``Color`` de
-    sempre (com HEX e traduções); não cria variante, não tem preço nem
+    É a lista que «Uma cor» e «Multicolorido» usam para descrever a peça, e a
+    que «Cores à escolha do cliente» oferece na compra. Aponta para a
+    ``Color`` de sempre (com HEX e traduções); não cria variante e não tem
     estoque. Quantas cores forem: «Preto + Branco», ou seis.
+
+    ``price_delta`` é o adicional (ou desconto) de escolher esta cor, e só
+    tem efeito no modo «Cores à escolha do cliente»: nos outros modos a
+    paleta é descrição e o valor fica guardado sem uso. Não é preço — o
+    preço é da variante; é o que se soma a ele quando o cliente escolhe.
     """
 
     product = models.ForeignKey(
@@ -1576,6 +1953,20 @@ class ProductColor(TimeStampedModel):
     )
     color = models.ForeignKey(
         Color, verbose_name="cor", related_name="product_uses", on_delete=models.PROTECT
+    )
+    price_delta = models.DecimalField(
+        "adicional (€)",
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        # `blank`: no formulário, em branco quer dizer «sem adicional» — a
+        # coluna fica escondida nos modos descritivos, e um POST sem ela não
+        # pode ser um erro. O modelo nunca guarda nulo (ver o form do inline).
+        blank=True,
+        help_text=(
+            "Quanto esta cor soma ao preço da variante quando o cliente a "
+            "escolhe. Só vale em «Cores à escolha do cliente»; 0 não altera o preço."
+        ),
     )
     sort_order = models.PositiveIntegerField("ordem", default=0)
 
@@ -1654,17 +2045,18 @@ class ProductMaterialComposition(TimeStampedModel):
 
 
 def product_color_prefetches():
-    """A paleta do produto, para o card: duas consultas por listagem.
+    """A paleta do produto, para o card: três consultas por listagem.
 
     ``select_related("color")`` traz a cor na mesma consulta das linhas da
-    paleta; só as traduções da cor custam a segunda. Vazia (o produto não tem
-    paleta), custa uma.
+    paleta; as traduções da cor custam a segunda, e as componentes das cores
+    compostas a terceira (vazia quando a paleta só tem cores simples). Vazia
+    (o produto não tem paleta), custa uma.
     """
     return (
         models.Prefetch(
             "product_colors",
             queryset=ProductColor.objects.select_related("color")
-            .prefetch_related("color__translations")
+            .prefetch_related(*color_prefetches("color"))
             .order_by("sort_order", "id"),
         ),
     )
@@ -2090,6 +2482,16 @@ class ProductTranslation(TranslationBase):
         "informações adicionais",
         blank=True,
         help_text="Cuidados, instruções de uso, avisos.",
+    )
+    color_choice_label = models.CharField(
+        "rótulo da cor à escolha",
+        max_length=60,
+        blank=True,
+        help_text=(
+            "Só em «Cores à escolha do cliente»: o nome da parte que o cliente "
+            "pinta, no lugar de «Cor». Ex.: «Cor do pompom». Em branco, a loja "
+            "escreve «Cor» no idioma do cliente."
+        ),
     )
 
     class Meta:

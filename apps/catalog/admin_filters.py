@@ -372,23 +372,40 @@ class MaterialFiltro(PorRelacaoFiltro):
 
 
 class CorFiltro(PorRelacaoFiltro):
+    """Cor da paleta ou da variante — e, para a cor composta, cada componente.
+
+    Filtrar por «Azul» traz também o produto cuja variante é «Branco + Azul»:
+    a cor composta é feita de azul. E a lista de opções inclui as componentes
+    das compostas em uso, para «Azul» aparecer no painel mesmo quando nenhum
+    produto usa o azul sozinho.
+    """
+
     title = "Cor"
     parametro = "cor"
     vazio = "Todas"
 
     def carregar_opcoes(self, request, model_admin):
+        em_uso = Q(product_uses__isnull=False) | Q(variants__isnull=False)
+        componente_de_uma_em_uso = Q(composed_in__color__product_uses__isnull=False) | Q(
+            composed_in__color__variants__isnull=False
+        )
         cores = (
-            Color.objects.filter(Q(product_uses__isnull=False) | Q(variants__isnull=False))
+            Color.objects.filter(em_uso | componente_de_uma_em_uso)
             .distinct()
             .order_by("name")
         )
         return [{"valor": str(item.pk), "rotulo": item.name, "nivel": 0} for item in cores]
 
+    @staticmethod
+    def _propria_ou_componente(valores):
+        """A cor pedida, ou uma composta que a tenha como componente."""
+        return Q(color_id__in=valores) | Q(color__component_links__component_id__in=valores)
+
     def _da_ficha(self, valores):
-        return ProductColor.objects.filter(color_id__in=valores).values("product_id")
+        return ProductColor.objects.filter(self._propria_ou_componente(valores)).values("product_id")
 
     def _da_variante(self, valores):
-        return ProductVariant.objects.filter(color_id__in=valores).values("product_id")
+        return ProductVariant.objects.filter(self._propria_ou_componente(valores)).values("product_id")
 
 
 # ---------------------------------------------------------------------------

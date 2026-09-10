@@ -661,6 +661,81 @@
     highlight(padrao.url);
   }
 
+  /* ---- Preço na tela ------------------------------------------------------
+
+     Um lugar só escreve o preço. O seletor de variantes manda o preço BASE da
+     variante escolhida; as escolhas do cliente («Cores à escolha») mandam o
+     ADICIONAL. Sem adicional, vai o texto que o servidor já formatou; com
+     adicional, a soma é escrita aqui com os separadores que o servidor
+     informou (`#price-format`). Nada disto é autoridade: o servidor recalcula
+     o preço, do banco, no carrinho e no pedido. */
+  var jdPrice = (function () {
+    var node = null;
+    var base = null;
+    var baseDisplay = "";
+    var delta = 0;
+    var format = { symbol: "", decimal: ",", thousand: "" };
+
+    function toNumber(value) {
+      var texto = value === undefined || value === null ? "" : String(value);
+      var numero = parseFloat(texto.replace(",", "."));
+      return isNaN(numero) ? null : numero;
+    }
+
+    function formatMoney(value) {
+      var cents = Math.round(value * 100);
+      var negativo = cents < 0;
+      cents = Math.abs(cents);
+      var inteiro = String(Math.floor(cents / 100));
+      var fracao = String(cents % 100);
+      if (fracao.length < 2) {
+        fracao = "0" + fracao;
+      }
+      if (format.thousand) {
+        inteiro = inteiro.replace(/\B(?=(\d{3})+(?!\d))/g, format.thousand);
+      }
+      return (negativo ? "\u2212" : "") + format.symbol + "\u00a0" + inteiro + format.decimal + fracao;
+    }
+
+    function render() {
+      if (!node || base === null) {
+        return;
+      }
+      if (!delta && baseDisplay) {
+        node.textContent = baseDisplay;
+        return;
+      }
+      node.textContent = formatMoney(base + delta);
+    }
+
+    return {
+      init: function () {
+        node = document.querySelector("[data-price]");
+        if (!node) {
+          return;
+        }
+        var formatNode = document.getElementById("price-format");
+        if (formatNode) {
+          try {
+            format = JSON.parse(formatNode.textContent) || format;
+          } catch (error) {
+            /* fica o padrão */
+          }
+        }
+        base = toNumber(node.getAttribute("data-price-base"));
+      },
+      setBase: function (value, display) {
+        base = toNumber(value);
+        baseDisplay = display || "";
+        render();
+      },
+      setDelta: function (value) {
+        delta = toNumber(value) || 0;
+        render();
+      }
+    };
+  })();
+
   /* ---- Seletor de variantes --------------------------------------------- */
   /* Uma matriz de combinações, não três listas independentes.
 
@@ -872,9 +947,9 @@
        prazo e ficha técnica. Trocar de cor não pode deixar na tela o peso da
        opção anterior. */
     function show(variant) {
-      if (price && variant.priceDisplay) {
-        price.textContent = variant.priceDisplay;
-      }
+      /* O preço passa pelo módulo de preço: é ele que soma o adicional da
+         escolha do cliente («Dourado + € 2,00») ao preço desta variante. */
+      jdPrice.setBase(variant.price, variant.priceDisplay);
       if (quantityInput) {
         quantityInput.max = variant.maxQuantity;
         if (Number(quantityInput.value) > variant.maxQuantity) {
@@ -1005,6 +1080,91 @@
     selectVariant(initial);
   }
 
+  /* ---- Escolhas do cliente ----------------------------------------------
+
+     «Cores à escolha do cliente»: os botões de `data-choice-group` NÃO são
+     eixos — não resolvem variante nenhuma, e o seletor acima nem sabe que
+     eles existem. O que muda ao clicar é o adicional no preço e o nome ao
+     lado do rótulo («Cor: Dourado (+ € 2,00)»). O id escolhido vai no POST
+     como `choice_<grupo>`; é o servidor que lê o adicional do banco. */
+  function setupCustomerChoices() {
+    var inputs = document.querySelectorAll("[data-choice-option]");
+    if (!inputs.length) {
+      return;
+    }
+    var form = document.querySelector("[data-add-to-cart]");
+    var groups = document.querySelectorAll("[data-choice-group]");
+
+    function setMissing(group, missing) {
+      var message = group.querySelector("[data-choice-message]");
+      group.classList.toggle("is-missing", missing);
+      if (message) {
+        message.hidden = !missing;
+        if (missing) {
+          /* Reescrever o texto faz o leitor de tela anunciar o `role="alert"`. */
+          message.textContent = message.textContent;
+        }
+      }
+    }
+
+    function apply() {
+      var total = 0;
+      groups.forEach(function (group) {
+        var checked = group.querySelector("[data-choice-option]:checked");
+        var label = group.querySelector("[data-choice-label]");
+        var wrap = group.querySelector("[data-choice-label-wrap]");
+        if (label) {
+          label.textContent = checked ? checked.getAttribute("data-choice-text") || "" : "";
+        }
+        if (wrap) {
+          wrap.hidden = !checked;
+        }
+        if (checked) {
+          total += parseFloat(checked.getAttribute("data-choice-delta") || "0") || 0;
+          setMissing(group, false);
+        }
+      });
+      jdPrice.setDelta(total);
+    }
+
+    /* Clicar em «Adicionar» sem cor: o botão continua vivo, mas o envio não
+       sai — nem o do navegador nem o do HTMX. A mensagem do grupo aparece e
+       o foco vai para a primeira cor. Captura no `document`, antes de
+       qualquer ouvinte do formulário: é o que segura o HTMX, que escuta o
+       `submit` no próprio `<form>`. O servidor confere de novo
+       (`AddToCartForm`): sem JavaScript a recusa vem dele, com o mesmo texto. */
+    function guard(event) {
+      if (!form || event.target !== form) {
+        return;
+      }
+      var missing = [];
+      groups.forEach(function (group) {
+        if (!group.querySelector("[data-choice-option]:checked")) {
+          missing.push(group);
+        }
+      });
+      if (!missing.length) {
+        return;
+      }
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      missing.forEach(function (group) {
+        setMissing(group, true);
+      });
+      var first = missing[0].querySelector("[data-choice-option]");
+      missing[0].scrollIntoView({ behavior: "smooth", block: "center" });
+      if (first) {
+        first.focus({ preventScroll: true });
+      }
+    }
+
+    inputs.forEach(function (input) {
+      input.addEventListener("change", apply);
+    });
+    document.addEventListener("submit", guard, true);
+    apply();
+  }
+
   /* ---- Personalização --------------------------------------------------- */
   function setupPersonalization() {
     var block = document.querySelector("[data-personalization]");
@@ -1121,7 +1281,9 @@
     setupHtmx();
     setupCartDrawer();
     setupGallery();
+    jdPrice.init();
     setupVariants();
+    setupCustomerChoices();
     setupPersonalization();
     setupQuantitySteppers();
     setupCheckout();

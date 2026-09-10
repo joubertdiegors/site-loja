@@ -683,7 +683,7 @@ def _favorite_products(user):
     tradução, mídia e variantes.
     """
     from apps.accounts.models import Favorite
-    from apps.catalog.models import Product, ProductVariant
+    from apps.catalog.models import Product, ProductVariant, color_prefetches
 
     ordem = {
         favorito.product_id: indice
@@ -706,7 +706,7 @@ def _favorite_products(user):
                 "variants",
                 queryset=ProductVariant.objects.filter(is_active=True)
                 .select_related("color", "material")
-                .prefetch_related("color__translations", "material__translations")
+                .prefetch_related(*color_prefetches(), "material__translations")
                 .order_by("sort_order", "id"),
             ),
         )

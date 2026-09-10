@@ -49,6 +49,7 @@ com uma tentativa de pagamento a mais.
             <span class="min-w-0">
               {{ item.quantity }}× {{ item.product_name }}{% if item.variant_label %} · {{ item.variant_label }}{% endif %}
               {% for linha in item.options_lines %}<span class="block text-[12px] text-ink-muted">{{ linha }}</span>{% endfor %}
+              {% for linha in item.choices_lines %}<span class="block text-[12px] text-ink-muted">{{ linha }}</span>{% endfor %}
             </span>
           </li>
         {% endfor %}

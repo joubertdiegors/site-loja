@@ -31,6 +31,9 @@ preço final, e somar imposto na última tela seria irregular além de deselegan
               {{ line.variant_label }}
             </span>
           {% endif %}
+          {% if line.has_choices %}
+            <span class="block text-[12px] text-ink-soft">{{ line.choices_text }}</span>
+          {% endif %}
           {% if line.has_customization %}
             <span class="mt-0.5 block font-mono text-[10.5px] text-coral-700">
               {% if line.customization_type == "photo" %}

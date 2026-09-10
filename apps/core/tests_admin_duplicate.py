@@ -316,7 +316,10 @@ class AcaoDuplicarTests(DuplicarBase):
         resposta = self.client.get(f"{self.url(Color, 'add')}?{DUPLICATE_PARAM}=99999")
 
         self.assertEqual(resposta.status_code, 200)
-        self.assertNotIn("Preto", resposta.content.decode())
+        # O nome do outro registro não pode vir preenchido. («Preto» ainda
+        # aparece na página como opção do `<select>` de componentes da cor
+        # composta — isso é a lista de cores, não dado copiado.)
+        self.assertNotIn('value="Preto"', resposta.content.decode())
 
     def test_uma_chave_que_nao_e_numero_nao_derruba_a_tela(self):
         resposta = self.client.get(f"{self.url(Color, 'add')}?{DUPLICATE_PARAM}=nada")

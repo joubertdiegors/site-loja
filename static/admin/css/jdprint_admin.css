@@ -1187,6 +1187,23 @@ details.jd-row-menu summary::-webkit-details-marker {
 }
 
 /* Percentual com o «%» ao lado, como a referência. */
+/* O adicional da cor («Cores à escolha do cliente»): um número curto, com o
+   euro ao lado, como o percentual da composição logo abaixo. */
+.change-form fieldset.jd-compact-rows tbody td.field-price_delta {
+  white-space: nowrap;
+}
+
+.change-form fieldset.jd-compact-rows tbody td.field-price_delta input {
+  width: 6.5em;
+  text-align: right;
+}
+
+.change-form fieldset.jd-compact-rows tbody td.field-price_delta::after {
+  content: "€";
+  margin-left: 6px;
+  color: var(--body-quiet-color, #666);
+}
+
 .change-form fieldset.jd-compact-rows tbody td.field-percentage {
   white-space: nowrap;
 }

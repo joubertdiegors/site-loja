@@ -3675,6 +3675,15 @@
     color: var(--color-ink-muted);
   }
 
+  /* O primeiro título da pilha («Variação», quando há cor da variante e cor
+     à escolha na mesma página) não precisa da linha de cima: a descrição
+     já separa. */
+  .product-opt-heading-first {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: 0;
+  }
+
   .product-opt-list {
     display: flex;
     flex-wrap: wrap;
@@ -3693,6 +3702,57 @@
     font-size: 14px;
     line-height: normal;
     color: var(--color-state-warning-dark);
+  }
+
+  /* «Cores à escolha do cliente»: a mesma pílula das opções, com a bolinha
+     da cor (o degradê, na cor composta), o nome e o adicional. A escolhida
+     fica cheia, como toda pílula, e ganha um ✓ — cor sozinha não basta para
+     dizer «esta». A mensagem só aparece ao tentar comprar sem cor. */
+  .product-choice-option {
+    padding: 8px 16px 8px 10px;
+  }
+
+  .product-choice-dot {
+    width: 18px;
+    height: 18px;
+    flex: none;
+    border: 2px solid #fff;
+    border-radius: var(--radius-pill);
+    background: var(--color-surface-line-strong);
+    box-shadow: 0 0 0 1px var(--color-ink);
+  }
+
+  .product-choice-option:has(input:checked) .product-choice-dot {
+    box-shadow: 0 0 0 1px #fff;
+  }
+
+  .product-choice-option:has(input:checked)::after {
+    content: "\2713";
+    font-size: 12px;
+    line-height: 1;
+  }
+
+  .product-choice-delta {
+    font-weight: 700;
+    font-size: 12px;
+    opacity: 0.85;
+    white-space: nowrap;
+  }
+
+  .product-choice-message {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-weight: 700;
+    font-size: 14px;
+    line-height: normal;
+    color: var(--color-state-error-dark);
+  }
+
+  .product-choice.is-missing .product-opt-list {
+    margin: -8px;
+    padding: 8px;
+    border-radius: var(--radius-control);
+    box-shadow: 0 0 0 2px var(--color-state-error);
   }
 
   /* A personalização: um cartão branco no mesmo desenho dos três cartões
