@@ -1219,6 +1219,9 @@ msgstr "Facture"
 msgid "Entrega"
 msgstr "Livraison"
 
+msgid "Grátis"
+msgstr "Gratuite"
+
 msgid "Itens"
 msgstr "Articles"
 

@@ -162,6 +162,11 @@ class OrderDraft:
         return self.shipping_option is not None
 
     @property
+    def is_free_shipping(self) -> bool:
+        """A entrega saiu zero pelo frete grátis do país (e não por tarifa zero)."""
+        return bool(self.shipping_option is not None and self.shipping_option.free_shipping)
+
+    @property
     def min_days(self) -> int:
         return self.shipping_option.min_days if self.shipping_option else self.production_days
 
@@ -181,10 +186,14 @@ def build_draft(lines, country=None, method=None) -> OrderDraft:
     weight = shipping_services.cart_weight_grams(lines)
     production = shipping_services.production_days(lines)
 
-    options = shipping_services.quote(country, weight, production)
+    # O subtotal entra no cálculo por causa do frete grátis do país; ele já
+    # inclui os adicionais das escolhas do cliente (`line.total`).
+    options = shipping_services.quote(country, weight, production, subtotal=subtotal)
     option = None
     if method is not None:
-        option = shipping_services.quote_for_method(country, weight, method, production)
+        option = shipping_services.quote_for_method(
+            country, weight, method, production, subtotal=subtotal
+        )
     if option is None and options:
         # Nenhuma escolha ainda: fica a mais barata (a lista vem ordenada por
         # preço). O cliente troca em um clique, e ninguém encara um botão
@@ -336,15 +345,19 @@ def create_order(
 
     weight = shipping_services.cart_weight_grams(lines)
     production = shipping_services.production_days(lines)
+    # Antes do frete: o subtotal decide o frete grátis do país de destino.
+    subtotal = taxes.money(sum((line.total for line in lines), ZERO))
 
-    # O método vem de um <input>. O preço dele é recalculado aqui, no servidor.
-    option = shipping_services.quote_for_method(country, weight, shipping_method, production)
+    # O método vem de um <input>. O preço dele é recalculado aqui, no servidor
+    # — inclusive o frete grátis, que nunca vem do navegador.
+    option = shipping_services.quote_for_method(
+        country, weight, shipping_method, production, subtotal=subtotal
+    )
     if option is None:
         raise CheckoutError(_("Escolha uma forma de entrega válida para este endereço."))
 
     metodo, conta = _resolve_payment(payment_method)
 
-    subtotal = taxes.money(sum((line.total for line in lines), ZERO))
     shipping_total = taxes.money(option.price)
     tax = taxes.breakdown(country=country, subtotal=subtotal, shipping=shipping_total)
 

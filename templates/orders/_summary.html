@@ -61,7 +61,9 @@ preço final, e somar imposto na última tela seria irregular além de deselegan
     <div class="flex items-baseline justify-between gap-4">
       <dt class="text-ink-soft">{% translate "Entrega" %}</dt>
       <dd class="tabular-price text-ink">
-        {% if draft.has_shipping %}
+        {% if draft.is_free_shipping %}
+          <span class="font-title-strong text-state-success-dark">{% translate "Grátis" %}</span>
+        {% elif draft.has_shipping %}
           €&nbsp;{{ draft.shipping_total|floatformat:2 }}
         {% elif draft.country %}
           <span class="text-ink-muted">{% translate "sem tarifa para este destino" %}</span>

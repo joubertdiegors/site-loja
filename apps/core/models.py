@@ -295,6 +295,52 @@ class DeliveryCountry(TranslatableMixin, models.Model):
     sort_order = models.PositiveIntegerField(
         "ordem", default=0, help_text="Ordem na lista do checkout."
     )
+    free_shipping_enabled = models.BooleanField(
+        "frete grátis neste país",
+        default=False,
+        help_text=(
+            "Ligado, pedidos que alcançarem o valor abaixo não pagam entrega "
+            "neste país. Os outros países não são afetados."
+        ),
+    )
+    free_shipping_min_subtotal = models.DecimalField(
+        "frete grátis a partir de (€)",
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        validators=[MinValueValidator(Decimal("0"))],
+        help_text=(
+            "O valor dos produtos (sem a entrega) a partir do qual o frete "
+            "para este país sai zero. Ex.: 50,00 — a partir de € 50,00 a "
+            "entrega é grátis. Vale só com a opção acima ligada."
+        ),
+    )
+    # As duas apontam para `shipping` por **nome**: o app de entrega já importa
+    # este módulo (a tarifa aponta para o país), e uma referência tardia evita
+    # o import circular sem mudar nada de lugar.
+    free_shipping_carrier = models.ForeignKey(
+        "shipping.ShippingCarrier",
+        verbose_name="transportadora do frete grátis",
+        related_name="free_shipping_countries",
+        null=True,
+        blank=True,
+        # Apagar a transportadora não pode derrubar o país: a regra apenas
+        # deixa de valer, e o frete volta a ser o das tarifas.
+        on_delete=models.SET_NULL,
+        help_text="Quem entrega de graça neste país quando o pedido alcança o valor.",
+    )
+    free_shipping_method = models.ForeignKey(
+        "shipping.ShippingMethod",
+        verbose_name="modalidade grátis",
+        related_name="free_shipping_countries",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        help_text=(
+            "A modalidade **dessa** transportadora que sai zero. As outras "
+            "continuam com o preço da tabela, e o cliente escolhe no checkout."
+        ),
+    )
 
     objects = DeliveryCountryQuerySet.as_manager()
 
@@ -311,11 +357,79 @@ class DeliveryCountry(TranslatableMixin, models.Model):
         """Nome traduzido; sem tradução nenhuma, o próprio código ISO."""
         return self.tr("name", default=self.iso_code)
 
+    def free_shipping_applies(self, subtotal) -> bool:
+        """Este subtotal alcança o frete grátis **deste** país?
+
+        ``subtotal`` é o valor dos produtos, sem a entrega — o mesmo número
+        que o resumo do checkout mostra e que o pedido grava. A regra é do
+        país de **destino**: a Bélgica pode dar frete grátis a partir de
+        € 50,00 e a França a partir de € 60,00, sem que uma saiba da outra.
+
+        Responder ``True`` ainda não é frete grátis: a gratuidade vale para
+        **uma** modalidade (ver ``free_shipping_method_id_for``). Desligada,
+        sem limite, sem transportadora ou sem modalidade, a resposta é não e o
+        frete segue as tarifas de sempre. O cadastro incompleto é recusado no
+        Admin (ver ``clean``); a conferência aqui é a rede de baixo, para um
+        dado gravado por fora não zerar frete nenhum por engano.
+        """
+        if not self.free_shipping_enabled:
+            return False
+        if not self.free_shipping_carrier_id or not self.free_shipping_method_id:
+            return False
+        minimo = self.free_shipping_min_subtotal or Decimal("0.00")
+        if minimo <= 0:
+            return False
+        return Decimal(subtotal or 0) >= minimo
+
+    def free_shipping_method_id_for(self, subtotal):
+        """A modalidade que sai de graça neste pedido, ou ``None``.
+
+        É o que o cálculo do frete pergunta: uma modalidade, nunca todas. O
+        cliente continua vendo as outras no checkout, com o preço da tabela.
+        """
+        return self.free_shipping_method_id if self.free_shipping_applies(subtotal) else None
+
     def clean(self):
         super().clean()
         self.iso_code = (self.iso_code or "").strip().upper()
         if len(self.iso_code) != 2 or not self.iso_code.isalpha():
             raise ValidationError({"iso_code": "Use o código ISO de duas letras (BE, FR, NL...)."})
+        if self.free_shipping_enabled:
+            self._clean_free_shipping()
+
+    def _clean_free_shipping(self):
+        """A regra ligada precisa estar inteira: valor, transportadora e modalidade.
+
+        E a modalidade tem que ser **daquela** transportadora: o formulário
+        filtra a lista, mas o que chega no POST é do navegador, e o par é
+        conferido aqui.
+        """
+        erros = {}
+        # Ligar a regra sem valor daria frete grátis para qualquer pedido, e o
+        # engano seria caro. Quem quiser isso escreve o valor.
+        if (self.free_shipping_min_subtotal or 0) <= 0:
+            erros["free_shipping_min_subtotal"] = (
+                "Informe a partir de qual valor a entrega é grátis neste país "
+                "(ex.: 50,00), ou desligue o frete grátis."
+            )
+        if not self.free_shipping_carrier_id:
+            erros["free_shipping_carrier"] = (
+                "Escolha a transportadora que fará a entrega grátis neste país."
+            )
+        if not self.free_shipping_method_id:
+            erros["free_shipping_method"] = (
+                "Escolha a modalidade que sai de graça — as outras continuam pagas."
+            )
+        elif (
+            self.free_shipping_carrier_id
+            and self.free_shipping_method.carrier_id != self.free_shipping_carrier_id
+        ):
+            erros["free_shipping_method"] = (
+                f"«{self.free_shipping_method.name}» é uma modalidade de "
+                f"{self.free_shipping_method.carrier.name}, não da transportadora escolhida."
+            )
+        if erros:
+            raise ValidationError(erros)
 
     def save(self, *args, **kwargs):
         self.iso_code = (self.iso_code or "").strip().upper()

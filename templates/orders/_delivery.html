@@ -139,8 +139,8 @@ Espera: `addresses`, `selected_address`, `draft`, `form`.
                   {% if option.method.description %} · {{ option.method.description }}{% endif %}
                 </span>
               </span>
-              <span class="font-display font-bold tabular-price text-ink">
-                €&nbsp;{{ option.price|floatformat:2 }}
+              <span class="font-display font-bold tabular-price {% if option.free_shipping %}text-state-success-dark{% else %}text-ink{% endif %}">
+                {% if option.free_shipping %}{% translate "Grátis" %}{% else %}€&nbsp;{{ option.price|floatformat:2 }}{% endif %}
               </span>
             </label>
           </li>

@@ -1219,6 +1219,9 @@ msgstr "Invoice"
 msgid "Entrega"
 msgstr "Delivery"
 
+msgid "Grátis"
+msgstr "Free"
+
 msgid "Itens"
 msgstr "Items"
 

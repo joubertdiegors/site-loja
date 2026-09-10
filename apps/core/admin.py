@@ -251,6 +251,23 @@ class DeliveryCountryTranslationInline(admin.TabularInline):
     fields = ("language", "name")
 
 
+class MethodSelect(forms.Select):
+    """Um `<select>` de modalidades em que cada opção leva a transportadora.
+
+    É o que permite à ficha do país filtrar a lista pela transportadora
+    escolhida (`free_shipping_admin.js`) sem outra consulta. Só apresentação:
+    o valor enviado continua sendo o `id` da modalidade, e o par
+    transportadora/modalidade é conferido no servidor (`DeliveryCountry.clean`).
+    """
+
+    def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
+        option = super().create_option(name, value, label, selected, index, subindex=subindex, attrs=attrs)
+        metodo = getattr(value, "instance", None)
+        if metodo is not None and metodo.carrier_id:
+            option["attrs"]["data-carrier"] = str(metodo.carrier_id)
+        return option
+
+
 @admin.register(DeliveryCountry)
 class DeliveryCountryAdmin(admin.ModelAdmin):
     """Para onde a loja envia — e com qual alíquota.
@@ -265,6 +282,7 @@ class DeliveryCountryAdmin(admin.ModelAdmin):
         "translated_name",
         "is_active",
         "vat_rate",
+        "free_shipping_display",
         "rate_count",
         "shipping_warning",
         "sort_order",
@@ -287,12 +305,47 @@ class DeliveryCountryAdmin(admin.ModelAdmin):
                 ),
             },
         ),
+        (
+            "FRETE GRÁTIS",
+            {
+                "fields": (
+                    "free_shipping_enabled",
+                    "free_shipping_min_subtotal",
+                    "free_shipping_carrier",
+                    "free_shipping_method",
+                ),
+                "description": (
+                    "A regra é <b>deste país</b> e vale para <b>uma modalidade</b>: "
+                    "«a partir de € 50,00, Mondial Relay / Ponto de coleta sai de "
+                    "graça». As outras modalidades continuam com o preço da tabela, e "
+                    "o cliente escolhe no checkout entre a grátis e as pagas.<br>"
+                    "O valor comparado é o dos produtos, <b>sem a entrega</b>. Abaixo "
+                    "dele, o frete é o de sempre. Sem tarifa cadastrada para o destino "
+                    "e o peso, não há entrega grátis: não há entrega nenhuma."
+                ),
+            },
+        ),
     )
+
+    class Media:
+        js = ("admin/js/free_shipping_admin.js",)
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        """A modalidade vem com a transportadora em cada opção (ver `MethodSelect`)."""
+        if db_field.name == "free_shipping_method":
+            from apps.shipping.models import ShippingMethod
+
+            kwargs["queryset"] = ShippingMethod.objects.select_related("carrier").order_by(
+                "carrier__sort_order", "carrier__name", "sort_order", "name"
+            )
+            kwargs["widget"] = MethodSelect
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
     def get_queryset(self, request):
         return (
             super()
             .get_queryset(request)
+            .select_related("free_shipping_method__carrier")
             .prefetch_related("translations", "shipping_rates__method__carrier")
         )
 
@@ -355,6 +408,19 @@ class DeliveryCountryAdmin(admin.ModelAdmin):
     @admin.display(description="tarifas de frete")
     def rate_count(self, obj):
         return len(self.active_rates(obj))
+
+    @admin.display(description="frete grátis")
+    def free_shipping_display(self, obj):
+        """«€ 50,00 · Mondial Relay — Ponto de coleta», ou um traço."""
+        if not obj.free_shipping_enabled or (obj.free_shipping_min_subtotal or 0) <= 0:
+            return format_html('<span style="color:#6b7280">{}</span>', "—")
+        if obj.free_shipping_method is None:
+            return format_html('<span style="color:#b42318">{}</span>', "⚠ sem modalidade")
+        return format_html(
+            '<span style="color:#1a7f37">a partir de € {}</span><br><small>{}</small>',
+            f"{obj.free_shipping_min_subtotal:.2f}".replace(".", ","),
+            str(obj.free_shipping_method),
+        )
 
     @admin.display(description="entrega")
     def shipping_warning(self, obj):
