@@ -629,6 +629,19 @@ class CategoriaTests(DuplicarBase):
 
 
 class ProdutoTests(DuplicarBase):
+    """O produto duplica por outro caminho — e é de propósito.
+
+    Duplicar um produto é **criar um produto novo usando outro como modelo**:
+    a ação leva ao mesmo cadastro rápido de sempre, preenchido com os cinco
+    campos do modelo (ver `ProductAdmin.duplicate_url`). O comportamento
+    inteiro — SKU, slug, variantes, conteúdo, o que não acompanha — está em
+    `apps/catalog/tests/test_product_duplicate_sku.py`.
+
+    O que se guarda aqui é o contrato com o mixin genérico: a ação existe,
+    leva o parâmetro de sempre, não grava nada, e a ficha completa deixou de
+    ser tela de duplicação.
+    """
+
     @classmethod
     def setUpTestData(cls):
         super().setUpTestData()
@@ -639,177 +652,36 @@ class ProdutoTests(DuplicarBase):
             category=cls.categoria,
             price=Decimal("27.90"),
             stock_quantity=7,
-            weight_grams=Decimal("300.00"),
             status=ProductStatus.ACTIVE,
             variant_sku="VASO-01-PRETO",
         )
-        translate_product(cls.vaso, "fr", "Vase à facettes", "Un vase imprimé en 3D")
-        make_variant(cls.vaso, sku="VASO-01-BRANCO", price=Decimal("29.90"), stock=4)
-        cls.midia = ProductMedia.objects.create(
-            product=cls.vaso,
-            media_type=MediaType.IMAGE,
-            file=SimpleUploadedFile("vaso.jpg", b"conteudo-falso", content_type="image/jpeg"),
-            alt_text="Vaso preto",
-        )
 
-    # -- o formulário ------------------------------------------------------
+    def test_a_acao_leva_ao_cadastro_rapido_com_o_modelo(self):
+        resposta = self.pedir_duplicacao(self.vaso)
 
-    def test_a_tela_abre_com_a_identificacao_e_a_classificacao(self):
-        _destino, campos = self.tela_de_criacao(self.vaso)
+        self.assertEqual(resposta.status_code, 302)
+        destino = resposta["Location"]
+        self.assertIn(reverse("admin:catalog_product_quick_add"), destino)
+        self.assertIn(f"{DUPLICATE_PARAM}={self.vaso.pk}", destino)
+        self.assertNotIn(self.url(self.vaso, "add"), destino)
 
-        # A cópia nasce com a identidade seguinte livre: não há colisão de SKU
-        # ao salvar, e o original fica como está.
-        self.assertEqual(campos["sku"], "VASO-02")
-        self.assertEqual(campos["slug"], "")
-        self.assertEqual(campos["category"], str(self.categoria.pk))
-        self.assertEqual(campos["status"], ProductStatus.ACTIVE)
+    def test_a_tela_abre_preenchida_e_nao_grava_nada(self):
+        antes = (Product.objects.count(), ProductVariant.objects.count())
+        destino = self.pedir_duplicacao(self.vaso)["Location"]
 
-    def test_o_conteudo_dos_dois_idiomas_vem_junto(self):
-        """É o trabalho que se quer reaproveitar: nome e descrições por idioma."""
-        _destino, campos = self.tela_de_criacao(self.vaso)
+        html = self.client.get(destino).content.decode()
 
-        nomes = {v for k, v in campos.items() if k.startswith("translations-") and k.endswith("-name") and v}
-        self.assertEqual(nomes, {"Vaso Facetado", "Vase à facettes"})
-        self.assertIn("Un vase imprimé en 3D", campos.values())
+        self.assertIn("Vaso Facetado", html)
+        self.assertIn("product_quick_form", html)
+        self.assertEqual(antes, (Product.objects.count(), ProductVariant.objects.count()))
 
-    def test_as_variantes_vem_junto_menos_o_estoque(self):
-        """Preço e peso são a base da peça nova; estoque é peça física da antiga."""
-        _destino, campos = self.tela_de_criacao(self.vaso)
+    def test_a_ficha_completa_nao_e_mais_a_tela_de_duplicacao(self):
+        html = self.client.get(
+            f"{self.url(self.vaso, 'add')}?{DUPLICATE_PARAM}={self.vaso.pk}"
+        ).content.decode()
 
-        skus = {v for k, v in campos.items() if k.startswith("variants-") and k.endswith("-sku") and v}
-        self.assertEqual(skus, {"VASO-02-V01", "VASO-02-V02"})
-
-        precos = {v for k, v in campos.items() if k.startswith("variants-") and k.endswith("-sale_price")}
-        self.assertEqual(precos, {"27.90", "29.90"})
-
-        estoques = {
-            v for k, v in campos.items()
-            if k.startswith("variants-") and k.endswith("-stock_quantity")
-        }
-        self.assertEqual(estoques, {"0"}, "o estoque do original não pode vir junto")
-
-    def test_a_midia_nao_vem_junto(self):
-        """Duas linhas apontando para o mesmo arquivo é vínculo, não cópia."""
-        _destino, campos = self.tela_de_criacao(self.vaso)
-
-        self.assertEqual(campos["media-TOTAL_FORMS"], "1")  # a linha em branco de sempre
-        self.assertNotIn("vaso.jpg", self.html)
-
-    # -- salvar ------------------------------------------------------------
-
-    def test_salvar_sem_mudar_nada_cria_a_copia_com_o_sku_seguinte(self):
-        """A sugestão de SKU já é livre: a cópia nasce sem colidir com o original."""
-        destino, campos = self.tela_de_criacao(self.vaso)
-        antes = Product.objects.count()
-
-        self.assertCriou(self.salvar(destino, campos))
-
-        self.assertEqual(Product.objects.count(), antes + 1)
-        copia = Product.objects.get(sku="VASO-02")
-        self.assertEqual(
-            sorted(copia.variants.values_list("sku", flat=True)), ["VASO-02-V01", "VASO-02-V02"]
-        )
-        original = Product.objects.get(pk=self.vaso.pk)
-        self.assertEqual(original.sku, "VASO-01")
-        self.assertEqual(
-            sorted(original.variants.values_list("sku", flat=True)), ["VASO-01-BRANCO", "VASO-01-PRETO"]
-        )
-
-    def test_salvar_com_o_sku_do_original_e_recusado(self):
-        destino, campos = self.tela_de_criacao(self.vaso)
-        antes = Product.objects.count()
-
-        resposta = self.salvar(destino, campos, sku="VASO-01")
-
-        self.assertRecusou(resposta, "já existe")
-        self.assertEqual(Product.objects.count(), antes)
-
-    def test_mudar_os_skus_cria_o_produto_novo_inteiro(self):
-        destino, campos = self.tela_de_criacao(self.vaso)
-        alteracoes = {"sku": "VASO-02"}
-        for chave, valor in campos.items():
-            if chave.endswith("-sku") and valor.startswith("VASO-01-"):
-                alteracoes[chave] = valor.replace("VASO-01-", "VASO-02-")
-
-        self.assertCriou(self.salvar(destino, campos, **alteracoes))
-
-        novo = Product.objects.get(sku="VASO-02")
-        self.assertNotEqual(novo.pk, self.vaso.pk)
-        self.assertEqual(novo.slug, "vaso-facetado-2")
-        self.assertEqual(novo.category_id, self.categoria.pk)
-        # Os dois idiomas da origem, copiados, mais os quatro preparados só
-        # com o nome (ver `ProductAdmin.DUPLICATE_CONTENT_LANGUAGES`).
-        self.assertEqual(novo.translations.count(), 6)
-        self.assertEqual(
-            dict(novo.translations.values_list("language", "name")),
-            {"pt": "Vaso Facetado", "fr": "Vase à facettes", "nl": "Vaso Facetado",
-             "en": "Vaso Facetado", "de": "Vaso Facetado", "es": "Vaso Facetado"},
-        )
-        self.assertEqual(novo.variants.count(), 2)
-        self.assertEqual(novo.media.count(), 0)
-
-    def test_nada_e_reaproveitado_do_original(self):
-        """Nenhum id, nenhuma linha filha, nenhum arquivo em comum."""
-        destino, campos = self.tela_de_criacao(self.vaso)
-        alteracoes = {"sku": "VASO-02"}
-        for chave, valor in campos.items():
-            if chave.endswith("-sku") and valor.startswith("VASO-01-"):
-                alteracoes[chave] = valor.replace("VASO-01-", "VASO-02-")
-        self.assertCriou(self.salvar(destino, campos, **alteracoes))
-
-        novo = Product.objects.get(sku="VASO-02")
-
-        self.assertFalse(
-            set(novo.translations.values_list("pk", flat=True))
-            & set(self.vaso.translations.values_list("pk", flat=True))
-        )
-        self.assertFalse(
-            set(novo.variants.values_list("pk", flat=True))
-            & set(self.vaso.variants.values_list("pk", flat=True))
-        )
-        for variante in novo.variants.all():
-            self.assertEqual(variante.product_id, novo.pk)
-
-    def test_o_produto_original_fica_intacto(self):
-        antes = Product.objects.filter(pk=self.vaso.pk).values().first()
-        variantes_antes = sorted(
-            self.vaso.variants.values_list("pk", "sku", "sale_price", "stock_quantity")
-        )
-        traducoes_antes = sorted(self.vaso.translations.values_list("pk", "language", "name"))
-        midias_antes = sorted(self.vaso.media.values_list("pk", "file"))
-
-        destino, campos = self.tela_de_criacao(self.vaso)
-        alteracoes = {"sku": "VASO-02"}
-        for chave, valor in campos.items():
-            if chave.endswith("-sku") and valor.startswith("VASO-01-"):
-                alteracoes[chave] = valor.replace("VASO-01-", "VASO-02-")
-        self.assertCriou(self.salvar(destino, campos, **alteracoes))
-
-        self.assertEqual(Product.objects.filter(pk=self.vaso.pk).values().first(), antes)
-        self.assertEqual(
-            sorted(self.vaso.variants.values_list("pk", "sku", "sale_price", "stock_quantity")),
-            variantes_antes,
-        )
-        self.assertEqual(
-            sorted(self.vaso.translations.values_list("pk", "language", "name")),
-            traducoes_antes,
-        )
-        self.assertEqual(sorted(self.vaso.media.values_list("pk", "file")), midias_antes)
-
-    def test_o_estoque_do_produto_novo_comeca_zerado(self):
-        destino, campos = self.tela_de_criacao(self.vaso)
-        alteracoes = {"sku": "VASO-02"}
-        for chave, valor in campos.items():
-            if chave.endswith("-sku") and valor.startswith("VASO-01-"):
-                alteracoes[chave] = valor.replace("VASO-01-", "VASO-02-")
-        self.assertCriou(self.salvar(destino, campos, **alteracoes))
-
-        novo = Product.objects.get(sku="VASO-02")
-
-        self.assertEqual(list(novo.variants.values_list("stock_quantity", flat=True)), [0, 0])
-        self.assertEqual(
-            sorted(self.vaso.variants.values_list("stock_quantity", flat=True)), [4, 7]
-        )
+        self.assertNotIn("Vaso Facetado", html)
+        self.assertNotIn('value="VASO-01"', html)
 
 
 # ---------------------------------------------------------------------------

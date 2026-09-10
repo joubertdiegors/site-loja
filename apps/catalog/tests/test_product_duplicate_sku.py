@@ -1,28 +1,34 @@
-"""Duplicação de produto: o que NUNCA vai junto e o que vai sempre.
+"""Duplicar produto = **criar um produto novo usando outro como modelo**.
 
-* SKU do produto e das variantes: nunca copiados. A cópia nasce com a
-  sequência seguinte à da origem (DEMO-GATO-01 → DEMO-GATO-02, variantes
-  DEMO-GATO-02-V01…), e se alguém levar esse SKU entre a tela e a gravação a
-  cópia avança sozinha para o próximo livre — o `unique` do banco é o juiz
-  final, e o formulário nunca para num «já existe» por um SKU que ele mesmo
-  sugeriu. Um SKU digitado pela pessoa continua sendo dela.
-* Slug: nunca copiado; nasce do nome em português, único.
-* Fotos: nunca copiadas.
-* Conteúdo: os idiomas da origem vêm copiados exatamente (nome e descrições)
-  e a cópia nasce preparada para PT, FR, NL, EN, DE e ES — os que faltam só
-  com o nome, para traduzir depois; nada é inventado.
-* Todo o resto (categoria, marca, modo de cores, personalização, paleta,
-  composição, variantes com preço, eixos e prazo) continua vindo junto. O
-  estoque continua zerado na cópia, como já era.
+O «Duplicar» abre o cadastro rápido de sempre (as mesmas cinco perguntas:
+nome, categoria, status, SKU, marca), já preenchido com os do modelo. Quem
+cadastra decide ali o que o produto é — uma variação do mesmo, ou uma peça
+diferente — e o SKU acompanha o nome enquanto for automático. Ao salvar, o
+produto novo nasce e `apply_product_template` traz o resto do modelo.
+
+O que estes testes guardam:
+
+* a identidade é do produto NOVO: SKU e slug nascem do nome escolhido, nunca
+  copiados; mudar o nome muda os dois;
+* as variantes vêm com SKU derivado do produto novo (``CAVALO-001-V01``…) e
+  estoque zerado;
+* fotos nunca acompanham; descrições sempre; o conteúdo nasce preparado nos
+  seis idiomas;
+* opções adicionais, paleta de cores, composição de materiais e as
+  configurações do produto (modo de cores, personalização, moeda) acompanham;
+* o produto de origem não é tocado em nada;
+* o cadastro rápido comum continua exatamente como era.
 """
 
 from decimal import Decimal
 from unittest import mock
 
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.urls import reverse
 from django.utils.text import slugify
 
-from apps.catalog.admin import ProductAdmin
+from apps.catalog import sku as sku_rules
+from apps.catalog.admin import ProductAdmin, QuickProductForm
 from apps.catalog.models import (
     Color,
     ColorMode,
@@ -33,11 +39,13 @@ from apps.catalog.models import (
     ProductColor,
     ProductMaterialComposition,
     ProductMedia,
+    ProductStatus,
     ProductTranslation,
     ProductVariant,
 )
+from apps.core.admin_mixins import DUPLICATE_PARAM
 from apps.core.testing import make_category, make_product, make_variant
-from apps.core.tests_admin_duplicate import DuplicarBase
+from apps.core.tests_admin_duplicate import DuplicarBase, campos_do_formulario
 
 SEIS = {"pt", "fr", "nl", "en", "de", "es"}
 
@@ -49,315 +57,524 @@ def traducoes(produto):
     }
 
 
-class DuplicarProdutoBase(DuplicarBase):
+class ModeloBase(DuplicarBase):
+    """O cenário do enunciado: um T-Rex completo, para virar molde."""
+
     def setUp(self):
         super().setUp()
-        self.categoria = make_category(slug="marcadores", name="Marcadores")
+        self.dinossauros = make_category(slug="dinossauros", name="Dinossauros")
+        self.animais = make_category(slug="animais", name="Animais")
         self.branco = Color.objects.create(name="Branco", hex_code="#FFFFFF")
         self.pla = Material.objects.create(name="PLA")
-        # Como nos dados reais: a primeira variante leva o SKU do produto.
-        self.gato = make_product(
-            sku="DEMO-GATO-01", name="Marcador Gato", category=self.categoria,
-            price=Decimal("8.90"), stock_quantity=3, weight_grams=Decimal("12.00"),
-            variant_sku="DEMO-GATO-01", color_mode=ColorMode.SINGLE,
-            personalization_type=PersonalizationType.TEXT, personalization_text_limit=20,
+        self.trex = make_product(
+            sku="DINO-TREX-001",
+            name="Dinossauro T-Rex",
+            category=self.dinossauros,
+            status=ProductStatus.ACTIVE,
+            with_variant=False,
+            color_mode=ColorMode.SINGLE,
+            personalization_type=PersonalizationType.TEXT,
+            personalization_text_limit=20,
         )
-        ProductTranslation.objects.filter(master=self.gato, language="pt").update(
-            short_description="Curta em PT", description="Descrição em PT", extra_information="Extra em PT",
+        ProductTranslation.objects.filter(master=self.trex, language="pt").update(
+            short_description="Curta em PT",
+            description="Descrição em PT",
+            extra_information="Extra em PT",
         )
         ProductTranslation.objects.create(
-            master=self.gato, language="fr", name="Marque-page Chat",
-            short_description="Courte en FR", description="Description en FR",
+            master=self.trex,
+            language="fr",
+            name="Dinosaure T-Rex",
+            short_description="Courte en FR",
+            description="Description en FR",
         )
         make_variant(
-            self.gato, sku="DEMO-GATO-01-V01", price=Decimal("9.90"), stock=5, size="Grande",
-            color=self.branco, material=self.pla, production_lead_time_days=2, weight_grams=Decimal("15.00"),
+            self.trex, sku="DINO-TREX-001-V01", price=Decimal("27.90"), stock=7, size="25 cm",
+            color=self.branco, material=self.pla, weight_grams=Decimal("300"),
+            production_lead_time_days=2,
         )
-        ProductColor.objects.create(product=self.gato, color=self.branco, sort_order=0, price_delta=Decimal("1.50"))
+        make_variant(
+            self.trex, sku="DINO-TREX-001-V02", price=Decimal("32.90"), stock=4, size="30 cm",
+            color=self.branco, material=self.pla, weight_grams=Decimal("380"),
+        )
+        ProductColor.objects.create(
+            product=self.trex, color=self.branco, sort_order=0, price_delta=Decimal("1.50")
+        )
         ProductMaterialComposition.objects.create(
-            product=self.gato, material=self.pla, percentage=Decimal("100"), sort_order=0
+            product=self.trex, material=self.pla, percentage=Decimal("100"), sort_order=0
         )
         self.foto = ProductMedia.objects.create(
-            product=self.gato, media_type=MediaType.IMAGE,
-            file=SimpleUploadedFile("gato.jpg", b"conteudo-falso", content_type="image/jpeg"), alt_text="Gato",
+            product=self.trex,
+            media_type=MediaType.IMAGE,
+            file=SimpleUploadedFile("trex.jpg", b"conteudo-falso", content_type="image/jpeg"),
+            alt_text="T-Rex",
         )
-        self.gato.refresh_from_db()
+        self.trex.refresh_from_db()
 
-    def duplicar(self, produto, **alteracoes):
-        destino, campos = self.tela_de_criacao(produto)
+    # -- o caminho ---------------------------------------------------------
+
+    def tela(self, produto):
+        """Clica em «Duplicar» e devolve (URL do cadastro rápido, campos)."""
+        resposta = self.pedir_duplicacao(produto)
+        self.assertEqual(resposta.status_code, 302, "a ação deveria levar a algum lugar")
+        destino = resposta["Location"]
+        self.assertIn(reverse("admin:catalog_product_quick_add"), destino)
+        self.assertIn(f"{DUPLICATE_PARAM}={produto.pk}", destino)
+        pagina = self.client.get(destino)
+        self.assertEqual(pagina.status_code, 200)
+        self.html = pagina.content.decode()
+        campos = campos_do_formulario(self.html, "product_quick_form")
+        self.assertTrue(campos, "nenhum campo lido do cadastro rápido")
+        return destino, campos
+
+    def criar(self, produto, **alteracoes):
+        destino, campos = self.tela(produto)
         resposta = self.salvar(destino, campos, **alteracoes)
         self.assertCriou(resposta)
         return Product.objects.exclude(pk=produto.pk).order_by("-pk").first()
 
     @staticmethod
-    def skus_de_variante(campos):
-        return sorted(v for k, v in campos.items() if k.startswith("variants-") and k.endswith("-sku") and v)
-
-    @staticmethod
-    def linhas_de_conteudo(campos):
-        """``{idioma: {campo: valor}}`` das linhas do inline CONTEÚDO na tela."""
-        linhas = {}
-        indice = 0
-        while f"translations-{indice}-language" in campos:
-            idioma = campos[f"translations-{indice}-language"]
-            if idioma:
-                linhas[idioma] = {
-                    # O `<textarea>` nasce com uma quebra de linha que o navegador
-                    # descarta (e o formulário também, ao gravar); o leitor não.
-                    campo: campos.get(f"translations-{indice}-{campo}", "").removeprefix("\n")
-                    for campo in ("name", "short_description", "description", "extra_information")
-                }
-            indice += 1
-        return linhas
-
-    @staticmethod
-    def indice_do_idioma(campos, idioma):
-        indice = 0
-        while f"translations-{indice}-language" in campos:
-            if campos[f"translations-{indice}-language"] == idioma:
-                return indice
-            indice += 1
-        raise AssertionError(f"sem linha para {idioma}")
+    def erros(resposta):
+        try:
+            return repr(resposta.context["form"].errors)
+        except Exception:  # pragma: no cover - só melhora a mensagem
+            return "(sem formulário no contexto)"
 
 
 # ---------------------------------------------------------------------------
-# 1. SKU
+# 1. A tela é o cadastro rápido de sempre, preenchido
 # ---------------------------------------------------------------------------
 
 
-class SkuTests(DuplicarProdutoBase):
-    def test_the_screen_never_offers_the_original_skus_nor_the_slug(self):
-        _destino, campos = self.tela_de_criacao(self.gato)
-        self.assertNotEqual(campos["sku"], "DEMO-GATO-01")
-        self.assertEqual(campos["sku"], "DEMO-GATO-02")
-        self.assertEqual(self.skus_de_variante(campos), ["DEMO-GATO-02-V01", "DEMO-GATO-02-V02"])
-        self.assertEqual(campos["slug"], "")
+class TelaTests(ModeloBase):
+    def test_duplicate_opens_the_quick_add_form_prefilled(self):
+        _destino, campos = self.tela(self.trex)
+        self.assertEqual(campos["name"], "Dinossauro T-Rex")
+        self.assertEqual(campos["category"], str(self.dinossauros.pk))
+        self.assertEqual(campos["status"], ProductStatus.ACTIVE)
+        self.assertEqual(campos["brand"], "")
+        self.assertIn("product_quick_form", self.html)
+        self.assertIn("Dinossauro T-Rex", self.html)
 
-    def test_the_copy_gets_a_new_unique_sku_and_the_original_keeps_its_own(self):
-        copia = self.duplicar(self.gato)
-        self.assertNotEqual(copia.sku, "DEMO-GATO-01")
-        self.assertEqual(Product.objects.filter(sku=copia.sku).count(), 1)
-        self.assertEqual(Product.objects.values("sku").distinct().count(), Product.objects.count())
-        self.assertEqual(Product.objects.get(pk=self.gato.pk).sku, "DEMO-GATO-01")
-
-    def test_the_variants_get_new_unique_skus_and_keep_everything_else(self):
-        copia = self.duplicar(self.gato)
-        originais = set(self.gato.variants.values_list("sku", flat=True))
-        novos = list(copia.variants.values_list("sku", flat=True))
-        self.assertEqual(len(novos), 2)
-        self.assertEqual(len(set(novos)), 2)
-        self.assertFalse(set(novos) & originais)
-        self.assertTrue(all(sku.startswith(f"{copia.sku}-V") for sku in novos))
-        self.assertEqual(ProductVariant.objects.values("sku").distinct().count(), ProductVariant.objects.count())
-        grande = copia.variants.get(size="Grande")
+    def test_the_suggested_sku_is_the_normal_rule_not_the_origin_plus_one(self):
+        """A regra do cadastro: prefixo da categoria + primeira palavra do nome."""
+        _destino, campos = self.tela(self.trex)
+        self.assertEqual(campos["sku"], "DIN-DINOSSAURO-001")
         self.assertEqual(
-            (grande.sale_price, grande.color_id, grande.material_id, grande.production_lead_time_days, grande.weight_grams),
-            (Decimal("9.90"), self.branco.pk, self.pla.pk, 2, Decimal("15.00")),
+            campos["sku"], sku_rules.suggest_product_sku(self.dinossauros, "Dinossauro T-Rex")
         )
-        self.assertEqual(grande.stock_quantity, 0)  # o estoque continua não acompanhando
+        self.assertNotEqual(campos["sku"], "DINO-TREX-002")
 
-    def test_no_original_sku_changes(self):
-        antes = (self.gato.sku, sorted(self.gato.variants.values_list("pk", "sku")))
-        self.duplicar(self.gato)
-        self.duplicar(self.gato)
-        depois = (Product.objects.get(pk=self.gato.pk).sku, sorted(self.gato.variants.values_list("pk", "sku")))
-        self.assertEqual(antes, depois)
+    def test_the_screen_says_the_sku_is_a_suggestion_that_follows_the_name(self):
+        self.tela(self.trex)
+        self.assertIn("data-sku-auto", self.html)
+        self.assertIn("SKU acompanha o nome", self.html)
+
+    def test_the_first_variant_block_is_not_asked_when_there_is_a_template(self):
+        """As variantes vêm do modelo: perguntar preço criaria uma variante a mais."""
+        _destino, campos = self.tela(self.trex)
+        self.assertNotIn("sale_price", campos)
+        self.assertNotIn("stock_quantity", campos)
+        self.assertNotIn("PRIMEIRA VARIANTE", self.html)
+
+    def test_the_javascript_keeps_a_prefilled_suggestion_automatic(self):
+        """Contrato com o script: sem ele, o SKU pré-preenchido seria «manual»."""
+        from pathlib import Path
+
+        from django.conf import settings
+
+        script = (
+            Path(settings.BASE_DIR) / "static" / "admin" / "js" / "product_sku_suggest.js"
+        ).read_text(encoding="utf-8")
+        self.assertIn('!marcador.hasAttribute("data-sku-auto")', script)
+        self.assertIn('manual = sku.value.trim() !== ""', script)
+
+    def test_the_click_creates_nothing(self):
+        antes = (Product.objects.count(), ProductVariant.objects.count())
+        self.tela(self.trex)
+        self.assertEqual(antes, (Product.objects.count(), ProductVariant.objects.count()))
+
+    def test_the_full_product_form_is_no_longer_the_duplication_screen(self):
+        html = self.client.get(
+            reverse("admin:catalog_product_add") + f"?{DUPLICATE_PARAM}={self.trex.pk}"
+        ).content.decode()
+        self.assertNotIn("DINO-TREX", html)
+        self.assertNotIn("Dinossauro T-Rex", html)
+
+
+# ---------------------------------------------------------------------------
+# 2. Manter o T-Rex — a variação do mesmo produto
+# ---------------------------------------------------------------------------
+
+
+class MesmoProdutoTests(ModeloBase):
+    def test_keeping_everything_creates_a_second_t_rex(self):
+        copia = self.criar(self.trex)
+        self.assertEqual(copia.name_in("pt"), "Dinossauro T-Rex")
+        self.assertEqual(copia.category_id, self.dinossauros.pk)
+        self.assertEqual(copia.status, ProductStatus.ACTIVE)
+        self.assertEqual(copia.sku, "DIN-DINOSSAURO-001")
+        self.assertNotEqual(copia.sku, self.trex.sku)
+        self.assertEqual(Product.objects.filter(sku=copia.sku).count(), 1)
 
     def test_duplicating_twice_walks_the_sequence(self):
-        c2 = self.duplicar(self.gato)
-        c3 = self.duplicar(self.gato)
-        self.assertEqual((c2.sku, c3.sku), ("DEMO-GATO-02", "DEMO-GATO-03"))
-        self.assertEqual(sorted(c3.variants.values_list("sku", flat=True)), ["DEMO-GATO-03-V01", "DEMO-GATO-03-V02"])
+        c1 = self.criar(self.trex)
+        c2 = self.criar(self.trex)
+        self.assertEqual((c1.sku, c2.sku), ("DIN-DINOSSAURO-001", "DIN-DINOSSAURO-002"))
+        self.assertEqual(
+            Product.objects.values("sku").distinct().count(), Product.objects.count()
+        )
 
-    def test_a_suggested_sku_taken_before_saving_moves_to_the_next_free_one(self):
-        destino, campos = self.tela_de_criacao(self.gato)
-        self.assertEqual(campos["sku"], "DEMO-GATO-02")
-        # Outra aba levou DEMO-GATO-02 (e a V01 dele) entre a tela e o envio.
-        make_product(sku="DEMO-GATO-02", name="Chegou antes", category=self.categoria, variant_sku="DEMO-GATO-02-V01")
-
-        self.assertCriou(self.salvar(destino, campos))
-
-        copia = Product.objects.get(sku="DEMO-GATO-03")
-        self.assertEqual(sorted(copia.variants.values_list("sku", flat=True)), ["DEMO-GATO-03-V01", "DEMO-GATO-03-V02"])
-        self.assertEqual(list(Product.objects.get(sku="DEMO-GATO-02").variants.values_list("sku", flat=True)), ["DEMO-GATO-02-V01"])
-        self.assertEqual(ProductVariant.objects.values("sku").distinct().count(), ProductVariant.objects.count())
-
-    def test_a_collision_between_validation_and_saving_is_resolved(self):
-        """A janela mínima: o SKU passou na validação e o banco recusou na gravação.
-
-        `save_form` roda depois de o formulário validar e antes de `save_model`:
-        é aí que «outra pessoa» grava o mesmo SKU. A cópia avança para o
-        seguinte e as variantes a acompanham.
-        """
-        original = ProductAdmin.save_form
-
-        def save_form(admin, request, form, change):
-            obj = original(admin, request, form, change)
-            if not change and not Product.objects.filter(sku=obj.sku).exists():
-                make_product(sku=obj.sku, name="Chegou no meio", category=self.categoria, variant_sku=f"{obj.sku}-V01")
-            return obj
-
-        destino, campos = self.tela_de_criacao(self.gato)
-        with mock.patch.object(ProductAdmin, "save_form", save_form):
-            self.assertCriou(self.salvar(destino, campos))
-
-        copia = Product.objects.get(sku="DEMO-GATO-03")
-        self.assertEqual(sorted(copia.variants.values_list("sku", flat=True)), ["DEMO-GATO-03-V01", "DEMO-GATO-03-V02"])
-        self.assertEqual(ProductVariant.objects.values("sku").distinct().count(), ProductVariant.objects.count())
-
-    def test_a_hand_typed_sku_that_collides_is_still_refused(self):
-        destino, campos = self.tela_de_criacao(self.gato)
-        self.assertRecusou(self.salvar(destino, campos, sku="DEMO-GATO-01"), "já existe")
-        self.assertEqual(Product.objects.count(), 1)
-
-    def test_a_hand_typed_free_sku_is_kept_and_the_variants_follow_it(self):
-        copia = self.duplicar(self.gato, sku="MEU-GATO")
-        self.assertEqual(copia.sku, "MEU-GATO")
-        self.assertEqual(sorted(copia.variants.values_list("sku", flat=True)), ["MEU-GATO-V01", "MEU-GATO-V02"])
-
-    def test_many_variants(self):
-        for n in range(2, 8):
-            make_variant(self.gato, sku=f"DEMO-GATO-01-V{n:02d}", price=Decimal("10.00"), size=f"{n} cm")
-        copia = self.duplicar(self.gato)
-        self.assertEqual(copia.variants.count(), 8)
+    def test_the_variants_get_skus_from_the_new_product(self):
+        copia = self.criar(self.trex)
         self.assertEqual(
             sorted(copia.variants.values_list("sku", flat=True)),
-            [f"DEMO-GATO-02-V{n:02d}" for n in range(1, 9)],
+            ["DIN-DINOSSAURO-001-V01", "DIN-DINOSSAURO-001-V02"],
         )
-        self.assertEqual(ProductVariant.objects.values("sku").distinct().count(), ProductVariant.objects.count())
-
-    def test_a_sku_without_a_number_still_gets_a_new_one(self):
-        produto = make_product(sku="CENARIO-TRI", name="Peça", category=self.categoria, variant_sku="CENARIO-TRI")
-        copia = self.duplicar(produto)
-        self.assertEqual(copia.sku, "CENARIO-TRI-001")
-        self.assertEqual(list(copia.variants.values_list("sku", flat=True)), ["CENARIO-TRI-001-V01"])
-
-
-# ---------------------------------------------------------------------------
-# 2. Slug
-# ---------------------------------------------------------------------------
-
-
-class SlugTests(DuplicarProdutoBase):
-    def test_the_slug_is_not_copied_and_the_new_one_is_unique(self):
-        copia = self.duplicar(self.gato)
-        self.assertTrue(copia.slug)
-        self.assertNotEqual(copia.slug, self.gato.slug)
-        self.assertTrue(copia.slug.startswith(slugify("Marcador Gato")))
-        self.assertEqual(Product.objects.filter(slug=copia.slug).count(), 1)
-        self.assertEqual(Product.objects.get(pk=self.gato.pk).slug, self.gato.slug)
-
-    def test_a_new_name_on_the_screen_gives_the_slug_of_the_new_name(self):
-        destino, campos = self.tela_de_criacao(self.gato)
-        indice = self.indice_do_idioma(campos, "pt")
-        self.assertCriou(self.salvar(destino, campos, **{f"translations-{indice}-name": "Marcador Cachorro"}))
-        copia = Product.objects.get(sku="DEMO-GATO-02")
-        self.assertEqual(copia.slug, "marcador-cachorro")
-        self.assertEqual(copia.display_name, "Marcador Cachorro")
-
-
-# ---------------------------------------------------------------------------
-# 3. Conteúdo: seis idiomas, descrições intactas
-# ---------------------------------------------------------------------------
-
-
-class ConteudoTests(DuplicarProdutoBase):
-    def test_the_screen_prepares_the_six_languages(self):
-        _destino, campos = self.tela_de_criacao(self.gato)
-        linhas = self.linhas_de_conteudo(campos)
-        self.assertEqual(set(linhas), SEIS)
-        self.assertEqual(
-            linhas["pt"],
-            {"name": "Marcador Gato", "short_description": "Curta em PT", "description": "Descrição em PT", "extra_information": "Extra em PT"},
+        self.assertFalse(
+            set(copia.variants.values_list("sku", flat=True))
+            & set(self.trex.variants.values_list("sku", flat=True))
         )
         self.assertEqual(
-            linhas["fr"],
-            {"name": "Marque-page Chat", "short_description": "Courte en FR", "description": "Description en FR", "extra_information": ""},
+            ProductVariant.objects.values("sku").distinct().count(), ProductVariant.objects.count()
         )
-        for idioma in ("nl", "en", "de", "es"):
-            with self.subTest(idioma=idioma):
-                self.assertEqual(
-                    linhas[idioma],
-                    {"name": "Marcador Gato", "short_description": "", "description": "", "extra_information": ""},
+
+    def test_the_variants_keep_everything_but_the_sku_and_the_stock(self):
+        copia = self.criar(self.trex)
+        grande = copia.variants.get(size="30 cm")
+        self.assertEqual(
+            (grande.sale_price, grande.color_id, grande.material_id, grande.weight_grams),
+            (Decimal("32.90"), self.branco.pk, self.pla.pk, Decimal("380.00")),
+        )
+        pequena = copia.variants.get(size="25 cm")
+        self.assertEqual(pequena.production_lead_time_days, 2)
+        self.assertEqual(list(copia.variants.values_list("stock_quantity", flat=True)), [0, 0])
+        self.assertEqual(
+            sorted(self.trex.variants.values_list("stock_quantity", flat=True)), [4, 7]
+        )
+
+    def test_nothing_is_shared_with_the_origin(self):
+        copia = self.criar(self.trex)
+        for relacao in ("translations", "variants", "product_colors", "material_composition"):
+            with self.subTest(relacao=relacao):
+                self.assertFalse(
+                    set(getattr(copia, relacao).values_list("pk", flat=True))
+                    & set(getattr(self.trex, relacao).values_list("pk", flat=True))
                 )
 
-    def test_saving_keeps_the_descriptions_exactly_and_creates_the_six_rows(self):
-        antes = traducoes(self.gato)
-        copia = self.duplicar(self.gato)
+    def test_the_origin_is_untouched(self):
+        antes = (
+            Product.objects.filter(pk=self.trex.pk).values().first(),
+            sorted(self.trex.variants.values_list("pk", "sku", "sale_price", "stock_quantity")),
+            traducoes(self.trex),
+            sorted(self.trex.media.values_list("pk", "file")),
+            sorted(self.trex.product_colors.values_list("pk", "color_id", "price_delta")),
+        )
+        self.criar(self.trex)
+        self.criar(self.trex)
+        depois = (
+            Product.objects.filter(pk=self.trex.pk).values().first(),
+            sorted(self.trex.variants.values_list("pk", "sku", "sale_price", "stock_quantity")),
+            traducoes(self.trex),
+            sorted(self.trex.media.values_list("pk", "file")),
+            sorted(self.trex.product_colors.values_list("pk", "color_id", "price_delta")),
+        )
+        self.assertEqual(antes, depois)
+
+
+# ---------------------------------------------------------------------------
+# 3. Virar Cavalo — o modelo como ponto de partida de outra peça
+# ---------------------------------------------------------------------------
+
+
+class OutroProdutoTests(ModeloBase):
+    def cavalo(self, **extra):
+        return self.criar(
+            self.trex,
+            name="Cavalo Articulado",
+            category=str(self.animais.pk),
+            sku="ANI-CAVALO-001",
+            **extra,
+        )
+
+    def test_the_new_product_is_the_horse(self):
+        copia = self.cavalo()
+        self.assertEqual(copia.name_in("pt"), "Cavalo Articulado")
+        self.assertEqual(copia.category_id, self.animais.pk)
+        self.assertEqual(copia.sku, "ANI-CAVALO-001")
+        self.assertEqual(copia.slug, "cavalo-articulado")
+
+    def test_the_new_sku_carries_nothing_of_the_origin(self):
+        copia = self.cavalo()
+        for pedaco in ("DINO", "TREX", "DIN-DINOSSAURO"):
+            with self.subTest(pedaco=pedaco):
+                self.assertNotIn(pedaco, copia.sku)
+                for sku in copia.variants.values_list("sku", flat=True):
+                    self.assertNotIn(pedaco, sku)
+
+    def test_the_variants_follow_the_new_sku(self):
+        copia = self.cavalo()
+        self.assertEqual(
+            sorted(copia.variants.values_list("sku", flat=True)),
+            ["ANI-CAVALO-001-V01", "ANI-CAVALO-001-V02"],
+        )
+
+    def test_the_suggestion_endpoint_follows_the_new_name(self):
+        """É o que o JavaScript pergunta quando o nome muda na tela."""
+        url = reverse("admin:catalog_product_sku_suggestion")
+        resposta = self.client.get(url, {"name": "Cavalo Articulado", "category": self.animais.pk})
+        self.assertEqual(resposta.json()["sku"], "ANI-CAVALO-001")
+        resposta = self.client.get(url, {"name": "Luminária Lua", "category": self.animais.pk})
+        self.assertEqual(resposta.json()["sku"], "ANI-LUMINARIA-001")
+
+    def test_the_structure_of_the_template_still_comes(self):
+        copia = self.cavalo()
+        self.assertEqual(copia.variants.count(), 2)
+        self.assertEqual(copia.color_mode, ColorMode.SINGLE)
+        self.assertEqual(copia.personalization_type, PersonalizationType.TEXT)
+        self.assertEqual(traducoes(copia)["pt"][1], "Curta em PT")
+
+
+# ---------------------------------------------------------------------------
+# 4. SKU: automático, manual, único, colisões
+# ---------------------------------------------------------------------------
+
+
+class SkuTests(ModeloBase):
+    def test_a_hand_typed_sku_is_kept_and_the_variants_follow_it(self):
+        copia = self.criar(self.trex, sku="MEU-CODIGO")
+        self.assertEqual(copia.sku, "MEU-CODIGO")
+        self.assertEqual(
+            sorted(copia.variants.values_list("sku", flat=True)),
+            ["MEU-CODIGO-V01", "MEU-CODIGO-V02"],
+        )
+
+    def test_a_hand_typed_sku_that_collides_is_refused(self):
+        make_product(sku="MEU-CODIGO", name="Outro", category=self.animais, with_variant=False)
+        destino, campos = self.tela(self.trex)
+        resposta = self.salvar(destino, campos, sku="MEU-CODIGO")
+        self.assertRecusou(resposta, "Já existe um produto com este SKU")
+        self.assertEqual(Product.objects.count(), 2)
+
+    def test_the_origin_sku_typed_back_is_refused(self):
+        destino, campos = self.tela(self.trex)
+        resposta = self.salvar(destino, campos, sku="DINO-TREX-001")
+        self.assertRecusou(resposta, "Já existe um produto com este SKU")
+        self.assertEqual(Product.objects.count(), 1)
+
+    def test_a_suggested_sku_taken_before_saving_moves_to_the_next_free_one(self):
+        """Outra aba levou a sugestão entre abrir a tela e salvar."""
+        destino, campos = self.tela(self.trex)
+        self.assertEqual(campos["sku"], "DIN-DINOSSAURO-001")
+        make_product(
+            sku="DIN-DINOSSAURO-001", name="Chegou antes", category=self.dinossauros,
+            with_variant=False,
+        )
+        self.assertCriou(self.salvar(destino, campos))
+        copia = Product.objects.get(sku="DIN-DINOSSAURO-002")
+        self.assertEqual(
+            sorted(copia.variants.values_list("sku", flat=True)),
+            ["DIN-DINOSSAURO-002-V01", "DIN-DINOSSAURO-002-V02"],
+        )
+        self.assertEqual(
+            ProductVariant.objects.values("sku").distinct().count(), ProductVariant.objects.count()
+        )
+
+    def test_a_collision_between_validation_and_saving_is_resolved(self):
+        """A janela mínima: o SKU passou na validação e o banco recusou na gravação."""
+        original = sku_rules.suggest_product_sku
+
+        def sugerir_e_ser_atropelado(category, name, reserved=()):
+            sku = original(category, name, reserved)
+            if sku == "DIN-DINOSSAURO-001" and not Product.objects.filter(sku=sku).exists():
+                make_product(sku=sku, name="Chegou no meio", category=self.dinossauros, with_variant=False)
+            return sku
+
+        destino, campos = self.tela(self.trex)
+        with mock.patch.object(sku_rules, "suggest_product_sku", side_effect=sugerir_e_ser_atropelado):
+            self.assertCriou(self.salvar(destino, campos))
+
+        copia = Product.objects.get(sku="DIN-DINOSSAURO-002")
+        self.assertEqual(
+            sorted(copia.variants.values_list("sku", flat=True)),
+            ["DIN-DINOSSAURO-002-V01", "DIN-DINOSSAURO-002-V02"],
+        )
+
+    def test_no_original_sku_changes(self):
+        antes = sorted(self.trex.variants.values_list("pk", "sku"))
+        self.criar(self.trex)
+        self.criar(self.trex, sku="MEU-CODIGO")
+        self.assertEqual(Product.objects.get(pk=self.trex.pk).sku, "DINO-TREX-001")
+        self.assertEqual(sorted(self.trex.variants.values_list("pk", "sku")), antes)
+
+    def test_many_variants(self):
+        for n in range(3, 10):
+            make_variant(self.trex, sku=f"DINO-TREX-001-V{n:02d}", price=Decimal("10.00"), size=f"{n} cm")
+        copia = self.criar(self.trex)
+        self.assertEqual(
+            sorted(copia.variants.values_list("sku", flat=True)),
+            [f"DIN-DINOSSAURO-001-V{n:02d}" for n in range(1, 10)],
+        )
+
+
+# ---------------------------------------------------------------------------
+# 5. Slug
+# ---------------------------------------------------------------------------
+
+
+class SlugTests(ModeloBase):
+    def test_the_slug_is_generated_and_unique(self):
+        copia = self.criar(self.trex)
+        self.assertTrue(copia.slug)
+        self.assertNotEqual(copia.slug, self.trex.slug)
+        self.assertTrue(copia.slug.startswith(slugify("Dinossauro T-Rex")))
+        self.assertEqual(Product.objects.filter(slug=copia.slug).count(), 1)
+        self.assertEqual(Product.objects.get(pk=self.trex.pk).slug, self.trex.slug)
+
+    def test_the_slug_follows_the_new_name(self):
+        copia = self.criar(self.trex, name="Cavalo Articulado", sku="ANI-CAVALO-001")
+        self.assertEqual(copia.slug, "cavalo-articulado")
+
+
+# ---------------------------------------------------------------------------
+# 6. Conteúdo: seis idiomas, descrições intactas
+# ---------------------------------------------------------------------------
+
+
+class ConteudoTests(ModeloBase):
+    def test_the_six_languages_and_the_descriptions(self):
+        antes = traducoes(self.trex)
+        copia = self.criar(self.trex)
         depois = traducoes(copia)
         self.assertEqual(set(depois), SEIS)
         self.assertEqual(depois["pt"], antes["pt"])
         self.assertEqual(depois["fr"], antes["fr"])
         for idioma in ("nl", "en", "de", "es"):
-            self.assertEqual(depois[idioma], ("Marcador Gato", "", "", ""))
-        self.assertEqual(traducoes(self.gato), antes)
-        self.assertFalse(
-            set(copia.translations.values_list("pk", flat=True)) & set(self.gato.translations.values_list("pk", flat=True))
-        )
+            self.assertEqual(depois[idioma], ("Dinossauro T-Rex", "", "", ""))
+        self.assertEqual(traducoes(self.trex), antes)
 
-    def test_incomplete_translations_still_duplicate(self):
-        ProductTranslation.objects.filter(master=self.gato, language="fr").delete()
-        self.gato.refresh_translations()
-        copia = self.duplicar(self.gato)
+    def test_a_new_name_only_changes_the_portuguese_name(self):
+        """O nome novo é a identidade; as descrições do modelo continuam lá."""
+        copia = self.criar(self.trex, name="Cavalo Articulado", sku="ANI-CAVALO-001")
         depois = traducoes(copia)
+        self.assertEqual(depois["pt"], ("Cavalo Articulado", "Curta em PT", "Descrição em PT", "Extra em PT"))
+        self.assertEqual(depois["fr"][2], "Description en FR")
+        for idioma in ("nl", "en", "de", "es"):
+            self.assertEqual(depois[idioma], ("Cavalo Articulado", "", "", ""))
+
+    def test_incomplete_translations_still_work(self):
+        ProductTranslation.objects.filter(master=self.trex, language="fr").delete()
+        self.trex.refresh_translations()
+        depois = traducoes(self.criar(self.trex))
         self.assertEqual(set(depois), SEIS)
-        self.assertEqual(depois["pt"], ("Marcador Gato", "Curta em PT", "Descrição em PT", "Extra em PT"))
+        self.assertEqual(depois["pt"][2], "Descrição em PT")
         for idioma in SEIS - {"pt"}:
-            self.assertEqual(depois[idioma], ("Marcador Gato", "", "", ""))
-
-    def test_the_names_can_be_changed_on_the_screen_before_saving(self):
-        destino, campos = self.tela_de_criacao(self.gato)
-        indice = self.indice_do_idioma(campos, "de")
-        self.assertCriou(self.salvar(destino, campos, **{f"translations-{indice}-name": "Lesezeichen Katze"}))
-        copia = Product.objects.get(sku="DEMO-GATO-02")
-        self.assertEqual(copia.name_in("de"), "Lesezeichen Katze")
-        self.assertEqual(copia.name_in("pt"), "Marcador Gato")
+            self.assertEqual(depois[idioma], ("Dinossauro T-Rex", "", "", ""))
 
 
 # ---------------------------------------------------------------------------
-# 4. Fotos fora; todo o resto junto; o original intacto
+# 7. Fotos fora; o resto junto
 # ---------------------------------------------------------------------------
 
 
-class TudoMaisTests(DuplicarProdutoBase):
-    def test_photos_are_not_copied(self):
-        copia = self.duplicar(self.gato)
+class TudoMaisTests(ModeloBase):
+    def test_photos_are_never_copied(self):
+        copia = self.criar(self.trex)
         self.assertEqual(copia.media.count(), 0)
-        self.assertEqual(list(self.gato.media.values_list("pk", "file")), [(self.foto.pk, self.foto.file.name)])
-
-    def test_everything_else_is_copied(self):
-        copia = self.duplicar(self.gato)
         self.assertEqual(
-            (copia.category_id, copia.status, copia.color_mode, copia.personalization_type, copia.personalization_text_limit, copia.currency),
-            (self.gato.category_id, self.gato.status, self.gato.color_mode, self.gato.personalization_type, self.gato.personalization_text_limit, self.gato.currency),
+            list(self.trex.media.values_list("pk", "file")), [(self.foto.pk, self.foto.file.name)]
         )
+
+    def test_palette_composition_and_settings_come(self):
+        copia = self.criar(self.trex)
         self.assertEqual(
             list(copia.product_colors.values_list("color_id", "sort_order", "price_delta")),
-            list(self.gato.product_colors.values_list("color_id", "sort_order", "price_delta")),
+            list(self.trex.product_colors.values_list("color_id", "sort_order", "price_delta")),
         )
         self.assertEqual(
             list(copia.material_composition.values_list("material_id", "percentage", "sort_order")),
-            list(self.gato.material_composition.values_list("material_id", "percentage", "sort_order")),
+            list(self.trex.material_composition.values_list("material_id", "percentage", "sort_order")),
         )
         self.assertEqual(
-            sorted(copia.variants.values_list("size", "sale_price", "color_id", "material_id")),
-            sorted(self.gato.variants.values_list("size", "sale_price", "color_id", "material_id")),
+            (copia.color_mode, copia.personalization_type, copia.personalization_text_limit, copia.currency),
+            (self.trex.color_mode, self.trex.personalization_type, self.trex.personalization_text_limit, self.trex.currency),
         )
 
-    def test_the_original_is_untouched(self):
-        antes = (
-            Product.objects.filter(pk=self.gato.pk).values().first(),
-            sorted(self.gato.variants.values_list("pk", "sku", "sale_price", "stock_quantity")),
-            traducoes(self.gato),
-            sorted(self.gato.media.values_list("pk", "file")),
-            sorted(self.gato.product_colors.values_list("pk", "color_id")),
+    def test_the_message_says_what_came_and_what_did_not(self):
+        destino, campos = self.tela(self.trex)
+        resposta = self.salvar(destino, campos)
+        mensagens = [str(m) for m in resposta.wsgi_request._messages]
+        texto = " ".join(mensagens)
+        self.assertIn("Copiado de <b>DINO-TREX-001</b>", texto)
+        self.assertIn("2 variante(s)", texto)
+        self.assertIn("Fotos não acompanham", texto)
+
+    def test_an_active_template_without_a_priced_variant_asks_for_a_draft(self):
+        vazio = make_product(
+            sku="SEM-PRECO", name="Sem preço", category=self.animais,
+            status=ProductStatus.DRAFT, with_variant=False,
         )
-        self.duplicar(self.gato)
-        depois = (
-            Product.objects.filter(pk=self.gato.pk).values().first(),
-            sorted(self.gato.variants.values_list("pk", "sku", "sale_price", "stock_quantity")),
-            traducoes(self.gato),
-            sorted(self.gato.media.values_list("pk", "file")),
-            sorted(self.gato.product_colors.values_list("pk", "color_id")),
+        destino, campos = self.tela(vazio)
+        resposta = self.salvar(destino, campos, status=ProductStatus.ACTIVE)
+        self.assertRecusou(resposta, "não tem variante ativa com preço")
+        self.assertEqual(Product.objects.count(), 2)
+
+
+# ---------------------------------------------------------------------------
+# 8. O cadastro comum não mudou
+# ---------------------------------------------------------------------------
+
+
+class CadastroComumTests(ModeloBase):
+    def test_the_plain_quick_add_still_asks_for_the_first_variant(self):
+        html = self.client.get(reverse("admin:catalog_product_quick_add")).content.decode()
+        self.assertIn("PRIMEIRA VARIANTE", html)
+        self.assertIn('name="sale_price"', html)
+        self.assertNotIn("data-sku-auto", html)
+        self.assertIn("Só o essencial para o produto existir", html)
+
+    def test_the_plain_quick_add_creates_a_lone_product(self):
+        resposta = self.client.post(
+            reverse("admin:catalog_product_quick_add"),
+            {"name": "Vaso Facetado", "category": str(self.animais.pk),
+             "status": ProductStatus.DRAFT, "sku": "", "brand": "", "_save": "Salvar"},
         )
-        self.assertEqual(antes, depois)
+        self.assertEqual(resposta.status_code, 302)
+        novo = Product.objects.get(sku="ANI-VASO-001")
+        self.assertEqual(novo.translations.count(), 1)  # só o português, como sempre
+        self.assertEqual(novo.variants.count(), 0)
+        self.assertEqual(novo.slug, "vaso-facetado")
+
+    def test_the_form_without_a_template_is_the_form_of_always(self):
+        form = QuickProductForm()
+        self.assertIsNone(form.template)
+        self.assertIn("sale_price", form.fields)
+        self.assertIn("stock_quantity", form.fields)
+
+
+# ---------------------------------------------------------------------------
+# 9. Permissão
+# ---------------------------------------------------------------------------
+
+
+class PermissaoTests(ModeloBase):
+    def test_without_view_permission_the_template_is_ignored(self):
+        from django.contrib.auth.models import Permission
+
+        from apps.accounts.models import User
+
+        operador = User.objects.create_user(
+            "operador", "op@jdprint.test", self.SENHA, is_staff=True
+        )
+        operador.user_permissions.set(
+            Permission.objects.filter(codename="add_product", content_type__app_label="catalog")
+        )
+        self.client.force_login(operador)
+        html = self.client.get(
+            reverse("admin:catalog_product_quick_add") + f"?{DUPLICATE_PARAM}={self.trex.pk}"
+        ).content.decode()
+        self.assertNotIn("Dinossauro T-Rex", html)
+        self.assertNotIn("data-sku-auto", html)
+
+    def test_the_duplicate_action_still_belongs_to_the_product_admin(self):
+        self.assertIn("duplicate_action", ProductAdmin.actions)

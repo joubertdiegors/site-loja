@@ -53,8 +53,8 @@ from apps.catalog.models import (
     ProductStatus,
     ProductTranslation,
     ProductVariant,
+    apply_product_template,
     copy_product_content,
-    copy_product_options,
     product_content_copy_plan,
     color_prefetches,
     validate_composition,
@@ -62,6 +62,7 @@ from apps.catalog.models import (
 )
 from apps.categories.models import Category
 from apps.core.admin_mixins import (
+    DUPLICATE_PARAM,
     AuditUserAdminMixin,
     DuplicateAdminMixin,
     TranslatedSlugAdminMixin,
@@ -606,10 +607,6 @@ class VariantSkuAutoMixin:
     #: recém-criados no produto novo. Fora da duplicação fica ``None``.
     option_maps = None
 
-    #: O produto de origem numa duplicação (`ProductVariantInlineFormSet`);
-    #: fora dela, ``None``.
-    duplicate_origin = None
-
     def option_choices(self) -> dict:
         """``{id da opção: id do valor ou None}`` — o que foi escolhido na tela."""
         escolhas = {
@@ -635,33 +632,16 @@ class VariantSkuAutoMixin:
         for nome in self.optional_with_default:
             if nome in self.fields and dados.get(nome) is None:
                 dados[nome] = ProductVariant._meta.get_field(nome).get_default()
-        sku = (dados.get("sku") or "").strip().upper()
+        if (dados.get("sku") or "").strip():
+            return dados
         try:
             produto = self._variant_product()
         except ProductVariant.product.RelatedObjectDoesNotExist:
             produto = None
         sku_produto = getattr(produto, "sku", "") if produto is not None else ""
-        # Numa duplicação, o SKU sugerido pela tela (VASO-02-V01) é refeito
-        # quando já não segue o SKU do produto novo (a tela sugeriu VASO-02 e
-        # a cópia virou VASO-03) ou quando alguém o levou antes do envio. Um
-        # SKU digitado fora do padrão continua sendo da pessoa.
-        origem = getattr(self, "duplicate_origin", None)
-        reservados = self.reserved_skus if self.reserved_skus is not None else set()
-        refazer = bool(
-            sku
-            and origem is not None
-            and sku_rules.follows_variant_sequence(sku, origem.sku)
-            and (
-                not sku.startswith(f"{sku_produto}-V")
-                or sku in reservados  # outra linha deste envio já o tomou
-                or ProductVariant.objects.filter(sku=sku).exists()
-            )
-        )
-        if sku and not refazer:
-            reservados.add(sku)  # as próximas sugestões pulam este
-            return dados
         if not sku_produto:
             return dados  # o modelo pede o SKU, com a mensagem de sempre
+        reservados = self.reserved_skus if self.reserved_skus is not None else set()
         dados["sku"] = sku_rules.suggest_variant_sku(sku_produto, reserved=reservados)
         reservados.add(dados["sku"])
         return dados
@@ -734,19 +714,12 @@ class ProductVariantInlineFormSet(forms.BaseInlineFormSet):
     variante que está sendo criada na mesma tela. O formset enxerga.
     """
 
-    def __init__(self, *args, product_options=None, duplicate_origin=None, **kwargs):
+    def __init__(self, *args, product_options=None, **kwargs):
         super().__init__(*args, **kwargs)
         # Compartilhado pelas linhas: V01, V02… sem repetir dentro do cadastro.
         self.reserved_skus: set[str] = set()
-        # O produto de origem numa duplicação: as linhas copiadas trazem SKUs
-        # sugeridos (VASO-02-V01…) que seguem o SKU do produto novo e cedem a
-        # vez se alguém os levou antes (ver `VariantSkuAutoMixin.clean`).
-        self.duplicate_origin = duplicate_origin
         # As opções adicionais do produto, lidas UMA vez para todas as linhas
-        # (e para o molde do «Adicionar variante»). Produto novo não tem —
-        # salvo na duplicação (etapa 3F), em que o `ProductAdmin` passa as
-        # opções do produto de origem para as linhas copiadas já virem com
-        # as escolhas de cada variante.
+        # (e para o molde do «Adicionar variante»). Produto novo não tem.
         if product_options is not None:
             self.product_options = list(product_options)
         else:
@@ -764,7 +737,6 @@ class ProductVariantInlineFormSet(forms.BaseInlineFormSet):
     def _construct_form(self, i, **kwargs):
         form = super()._construct_form(i, **kwargs)
         form.reserved_skus = self.reserved_skus
-        form.duplicate_origin = self.duplicate_origin
         return form
 
     def clean(self):
@@ -1352,6 +1324,18 @@ class QuickProductForm(forms.Form):
     Não é um `ModelForm` de propósito: o nome mora em `ProductTranslation`, o
     SKU pode vir em branco (o sistema sugere) e a primeira variante é
     opcional. `save()` grava tudo na ordem certa e numa transação só.
+
+    ## Com um produto-modelo (duplicar)
+
+    Este mesmo formulário é a tela de «Duplicar» (ver
+    `ProductAdmin.duplicate_url`). Com `template=<produto>` ele abre
+    pré-preenchido com o nome, a categoria, o status, o SKU e a marca do
+    modelo, e quem cadastra decide ali o que o produto novo é: manter o nome
+    e criar uma variação, ou trocar tudo e aproveitar só a estrutura. Ao
+    gravar, `apply_product_template` traz o resto do modelo.
+
+    A primeira variante não é perguntada nesse caso: as variantes vêm do
+    modelo, com preço e tudo.
     """
 
     name = forms.CharField(
@@ -1394,32 +1378,98 @@ class QuickProductForm(forms.Form):
         label="Estoque", required=False, min_value=0, help_text="Da primeira variante."
     )
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, template=None, **kwargs):
+        #: O produto usado como modelo, ou ``None`` no cadastro comum.
+        self.template = template
+        #: Ficará verdadeiro quando o SKU enviado for o que a tela sugeriu —
+        #: e, portanto, puder ceder a vez numa colisão (ver `clean_sku`).
+        self.sku_is_auto = True
         super().__init__(*args, **kwargs)
         categorias = Category.objects.prefetch_related("translations").order_by("sort_order", "slug")
         self.fields["category"].queryset = categorias
         self.fields["category"].label_from_instance = lambda c: c.full_path()
+        if template is not None:
+            # As variantes vêm do modelo, com preço, peso e prazo: perguntar
+            # de novo criaria uma variante a mais, sem eixos.
+            self.fields.pop("sale_price", None)
+            self.fields.pop("stock_quantity", None)
+
+    @staticmethod
+    def initial_from(produto) -> dict:
+        """Os cinco campos, a partir de um produto-modelo.
+
+        O SKU é o que a regra de sempre sugeriria para este nome e esta
+        categoria (`sku_rules.suggest_product_sku`) — o mesmo que a tela
+        passa a sugerir se o nome mudar. Nada de «SKU do modelo + 1»: o SKU
+        é do produto novo.
+        """
+        nome = produto.name_in(DEFAULT_LANGUAGE.value) or ""
+        return {
+            "name": nome,
+            "category": produto.category_id,
+            "status": produto.status,
+            "brand": produto.brand_id,
+            "sku": sku_rules.suggest_product_sku(produto.category, nome),
+        }
 
     def clean_sku(self):
+        """O SKU digitado; em branco, o sistema sugere.
+
+        Com um modelo, o SKU que a tela ofereceu é **automático**: se ele
+        ainda é o que a regra sugere, continua sendo sugestão (e cede a vez a
+        quem gravar primeiro, em `save`); se alguém já o levou entre a tela e
+        o envio, a sugestão seguinte entra no lugar. Um SKU digitado fora da
+        família daquele nome é da pessoa — e, colidindo, é erro para ela ver.
+        """
         sku = (self.cleaned_data.get("sku") or "").strip().upper()
-        if sku and Product.objects.filter(sku=sku).exists():
+        self.sku_is_auto = not sku
+        if not sku:
+            return sku
+        ocupado = Product.objects.filter(sku=sku).exists()
+        # O SKU do próprio modelo nunca é uma sugestão velha — é a identidade
+        # de outro produto, e digitá-lo de volta é erro para a pessoa ver.
+        do_modelo = self.template is not None and sku == (self.template.sku or "").strip().upper()
+        if self.template is not None and not do_modelo:
+            categoria = self.cleaned_data.get("category")
+            nome = self.cleaned_data.get("name", "")
+            if sku == sku_rules.suggest_product_sku(categoria, nome):
+                self.sku_is_auto = True
+            elif ocupado and sku_rules.matches_suggested_base(sku, categoria, nome):
+                # A sugestão que a tela ofereceu foi levada no meio do
+                # caminho: a seguinte entra no lugar.
+                self.sku_is_auto = True
+                return self.suggested_sku()
+        if ocupado:
             raise ValidationError("Já existe um produto com este SKU.")
         return sku
 
     def clean(self):
         dados = super().clean()
+        do_modelo = self.template_has_priced_variant()
         if dados.get("status") == ProductStatus.ACTIVE:
             if dados.get("category") is None:
                 self.add_error("category", "Um produto ativo precisa de categoria.")
-            if dados.get("sale_price") is None:
+            if self.template is None and dados.get("sale_price") is None:
                 self.add_error(
                     "status",
                     "Um produto ativo precisa de uma variante com preço: informe o "
                     "preço ou crie como rascunho e ative depois.",
                 )
+            if self.template is not None and not do_modelo:
+                self.add_error(
+                    "status",
+                    f"«{self.template.sku}» não tem variante ativa com preço para copiar: "
+                    "crie como rascunho e ative depois de cadastrar o preço.",
+                )
         if dados.get("stock_quantity") is not None and dados.get("sale_price") is None:
             self.add_error("sale_price", "Informe o preço para criar a primeira variante.")
         return dados
+
+    def template_has_priced_variant(self) -> bool:
+        """O modelo tem uma variante ativa com preço — a que fará o produto vender?"""
+        if self.template is None:
+            return False
+        return self.template.variants.filter(is_active=True, sale_price__isnull=False).exists()
 
     def suggested_sku(self, reserved=()) -> str:
         return sku_rules.suggest_product_sku(
@@ -1429,12 +1479,18 @@ class QuickProductForm(forms.Form):
     def save(self, user):
         """Produto + nome em português + slug (+ a primeira variante).
 
-        O SKU digitado é respeitado; em branco, a sugestão entra e, se o banco
-        recusar (outro cadastro gravou o mesmo número no meio do caminho), a
-        sequência seguinte é tentada — ver `sku_rules.com_sku_livre`.
+        O SKU digitado é respeitado; em branco — ou sendo o que a tela
+        sugeriu, na duplicação —, a sugestão entra e, se o banco recusar
+        (outro cadastro gravou o mesmo número no meio do caminho), a sequência
+        seguinte é tentada — ver `sku_rules.com_sku_livre`.
+
+        Com um produto-modelo, `apply_product_template` roda **dentro** da
+        mesma transação: ou o produto novo nasce completo, ou não nasce.
         """
         dados = self.cleaned_data
-        manual = dados.get("sku") or ""
+        manual = "" if self.sku_is_auto else (dados.get("sku") or "")
+        #: O resumo do que o modelo trouxe, para a mensagem de quem cadastra.
+        self.template_report = None
 
         def criar(sku):
             with transaction.atomic():
@@ -1459,7 +1515,9 @@ class QuickProductForm(forms.Form):
                 # (`TranslatedSlugAdminMixin`); nunca do SKU.
                 produto.slug = unique_slugify(produto, dados["name"].strip())
                 produto.save(update_fields=["slug"])
-                if dados.get("sale_price") is not None:
+                if self.template is not None:
+                    self.template_report = apply_product_template(self.template, produto)
+                elif dados.get("sale_price") is not None:
                     variante = ProductVariant(
                         product=produto,
                         sku=sku_rules.suggest_variant_sku(produto.sku),
@@ -1509,33 +1567,6 @@ class ProductAdminForm(forms.ModelForm):
                 "Em branco, é gerado a partir da categoria e do nome em português "
                 "(ex.: REL-LEAO-001). Você pode alterar."
             )
-
-    #: O produto de origem quando a tela é uma duplicação (`ProductAdmin.get_form`);
-    #: fora dela, ``None``.
-    duplicate_origin = None
-
-    def clean_sku(self):
-        """O SKU digitado — ou, na duplicação, o sugerido, que cede a vez se colidir.
-
-        Na duplicação, o SKU que a tela sugeriu (a sequência seguinte à da
-        origem: VASO-01 → VASO-02) é automático: se alguém o levou entre a
-        tela e o envio, a cópia avança para a próxima sequência livre em vez
-        de parar num «já existe». Um SKU digitado fora da sequência continua
-        sendo da pessoa — e, colidindo, é erro para ela ver (a validação de
-        unicidade do modelo). Em branco, `sku_auto` cuida (ver `save_model`).
-        """
-        sku = (self.cleaned_data.get("sku") or "").strip().upper()
-        origem = self.duplicate_origin
-        # O SKU do próprio original digitado de volta é manual — e recusado.
-        self.sku_from_duplicate = bool(
-            sku
-            and origem is not None
-            and sku != (origem.sku or "").strip().upper()
-            and sku_rules.follows_sequence(sku, origem.sku)
-        )
-        if self.sku_from_duplicate and Product.objects.filter(sku=sku).exists():
-            return sku_rules.next_product_sku_after(origem.sku)
-        return sku
 
     def portuguese_name(self) -> str:
         """O nome em português como está no inline CONTEÚDO deste POST."""
@@ -1649,40 +1680,20 @@ class ProductAdmin(DuplicateAdminMixin, TranslatedSlugAdminMixin, AuditUserAdmin
 
     #: -- Duplicar ---------------------------------------------------------
     #:
-    #: `sku` é copiado: é a identidade do produto (`unique`), e é o que faz
-    #: "Duplicar" + "Salvar" sem alterar nada parar em "Produto com este SKU já
-    #: existe" em vez de criar um gêmeo. `slug` sai vazio — quem o gera é o
-    #: `TranslatedSlugAdminMixin`, a partir do nome em português.
+    #: Duplicar um produto é **criar um produto novo usando outro como
+    #: modelo**, e não copiar um registro campo a campo. Por isso o botão leva
+    #: ao mesmo cadastro rápido de sempre (`quick_add_view`), pré-preenchido
+    #: com nome, categoria, status, SKU e marca do modelo: quem cadastra
+    #: decide ali se aquilo é uma variação do mesmo produto ou uma peça
+    #: diferente, e o SKU acompanha o nome enquanto for automático.
     #:
-    #: A auditoria (`created_at`, `created_by`, ...) nunca entra: o Django a
-    #: marca `editable=False`, e `duplicable_values` respeita isso.
+    #: O resto — conteúdo, variantes, opções adicionais, paleta e composição —
+    #: entra depois que o produto novo existe, por `apply_product_template`.
+    #: Fotos, SKU (do produto e das variantes) e slug nunca acompanham.
+    #:
+    #: `duplicate_inlines` fica vazio de propósito: a ficha completa não é a
+    #: tela de duplicação (ver `get_changeform_initial_data`).
     duplicate_exclude = ("slug",)
-
-    #: Dos três inlines, dois acompanham a cópia:
-    #:
-    #: **CONTEÚDO** — é o motivo de duplicar um produto. Quatro idiomas de
-    #: nome, descrição curta, descrição e informações extras é o trabalho que
-    #: se quer reaproveitar.
-    #:
-    #: **VARIANTES** — preço, custo, peso, dimensões e tempo de impressão são a
-    #: base de uma peça parecida. O SKU vai junto (mesma razão do produto: sem
-    #: ele a cópia idêntica não seria recusada), mas o **estoque não**: é
-    #: quantidade de peça física, do produto original. Copiar "10 em estoque"
-    #: para um produto que ainda não existe faria a loja vender dez unidades
-    #: que ninguém imprimiu — e o campo aparece na tela zerado, para quem
-    #: cadastra informar o número certo.
-    #:
-    #: **MÍDIA** fica de fora: são arquivos. Duas linhas apontando para a mesma
-    #: foto é um vínculo entre os dois produtos, não uma cópia.
-    #: **CORES** e **MATERIAIS** (etapa 2B) acompanham: são descrição da peça,
-    #: e a peça parecida costuma ter as mesmas. Apontam para as mesmas `Color`
-    #: e `Material` — nada é copiado nesses cadastros.
-    duplicate_inlines = {
-        ProductTranslation: (),
-        ProductVariant: ("stock_quantity",),
-        ProductColor: (),
-        ProductMaterialComposition: (),
-    }
 
     #: A tabela operacional: o que identifica, o que vende e o que fazer.
     list_display = (
@@ -1874,19 +1885,13 @@ class ProductAdmin(DuplicateAdminMixin, TranslatedSlugAdminMixin, AuditUserAdmin
         cadastro rápido (`com_sku_livre`) pede a próxima sequência. Um SKU
         digitado não passa por isto: colidiu, é erro para a pessoa ver.
         """
-        automatico = getattr(form, "sku_auto", False) or getattr(form, "sku_from_duplicate", False)
-        if change or not automatico:
+        if change or not getattr(form, "sku_auto", False):
             return super().save_model(request, obj, form, change)
 
         categoria = form.cleaned_data.get("category")
         nome = form.portuguese_name()
-        origem = self.duplicate_source(request) if getattr(form, "sku_from_duplicate", False) else None
 
         def sugerir(reservados):
-            # Na duplicação, a sequência da origem (VASO-01 -> VASO-02, -03…);
-            # no cadastro em branco, a regra de categoria + nome.
-            if origem is not None:
-                return sku_rules.next_product_sku_after(origem.sku, reservados)
             return sku_rules.suggest_product_sku(categoria, nome, reservados)
 
         def gravar(sku):
@@ -1984,11 +1989,22 @@ class ProductAdmin(DuplicateAdminMixin, TranslatedSlugAdminMixin, AuditUserAdmin
     # -- cadastro rápido ------------------------------------------------------
 
     def quick_add_view(self, request):
-        """Nome, categoria, SKU (sugerido) e status. Cadastrar primeiro."""
+        """Nome, categoria, SKU (sugerido) e status. Cadastrar primeiro.
+
+        É também a tela de **duplicar**: com `?_duplicar=<pk>` os cinco campos
+        abrem preenchidos com os do produto-modelo e, ao gravar, o resto dele
+        acompanha (`apply_product_template`). O modelo passa pelo
+        `get_queryset` e pela permissão de ver, como em qualquer duplicação.
+        """
         if not self.has_add_permission(request):
             raise PermissionDenied
 
-        form = QuickProductForm(request.POST or None)
+        modelo = self.duplicate_source(request)
+        form = QuickProductForm(
+            request.POST or None,
+            template=modelo,
+            initial=QuickProductForm.initial_from(modelo) if modelo is not None else None,
+        )
         if request.method == "POST" and form.is_valid():
             produto = form.save(request.user)
             self.log_addition(request, produto, [{"added": {}}])
@@ -2002,6 +2018,21 @@ class ProductAdmin(DuplicateAdminMixin, TranslatedSlugAdminMixin, AuditUserAdmin
                 ),
                 messages.SUCCESS,
             )
+            if form.template_report:
+                r = form.template_report
+                self.message_user(
+                    request,
+                    format_html(
+                        "Copiado de <b>{}</b>: {} idioma(s) de conteúdo, {} variante(s) "
+                        "com SKU novo e estoque zerado, {} opção(ões) adicionais com "
+                        "{} valor(es), {} cor(es) na paleta e {} material(is). "
+                        "Fotos não acompanham.",
+                        modelo.sku,
+                        r["idiomas"], r["variantes"], r["opcoes"], r["valores"],
+                        r["cores"], r["materiais"],
+                    ),
+                    messages.INFO,
+                )
             if "_continue" in request.POST:
                 return HttpResponseRedirect(
                     reverse("admin:catalog_product_change", args=[produto.pk])
@@ -2013,9 +2044,10 @@ class ProductAdmin(DuplicateAdminMixin, TranslatedSlugAdminMixin, AuditUserAdmin
         contexto = {
             **self.admin_site.each_context(request),
             "opts": self.opts,
-            "title": "Novo produto",
+            "title": f"Novo produto a partir de {modelo.sku}" if modelo else "Novo produto",
             "form": form,
             "variant_sku_preview": "SKU-V01",
+            "jd_template": modelo,
         }
         return render(request, "admin/catalog/product/quick_add.html", contexto)
 
@@ -2080,158 +2112,28 @@ class ProductAdmin(DuplicateAdminMixin, TranslatedSlugAdminMixin, AuditUserAdmin
         }
         return render(request, "admin/catalog/product/toggle_status.html", contexto)
 
-    # -- duplicar: sem colisão de SKU --------------------------------------------
+    # -- duplicar: o cadastro rápido, com o produto como modelo ------------------
 
-    def get_form(self, request, obj=None, **kwargs):
-        """Na tela de criação por duplicação, o formulário conhece a origem.
+    def duplicate_url(self, obj) -> str:
+        """O «Duplicar» abre o CADASTRO RÁPIDO com o produto como modelo.
 
-        É o que permite a `clean_sku` distinguir o SKU sugerido pela tela de
-        um SKU digitado. O Django cria uma classe nova a cada chamada, então
-        o atributo não vaza para outras requisições.
+        Duplicar é criar um produto novo: quem cadastra vê as mesmas cinco
+        perguntas de sempre (nome, categoria, status, SKU, marca), já
+        preenchidas, e decide ali o que este produto é. O resto do modelo
+        entra depois de o produto existir (`apply_product_template`).
         """
-        form = super().get_form(request, obj, **kwargs)
-        form.duplicate_origin = self.duplicate_source(request) if obj is None else None
-        return form
+        return f"{reverse('admin:catalog_product_quick_add')}?{urlencode({DUPLICATE_PARAM: obj.pk})}"
 
     def get_changeform_initial_data(self, request):
-        """A cópia nasce com o SKU seguinte livre (VASO-01 -> VASO-02).
+        """A ficha completa não é a tela de duplicação.
 
-        O original não é tocado; só a sugestão muda, e ela continua editável.
-        As variantes copiadas acompanham a nova identidade (VASO-02-V01…), em
-        `_duplicate_inline_initial`.
+        Um `_duplicar` na URL dela não pré-preenche nada — quem duplica é o
+        cadastro rápido (ver `duplicate_url`). Sem isto haveria duas telas
+        fazendo a mesma coisa de jeitos diferentes.
         """
-        inicial = super().get_changeform_initial_data(request)
-        origem = self.duplicate_source(request)
-        if origem is not None:
-            inicial["sku"] = sku_rules.next_product_sku_after(origem.sku)
-            request._jd_duplicate_sku = inicial["sku"]
+        inicial = admin.ModelAdmin.get_changeform_initial_data(self, request)
+        inicial.pop(DUPLICATE_PARAM, None)
         return inicial
-
-    #: Os idiomas para os quais a cópia nasce com uma linha de conteúdo. Os
-    #: que a origem tem vêm copiados exatamente (nome e descrições); os que
-    #: faltam entram só com o nome em português, para a pessoa traduzir —
-    #: nenhuma descrição é inventada.
-    DUPLICATE_CONTENT_LANGUAGES = (
-        Language.PT, Language.FR, Language.NL, Language.EN, Language.DE, Language.ES,
-    )
-
-    def _duplicate_inline_initial(self, request, inline, formset_class) -> list:
-        linhas = super()._duplicate_inline_initial(request, inline, formset_class)
-        if inline.model is ProductTranslation and linhas:
-            existentes = {linha.get("language") for linha in linhas}
-            nome_pt = next(
-                (linha.get("name") for linha in linhas if linha.get("language") == DEFAULT_LANGUAGE.value),
-                None,
-            ) or linhas[0].get("name") or ""
-            for idioma in self.DUPLICATE_CONTENT_LANGUAGES:
-                if idioma.value not in existentes:
-                    linhas.append({"language": idioma.value, "name": nome_pt})
-        if inline.model is ProductVariant and linhas:
-            origem = self.duplicate_source(request)
-            novo_sku = getattr(request, "_jd_duplicate_sku", None) or sku_rules.next_product_sku_after(
-                origem.sku
-            )
-            reservados: set[str] = set()
-            # Etapa 3F: cada linha copiada traz as escolhas da variante de
-            # origem nas opções adicionais (`opt_<id da opção de origem>`).
-            # A mesma consulta — e a mesma ordem — que montou `linhas`, já com
-            # as escolhas no prefetch: nenhuma consulta por variante.
-            variantes = list(inline.get_queryset(request).filter(product=origem))
-            for linha, variante in zip(linhas, variantes):
-                linha["sku"] = sku_rules.suggest_variant_sku(novo_sku, reserved=reservados)
-                reservados.add(linha["sku"])
-                for link in variante.option_values.all():
-                    linha[f"{OPTION_FIELD_PREFIX}{link.option_id}"] = link.value_id
-        return linhas
-
-    def _duplicate_options(self, request) -> list:
-        """As opções do produto de origem, lidas uma vez por requisição (3F)."""
-        cache = getattr(request, "_jd_duplicate_options", None)
-        if cache is None:
-            origem = self.duplicate_source(request)
-            cache = request._jd_duplicate_options = (
-                list(origem.options.prefetch_related("values").order_by("sort_order", "id"))
-                if origem is not None
-                else []
-            )
-        return cache
-
-    def get_formset_kwargs(self, request, obj, inline, prefix):
-        """Na duplicação, o formset das variantes nasce com as opções de origem.
-
-        É o que faz os `<select>` das opções adicionais aparecerem nas linhas
-        copiadas — na tela (GET) e na leitura do envio (POST). Fora da
-        duplicação, e na edição, nada muda.
-        """
-        kwargs = super().get_formset_kwargs(request, obj, inline, prefix)
-        # Na criação o Django passa o produto ainda não gravado (pk vazio), e
-        # não `None`: é o pk que diz se esta é a tela de criação.
-        if (
-            getattr(obj, "pk", None) is None
-            and inline.model is ProductVariant
-            and self.duplicate_source(request) is not None
-        ):
-            kwargs["product_options"] = self._duplicate_options(request)
-            kwargs["duplicate_origin"] = self.duplicate_source(request)
-        return kwargs
-
-    def save_formset(self, request, form, formset, change):
-        """Ao gravar a cópia, as opções nascem no produto novo antes das variantes.
-
-        Etapa 3F. O produto acabou de ser gravado (`save_model`) e as variantes
-        ainda não: aqui as opções, os valores e as traduções da origem são
-        copiados para o produto novo (`copy_product_options`) e os mapas
-        entram nas linhas, para cada escolha ser religada à opção e ao valor
-        novos — nunca aos da origem. Tudo dentro da transação da tela do
-        admin: se qualquer coisa falhar, não sobra produto, opção nem variante.
-        """
-        if (
-            not change
-            and isinstance(formset, ProductVariantInlineFormSet)
-            and self.duplicate_source(request) is not None
-        ):
-            self._realign_duplicated_variant_skus(formset, form.instance, self.duplicate_source(request))
-        if (
-            not change
-            and isinstance(formset, ProductVariantInlineFormSet)
-            and formset.product_options
-            and self.duplicate_source(request) is not None
-        ):
-            origem = self.duplicate_source(request)
-            mapas = copy_product_options(origem, form.instance)
-            for linha in formset.forms:
-                linha.option_maps = mapas
-            self.message_user(
-                request,
-                f"Opções adicionais copiadas de {origem.sku}: {len(mapas[0])} opção(ões) e "
-                f"{len(mapas[1])} valor(es), com as traduções e as escolhas de cada variante.",
-                messages.INFO,
-            )
-        super().save_formset(request, form, formset, change)
-
-    @staticmethod
-    def _realign_duplicated_variant_skus(formset, produto, origem):
-        """As variantes copiadas seguem o SKU FINAL do produto novo.
-
-        A validação já as alinhou ao SKU validado; só quando `save_model`
-        avançou a sequência numa colisão de última hora (VASO-02 levado entre
-        a validação e a gravação, cópia gravada como VASO-03) os SKUs
-        sugeridos ainda apontam para o número antigo. Aqui eles são refeitos
-        a partir do banco, na mesma transação. SKUs digitados pela pessoa,
-        fora do padrão, ficam como estão.
-        """
-        reservados: set[str] = set()
-        for linha in formset.forms:
-            dados = linha.cleaned_data
-            if not dados or dados.get("DELETE"):
-                continue
-            sku = (linha.instance.sku or "").strip().upper()
-            if sku_rules.follows_variant_sequence(sku, origem.sku) and not sku.startswith(
-                f"{produto.sku}-V"
-            ):
-                sku = sku_rules.suggest_variant_sku(produto.sku, reserved=reservados)
-                linha.instance.sku = sku
-            reservados.add(sku)
 
     # -- conteúdo -----------------------------------------------------------
 
@@ -2881,15 +2783,6 @@ class ProductAdmin(DuplicateAdminMixin, TranslatedSlugAdminMixin, AuditUserAdmin
         original = context.get("original")
         editando = original is not None and original.pk
         context["jd_section_nav"] = self._section_nav(context["product_layout"], with_audit=bool(editando))
-        if add:
-            # Etapa 3F: na duplicação, a seção OPÇÕES ADICIONAIS diz o que vai
-            # acontecer ao salvar, em vez de «salve o produto primeiro».
-            origem = self.duplicate_source(request)
-            if origem is not None:
-                opcoes = self._duplicate_options(request)
-                context["jd_duplicate_source"] = origem
-                context["jd_duplicate_options"] = opcoes
-                context["jd_duplicate_values"] = sum(len(o.values.all()) for o in opcoes)
         if editando:
             if request.method == "GET":
                 # «Cores à escolha»: a mesma cor na paleta e numa variante —

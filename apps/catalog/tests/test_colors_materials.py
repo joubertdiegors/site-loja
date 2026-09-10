@@ -36,7 +36,7 @@ from apps.catalog.models import (
     ProductStatus,
     ProductVariant,
 )
-from apps.core.tests_admin_duplicate import DuplicarBase
+from apps.core.tests_admin_duplicate import DuplicarBase, campos_do_formulario
 from apps.core.testing import (
     LanguageResetMixin,
     make_address,
@@ -543,23 +543,22 @@ class DuplicateTests(Fixtures, DuplicarBase):
         ProductMaterialComposition.objects.create(product=produto, material=self.pla, percentage=Decimal("80"))
         ProductMaterialComposition.objects.create(product=produto, material=self.petg, percentage=Decimal("20"), sort_order=1)
 
-        destino, campos = self.tela_de_criacao(produto)
-        self.assertEqual(campos["sku"], "VASO-02")
-        self.assertEqual(campos["color_mode"], ColorMode.MULTI)
-        cores = [v for k, v in campos.items() if k.startswith("product_colors-") and k.endswith("-color") and v]
-        self.assertEqual(cores, [str(self.preto.pk), str(self.branco.pk)])
-        materiais = [v for k, v in campos.items() if k.startswith("material_composition-") and k.endswith("-material") and v]
-        self.assertEqual(materiais, [str(self.pla.pk), str(self.petg.pk)])
-        self.assertIn("80.00", campos.values())
+        # Duplicar é criar um produto novo com este como modelo: a tela é o
+        # cadastro rápido, e a paleta e a composição entram ao salvar.
+        destino = self.pedir_duplicacao(produto)["Location"]
+        self.assertIn(reverse("admin:catalog_product_quick_add"), destino)
+        campos = campos_do_formulario(self.client.get(destino).content.decode(), "product_quick_form")
+        self.assertEqual(campos["name"], "Vaso")
+        self.assertEqual(campos["sku"], "MOD-VASO-001")
 
         resposta = self.salvar(destino, campos)
-        self.assertEqual(resposta.status_code, 302, self.erros(resposta) if resposta.status_code != 302 else "")
+        self.assertEqual(resposta.status_code, 302)
 
-        copia = self.fresh(Product.objects.get(sku="VASO-02"))
+        copia = self.fresh(Product.objects.get(sku="MOD-VASO-001"))
         self.assertEqual(copia.color_mode, ColorMode.MULTI)
         self.assertEqual(copia.colors_text, "Preto + Branco")
         self.assertEqual(copia.materials_text, "PLA 80% + PETG 20%")
-        self.assertEqual(list(copia.variants.values_list("sku", flat=True)), ["VASO-02-V01"])
+        self.assertEqual(list(copia.variants.values_list("sku", flat=True)), ["MOD-VASO-001-V01"])
         original = self.fresh(Product.objects.get(pk=produto.pk))
         self.assertEqual(original.sku, "VASO-01")
         self.assertEqual(original.colors_text, "Preto + Branco")

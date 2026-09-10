@@ -34,25 +34,15 @@
       <p class="jd-variant-flash" data-options-flash role="status" hidden></p>
 
       {% if not original or not original.pk %}
-        {% if jd_duplicate_source %}
-          {# Etapa 3F: cópia de outro produto — as opções acompanham ao salvar. #}
-          <p class="jd-variant-help jd-variant-hint jd-options-wait">
-            {% if jd_duplicate_options %}
-              Ao salvar, as {{ jd_duplicate_options|length }} opção(ões) adicionais de
-              <b>{{ jd_duplicate_source.sku }}</b> ({{ jd_duplicate_values }} valor(es), com as
-              traduções) serão copiadas para este produto, e cada variante abaixo nasce com as
-              escolhas que já mostra. Depois de salvo, esta seção fica disponível normalmente.
-            {% else %}
-              <b>{{ jd_duplicate_source.sku }}</b> não tem opções adicionais; nada será copiado aqui.
-              Depois de salvo, esta seção fica disponível normalmente.
-            {% endif %}
-          </p>
-        {% else %}
+        {% comment %}
+          Duplicar não passa mais por aqui: quem duplica é o cadastro rápido
+          (`ProductAdmin.duplicate_url`), e as opções do modelo acompanham
+          por `apply_product_template`.
+        {% endcomment %}
         <p class="jd-variant-help jd-variant-hint jd-options-wait">
           Salve o produto primeiro para adicionar opções adicionais. Depois de salvo,
           esta seção fica disponível normalmente.
         </p>
-        {% endif %}
       {% else %}
         <div class="jd-option-cards" data-option-cards>
           {% for item in product_options %}

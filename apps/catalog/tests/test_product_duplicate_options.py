@@ -34,6 +34,7 @@ from apps.catalog.models import (
     ProductOptionValue,
     ProductOptionValueTranslation,
     ProductStatus,
+    ProductTranslation,
     ProductVariant,
     ProductVariantOptionValue,
     copy_product_options,
@@ -50,7 +51,7 @@ from apps.core.testing import (
     make_user,
     translate_product,
 )
-from apps.core.tests_admin_duplicate import DuplicarBase
+from apps.core.tests_admin_duplicate import DuplicarBase, campos_do_formulario
 from apps.orders import services as order_services
 from apps.orders.models import OrderItem
 
@@ -112,7 +113,7 @@ class DuplicarOpcoesBase(DuplicarBase):
         self.pla = Material.objects.create(name="PLA")
         self.petg = Material.objects.create(name="PETG")
 
-    def produto(self, sku="REL-LEAO-001", nome="Suporte Leão de Judá", variantes=()):
+    def produto(self, sku="REL-LEAO-001", nome="Leão de Judá", variantes=()):
         p = make_product(sku=sku, name=nome, category=self.categoria, status=ProductStatus.ACTIVE, with_variant=False)
         translate_product(p, "fr", "Support Lion de Juda")
         for i, dados in enumerate(variantes, start=1):
@@ -158,11 +159,29 @@ class DuplicarOpcoesBase(DuplicarBase):
             if escolhas:
                 v.set_option_values(escolhas)
 
+    def tela(self, p):
+        """Clica em «Duplicar» e devolve (URL do cadastro rápido, campos)."""
+        resposta = self.pedir_duplicacao(p)
+        self.assertEqual(resposta.status_code, 302)
+        destino = resposta["Location"]
+        self.assertIn(reverse("admin:catalog_product_quick_add"), destino)
+        pagina = self.client.get(destino)
+        self.assertEqual(pagina.status_code, 200)
+        self.html = pagina.content.decode()
+        return destino, campos_do_formulario(self.html, "product_quick_form")
+
     def duplicar(self, p, **alteracoes):
-        destino, campos = self.tela_de_criacao(p)
+        destino, campos = self.tela(p)
         resposta = self.salvar(destino, campos, **alteracoes)
         self.assertCriou(resposta)
         return Product.objects.exclude(pk=p.pk).order_by("-pk").first()
+
+    @staticmethod
+    def erros(resposta):
+        try:
+            return repr(resposta.context["form"].errors)
+        except Exception:  # pragma: no cover - só melhora a mensagem
+            return "(sem formulário no contexto)"
 
     def escolhas(self, variante):
         return {link.option.name: link.value.name for link in variante.option_links}
@@ -174,48 +193,31 @@ class DuplicarOpcoesBase(DuplicarBase):
 
 
 class TelaTests(DuplicarOpcoesBase):
-    def test_the_variant_rows_come_with_the_option_choices_of_the_source(self):
-        p = self.leao()
-        inst, acab = p.options.order_by("sort_order")
-        _destino, campos = self.tela_de_criacao(p)
-        self.assertEqual(campos["sku"], "REL-LEAO-002")
-        linhas = {}
-        for chave, v in campos.items():
-            if chave.startswith("variants-") and chave.endswith("-sku") and v:
-                idx = chave.split("-")[1]
-                linhas[v] = (campos.get(f"variants-{idx}-opt_{inst.pk}"), campos.get(f"variants-{idx}-opt_{acab.pk}"))
-        self.assertEqual(linhas, {
-            "REL-LEAO-002-V01": (str(valor(inst, "Mesa").pk), str(valor(acab, "Fosco").pk)),
-            "REL-LEAO-002-V02": (str(valor(inst, "Parede").pk), str(valor(acab, "Fosco").pk)),
-            "REL-LEAO-002-V03": (str(valor(inst, "Parede").pk), str(valor(acab, "Brilhante").pk)),
-        })
-        self.assertIn("Opções adicionais", self.html)
-        self.assertIn("as 2 opção(ões) adicionais de", self.html)
-        self.assertIn("<b>REL-LEAO-001</b> (4 valor(es), com as", self.html)
-        self.assertNotIn("Salve o produto primeiro para adicionar", self.html)
+    """A tela é o cadastro rápido: cinco campos. As opções entram ao salvar."""
 
-    def test_a_product_without_options_shows_no_option_fields(self):
-        p = self.produto(variantes=[dict(color=self.preto)])
-        _destino, campos = self.tela_de_criacao(p)
-        self.assertFalse([k for k in campos if "-opt_" in k])
+    def test_the_screen_is_the_quick_add_form_with_the_five_fields(self):
+        p = self.leao()
+        _destino, campos = self.tela(p)
+        self.assertEqual(set(campos) - {"csrfmiddlewaretoken"}, {"name", "category", "status", "sku", "brand"})
+        self.assertEqual(campos["name"], "Leão de Judá")
         self.assertEqual(campos["sku"], "REL-LEAO-002")
-        self.assertIn("não tem opções adicionais; nada será copiado", self.html)
+        self.assertFalse([k for k in campos if "-opt_" in k])
+        self.assertNotIn("Salve o produto primeiro para adicionar", self.html)
 
     def test_the_click_creates_nothing(self):
         p = self.leao()
         antes = (Product.objects.count(), ProductOption.objects.count(), ProductOptionValue.objects.count())
-        self.tela_de_criacao(p)
+        self.tela(p)
         self.assertEqual(antes, (Product.objects.count(), ProductOption.objects.count(), ProductOptionValue.objects.count()))
 
     def test_the_screen_does_not_cost_a_query_per_variant_or_option(self):
         p = self.leao()
-        destino = f"{self.url(p, 'add')}?{DUPLICATE_PARAM}={p.pk}"
+        destino = f"{reverse('admin:catalog_product_quick_add')}?{DUPLICATE_PARAM}={p.pk}"
+        self.client.get(destino)  # aquece caches de processo
         with CaptureQueriesContext(connection) as poucas:
             self.client.get(destino)
         # Cinco opções a mais, com valores e traduções, em todas as variantes:
-        # o custo da tela não muda. (Cada linha de variante já custa o seu — a
-        # sugestão de SKU e os selects de cor e material — desde antes desta
-        # etapa; aqui o número de variantes fica o mesmo.)
+        # a tela não lê nada disso — ela pergunta cinco campos.
         variantes = list(p.variants.order_by("pk"))
         for n in range(3, 8):
             o = opcao(p, f"Opção {n}", "A", "B", "C", sort_order=n, fr=f"Option {n}", nl=f"Optie {n}")
@@ -328,23 +330,24 @@ class SalvarTests(DuplicarOpcoesBase):
         self.assertEqual(self.escolhas(por_sku["REL-LEAO-002-V02"]), {})
         self.assertEqual(copia.options.count(), 2)  # a opção existe no produto, mesmo sem variante usando
 
-    def test_the_operator_can_change_a_choice_before_saving(self):
+    def test_the_choices_come_from_the_template_and_are_changed_afterwards(self):
+        """A tela não pergunta escolhas: elas vêm do modelo, e a ficha edita depois."""
         p = self.leao()
-        inst, acab = p.options.order_by("sort_order")
-        destino, campos = self.tela_de_criacao(p)
-        idx = next(k.split("-")[1] for k, v in campos.items() if v == "REL-LEAO-002-V01")
-        resposta = self.salvar(destino, campos, **{f"variants-{idx}-opt_{acab.pk}": str(valor(acab, "Brilhante").pk)})
-        self.assertCriou(resposta)
-        copia = Product.objects.get(sku="REL-LEAO-002")
-        self.assertEqual(self.escolhas(copia.variants.get(sku="REL-LEAO-002-V01")), {"Instalação": "Mesa", "Acabamento": "Brilhante"})
+        copia = self.duplicar(p)
+        v01 = copia.variants.get(sku="REL-LEAO-002-V01")
+        self.assertEqual(self.escolhas(v01), {"Instalação": "Mesa", "Acabamento": "Fosco"})
+        inst, acab = copia.options.get(name="Instalação"), copia.options.get(name="Acabamento")
+        v01.set_option_values({inst: valor(inst, "Mesa"), acab: valor(acab, "Brilhante")})
+        self.assertEqual(self.escolhas(v01), {"Instalação": "Mesa", "Acabamento": "Brilhante"})
 
     def test_the_success_message_names_the_copy_and_what_was_copied(self):
         p = self.leao()
-        destino, campos = self.tela_de_criacao(p)
+        destino, campos = self.tela(p)
         resposta = self.client.post(destino, {**campos, "_save": "Salvar"}, follow=True)
         texto = resposta.content.decode()
         self.assertIn("REL-LEAO-002", texto)
-        self.assertIn("Opções adicionais copiadas de REL-LEAO-001: 2 opção(ões) e 4 valor(es)", texto)
+        self.assertIn("Copiado de <b>REL-LEAO-001</b>", texto)
+        self.assertIn("2 opção(ões) adicionais com 4 valor(es)", texto)
 
 
 # ---------------------------------------------------------------------------
@@ -469,15 +472,13 @@ class SkuTests(DuplicarOpcoesBase):
     def test_when_the_next_sku_is_taken_the_screen_suggests_the_next_free_one(self):
         p = self.leao()
         make_product(sku="REL-LEAO-002", name="Já existe", category=self.categoria)
-        _destino, campos = self.tela_de_criacao(p)
+        _destino, campos = self.tela(p)
         self.assertEqual(campos["sku"], "REL-LEAO-003")
-        skus = {v for k, v in campos.items() if k.startswith("variants-") and k.endswith("-sku") and v}
-        self.assertEqual(skus, {"REL-LEAO-003-V01", "REL-LEAO-003-V02", "REL-LEAO-003-V03"})
 
     def test_a_collision_between_the_screen_and_the_save_moves_to_the_next_free_sku(self):
         """Outra pessoa levou o SKU sugerido: a cópia nasce inteira com o seguinte."""
         p = self.leao()
-        destino, campos = self.tela_de_criacao(p)
+        destino, campos = self.tela(p)
         make_product(sku="REL-LEAO-002", name="Chegou antes", category=self.categoria)  # outra pessoa levou o SKU
         resposta = self.salvar(destino, campos)
         self.assertCriou(resposta)
@@ -489,9 +490,9 @@ class SkuTests(DuplicarOpcoesBase):
 
     def test_the_original_sku_is_refused(self):
         p = self.leao()
-        destino, campos = self.tela_de_criacao(p)
+        destino, campos = self.tela(p)
         resposta = self.salvar(destino, campos, sku="REL-LEAO-001")
-        self.assertRecusou(resposta, "já existe")
+        self.assertRecusou(resposta, "Já existe um produto com este SKU")
         self.assertEqual(Product.objects.count(), 1)
         self.assertEqual(ProductOption.objects.count(), 2)
 
@@ -555,39 +556,29 @@ class HistoricoTests(DuplicarOpcoesBase):
 
 
 class TransacaoTests(DuplicarOpcoesBase):
+    def retrato_do_banco(self):
+        return (Product.objects.count(), ProductOption.objects.count(), ProductOptionValue.objects.count(),
+                ProductVariant.objects.count(), ProductVariantOptionValue.objects.count(),
+                ProductOptionTranslation.objects.count(), ProductTranslation.objects.count())
+
     def test_a_failure_while_copying_the_options_leaves_nothing_behind(self):
         p = self.leao()
-        destino, campos = self.tela_de_criacao(p)
-        antes = (Product.objects.count(), ProductOption.objects.count(), ProductOptionValue.objects.count(),
-                 ProductVariant.objects.count(), ProductVariantOptionValue.objects.count(), ProductOptionTranslation.objects.count())
+        destino, campos = self.tela(p)
+        antes = self.retrato_do_banco()
         with mock.patch("apps.catalog.models.ProductOptionValueTranslation.objects.bulk_create", side_effect=RuntimeError("banco caiu")):
             with self.assertRaises(RuntimeError):
                 self.client.post(destino, {**campos, "_save": "Salvar"})
-        self.assertEqual(antes, (Product.objects.count(), ProductOption.objects.count(), ProductOptionValue.objects.count(),
-                                 ProductVariant.objects.count(), ProductVariantOptionValue.objects.count(), ProductOptionTranslation.objects.count()))
+        self.assertEqual(antes, self.retrato_do_banco())
 
-    def test_a_failure_in_a_variant_leaves_no_options_behind(self):
+    def test_a_failure_in_a_variant_leaves_no_product_behind(self):
+        """A variante entra depois do produto: se ela falhar, o produto some junto."""
         p = self.leao()
-        destino, campos = self.tela_de_criacao(p)
-        idx = next(k.split("-")[1] for k, v in campos.items() if v == "REL-LEAO-002-V03")
-        antes = (Product.objects.count(), ProductOption.objects.count())
-        # V03 com preço negativo: a variante é recusada; nada é gravado. (Um
-        # SKU sugerido repetido já não serve de falha: a cópia o refaz sozinha.)
-        resposta = self.salvar(destino, campos, **{f"variants-{idx}-sale_price": "-1.00"})
-        self.assertEqual(resposta.status_code, 200)
-        self.assertEqual(antes, (Product.objects.count(), ProductOption.objects.count()))
-
-    def test_a_forged_choice_of_another_product_is_refused(self):
-        p = self.leao()
-        outro = self.produto(sku="OUTRO-001", nome="Outro")
-        alheia = opcao(outro, "Instalação", "Teto")
-        inst = p.options.get(name="Instalação")
-        destino, campos = self.tela_de_criacao(p)
-        idx = next(k.split("-")[1] for k, v in campos.items() if v == "REL-LEAO-002-V01")
-        resposta = self.salvar(destino, campos, **{f"variants-{idx}-opt_{inst.pk}": str(valor(alheia, "Teto").pk)})
-        self.assertEqual(resposta.status_code, 200)
-        self.assertEqual(Product.objects.count(), 2)
-        self.assertFalse(ProductVariantOptionValue.objects.filter(value__option=alheia).exists())
+        destino, campos = self.tela(p)
+        antes = self.retrato_do_banco()
+        with mock.patch.object(ProductVariant, "full_clean", side_effect=RuntimeError("variante recusada")):
+            with self.assertRaises(RuntimeError):
+                self.client.post(destino, {**campos, "_save": "Salvar"})
+        self.assertEqual(antes, self.retrato_do_banco())
 
 
 class PermissaoTests(DuplicarOpcoesBase):
@@ -600,22 +591,21 @@ class PermissaoTests(DuplicarOpcoesBase):
     def test_without_add_permission_the_screen_is_denied_and_nothing_is_created(self):
         p = self.leao()
         self.operador("view_product", "view_productvariant", "view_productoption")
-        destino = f"{self.url(p, 'add')}?{DUPLICATE_PARAM}={p.pk}"
+        destino = f"{reverse('admin:catalog_product_quick_add')}?{DUPLICATE_PARAM}={p.pk}"
         self.assertEqual(self.client.get(destino).status_code, 403)
-        self.assertEqual(self.client.post(destino, {"sku": "REL-LEAO-002", "_save": "1"}).status_code, 403)
+        self.assertEqual(self.client.post(destino, {"name": "X", "status": "draft", "_save": "1"}).status_code, 403)
         self.assertEqual(Product.objects.count(), 1)
         self.assertEqual(ProductOption.objects.count(), 2)
 
-    def test_who_can_add_but_not_view_gets_an_empty_screen_without_the_options(self):
+    def test_who_can_add_but_not_view_gets_an_empty_screen_without_the_model(self):
         p = self.leao()
         ProductOption.objects.filter(product=p, name="Instalação").update(name="Fixação especial XYZ")
         self.operador("add_product", "add_productvariant", "add_producttranslation", "add_productcolor", "add_productmaterialcomposition")
-        destino = f"{self.url(p, 'add')}?{DUPLICATE_PARAM}={p.pk}"
+        destino = f"{reverse('admin:catalog_product_quick_add')}?{DUPLICATE_PARAM}={p.pk}"
         html = self.client.get(destino).content.decode()
         self.assertNotIn("REL-LEAO-002", html)
-        self.assertNotIn(f'name="variants-0-opt_{p.options.first().pk}"', html)
         self.assertNotIn("Fixação especial XYZ", html)
-        self.assertNotIn("Support Lion de Juda", html)
+        self.assertNotIn("Leão de Judá", html)
 
     def test_the_duplicate_action_is_offered_to_who_can_add(self):
         p = self.leao()

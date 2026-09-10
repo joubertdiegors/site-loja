@@ -39,6 +39,7 @@ from apps.core.constants import (
     DEFAULT_LANGUAGE,
     LENGTH_UNIT_TO_MM,
     Currency,
+    Language,
     LengthUnit,
 )
 from apps.core.models import AuditableModel, TimeStampedModel, TranslatableMixin, TranslationBase
@@ -2438,6 +2439,181 @@ def copy_product_options(origem, destino) -> tuple[dict, dict]:
             ],
         )
     return option_map, value_map
+
+
+#: Os idiomas para os quais um produto criado a partir de um modelo nasce
+#: preparado. Os que o modelo tem vêm copiados exatamente (nome e descrições);
+#: os que faltam entram só com o nome em português, para quem for traduzir —
+#: nenhuma descrição é inventada.
+TEMPLATE_CONTENT_LANGUAGES = (
+    Language.PT,
+    Language.FR,
+    Language.NL,
+    Language.EN,
+    Language.DE,
+    Language.ES,
+)
+
+#: O que **não** vem do produto-modelo: a identidade do produto novo (SKU e
+#: slug são dele) e o que o cadastro já perguntou (categoria, marca, status).
+#: O resto — moeda, modo de cores, personalização, destaque — acompanha, e um
+#: campo acrescentado ao modelo amanhã acompanha sozinho.
+TEMPLATE_SKIP_FIELDS = frozenset({"sku", "slug", "status", "category", "brand"})
+
+#: O que não acompanha a variante copiada: o produto é outro, o SKU é novo e
+#: o estoque é peça física do produto de origem.
+TEMPLATE_VARIANT_SKIP_FIELDS = frozenset({"product", "sku", "stock_quantity"})
+
+
+def template_product_values(origem) -> dict:
+    """``{atributo: valor}`` dos campos que o produto novo recebe do modelo.
+
+    A chave é o ``attname`` (``category_id`` e não ``category``): é o que se
+    atribui sem carregar o objeto relacionado, e o que ``save(update_fields=)``
+    também aceita.
+    """
+    return {
+        campo.attname: getattr(origem, campo.attname)
+        for campo in Product._meta.concrete_fields
+        if campo.editable and not campo.primary_key and campo.name not in TEMPLATE_SKIP_FIELDS
+    }
+
+
+def apply_product_template(origem, destino) -> dict:
+    """Copia para ``destino`` tudo o que faz de ``origem`` um **modelo**.
+
+    «Duplicar produto» é criar um produto novo usando outro como molde: a
+    identidade (SKU, slug, nome, categoria, marca, status) é do produto novo e
+    veio do cadastro; o resto — conteúdo, variantes, opções adicionais, paleta
+    de cores e composição de materiais — vem daqui.
+
+    O que **nunca** acompanha:
+
+    * as **fotos** — dois registros apontando para o mesmo arquivo é um
+      vínculo entre os produtos, não uma cópia;
+    * o **SKU** do produto e o das **variantes** — o SKU é identidade, e o das
+      variantes nasce do SKU do produto novo (``PRODUTO-V01``, ``-V02``…);
+    * o **slug** — vem do nome do produto novo;
+    * o **estoque** das variantes — é peça física do produto de origem, e a
+      cópia começa zerada para quem cadastra informar o número certo.
+
+    O conteúdo: cada idioma que a origem tem vira uma linha própria do
+    destino, com as descrições **exatamente** como estão lá; o português
+    mantém o nome que o cadastro definiu (é dele que saiu o slug) e recebe as
+    descrições do modelo. Os idiomas de ``TEMPLATE_CONTENT_LANGUAGES`` que
+    faltarem nascem só com o nome em português, para traduzir depois.
+
+    Nada de ``origem`` é lido para escrita nem alterado; nenhum objeto fica em
+    comum. Tudo numa transação: ou o produto novo fica completo, ou nada.
+
+    Devolve um resumo do que foi copiado, para a mensagem de quem cadastra.
+    """
+    if destino.pk is None:
+        raise ValueError("Grave o produto de destino antes de aplicar o modelo.")
+    if origem.pk == destino.pk:
+        raise ValueError("Um produto não é modelo de si mesmo.")
+
+    with transaction.atomic():
+        # -- 1. os campos que não são identidade nem vieram do cadastro
+        campos = template_product_values(origem)
+        for atributo, valor in campos.items():
+            setattr(destino, atributo, valor)
+        destino.save(update_fields=[*campos, "updated_at"])
+
+        # -- 2. o conteúdo, idioma a idioma
+        nome_novo = destino.name_in(DEFAULT_LANGUAGE.value) or destino.sku
+        do_destino = {t.language: t for t in destino.translations.all()}
+        for traducao in origem.translations.all():
+            textos = {campo: getattr(traducao, campo) for campo in CONTENT_COPY_FIELDS}
+            atual = do_destino.get(traducao.language)
+            if atual is None:
+                do_destino[traducao.language] = ProductTranslation.objects.create(
+                    master=destino, language=traducao.language, name=traducao.name, **textos
+                )
+            else:
+                # A linha que o cadastro criou (português): o nome é o novo, as
+                # descrições vêm do modelo.
+                for campo, valor in textos.items():
+                    setattr(atual, campo, valor)
+                atual.save(update_fields=list(textos))
+        for idioma in TEMPLATE_CONTENT_LANGUAGES:
+            if idioma.value not in do_destino:
+                do_destino[idioma.value] = ProductTranslation.objects.create(
+                    master=destino, language=idioma.value, name=nome_novo
+                )
+        destino.refresh_translations()
+
+        # -- 3. as opções adicionais (e os mapas para religar as variantes)
+        option_map, value_map = copy_product_options(origem, destino)
+
+        # -- 4. as variantes, com SKU novo e estoque zerado
+        reservados: set[str] = set()
+        variantes = list(
+            origem.variants.prefetch_related("option_values").order_by("sort_order", "id")
+        )
+        for variante in variantes:
+            valores = {
+                campo.attname: getattr(variante, campo.attname)
+                for campo in ProductVariant._meta.concrete_fields
+                if campo.editable
+                and not campo.primary_key
+                and campo.name not in TEMPLATE_VARIANT_SKIP_FIELDS
+            }
+            nova = ProductVariant(product=destino, **valores)
+            nova.sku = _sku_rules().suggest_variant_sku(destino.sku, reserved=reservados)
+            reservados.add(nova.sku)
+            escolhas = {
+                option_map[link.option_id].pk: (value_map[link.value_id].pk if link.value_id else None)
+                for link in variante.option_values.all()
+            }
+            # Como no formulário: as escolhas antes do `full_clean`, para a
+            # combinação repetida ser recusada já na validação.
+            nova._pending_option_choices = escolhas
+            nova.full_clean()
+            nova.save()
+            if escolhas:
+                nova.set_option_values(escolhas)
+
+        # -- 5. a paleta de cores e a composição de materiais
+        ProductColor.objects.bulk_create(
+            [
+                ProductColor(
+                    product=destino,
+                    color_id=linha.color_id,
+                    sort_order=linha.sort_order,
+                    price_delta=linha.price_delta,
+                )
+                for linha in origem.product_colors.order_by("sort_order", "id")
+            ]
+        )
+        ProductMaterialComposition.objects.bulk_create(
+            [
+                ProductMaterialComposition(
+                    product=destino,
+                    material_id=linha.material_id,
+                    percentage=linha.percentage,
+                    sort_order=linha.sort_order,
+                )
+                for linha in origem.material_composition.order_by("sort_order", "id")
+            ]
+        )
+
+    destino.refresh_from_db()
+    return {
+        "idiomas": len(do_destino),
+        "variantes": len(variantes),
+        "opcoes": len(option_map),
+        "valores": len(value_map),
+        "cores": destino.product_colors.count(),
+        "materiais": destino.material_composition.count(),
+    }
+
+
+def _sku_rules():
+    """O módulo de SKU, importado na hora (ele importa este)."""
+    from apps.catalog import sku as sku_rules
+
+    return sku_rules
 
 
 def variant_option_prefetches():

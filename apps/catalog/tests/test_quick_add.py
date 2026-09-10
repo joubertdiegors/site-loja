@@ -88,13 +88,13 @@ class SkuRulesTests(TestCase):
         make_variant(produto, sku="LEAO-PRETO", size="20 cm")
         self.assertEqual(sku_rules.suggest_variant_sku(produto.sku), "REL-LEAO-001-V02")
 
-    def test_next_sku_after_for_duplication(self):
-        make_product(sku="VASO-01", name="Vaso", with_variant=False)
-        self.assertEqual(sku_rules.next_product_sku_after("VASO-01"), "VASO-02")
-        make_product(sku="VASO-02", name="Vaso 2", with_variant=False)
-        self.assertEqual(sku_rules.next_product_sku_after("VASO-01"), "VASO-03")
-        make_product(sku="GATO-POMPOM", name="Gato", with_variant=False)
-        self.assertEqual(sku_rules.next_product_sku_after("GATO-POMPOM"), "GATO-POMPOM-001")
+    def test_a_sku_belongs_to_the_family_of_a_name(self):
+        """É como o servidor reconhece o SKU que ele mesmo sugeriu."""
+        self.assertTrue(sku_rules.matches_suggested_base("REL-LEAO-007", self.religioso, "Leão de Judá"))
+        self.assertTrue(sku_rules.matches_suggested_base("rel-leao-001", self.religioso, "Leão de Judá"))
+        self.assertFalse(sku_rules.matches_suggested_base("MEU-CODIGO", self.religioso, "Leão de Judá"))
+        self.assertFalse(sku_rules.matches_suggested_base("REL-LEAO", self.religioso, "Leão de Judá"))
+        self.assertFalse(sku_rules.matches_suggested_base("ANI-LEAO-001", self.religioso, "Leão de Judá"))
 
     def test_collision_retries_with_the_next_sequence(self):
         """Dois cadastros ao mesmo tempo: o banco recusa o segundo, e ele tenta o próximo."""
@@ -464,10 +464,12 @@ class FullFormSkuTests(QuickAddBase):
         produto = Product.objects.get(sku="REL-LEAO-001")
         self.assertEqual(sorted(produto.variants.values_list("sku", flat=True)), ["REL-LEAO-001-V01", "REL-LEAO-001-V02"])
 
-    def test_duplicate_still_opens_with_the_next_sku(self):
+    def test_the_full_form_is_not_the_duplication_screen(self):
+        """Duplicar é o cadastro rápido com um modelo (`ProductAdmin.duplicate_url`)."""
         produto = make_product(sku="REL-LEAO-001", name="Leão", category=self.religioso)
         html = self.client.get(reverse("admin:catalog_product_add") + f"?_duplicar={produto.pk}").content.decode()
-        self.assertIn('value="REL-LEAO-002"', html)
+        self.assertNotIn('value="REL-LEAO-001"', html)
+        self.assertNotIn('value="REL-LEAO-002"', html)
         produto.refresh_from_db()
         self.assertEqual(produto.sku, "REL-LEAO-001")
 

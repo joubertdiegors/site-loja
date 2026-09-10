@@ -11,8 +11,11 @@
    A regra é a do servidor (`apps/catalog/sku.py`): o JavaScript só pergunta e
    preenche. O campo SKU é preenchido enquanto ninguém digitou nele; a partir
    do primeiro toque o SKU é da pessoa e não é mais sobrescrito. Limpar o
-   campo devolve o modo automático. Um SKU que já veio preenchido (duplicar)
-   conta como manual.
+   campo devolve o modo automático.
+
+   Um SKU que já vem preenchido conta como manual — a não ser que a tela diga
+   que ele é uma sugestão (`data-sku-auto`, o caso de duplicar): aí ele
+   acompanha o nome, como acompanharia num cadastro em branco.
 
    Só em produto NOVO: na ficha de um produto existente o marcador não é
    desenhado e nada acontece. Sem JavaScript, o servidor sugere ao gravar. */
@@ -69,7 +72,7 @@
       return "";
     }
 
-    var manual = Boolean(sku.value.trim());
+    var manual = Boolean(sku.value.trim()) && !marcador.hasAttribute("data-sku-auto");
     var timer = null;
     var pedido = null;
     var textoAjuda = ajuda ? ajuda.textContent : "";

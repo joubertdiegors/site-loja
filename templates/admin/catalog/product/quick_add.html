@@ -4,9 +4,15 @@
   O cadastro rápido de produto: nome, categoria, SKU (sugerido) e status.
   "Cadastrar primeiro, detalhar depois" — fotos, descrições, traduções e
   variantes ficam para a ficha. Ver `ProductAdmin.quick_add_view`.
+
+  É também a tela de DUPLICAR (`jd_template`): os mesmos cinco campos, já
+  preenchidos com os do produto-modelo. O que muda é o texto de abertura, o
+  SKU nascer em modo automático (`data-sku-auto`: ele acompanha o nome até
+  alguém digitar) e a primeira variante não ser perguntada — as variantes vêm
+  do modelo.
 {% endcomment %}
 
-{% block title %}Novo produto | {{ site_title|default:_('Django site admin') }}{% endblock %}
+{% block title %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
 
 {% block extrahead %}
   {{ block.super }}
@@ -22,20 +28,32 @@
     <a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
     &rsaquo; <a href="{% url 'admin:app_list' app_label='catalog' %}">Catálogo</a>
     &rsaquo; <a href="{% url 'admin:catalog_product_changelist' %}">Produtos</a>
-    &rsaquo; Novo produto
+    &rsaquo; {{ title }}
   </div>
 {% endblock %}
 
 {% block content %}
 <div id="content-main" class="jd-quick-add">
-  <p class="jd-quick-intro">
-    Só o essencial para o produto existir. Fotos, descrições, traduções, preço e
-    variantes ficam para depois, na ficha do produto.
-  </p>
+  {% if jd_template %}
+    <p class="jd-quick-intro">
+      Um produto novo, usando <b>{{ jd_template.display_name }}</b> ({{ jd_template.sku }})
+      como modelo. Confira os cinco campos abaixo — mantenha para criar uma variação,
+      ou troque para uma peça diferente; o <b>SKU acompanha o nome</b> até você digitar
+      um. Ao salvar, vêm junto as descrições em todos os idiomas, as variantes
+      (com SKU novo e estoque zerado), as opções adicionais, a paleta de cores e a
+      composição de materiais. <b>Fotos não acompanham</b>, e o SKU e o endereço
+      (slug) são deste produto.
+    </p>
+  {% else %}
+    <p class="jd-quick-intro">
+      Só o essencial para o produto existir. Fotos, descrições, traduções, preço e
+      variantes ficam para depois, na ficha do produto.
+    </p>
+  {% endif %}
 
   <form method="post" id="product_quick_form" novalidate>
     {% csrf_token %}
-    <div data-sku-suggest data-url="{% url 'admin:catalog_product_sku_suggestion' %}" data-mode="quick" hidden></div>
+    <div data-sku-suggest data-url="{% url 'admin:catalog_product_sku_suggestion' %}" data-mode="quick"{% if jd_template %} data-sku-auto{% endif %} hidden></div>
     {% if form.non_field_errors %}
       <p class="errornote">{{ form.non_field_errors|join:" " }}</p>
     {% elif form.errors %}
@@ -85,6 +103,7 @@
       </div>
     </fieldset>
 
+    {% if not jd_template %}
     <fieldset class="module aligned collapse">
       <details>
         <summary><h2 class="fieldset-heading">PRIMEIRA VARIANTE (opcional)</h2></summary>
@@ -109,9 +128,10 @@
         </div>
       </details>
     </fieldset>
+    {% endif %}
 
     <div class="submit-row jd-quick-submit">
-      <input type="submit" value="Criar produto" class="default" name="_save">
+      <input type="submit" value="{% if jd_template %}Criar produto a partir do modelo{% else %}Criar produto{% endif %}" class="default" name="_save">
       <input type="submit" value="Criar e abrir a ficha" name="_continue">
       <input type="submit" value="Criar e cadastrar outro" name="_addanother">
       <a class="jd-quick-cancel" href="{% url 'admin:catalog_product_changelist' %}">Cancelar</a>
