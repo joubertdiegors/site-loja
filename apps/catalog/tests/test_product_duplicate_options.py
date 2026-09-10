@@ -290,7 +290,7 @@ class SalvarTests(DuplicarOpcoesBase):
         self.assertEqual(por_sku["REL-LEAO-002-V02"].options_text, "Instalação: Parede · Acabamento: Fosco")
         self.assertEqual(por_sku["REL-LEAO-002-V02"].stock_quantity, 0)  # estoque nunca acompanha
         self.assertEqual(str(por_sku["REL-LEAO-002-V03"].sale_price), "35.00")
-        self.assertEqual(copia.translations.count(), 2)
+        self.assertEqual(copia.translations.count(), 6)  # pt e fr copiados; nl, en, de, es só com o nome
         self.assertEqual(copia.name_in("fr"), "Support Lion de Juda")
 
     def test_the_sort_order_of_options_and_values_is_kept_even_when_it_is_not_the_creation_order(self):
@@ -474,14 +474,18 @@ class SkuTests(DuplicarOpcoesBase):
         skus = {v for k, v in campos.items() if k.startswith("variants-") and k.endswith("-sku") and v}
         self.assertEqual(skus, {"REL-LEAO-003-V01", "REL-LEAO-003-V02", "REL-LEAO-003-V03"})
 
-    def test_a_collision_between_the_screen_and_the_save_is_refused_without_leaving_anything_behind(self):
+    def test_a_collision_between_the_screen_and_the_save_moves_to_the_next_free_sku(self):
+        """Outra pessoa levou o SKU sugerido: a cópia nasce inteira com o seguinte."""
         p = self.leao()
         destino, campos = self.tela_de_criacao(p)
         make_product(sku="REL-LEAO-002", name="Chegou antes", category=self.categoria)  # outra pessoa levou o SKU
-        antes = (Product.objects.count(), ProductOption.objects.count(), ProductOptionValue.objects.count(), ProductVariant.objects.count())
         resposta = self.salvar(destino, campos)
-        self.assertRecusou(resposta, "já existe")
-        self.assertEqual(antes, (Product.objects.count(), ProductOption.objects.count(), ProductOptionValue.objects.count(), ProductVariant.objects.count()))
+        self.assertCriou(resposta)
+        copia = Product.objects.get(sku="REL-LEAO-003")
+        self.assertEqual(sorted(copia.variants.values_list("sku", flat=True)), ["REL-LEAO-003-V01", "REL-LEAO-003-V02", "REL-LEAO-003-V03"])
+        self.assertEqual(copia.options.count(), 2)
+        self.assertEqual(ProductVariantOptionValue.objects.filter(variant__product=copia).count(), 6)
+        self.assertEqual(Product.objects.get(sku="REL-LEAO-002").variants.count(), 1)  # quem chegou antes fica como está
 
     def test_the_original_sku_is_refused(self):
         p = self.leao()
@@ -567,8 +571,9 @@ class TransacaoTests(DuplicarOpcoesBase):
         destino, campos = self.tela_de_criacao(p)
         idx = next(k.split("-")[1] for k, v in campos.items() if v == "REL-LEAO-002-V03")
         antes = (Product.objects.count(), ProductOption.objects.count())
-        # V03 com o mesmo SKU de V01: o formset recusa; nada é gravado
-        resposta = self.salvar(destino, campos, **{f"variants-{idx}-sku": "REL-LEAO-002-V01"})
+        # V03 com preço negativo: a variante é recusada; nada é gravado. (Um
+        # SKU sugerido repetido já não serve de falha: a cópia o refaz sozinha.)
+        resposta = self.salvar(destino, campos, **{f"variants-{idx}-sale_price": "-1.00"})
         self.assertEqual(resposta.status_code, 200)
         self.assertEqual(antes, (Product.objects.count(), ProductOption.objects.count()))
 

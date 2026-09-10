@@ -737,7 +737,14 @@ class ProdutoTests(DuplicarBase):
         self.assertNotEqual(novo.pk, self.vaso.pk)
         self.assertEqual(novo.slug, "vaso-facetado-2")
         self.assertEqual(novo.category_id, self.categoria.pk)
-        self.assertEqual(novo.translations.count(), 2)
+        # Os dois idiomas da origem, copiados, mais os quatro preparados só
+        # com o nome (ver `ProductAdmin.DUPLICATE_CONTENT_LANGUAGES`).
+        self.assertEqual(novo.translations.count(), 6)
+        self.assertEqual(
+            dict(novo.translations.values_list("language", "name")),
+            {"pt": "Vaso Facetado", "fr": "Vase à facettes", "nl": "Vaso Facetado",
+             "en": "Vaso Facetado", "de": "Vaso Facetado", "es": "Vaso Facetado"},
+        )
         self.assertEqual(novo.variants.count(), 2)
         self.assertEqual(novo.media.count(), 0)
 

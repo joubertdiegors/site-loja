@@ -126,23 +126,52 @@ def suggest_variant_sku(product_sku: str, reserved=()) -> str:
     return f"{base}{proximo:02d}"
 
 
-def next_product_sku_after(sku: str) -> str:
-    """Para duplicar: o mesmo SKU com a sequência seguinte livre.
+def sequence_base(sku: str) -> tuple[str, int]:
+    """A base e a largura da sequência de um SKU: VASO-01 -> ("VASO", 2).
 
-    VASO-01 -> VASO-02 (largura preservada); um SKU sem número no fim ganha
-    "-002" (o original conta como o 001).
+    Um SKU sem número no fim é a própria base, com largura 3 (o original
+    conta como o 001).
     """
-    from apps.catalog.models import Product
-
     sku = (sku or "").strip().upper()
     m = re.match(r"^(.*?)-?(\d+)$", sku)
     if m and m.group(1):
-        base, largura = m.group(1).rstrip("-"), len(m.group(2))
-    else:
-        base, largura = sku, 3
+        return m.group(1).rstrip("-"), len(m.group(2))
+    return sku, 3
+
+
+def next_product_sku_after(sku: str, reserved=()) -> str:
+    """Para duplicar: o mesmo SKU com a sequência seguinte livre.
+
+    VASO-01 -> VASO-02 (largura preservada); um SKU sem número no fim ganha
+    "-002" (o original conta como o 001). ``reserved`` são SKUs prometidos e
+    ainda não gravados — uma tentativa que o banco recusou, por exemplo.
+    """
+    from apps.catalog.models import Product
+
+    base, largura = sequence_base(sku)
     padrao = rf"^{re.escape(base)}-(\d+)$"
-    proximo = _highest_sequence(Product.objects.all(), padrao) + 1
+    proximo = _highest_sequence(Product.objects.all(), padrao, reserved) + 1
     return f"{base}-{proximo:0{largura}d}"
+
+
+def follows_sequence(candidate: str, origin_sku: str) -> bool:
+    """``candidate`` é um SKU da mesma sequência de ``origin_sku``?
+
+    VASO-02 segue VASO-01; MEU-CODIGO não. É o que distingue, na duplicação,
+    o SKU sugerido pela tela (que pode avançar sozinho numa colisão) de um
+    SKU digitado pela pessoa (que, colidindo, é erro para ela ver).
+    """
+    base, _largura = sequence_base(origin_sku)
+    return bool(re.match(rf"^{re.escape(base)}-\d+$", (candidate or "").strip().upper()))
+
+
+def follows_variant_sequence(candidate: str, origin_sku: str) -> bool:
+    """``candidate`` é um SKU de variante sugerido para uma cópia de ``origin_sku``?
+
+    VASO-02-V01 segue VASO-01 (a cópia VASO-02 com a variante V01).
+    """
+    base, _largura = sequence_base(origin_sku)
+    return bool(re.match(rf"^{re.escape(base)}-\d+-V\d+$", (candidate or "").strip().upper()))
 
 
 def com_sku_livre(suggest, create, attempts: int = MAX_ATTEMPTS):
