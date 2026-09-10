@@ -28,8 +28,15 @@
         <caption>
           {% if app.app_url %}
             <a href="{{ app.app_url }}" class="section">{{ app.name }}</a>
-          {% else %}
+          {% elif show_changelinks %}
             <span class="section">{{ app.name }}</span>
+          {% else %}
+            {% comment %}
+              Na barra lateral o título é o botão do acordeão
+              (`jd_admin_shell.js`): abre e fecha as linhas da seção. Sem
+              JavaScript o botão não faz nada e a seção fica aberta.
+            {% endcomment %}
+            <button type="button" class="jd-sec-btn" aria-expanded="true" aria-controls="jd-sec-{{ app.app_label }}"><span class="section">{{ app.name }}</span><span class="jd-sec-chev" aria-hidden="true"></span></button>
           {% endif %}
         </caption>
         <thead class="visually-hidden">
@@ -39,6 +46,7 @@
             <th scope="col">{% translate 'Change or view list link' %}</th>
           </tr>
         </thead>
+        <tbody{% if not show_changelinks %} id="jd-sec-{{ app.app_label }}"{% endif %}>
         {% for model in app.models %}
           {% if model.heading %}
             <tr class="jd-grupo">
@@ -78,6 +86,7 @@
           {% endwith %}
           {% endif %}
         {% endfor %}
+        </tbody>
       </table>
     </div>
   {% endfor %}

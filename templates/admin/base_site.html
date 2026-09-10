@@ -1,22 +1,129 @@
 {% extends "admin/base.html" %}
-{% load static %}
+{% load i18n static %}
 {% comment %}
-  Cópia de `django/contrib/admin/templates/admin/base_site.html` com uma
-  adição: a folha de estilo do menu por assunto (`admin/css/jdprint_menu.css`),
-  que precisa valer em TODAS as telas do Admin — o índice e a barra lateral —
-  e por isso não pode vir do `Media` de um ModelAdmin. Ao subir de versão do
-  Django, comparar com o original.
+  Cópia de `django/contrib/admin/templates/admin/base_site.html` com o shell
+  da JD PRINT. Ao subir de versão do Django, comparar com o original — em
+  especial os blocos `header`, `usertools` e `nav-sidebar`, que são cópias
+  adaptadas dos de `admin/base.html` e `admin/nav_sidebar.html`.
+
+  * As folhas do menu por assunto (`jdprint_menu.css`), dos formulários
+    (`jdprint_forms.css`) e do shell (`jdprint_shell.css`), e o script do shell
+    (`jd_admin_shell.js`), precisam valer em TODAS as telas do Admin — o
+    índice e a barra lateral — e por isso não vêm do `Media` de um ModelAdmin.
+
+  * O topo, numa linha: o botão do menu, a marca, a trilha de navegação e as
+    ações. A trilha continua sendo o bloco `breadcrumbs` que cada tela do
+    Django preenche — só é desenhada dentro do `<header>`, e o bloco
+    `nav-breadcrumbs` de fora fica vazio. O botão de recolher a barra é o do
+    Django (`#toggle-nav-sidebar`, com o `nav_sidebar.js` dele), só que no
+    topo em vez de colado à barra; no celular o botão é outro
+    (`#jd-menu-open`), que abre a gaveta. As ações da pessoa ficam num menu
+    (`popover` nativo, sem JavaScript): alterar senha e sair são os mesmos
+    links e o mesmo formulário de sempre.
+
+  * A barra lateral é a do Django (`#nav-sidebar`, `#nav-filter`,
+    `app_list.html`) com uma linha de topo fixa (busca + fechar) e um véu para
+    a gaveta do celular. Nenhum link, URL ou permissão mudou.
 {% endcomment %}
 
 {% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
 
-{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'admin/css/jdprint_menu.css' %}"><link rel="stylesheet" href="{% static 'admin/css/jdprint_forms.css' %}">{% endblock %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'admin/css/jdprint_menu.css' %}"><link rel="stylesheet" href="{% static 'admin/css/jdprint_forms.css' %}"><link rel="stylesheet" href="{% static 'admin/css/jdprint_shell.css' %}">{% endblock %}
 
-{% block branding %}
-<div id="site-name"><a href="{% url 'admin:index' %}">{{ site_header|default:_('Django administration') }}</a></div>
-{% if user.is_anonymous %}
-  {% include "admin/color_theme_toggle.html" %}
-{% endif %}
+{% block extrahead %}{{ block.super }}{% if not is_popup and is_nav_sidebar_enabled %}<script src="{% static 'admin/js/jd_admin_shell.js' %}" defer></script>{% endif %}{% endblock %}
+
+{% block header %}
+  <header id="header">
+    {% if has_permission and is_nav_sidebar_enabled %}
+      {# Desktop: o botão do Django, que recolhe a barra. Celular: o da gaveta. #}
+      <button type="button" class="jd-ibtn toggle-nav-sidebar" id="toggle-nav-sidebar"
+              aria-label="{% translate 'Toggle navigation' %}" title="{% translate 'Toggle navigation' %}"></button>
+      <button type="button" class="jd-ibtn jd-menu-open" id="jd-menu-open" aria-controls="nav-sidebar"
+              aria-expanded="false" aria-label="Abrir menu" title="Menu"></button>
+    {% endif %}
+    <div id="branding">
+    {% block branding %}
+    {% comment %}
+      «JD PRINT» forte e «Administração» discreto, os dois no mesmo link. Os
+      textos são os de sempre: `site_title` e o que sobra de `site_header`
+      sem ele (e sem o travessão).
+    {% endcomment %}
+    <div id="site-name"><a href="{% url 'admin:index' %}"><strong>{{ site_title|default:_('Django site admin') }}</strong><span>{{ site_header|default:_('Django administration')|cut:site_title|cut:"—"|cut:"-" }}</span></a></div>
+    {% if user.is_anonymous %}
+      {% include "admin/color_theme_toggle.html" %}
+    {% endif %}
+    {% endblock %}
+    </div>
+    {% if has_permission %}
+      <nav class="jd-crumbs" aria-label="{% translate 'Breadcrumbs' %}">
+        {% block breadcrumbs %}
+          <ol class="breadcrumbs">
+            <li><a href="{% url 'admin:index' %}">{% translate 'Home' %}</a></li>
+            {% if title %}<li aria-current="page">{{ title }}</li>{% endif %}
+          </ol>
+        {% endblock %}
+      </nav>
+    {% endif %}
+    {% block usertools %}
+    {% if has_permission %}
+    <div id="user-tools">
+        {% block userlinks %}
+            {% if site_url %}
+                <a class="jd-tool" href="{{ site_url }}">{% translate 'View site' %}</a>
+            {% endif %}
+            {% include "admin/color_theme_toggle.html" %}
+        {% endblock %}
+        {% block welcome-msg %}
+            {% firstof user.get_short_name user.get_username as jd_nome %}
+            <div class="jd-user">
+              <button type="button" class="jd-avatar-btn" popovertarget="jd-user-menu"
+                      title="{{ jd_nome }}" aria-label="{% translate 'Welcome,' %} {{ jd_nome }}">
+                <span class="jd-avatar" aria-hidden="true">{{ jd_nome|slice:":2"|upper }}</span>
+              </button>
+              <div id="jd-user-menu" class="jd-user-menu" popover>
+                <p class="jd-user-menu-head">
+                  <span class="jd-avatar" aria-hidden="true">{{ jd_nome|slice:":2"|upper }}</span>
+                  <span><strong>{{ jd_nome }}</strong><small>{% translate 'Welcome,' %}</small></span>
+                </p>
+                {% if user.is_active and user.is_staff %}
+                    {% url 'django-admindocs-docroot' as docsroot %}
+                    {% if docsroot %}
+                        <a class="jd-user-menu-item" href="{{ docsroot }}">{% translate 'Documentation' %}</a>
+                    {% endif %}
+                {% endif %}
+                {% if user.has_usable_password %}
+                <a class="jd-user-menu-item" href="{% url 'admin:password_change' %}">{% translate 'Change password' %}</a>
+                {% endif %}
+                <form id="logout-form" method="post" action="{% url 'admin:logout' %}">
+                    {% csrf_token %}
+                    <button type="submit" class="jd-user-menu-item">{% translate 'Log out' %}</button>
+                </form>
+              </div>
+            </div>
+        {% endblock %}
+    </div>
+    {% endif %}
+    {% endblock %}
+    {% block nav-global %}{% endblock %}
+  </header>
 {% endblock %}
 
-{% block nav-global %}{% endblock %}
+{% comment %}
+  Vazio de propósito: a trilha passou a viver dentro do topo (bloco
+  `breadcrumbs`, acima). Sem isto ela apareceria duas vezes.
+{% endcomment %}
+{% block nav-breadcrumbs %}{% endblock %}
+
+{% block nav-sidebar %}
+  {# Cópia de `admin/nav_sidebar.html`: o botão de recolher foi para o topo, e a busca ganhou a linha fixa com o «fechar» da gaveta. #}
+  <div class="jd-sb-overlay" data-jd-sb-overlay aria-hidden="true"></div>
+  <nav class="sticky" id="nav-sidebar" aria-label="{% translate 'Sidebar' %}">
+    <div class="jd-sb-top">
+      <input type="search" id="nav-filter"
+             placeholder="{% translate 'Start typing to filter…' %}"
+             aria-label="{% translate 'Filter navigation items' %}">
+      <button type="button" class="jd-ibtn jd-sb-close" aria-label="Fechar menu" title="Fechar menu"></button>
+    </div>
+    {% include 'admin/app_list.html' with app_list=available_apps show_changelinks=False %}
+  </nav>
+{% endblock %}

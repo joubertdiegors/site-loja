@@ -1,0 +1,1137 @@
+/* JD PRINT — o shell do Admin: topo e menu lateral no tema escuro.
+
+   Só aparência e a interação do próprio menu. A estrutura é a do Django
+   (`#header`, `#nav-sidebar`, `#toggle-nav-sidebar`, `#nav-filter`,
+   `app_list.html`); recolher/expandir no desktop e o filtro continuam no
+   `nav_sidebar.js` do Django; o acordeão, a posição entre páginas e a gaveta
+   do celular moram em `jd_admin_shell.js`. O menu por assunto continua
+   vindo de `config/admin.py`. Esta folha vale em TODAS as telas (ver
+   `base_site.html`), e por isso não mora no `Media` de nenhum ModelAdmin.
+
+   ## Os tokens
+
+   A referência é o tema escuro «Nocturne»: fundo, superfície, texto, acento
+   violeta, divisórias quase invisíveis. Ficam em variáveis `--jd-*` porque
+   valem só para o shell — a área de conteúdo segue clara. Para ela não
+   parecer de outro sistema, os tokens do PRÓPRIO Django que pintam a área
+   de conteúdo (`--primary`, `--secondary`, `--link-fg`) saem do azul para a
+   família do acento. Nada de um segundo sistema de variáveis para o
+   conteúdo: os nomes são os do Django, e os valores é que mudam.
+
+   ## Especificidade
+
+   O `responsive.css` do Django carrega DEPOIS desta folha. Onde ele tem
+   regra para o mesmo elemento, as daqui levam `body` na frente para vencer
+   o empate — é o caso do topo e da barra nas larguras menores.
+   ------------------------------------------------------------------------ */
+
+:root {
+  --jd-shell-bg: #161826;
+  --jd-shell-surface: #232532;
+  --jd-shell-text: #e9e9ed;
+  --jd-shell-text-2: #e4e7f5;
+  --jd-shell-text-3: #cfd3e5;
+  --jd-shell-text-4: #b2b6ca;
+  --jd-shell-muted: #9397ab;
+  --jd-shell-faint: #75798c;
+  --jd-shell-thumb: #3f424d;
+  --jd-shell-divider: rgba(233, 233, 237, 0.16);
+  --jd-shell-hover: rgba(233, 233, 237, 0.07);
+  --jd-accent: #9184d9;
+  --jd-accent-200: #e7e5fe;
+  --jd-accent-300: #d2cefd;
+  --jd-accent-700: #5d5294;
+  --jd-accent-900: #2b2741;
+  --jd-accent-ring: rgba(145, 132, 217, 0.18);
+  --jd-accent-wash: rgba(145, 132, 217, 0.16);
+  --jd-radius-sm: 4px;
+  --jd-radius-md: 8px;
+  --jd-shell-shadow: 0 0 0 1px #595d6c, 0 6px 18px rgba(0, 0, 0, 0.55);
+  --jd-header-h: 52px;
+  --jd-sb-w: 275px; /* o que o Django reserva (`flex: 0 0 275px`) */
+
+  /* Ícones do shell: máscaras SVG, pintadas com `background-color`. */
+  --jd-ico-sidebar: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='5' width='18' height='14' rx='2'/><path d='M9 5v14'/></svg>");
+  --jd-ico-menu: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round'><path d='M4 7h16M4 12h16M4 17h16'/></svg>");
+  --jd-ico-close: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round'><path d='M6 6l12 12M18 6L6 18'/></svg>");
+  --jd-ico-caret: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M9 6l6 6-6 6'/></svg>");
+  --jd-ico-search: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239397ab' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='6.5'/><path d='M20 20l-4.2-4.2'/></svg>");
+
+  /* A área de conteúdo, em coerência com o shell: os tokens do Django. */
+  --primary: #9184d9;
+  --secondary: #5d5294;
+  --link-fg: #5d5294;
+  --link-hover-color: #2b2741;
+  --link-selected-fg: #5d5294;
+  --button-hover-bg: #4a4178;
+  --default-button-bg: #4a4178;
+  --default-button-hover-bg: #5d5294;
+  --font-family-primary: "Inter", "Segoe UI", system-ui, Roboto, "Helvetica Neue", Arial, sans-serif,
+    "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}
+
+/* O tema escuro do Django (`data-theme` ou o do sistema) redefine os tokens
+   acima; aqui eles voltam para a família do acento. O shell já é escuro. */
+html[data-theme="dark"] {
+  --primary: #9184d9;
+  --secondary: #5d5294;
+  --link-fg: #b7acf0;
+  --link-hover-color: #d2cefd;
+  --link-selected-fg: #b7acf0;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --primary: #9184d9;
+    --secondary: #5d5294;
+    --link-fg: #b7acf0;
+    --link-hover-color: #d2cefd;
+    --link-selected-fg: #b7acf0;
+  }
+}
+
+/* ---- 0. Botões de ícone do shell ----------------------------------------- */
+
+.jd-ibtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--jd-radius-md);
+  background: transparent;
+  color: var(--jd-shell-text-3);
+  cursor: pointer;
+}
+
+.jd-ibtn::before {
+  content: "";
+  width: 19px;
+  height: 19px;
+  background-color: currentColor;
+  -webkit-mask: var(--jd-ico) center / contain no-repeat;
+  mask: var(--jd-ico) center / contain no-repeat;
+}
+
+.jd-ibtn:hover {
+  background: var(--jd-shell-hover);
+  color: var(--jd-shell-text);
+}
+
+.jd-ibtn:active {
+  background: var(--jd-accent-wash);
+}
+
+.jd-ibtn:focus-visible {
+  outline: 2px solid var(--jd-accent);
+  outline-offset: 2px;
+}
+
+/* ---- 1. O topo ----------------------------------------------------------
+   Uma linha só, compacta: [menu] [marca] [trilha] … [Ver site] [tema]
+   [pessoa]. A trilha é o mesmo bloco `breadcrumbs` de sempre —
+   `base_site.html` só o desenha dentro do `<header>`. ------------------- */
+
+#header {
+  /* `#container` é uma coluna com `height: 100%`; com um `min-height` fixo
+     o topo poderia encolher abaixo do conteúdo em telas baixas. Não encolhe. */
+  flex-shrink: 0;
+  min-height: var(--jd-header-h);
+  padding: 0 12px 0 10px;
+  gap: 10px;
+  justify-content: flex-start;
+  background: var(--jd-shell-bg);
+  color: var(--jd-shell-text);
+  border-bottom: 1px solid var(--jd-shell-divider);
+}
+
+#header a:link,
+#header a:visited {
+  color: var(--jd-shell-text-3);
+}
+
+#header a:focus-visible,
+#header button:focus-visible {
+  outline: 2px solid var(--jd-accent);
+  outline-offset: 2px;
+}
+
+/* O botão de recolher do Django, agora no topo: sem a faixa de 23 px. */
+#header .toggle-nav-sidebar {
+  position: static;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border: 1px solid transparent;
+  border-right-color: transparent;
+  border-radius: var(--jd-radius-md);
+  background-color: transparent;
+  color: var(--jd-shell-text-3);
+  font-size: 0;
+  --jd-ico: var(--jd-ico-sidebar);
+}
+
+#header .toggle-nav-sidebar::before {
+  content: "";
+}
+
+#header .toggle-nav-sidebar:hover,
+#header .toggle-nav-sidebar:focus {
+  background-color: var(--jd-shell-hover);
+  color: var(--jd-shell-text);
+}
+
+/* O botão da gaveta, só no celular. */
+#jd-menu-open {
+  display: none;
+  --jd-ico: var(--jd-ico-menu);
+}
+
+#branding {
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+#site-name {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+#site-name a:link,
+#site-name a:visited {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  color: var(--jd-shell-text);
+  text-decoration: none;
+}
+
+#site-name a strong {
+  font-weight: 500;
+}
+
+#site-name a span {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--jd-shell-muted);
+}
+
+#site-name a:hover span {
+  color: var(--jd-accent-300);
+}
+
+/* A trilha, integrada ao topo: separada da marca por um fio, em texto menor. */
+.jd-crumbs {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  margin-left: 4px;
+  padding-left: 14px;
+  border-left: 1px solid var(--jd-shell-divider);
+  font-size: 13px;
+  color: var(--jd-shell-muted);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.jd-crumbs .breadcrumbs,
+.jd-crumbs ol.breadcrumbs,
+.jd-crumbs div.breadcrumbs {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 13px;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.jd-crumbs ol.breadcrumbs li {
+  font-size: 13px;
+}
+
+.jd-crumbs ol.breadcrumbs li:not([aria-current="page"])::after {
+  content: " \203A " / "";
+  color: var(--jd-shell-faint);
+}
+
+.jd-crumbs ol.breadcrumbs li[aria-current="page"] {
+  color: var(--jd-shell-muted);
+}
+
+.jd-crumbs .breadcrumbs a:link,
+.jd-crumbs .breadcrumbs a:visited {
+  color: var(--jd-shell-text-3);
+  text-decoration: none;
+}
+
+.jd-crumbs .breadcrumbs a:hover,
+.jd-crumbs .breadcrumbs a:focus {
+  color: var(--jd-accent);
+}
+
+/* As ações, à direita: «Ver o site», o tema e a pessoa. */
+#user-tools {
+  float: none;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin: 0 0 0 auto;
+  padding: 0;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+#user-tools a,
+#logout-form button {
+  border-bottom: 0;
+}
+
+#user-tools .jd-tool {
+  display: inline-flex;
+  align-items: center;
+  height: 34px;
+  margin: 0;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--jd-radius-md);
+  background: transparent;
+  color: var(--jd-shell-text-3);
+  font-family: var(--font-family-primary);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0;
+  text-transform: none;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+#user-tools .jd-tool:hover,
+#user-tools .jd-tool:focus {
+  margin-bottom: 0;
+  border-bottom: 0;
+  background: var(--jd-shell-hover);
+  color: var(--jd-shell-text);
+  text-decoration: none;
+}
+
+/* O botão de tema do Django, no mesmo molde dos botões de ícone. O símbolo
+   dele pinta um quadrado de fundo com `color` e o ícone com `fill`: o
+   quadrado leva a cor do topo (ou da superfície, no hover) para sumir. */
+#user-tools .theme-toggle,
+#branding .theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--jd-radius-md);
+  background: transparent;
+  color: var(--jd-shell-text-3);
+  cursor: pointer;
+}
+
+#user-tools .theme-toggle:hover,
+#branding .theme-toggle:hover {
+  background: var(--jd-shell-surface);
+}
+
+#user-tools .theme-toggle svg,
+#branding .theme-toggle svg {
+  width: 18px;
+  height: 18px;
+}
+
+#user-tools .theme-toggle svg.theme-icon-when-auto,
+#user-tools .theme-toggle svg.theme-icon-when-dark,
+#user-tools .theme-toggle svg.theme-icon-when-light,
+#branding .theme-toggle svg.theme-icon-when-auto,
+#branding .theme-toggle svg.theme-icon-when-dark,
+#branding .theme-toggle svg.theme-icon-when-light {
+  fill: var(--jd-shell-text-3);
+  color: var(--jd-shell-bg);
+}
+
+#user-tools .theme-toggle:hover svg.theme-icon-when-auto,
+#user-tools .theme-toggle:hover svg.theme-icon-when-dark,
+#user-tools .theme-toggle:hover svg.theme-icon-when-light,
+#branding .theme-toggle:hover svg.theme-icon-when-auto,
+#branding .theme-toggle:hover svg.theme-icon-when-dark,
+#branding .theme-toggle:hover svg.theme-icon-when-light {
+  fill: var(--jd-shell-text);
+  color: var(--jd-shell-surface);
+}
+
+/* A pessoa: o avatar abre um menu (`popover` nativo) com alterar senha e
+   sair — os mesmos links e o mesmo formulário do Django. */
+.jd-user {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 4px;
+}
+
+.jd-avatar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+}
+
+.jd-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--jd-accent-700);
+  border-radius: 50%;
+  background: var(--jd-accent-900);
+  color: var(--jd-accent-200);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.jd-avatar-btn:hover .jd-avatar,
+.jd-avatar-btn:focus-visible .jd-avatar {
+  border-color: var(--jd-accent);
+}
+
+.jd-user-menu {
+  position: fixed;
+  inset: auto;
+  top: calc(var(--jd-header-h) + 4px);
+  right: 10px;
+  min-width: 230px;
+  margin: 0;
+  padding: 6px;
+  border: 1px solid var(--jd-shell-divider);
+  border-radius: var(--jd-radius-md);
+  background: var(--jd-shell-surface);
+  color: var(--jd-shell-text);
+  box-shadow: var(--jd-shell-shadow);
+  font-family: var(--font-family-primary);
+}
+
+.jd-user-menu-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 4px;
+  padding: 8px 10px 10px;
+  border-bottom: 1px solid var(--jd-shell-divider);
+  line-height: 1.25;
+}
+
+.jd-user-menu-head > span:last-child {
+  display: flex;
+  flex-direction: column;
+}
+
+.jd-user-menu-head strong {
+  font-weight: 500;
+  color: var(--jd-shell-text);
+}
+
+.jd-user-menu-head small {
+  font-size: 11px;
+  color: var(--jd-shell-muted);
+}
+
+.jd-user-menu #logout-form {
+  display: block;
+}
+
+.jd-user-menu-item,
+.jd-user-menu #logout-form button.jd-user-menu-item {
+  display: flex;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: var(--jd-radius-sm);
+  background: transparent;
+  color: var(--jd-shell-text-2);
+  font-family: var(--font-family-primary);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1.2;
+  text-align: left;
+  text-transform: none;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.jd-user-menu-item:hover,
+.jd-user-menu-item:focus-visible,
+.jd-user-menu #logout-form button.jd-user-menu-item:hover,
+.jd-user-menu #logout-form button.jd-user-menu-item:active {
+  margin-bottom: 0;
+  border-bottom: 0;
+  background: var(--jd-shell-hover);
+  color: var(--jd-shell-text);
+  text-decoration: none;
+}
+
+#header .jd-user-menu-item:link,
+#header .jd-user-menu-item:visited {
+  color: var(--jd-shell-text-2);
+}
+
+/* ---- 2. O menu lateral --------------------------------------------------
+   Mesmo `#nav-sidebar` do Django, mesmas tabelas do `app_list.html`. Cada
+   caixa é uma seção com ícone e botão de acordeão; cada linha, um item com
+   o indicador do ativo; o «+ Adicionar» é um botão que aparece ao passar o
+   mouse. O botão de recolher saiu daqui para o topo, então o conteúdo
+   ganha os 23 px da faixa. ------------------------------------------------ */
+
+.main > #nav-sidebar + .content {
+  max-width: 100%;
+}
+
+.main.shifted > #nav-sidebar + .content {
+  max-width: calc(100% - var(--jd-sb-w) - 1px);
+}
+
+#nav-sidebar {
+  /* `border-box`: o Django reserva 275 px para a barra e calcula a largura
+     do conteúdo a partir disso; o respiro entra dentro. */
+  box-sizing: border-box;
+  padding: 0 8px 16px;
+  border-top: 0;
+  border-right: 1px solid var(--jd-shell-divider);
+  background-color: var(--jd-shell-bg);
+  color: var(--jd-shell-text);
+  scrollbar-width: thin;
+  scrollbar-color: var(--jd-shell-thumb) transparent;
+}
+
+#nav-sidebar::-webkit-scrollbar {
+  width: 8px;
+}
+
+#nav-sidebar::-webkit-scrollbar-thumb {
+  border-radius: 8px;
+  background: var(--jd-shell-thumb);
+}
+
+#nav-sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#nav-sidebar:focus {
+  outline: none;
+}
+
+/* A linha de topo, fixa enquanto a barra rola: busca e, no celular, fechar. */
+.jd-sb-top {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 -8px 8px;
+  padding: 8px 8px;
+  border-bottom: 1px solid var(--jd-shell-divider);
+  background: var(--jd-shell-bg);
+}
+
+.jd-sb-close {
+  display: none;
+  --jd-ico: var(--jd-ico-close);
+}
+
+/* A busca: caixa escura, lupa à esquerda, anel no foco. */
+#nav-filter {
+  flex: 1;
+  min-width: 0;
+  height: 36px;
+  margin: 0;
+  padding: 0 10px 0 32px;
+  border: 1px solid var(--jd-shell-divider);
+  border-radius: var(--jd-radius-md);
+  background: var(--jd-shell-surface) var(--jd-ico-search) 10px center / 15px 15px no-repeat;
+  color: var(--jd-shell-text);
+  font-family: var(--font-family-primary);
+  font-size: 13px;
+  caret-color: var(--jd-accent);
+}
+
+#nav-filter::placeholder {
+  color: var(--jd-shell-muted);
+}
+
+#nav-filter:hover {
+  border-color: rgba(233, 233, 237, 0.45);
+}
+
+#nav-filter:focus {
+  border-color: var(--jd-accent);
+  outline: none;
+  box-shadow: 0 0 0 3px var(--jd-accent-ring);
+}
+
+#nav-filter.no-results {
+  border-color: #8a3a4a;
+  background: #3a1f27 var(--jd-ico-search) 10px center / 15px 15px no-repeat;
+}
+
+/* Seções. */
+#nav-sidebar .module {
+  margin: 0 0 2px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+#nav-sidebar .module table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+/* O Django zebra as linhas de toda tabela (`tr:nth-child`); no menu não. */
+#nav-sidebar .module tr,
+#nav-sidebar .module tr:nth-child(odd),
+#nav-sidebar .module tr:nth-child(even) {
+  background: transparent;
+}
+
+#nav-sidebar .module caption {
+  position: relative;
+  margin: 2px 0;
+  padding: 0;
+  background: transparent;
+  color: var(--jd-shell-text-2);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-align: left;
+  text-transform: none;
+}
+
+/* O título é o botão do acordeão: ícone, nome, contagem implícita no
+   chevron. Os nomes chegam em caixa alta (config/admin.py); aqui se leem
+   como na referência («Pedidos», «Catálogo»). Só apresentação. */
+#nav-sidebar .jd-sec-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 36px;
+  margin: 0;
+  padding: 0 8px 0 36px;
+  border: 0;
+  border-radius: var(--jd-radius-sm);
+  background: transparent;
+  color: inherit;
+  font-family: var(--font-family-primary);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1.2;
+  text-align: left;
+  text-transform: none;
+  cursor: pointer;
+}
+
+#nav-sidebar .jd-sec-btn:hover {
+  background: var(--jd-shell-hover);
+}
+
+#nav-sidebar .jd-sec-btn:active {
+  background: var(--jd-accent-wash);
+}
+
+#nav-sidebar .jd-sec-btn:focus-visible {
+  outline: 2px solid var(--jd-accent);
+  outline-offset: -2px;
+}
+
+#nav-sidebar .module caption .section {
+  display: block;
+  flex: 1;
+  min-width: 0;
+  color: inherit;
+  font-weight: inherit;
+  text-transform: lowercase;
+}
+
+#nav-sidebar .module caption .section::first-letter {
+  text-transform: uppercase;
+}
+
+#nav-sidebar .jd-sec-chev {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  background-color: var(--jd-shell-muted);
+  -webkit-mask: var(--jd-ico-caret) center / contain no-repeat;
+  mask: var(--jd-ico-caret) center / contain no-repeat;
+  transition: transform 0.18s;
+}
+
+#nav-sidebar .jd-sec-btn[aria-expanded="true"] .jd-sec-chev {
+  transform: rotate(90deg);
+}
+
+#nav-sidebar .module.jd-collapsed tbody {
+  display: none;
+}
+
+/* Enquanto se filtra, tudo aberto e sem seção vazia. */
+#nav-sidebar.jd-filtering .module tbody {
+  display: table-row-group;
+}
+
+#nav-sidebar.jd-filtering .jd-sec-chev {
+  transform: rotate(90deg);
+}
+
+#nav-sidebar.jd-filtering .module.jd-empty,
+#nav-sidebar.jd-filtering tr.jd-grupo.jd-oculto {
+  display: none;
+}
+
+/* O ícone da seção: máscara SVG na cor do texto, acento quando a seção tem
+   o item ativo. Por seção (a classe `app-<slug>` do `app_list.html`), com
+   um genérico para o que sobrar. */
+#nav-sidebar .module caption::before {
+  content: "";
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  width: 17px;
+  height: 17px;
+  margin-top: -8.5px;
+  background-color: var(--jd-shell-text-4);
+  -webkit-mask: var(--jd-ico) center / contain no-repeat;
+  mask: var(--jd-ico) center / contain no-repeat;
+  pointer-events: none;
+  --jd-ico: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'><rect x='4' y='4' width='6.5' height='6.5' rx='1.5'/><rect x='13.5' y='4' width='6.5' height='6.5' rx='1.5'/><rect x='4' y='13.5' width='6.5' height='6.5' rx='1.5'/><rect x='13.5' y='13.5' width='6.5' height='6.5' rx='1.5'/></svg>");
+}
+
+#nav-sidebar .module:has(.current-model) caption::before {
+  background-color: var(--jd-accent);
+}
+
+#nav-sidebar .app-pedidos caption::before {
+  --jd-ico: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'><path d='M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.5L21 8H6'/><circle cx='9.5' cy='20' r='1'/><circle cx='17' cy='20' r='1'/></svg>");
+}
+
+#nav-sidebar .app-catalogo caption::before {
+  --jd-ico: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z'/><path d='M4 7.5l8 4.5 8-4.5M12 12v9'/></svg>");
+}
+
+#nav-sidebar .app-clientes caption::before {
+  --jd-ico: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'><circle cx='9' cy='8' r='3.5'/><path d='M2.5 20a6.5 6.5 0 0 1 13 0'/><path d='M16 5a3 3 0 0 1 0 6M18.5 20a6 6 0 0 0-3.5-5.5'/></svg>");
+}
+
+#nav-sidebar .app-entrega caption::before {
+  --jd-ico: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'><path d='M3 6h11v9H3zM14 9h4l3 3v3h-7z'/><circle cx='7' cy='17.5' r='1.8'/><circle cx='17' cy='17.5' r='1.8'/></svg>");
+}
+
+#nav-sidebar .app-home caption::before {
+  --jd-ico: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'><path d='M3 11l9-7 9 7'/><path d='M5 10v10h5v-6h4v6h5V10'/></svg>");
+}
+
+#nav-sidebar .app-configuracoes-da-loja caption::before {
+  --jd-ico: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='3.2'/><path d='M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1'/></svg>");
+}
+
+#nav-sidebar .app-equipe caption::before {
+  --jd-ico: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'><circle cx='9' cy='8' r='3.5'/><path d='M2.5 20a6.5 6.5 0 0 1 11-4.5'/><circle cx='18' cy='17' r='2.2'/><path d='M18 12.8v1.2M18 20v1.2M13.8 17h1.2M21 17h1.2'/></svg>");
+}
+
+/* Itens: o fio vertical que os liga à seção, o item como bloco clicável, o
+   indicador do ativo. As bordas de célula do Django somem. */
+#nav-sidebar .module th,
+#nav-sidebar .module td {
+  padding: 0;
+  border-bottom: 0;
+  background: transparent;
+  font-size: 13px;
+  line-height: 1.3;
+  vertical-align: middle;
+  overflow-wrap: anywhere;
+}
+
+#nav-sidebar .module th {
+  position: relative;
+  padding: 1px 0 1px 30px;
+  font-weight: 400;
+}
+
+#nav-sidebar .module th::before {
+  content: "";
+  position: absolute;
+  left: 18px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--jd-shell-divider);
+}
+
+#nav-sidebar .module tbody tr:last-child th {
+  padding-bottom: 6px;
+}
+
+#nav-sidebar .module th a {
+  position: relative;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box; /* o `min-height` conta o respiro: 32 px no total */
+  min-height: 32px;
+  padding: 6px 8px 6px 12px;
+  border-radius: var(--jd-radius-sm);
+  color: var(--jd-shell-text-2);
+  text-decoration: none;
+}
+
+#nav-sidebar .module th a:link,
+#nav-sidebar .module th a:visited {
+  color: var(--jd-shell-text-2);
+}
+
+#nav-sidebar .module th a:hover,
+#nav-sidebar .module th a:focus {
+  background: var(--jd-shell-hover);
+  color: var(--jd-shell-text-2);
+}
+
+#nav-sidebar .module th a:focus-visible {
+  outline: 2px solid var(--jd-accent);
+  outline-offset: -2px;
+}
+
+#nav-sidebar .current-model {
+  background: transparent;
+}
+
+#nav-sidebar .module th a[aria-current="page"],
+#nav-sidebar .current-model th a:link,
+#nav-sidebar .current-model th a:visited,
+#nav-sidebar .current-model th a:hover {
+  background: var(--jd-accent-900);
+  color: var(--jd-accent-200);
+}
+
+#nav-sidebar .current-model th a::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--jd-accent);
+}
+
+/* Subtítulos dentro da seção («1 · Faixa do topo») e itens recuados. */
+#nav-sidebar .module tr.jd-grupo th {
+  padding: 10px 8px 4px 40px;
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--jd-shell-muted);
+}
+
+#nav-sidebar .module tr.jd-sub th {
+  padding-left: 30px;
+}
+
+#nav-sidebar .module tr.jd-sub th::before {
+  content: "";
+}
+
+#nav-sidebar .module tr.jd-sub th a {
+  padding-left: 22px;
+}
+
+#nav-sidebar .module tr.jd-sub th a::before {
+  content: "\21B3";
+  margin-right: 6px;
+  color: var(--jd-shell-faint);
+  font-size: 12px;
+}
+
+/* O «+ Adicionar»: um botão de ícone, visível ao passar o mouse, no item
+   ativo e no foco do teclado. O texto continua no HTML para o leitor de
+   tela; só deixa de aparecer. */
+#nav-sidebar .module td {
+  width: 1%;
+  padding-right: 4px;
+  white-space: nowrap;
+}
+
+#nav-sidebar .addlink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--jd-accent-700);
+  border-radius: var(--jd-radius-sm);
+  background: none;
+  color: var(--jd-accent);
+  font-size: 0;
+  text-decoration: none;
+  opacity: 0;
+  transition: opacity 0.12s, background-color 0.12s;
+}
+
+#nav-sidebar .addlink::before {
+  content: "+";
+  font-size: 15px;
+  line-height: 1;
+}
+
+#nav-sidebar tr:hover .addlink,
+#nav-sidebar .current-model .addlink,
+#nav-sidebar .addlink:focus-visible {
+  opacity: 1;
+}
+
+#nav-sidebar .addlink:hover,
+#nav-sidebar .addlink:focus-visible {
+  background: var(--jd-accent-wash);
+  outline: none;
+}
+
+/* Um item escondido pelo filtro não deixa fio nem espaço. */
+#nav-sidebar .module tr[style*="display: none"] th::before {
+  display: none;
+}
+
+/* O véu da gaveta: só existe no celular. */
+.jd-sb-overlay {
+  display: none;
+}
+
+/* ---- 3. A área de conteúdo ----------------------------------------------
+   Continua clara e com a anatomia de sempre. O que muda vem dos tokens do
+   Django redefinidos no topo desta folha (captions, botões e links na
+   família do acento). Só um ajuste de respiro junto ao shell. ------------ */
+
+.main > .content {
+  padding-top: 0;
+}
+
+/* ---- 4. Larguras menores ------------------------------------------------
+   Até 1024 px o Django empilharia o topo; aqui ele continua numa linha,
+   com a trilha descendo para uma segunda linha no celular. Abaixo de
+   768 px a barra vira gaveta: fixa, com rolagem própria, véu por cima do
+   conteúdo e alvos de toque maiores. -------------------------------------- */
+
+@media (max-width: 1024px) {
+  body #header {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-start;
+    min-height: var(--jd-header-h);
+    padding: 0 12px 0 10px;
+  }
+
+  body #site-name {
+    margin: 0;
+    line-height: 1;
+  }
+
+  body #user-tools {
+    margin: 0 0 0 auto;
+    max-width: 100%;
+    line-height: 1;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    white-space: normal;
+  }
+
+  body #user-tools a {
+    display: inline-flex;
+    line-height: 1;
+  }
+
+  .jd-crumbs {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 767px) {
+  body #header {
+    min-height: 48px;
+    padding: 0 8px 0 6px;
+    gap: 4px 6px;
+  }
+
+  #jd-menu-open {
+    display: inline-flex;
+    width: 40px;
+    height: 40px;
+  }
+
+  #site-name a span {
+    display: none; /* «Administração» não cabe ao lado do botão e das ações */
+  }
+
+  .jd-crumbs {
+    order: 3;
+    flex-basis: 100%;
+    max-width: 100%;
+    margin: 0;
+    padding: 6px 4px 8px;
+    border-left: 0;
+    border-top: 1px solid var(--jd-shell-divider);
+  }
+
+  body #user-tools {
+    padding-bottom: 0;
+  }
+
+  #user-tools .jd-tool {
+    padding: 0 8px;
+  }
+
+  .jd-user-menu {
+    right: 6px;
+  }
+
+  /* A gaveta. O Django esconde a barra aqui (`display: none`); ela volta
+     como painel fixo, fechado até o botão do topo abri-lo. */
+  body #nav-sidebar {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 60;
+    width: min(320px, 88vw);
+    max-height: none;
+    margin: 0;
+    padding: 0 8px 24px;
+    border-right: 1px solid var(--jd-shell-divider);
+    overflow-y: auto;
+    visibility: hidden;
+    transform: translateX(-100%);
+    transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1), visibility 0s linear 0.22s;
+  }
+
+  /* O estado «aberto» do desktop (`.main.shifted`, guardado pelo Django no
+     localStorage) tem especificidade maior e deixaria a gaveta fechada
+     «visível» para o teclado e o leitor de tela, embora fora da tela. */
+  body .main > #nav-sidebar,
+  body .main.shifted > #nav-sidebar {
+    visibility: hidden;
+    margin: 0;
+  }
+
+  body.jd-menu-open .main > #nav-sidebar,
+  body.jd-menu-open .main.shifted > #nav-sidebar {
+    visibility: visible;
+    transform: none;
+    box-shadow: var(--jd-shell-shadow);
+    transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  body.jd-menu-open {
+    overflow: hidden;
+  }
+
+  body.jd-menu-open .jd-sb-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 55;
+    background: rgba(0, 0, 0, 0.55);
+  }
+
+  .jd-sb-close {
+    display: inline-flex;
+    width: 40px;
+    height: 40px;
+  }
+
+  .jd-sb-top {
+    padding: 8px 8px;
+  }
+
+  #nav-filter {
+    height: 40px;
+    font-size: 14px;
+  }
+
+  /* Alvos de toque: seção com 44 px, item com 40 px, «+» com 32 px. */
+  #nav-sidebar .jd-sec-btn {
+    min-height: 44px;
+    font-size: 14px;
+  }
+
+  #nav-sidebar .jd-sec-chev {
+    width: 16px;
+    height: 16px;
+  }
+
+  #nav-sidebar .module th a {
+    min-height: 40px;
+    padding: 8px 8px 8px 12px;
+    font-size: 14px;
+  }
+
+  #nav-sidebar .module tr.jd-grupo th {
+    padding-top: 12px;
+    padding-bottom: 6px;
+  }
+
+  #nav-sidebar .addlink {
+    width: 32px;
+    height: 32px;
+    opacity: 1; /* sem mouse não há hover: o botão fica sempre à vista */
+  }
+
+  /* Sem a faixa de recolher, o conteúdo usa a largura toda. */
+  .main > #nav-sidebar + .content,
+  .main.shifted > #nav-sidebar + .content {
+    max-width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body #nav-sidebar,
+  body.jd-menu-open #nav-sidebar,
+  #nav-sidebar .jd-sec-chev {
+    transition: none;
+  }
+}
