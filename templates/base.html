@@ -1,4 +1,4 @@
-{% load static i18n jdprint %}<!DOCTYPE html>
+{% load static i18n jdprint store_notices %}<!DOCTYPE html>
 <html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}" class="scroll-smooth">
 <head>
   <meta charset="utf-8">
@@ -34,10 +34,20 @@
       hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
   <a class="skip-link" href="#conteudo">{% translate "Ir para o conteúdo" %}</a>
 
+  {% comment %}
+    Os avisos da loja (CONFIGURAÇÕES DA LOJA › Comunicação › Avisos), nas
+    quatro posições fixas. A área da loja vem da rota; ver
+    `apps/storefront/notices.py`. «Abaixo do banner» abre o conteúdo nas
+    páginas sem banner — a Home redefine o bloco e o põe depois do banner.
+  {% endcomment %}
+  {% store_notices "top" %}
+
   {% include "components/header.html" %}
 
   <main id="conteudo" class="flex-1">
+    {% block notices_below_banner %}{% store_notices "below_banner" %}{% endblock %}
     {% block content %}{% endblock %}
+    {% store_notices "after_content" %}
   </main>
 
   {% include "components/footer.html" %}
@@ -48,6 +58,8 @@
     Avisos curtos. Sem JavaScript chegam pelas mensagens do Django; com HTMX,
     por troca "out of band" nesta mesma região.
   {% endcomment %}
+  {% store_notices "corner" %}
+
   <div id="toast-region" class="toast-region">
     {% if messages %}
       {% for message in messages %}
@@ -58,6 +70,7 @@
 
   <script src="{% static_versioned 'vendor/htmx.min.js' %}" defer></script>
   <script src="{% static_versioned 'js/app.js' %}" defer></script>
+  <script src="{% static_versioned 'js/notices.js' %}" defer></script>
   {% block extra_scripts %}{% endblock %}
 </body>
 </html>

@@ -421,7 +421,10 @@ class HomeQueryTests(TestCase):
         # seções — que só rodam quando há seção daquele tipo. Nesta Home só há
         # uma seção de produtos, então o que se paga é a seção, as traduções e
         # o `exists()` que decide se a composição está cadastrada.
-        with self.assertNumQueries(39):
+        #
+        # 40 com os avisos da loja: uma consulta para os avisos ligados (as
+        # traduções só são lidas quando há algum). Ver `apps/storefront/notices.py`.
+        with self.assertNumQueries(40):
             self.client.get(HOME_PT)
 
     def test_query_count_does_not_grow_with_more_content(self):

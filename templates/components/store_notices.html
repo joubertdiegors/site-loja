@@ -1,0 +1,49 @@
+{% load i18n jdprint %}
+{% comment %}
+Os avisos da loja numa posição (`{% store_notices "posição" %}`).
+
+O mesmo HTML nas quatro posições; o desenho é da classe da posição, em
+`static/src/input.css` (bloco "Avisos da loja"):
+
+* `top` — faixa fina roxa, acima do cabeçalho, de ponta a ponta;
+* `below_banner` — faixa de destaque no fluxo da página, na largura do conteúdo;
+* `after_content` — a mesma faixa, mais discreta, antes do rodapé;
+* `corner` — card flutuante no canto, como uma mensagem de chat. Vários
+  avisos no canto não se empilham na tela: aparece um por vez (o primeiro na
+  ordem do Admin), e fechar dá lugar ao seguinte.
+
+Nada aqui é HTML vindo do Admin: título, mensagem e texto do link são
+escapados, e o link só existe se passou por `safe_notice_link`.
+
+O X (`data-notice-close`) é um botão de verdade, com nome para o leitor de
+tela; `static/js/notices.js` o faz funcionar e grava o fechamento no cookie
+que o servidor lê na página seguinte.
+{% endcomment %}
+{% if items %}
+  <div class="notices notices-{{ position }}"{% if position == "corner" %} data-notice-stack{% endif %}>
+    {% for item in items %}
+      <aside class="notice"
+             data-notice="{{ item.notice.pk }}" data-notice-version="{{ item.version }}"
+             {% if item.title %}aria-labelledby="aviso-{{ item.notice.pk }}-titulo"{% else %}aria-label="{% translate 'Aviso' %}"{% endif %}>
+        {% if position != "top" %}
+          <span class="notice-icon" aria-hidden="true">{% icon "sparkles" "h-4 w-4" %}</span>
+        {% endif %}
+        <p class="notice-text">
+          {% if item.title %}<strong class="notice-title" id="aviso-{{ item.notice.pk }}-titulo">{{ item.title }}</strong>{% endif %}
+          <span class="notice-message">{{ item.message }}</span>
+        </p>
+        {% if item.href %}
+          <a class="notice-link focus-ring" href="{{ item.href }}">
+            {{ item.link_label|default:_("Saiba mais") }}
+            {% icon "arrow-right" "h-3.5 w-3.5 rtl:rotate-180" %}
+          </a>
+        {% endif %}
+        {% if item.notice.dismissible %}
+          <button type="button" class="notice-close focus-ring" data-notice-close aria-label="{% translate 'Fechar aviso' %}">
+            {% icon "close" "h-4 w-4" %}
+          </button>
+        {% endif %}
+      </aside>
+    {% endfor %}
+  </div>
+{% endif %}

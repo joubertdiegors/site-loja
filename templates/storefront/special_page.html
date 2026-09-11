@@ -1,4 +1,4 @@
-{% load i18n static jdprint %}<!DOCTYPE html>
+{% load i18n static jdprint store_notices %}<!DOCTYPE html>
 {% comment %}
 A página de manutenção ou de lançamento — a que fecha a loja.
 
@@ -30,6 +30,14 @@ está ativa — o que já estava indexado volta quando a loja reabre.
   {% if favicon_url %}<link rel="icon" href="{{ favicon_url }}">{% endif %}
 </head>
 <body class="sp-body" style="{{ page.style }}">
+
+  {% comment %}
+    Os avisos gerais da loja que o Admin marcou para esta área («Página de
+    manutenção ou de lançamento»). A página especial não sabe que avisos
+    existem, e o aviso não sabe que página especial está no ar: esta página é
+    só mais uma área da loja, com o nome dela passado aqui.
+  {% endcomment %}
+  {% store_notices "top" page="special" %}
 
   <header class="sp-header">
     <a class="sp-logo" href="{{ page.logo_url|default:'/' }}">
@@ -65,7 +73,7 @@ está ativa — o que já estava indexado volta quando a loja reabre.
           lugar, sem mexer na altura — nada abaixo se move.
         {% endcomment %}
         {% if page.has_countdown %}
-          <div class="sp-count" data-countdown data-launch-at="{{ launch_at_iso }}"{% if launched %} data-done{% endif %}
+          <div class="sp-count" data-countdown data-launch-at="{{ launch_at_iso }}" data-server-now="{{ server_now_iso }}"{% if home_url %} data-home-url="{{ home_url }}"{% endif %}{% if launched %} data-done{% endif %}
                role="timer" aria-live="off" aria-label="{% translate 'Contagem regressiva para o lançamento' %}">
             <div class="sp-count-boxes">
               <div><b data-count-d>00</b><small>{% translate "dias" %}</small></div>
@@ -169,7 +177,10 @@ está ativa — o que já estava indexado volta quando a loja reabre.
       </section>
 
     {% endif %}
+    {% store_notices "below_banner" page="special" %}
   </main>
+
+  {% store_notices "after_content" page="special" %}
 
   <footer class="sp-footer">
     <span>{{ page.footer_text }}</span>
@@ -182,6 +193,8 @@ está ativa — o que já estava indexado volta quando a loja reabre.
     {% endif %}
   </footer>
 
+  {% store_notices "corner" page="special" %}
+
   {% if preview %}
     <a class="sp-preview-bar" href="{% url 'admin:storefront_specialpage_change' page.pk %}">
       {% translate "Pré-visualização" %} · {{ page.internal_name }} · {% translate "voltar ao Admin" %}
@@ -189,5 +202,6 @@ está ativa — o que já estava indexado volta quando a loja reabre.
   {% endif %}
 
   {% if page.has_countdown %}<script src="{% static_versioned 'js/special_page.js' %}" defer></script>{% endif %}
+  <script src="{% static_versioned 'js/notices.js' %}" defer></script>
 </body>
 </html>

@@ -26,12 +26,15 @@ onde o banner e as seções já viviam.
   o título dela é cadastrado.
 """
 
+import hashlib
+import re
 from datetime import datetime
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator, MaxValueValidator
 from django.db import IntegrityError, models, transaction
+from django.db.models import prefetch_related_objects
 from django.db.models.functions import Lower
 from django.utils import timezone
 from django.utils.html import escape
@@ -862,12 +865,19 @@ def shadow_for(value: str, default: str) -> str:
 
 class SpecialPageQuerySet(models.QuerySet):
     def current(self):
-        """A página ativa, com tudo o que o template lê — ou ``None``."""
-        return (
-            self.filter(is_active=True)
-            .prefetch_related("translations", "benefits__translations")
-            .first()
-        )
+        """A página que responde agora, com tudo o que o template lê — ou ``None``.
+
+        Ativa **e em vigor**: um lançamento cuja hora já chegou não responde
+        mais, mesmo continuando marcado como ativo (ver
+        `SpecialPage.launch_is_over`). As traduções só são lidas depois dessa
+        conferência: depois do lançamento cada requisição custa uma consulta,
+        a mesma de quando não há página nenhuma.
+        """
+        page = self.filter(is_active=True).first()
+        if page is None or page.launch_is_over:
+            return None
+        prefetch_related_objects([page], "translations", "benefits__translations")
+        return page
 
 
 class SpecialPage(TranslatableMixin, TimeStampedModel):
@@ -1091,6 +1101,22 @@ class SpecialPage(TranslatableMixin, TimeStampedModel):
     def is_launched(self) -> bool:
         instante = self.launch_at
         return instante is not None and instante <= timezone.now()
+
+    @property
+    def launch_is_over(self) -> bool:
+        """O lançamento terminou: a hora chegou, e a loja abre sozinha.
+
+        Nada desliga o `is_active` — nenhuma tarefa agendada, nenhum cron. A
+        página continua marcada como ativa no Admin, mas deixa de responder:
+        `SpecialPageQuerySet.current()` a ignora, o middleware entrega o site
+        e o formulário de aviso leva para a Home. A comparação é entre
+        instantes com fuso (`launch_at` no fuso do cadastro contra
+        `timezone.now()`), então não depende do relógio de ninguém.
+
+        Só vale para lançamento com data. Manutenção não tem hora para acabar,
+        e um lançamento sem data fica no ar até alguém o desligar — como antes.
+        """
+        return self.is_launch and self.is_launched
 
     @property
     def status_text(self) -> str:
@@ -1363,3 +1389,227 @@ class LaunchSubscriber(TimeStampedModel):
             # Duas inscrições do mesmo endereço no mesmo instante: a segunda
             # encontra a primeira, e ninguém vê erro.
             return cls.objects.get(email__iexact=normalizado), False
+
+
+# ---------------------------------------------------------------------------
+# Avisos da loja
+# ---------------------------------------------------------------------------
+#
+# Um recurso geral: uma frase curta que a loja quer que o cliente veja —
+# uma promoção, um prazo de entrega de fim de ano, uma mudança de horário.
+# Não depende de nenhuma outra parte do cadastro: nem da página especial,
+# nem do lançamento, nem das regras de frete. O texto é livre.
+#
+# **Onde** (`pages`) usa as áreas que as rotas da loja já definem — o
+# namespace de cada `urls.py` (`home`, `catalog`, `cart`, `accounts`...), ver
+# `apps/storefront/notices.py`. Uma área nova é uma entrada em `NoticePage` e
+# uma linha no mapa de rotas, não um campo novo por página.
+#
+# **Como** (`position`) é uma lista fechada: cada posição tem o seu desenho
+# em `static/src/input.css` (bloco "Avisos da loja"). Nada de CSS livre no
+# Admin — um aviso nunca cobre o cabeçalho nem o botão de comprar.
+# ---------------------------------------------------------------------------
+
+
+class NoticePosition(models.TextChoices):
+    BELOW_BANNER = "below_banner", "Abaixo do banner — faixa de destaque no fluxo da página"
+    TOP = "top", "Topo da página — faixa fina acima do cabeçalho"
+    AFTER_CONTENT = "after_content", "Após o conteúdo principal — discreto, antes do rodapé"
+    CORNER = "corner", "Canto inferior direito — card flutuante, como uma mensagem"
+
+
+class NoticePage(models.TextChoices):
+    HOME = "home", "Home"
+    CATALOG = "catalog", "Catálogo, categorias e busca"
+    PRODUCT = "product", "Páginas de produto"
+    CART = "cart", "Carrinho"
+    CHECKOUT = "checkout", "Finalização da compra"
+    ACCOUNT = "account", "Conta do cliente, pedidos e favoritos"
+    INSTITUTIONAL = "institutional", "Páginas institucionais e contato"
+    SPECIAL = "special", "Página de manutenção ou de lançamento (enquanto estiver ativa)"
+
+
+def default_notice_pages() -> list:
+    """Um aviso novo nasce na Home — o lugar em que ele mais é visto."""
+    return [NoticePage.HOME.value]
+
+
+def validate_notice_pages(value) -> None:
+    if not isinstance(value, list) or not value:
+        raise ValidationError("Escolha pelo menos uma página.", code="sem_pagina")
+    desconhecidas = [pagina for pagina in value if pagina not in NoticePage.values]
+    if desconhecidas:
+        raise ValidationError(
+            "Página desconhecida: %(paginas)s.",
+            code="pagina_desconhecida",
+            params={"paginas": ", ".join(map(str, desconhecidas))},
+        )
+
+
+#: Os começos de endereço que um link de aviso pode ter — os mesmos do rodapé.
+NOTICE_LINK_PREFIXES = ("/", "http://", "https://", "mailto:", "tel:")
+
+
+def safe_notice_link(url: str) -> str:
+    """O link, se ele for seguro — senão ``""``.
+
+    Espaços e quebras no meio do esquema («java\nscript:») são o truque de
+    sempre: somem antes da comparação. `//outro-site` também fica de fora —
+    parece um caminho interno, mas o navegador o lê como outro domínio.
+    """
+    endereco = (url or "").strip()
+    comparavel = re.sub(r"\s+", "", endereco).lower()
+    if not comparavel or comparavel.startswith("//"):
+        return ""
+    return endereco if comparavel.startswith(NOTICE_LINK_PREFIXES) else ""
+
+
+class StoreNoticeQuerySet(models.QuerySet):
+    def for_display(self):
+        """Os avisos ligados, na ordem do Admin, com as traduções."""
+        return self.filter(is_active=True).order_by("sort_order", "id").prefetch_related("translations")
+
+
+class StoreNotice(TranslatableMixin, TimeStampedModel):
+    """Um aviso da loja: título opcional, mensagem, link opcional — por idioma."""
+
+    translatable_fields = ("title", "message", "link_label")
+
+    # -- exibição -----------------------------------------------------------------
+    is_active = models.BooleanField(
+        "ativo", default=True, help_text="Desligado, o aviso some da loja. Nada é apagado.",
+    )
+    dismissible = models.BooleanField(
+        "permitir fechar",
+        default=True,
+        help_text=(
+            "Mostra um X. Quem fecha não vê mais este aviso ao navegar — até ele ser "
+            "alterado: um texto ou link novo volta a aparecer para todos."
+        ),
+    )
+    sort_order = models.PositiveIntegerField(
+        "ordem",
+        default=0,
+        help_text=(
+            "Menor aparece primeiro. Na mesma posição, as faixas se empilham nesta "
+            "ordem; no canto aparece um card por vez — fechado, dá lugar ao seguinte."
+        ),
+    )
+
+    # -- onde ------------------------------------------------------------------------
+    pages = models.JSONField(
+        "onde exibir",
+        default=default_notice_pages,
+        validators=[validate_notice_pages],
+        help_text="As áreas da loja em que o aviso aparece.",
+    )
+    position = models.CharField(
+        "posição",
+        max_length=20,
+        choices=NoticePosition.choices,
+        default=NoticePosition.BELOW_BANNER,
+        help_text=(
+            "Abaixo do banner é a faixa de destaque da Home; nas páginas sem banner, "
+            "ela abre o conteúdo, logo abaixo do cabeçalho."
+        ),
+    )
+
+    # -- link ------------------------------------------------------------------------
+    link_url = models.CharField(
+        "link",
+        max_length=500,
+        blank=True,
+        help_text=(
+            "Opcional. Um caminho da loja (/modelos/), um endereço completo (https://…), "
+            "mailto: ou tel:. Sem link, o aviso é só texto."
+        ),
+    )
+
+    objects = StoreNoticeQuerySet.as_manager()
+
+    class Meta:
+        verbose_name = "aviso"
+        verbose_name_plural = "AVISOS — faixas e cards da loja"
+        ordering = ("sort_order", "id")
+
+    def __str__(self) -> str:
+        return self.tr("message", language=DEFAULT_LANGUAGE.value) or f"aviso #{self.pk}"
+
+    def clean(self):
+        super().clean()
+        erros = {}
+        if (self.link_url or "").strip() and not safe_notice_link(self.link_url):
+            erros["link_url"] = ValidationError(
+                "Use um caminho da loja (/algo), http/https, mailto: ou tel:.", code="link_inseguro"
+            )
+        if self.position == NoticePosition.CORNER and not self.dismissible:
+            erros["dismissible"] = ValidationError(
+                "O card do canto sempre pode ser fechado: no celular ele fica sobre o conteúdo.",
+                code="canto_sem_fechar",
+            )
+        if erros:
+            raise ValidationError(erros)
+
+    # -- leitura -------------------------------------------------------------------
+
+    def display_translation(self, language: str | None = None):
+        """A linha de tradução que aparece — inteira, de um idioma só.
+
+        O mesmo caminho de `tr` (o idioma de quem lê, depois o português,
+        depois qualquer outro), mas escolhendo a LINHA, e não campo a campo:
+        título, mensagem e texto do link saem do mesmo idioma. Um título em
+        português sobre uma mensagem em francês seria pior que nenhum título.
+        """
+        if self.pk is None:
+            return None
+        from apps.core.i18n import get_content_language
+
+        tabela = self.translations_by_language()
+        for codigo in [language or get_content_language(), DEFAULT_LANGUAGE.value, *sorted(tabela)]:
+            linha = tabela.get(codigo)
+            if linha is not None and linha.message:
+                return linha
+        return None
+
+    @property
+    def href(self) -> str:
+        return safe_notice_link(self.link_url)
+
+    @property
+    def version(self) -> str:
+        """Uma impressão do conteúdo: muda quando o texto, o link ou a posição mudam.
+
+        É o que o fechamento guarda. Fechar a versão de hoje não esconde a de
+        amanhã: o Admin reescreve a frase, a impressão muda, o aviso volta.
+        Ligar e desligar, reordenar ou mudar as páginas não muda o conteúdo —
+        quem fechou continua sem ver.
+        """
+        partes = [self.link_url or "", self.position or ""]
+        for linha in sorted(self.translations.all(), key=lambda item: item.language):
+            partes += [linha.language, linha.title, linha.message, linha.link_label]
+        return hashlib.sha1("\x1f".join(partes).encode("utf-8")).hexdigest()[:10]
+
+
+class StoreNoticeTranslation(TranslationBase):
+    master = models.ForeignKey(
+        StoreNotice, verbose_name="aviso", related_name="translations", on_delete=models.CASCADE
+    )
+    title = models.CharField(
+        "título", max_length=80, blank=True, help_text="Opcional. Sai em negrito, antes da mensagem.",
+    )
+    message = models.CharField(
+        "mensagem", max_length=240, help_text="O texto do aviso. Curto: uma ou duas frases.",
+    )
+    link_label = models.CharField(
+        "texto do link",
+        max_length=40,
+        blank=True,
+        help_text="Opcional. Só aparece se o aviso tiver link; vazio, o link diz «Saiba mais».",
+    )
+
+    class Meta:
+        verbose_name = "tradução do aviso"
+        verbose_name_plural = "traduções do aviso"
+        constraints = [
+            models.UniqueConstraint(fields=["master", "language"], name="uq_storenotice_translation"),
+        ]

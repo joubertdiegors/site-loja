@@ -43,10 +43,14 @@ from apps.storefront.models import (
     InstitutionalPage,
     InstitutionalPageTranslation,
     LaunchSubscriber,
+    NoticePage,
+    NoticePosition,
     SpecialPage,
     SpecialPageBenefit,
     SpecialPageBenefitTranslation,
     SpecialPageTranslation,
+    StoreNotice,
+    StoreNoticeTranslation,
     TIMEZONE_CHOICES,
     TopBarItem,
     TopBarItemTranslation,
@@ -601,6 +605,8 @@ class SpecialPageAdmin(LivePreviewMixin, admin.ModelAdmin):
                 "fields": (("launch_date", "launch_time", "launch_timezone"), ("show_countdown", "show_form")),
                 "description": (
                     "A contagem é calculada no navegador do visitante a partir desta data. "
+                    "Na hora marcada a loja abre sozinha: a página continua ativa aqui, mas "
+                    "o visitante passa a ver o site. "
                     "Os e-mails deixados no formulário ficam em «Inscritos»."
                 ),
             },
@@ -642,6 +648,9 @@ class SpecialPageAdmin(LivePreviewMixin, admin.ModelAdmin):
 
     @admin.display(description="ativa", ordering="is_active")
     def ativa(self, obj):
+        if obj.is_active and obj.launch_is_over:
+            # Ativa, mas a hora chegou: o site já está aberto para o visitante.
+            return mark_safe('<span style="color:#8a8399">● lançado — site aberto</span>')
         if obj.is_active:
             return mark_safe('<span style="color:#2e7d32;font-weight:700">● no ar</span>')
         return mark_safe('<span style="color:#8a8399">○</span>')
@@ -823,3 +832,93 @@ class LaunchSubscriberAdmin(admin.ModelAdmin):
                 inscrito.created_at.isoformat(timespec="seconds"),
             ])
         return response
+
+
+# ---------------------------------------------------------------------------
+# Avisos da loja
+# ---------------------------------------------------------------------------
+
+
+class StoreNoticeForm(PartialSafeModelForm):
+    """«Onde exibir» em caixas de marcar e a posição em opções: nada de valor livre."""
+
+    pages = forms.MultipleChoiceField(
+        label="Onde exibir",
+        choices=NoticePage.choices,
+        widget=forms.CheckboxSelectMultiple,
+        help_text="Marque as áreas da loja em que o aviso aparece.",
+    )
+    position = forms.ChoiceField(
+        label="Posição",
+        choices=NoticePosition.choices,
+        widget=forms.RadioSelect,
+        help_text=StoreNotice._meta.get_field("position").help_text,
+    )
+
+    class Meta:
+        model = StoreNotice
+        fields = "__all__"
+
+
+class StoreNoticeTranslationInline(admin.StackedInline):
+    """Um bloco por idioma — qualquer idioma do conteúdo, oferecido na loja ou não."""
+
+    model = StoreNoticeTranslation
+    formset = RequiredDefaultLanguageInlineFormSet
+    extra = 0
+    fields = (("language", "title"), "message", "link_label")
+    verbose_name = "texto por idioma"
+    verbose_name_plural = (
+        "TEXTOS — um bloco por idioma (o português é obrigatório e é o que aparece "
+        "quando falta o idioma do visitante)"
+    )
+
+
+@admin.register(StoreNotice)
+class StoreNoticeAdmin(admin.ModelAdmin):
+    form = StoreNoticeForm
+    inlines = [StoreNoticeTranslationInline]
+    list_display = ("mensagem_pt", "posicao", "onde", "is_active", "dismissible", "sort_order")
+    list_display_links = ("mensagem_pt",)
+    list_editable = ("is_active", "sort_order")
+    list_filter = ("is_active", "position")
+    ordering = ("sort_order", "id")
+    readonly_fields = ("created_at", "updated_at")
+    fieldsets = (
+        (
+            "EXIBIÇÃO",
+            {
+                "fields": (("is_active", "dismissible", "sort_order"),),
+                "description": (
+                    "Um aviso chama a atenção sem impedir a navegação: nunca é uma janela "
+                    "que bloqueia a página. Vários avisos na mesma posição seguem a ordem — "
+                    "as faixas se empilham; no canto, aparece um card por vez."
+                ),
+            },
+        ),
+        ("ONDE EXIBIR", {"fields": ("pages", "position")}),
+        (
+            "LINK",
+            {
+                "fields": ("link_url",),
+                "description": "Opcional. O texto do link fica no bloco de cada idioma.",
+            },
+        ),
+        ("AUDITORIA", {"classes": ("collapse",), "fields": ("created_at", "updated_at")}),
+    )
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).prefetch_related("translations")
+
+    @admin.display(description="mensagem (pt)")
+    def mensagem_pt(self, obj):
+        return obj.tr("message", language=DEFAULT_LANGUAGE.value, fallback=False) or "—"
+
+    @admin.display(description="posição", ordering="position")
+    def posicao(self, obj):
+        return obj.get_position_display().split(" — ")[0]
+
+    @admin.display(description="onde")
+    def onde(self, obj):
+        nomes = dict(NoticePage.choices)
+        return ", ".join(nomes.get(area, area).split(" (")[0] for area in (obj.pages or [])) or "—"

@@ -358,15 +358,22 @@ class LaunchActiveTests(SpecialPageBase):
         with open("static/js/special_page.js", encoding="utf-8") as script:
             self.assertNotIn("new Date('", script.read())
 
-    def test_countdown_in_the_past_renders_the_done_state(self):
+    def test_countdown_in_the_past_opens_the_store(self):
+        """Hora passada: o visitante recebe o site, e não o estado final da contagem.
+
+        O estado final continua existindo — na pré-visualização do Admin e no
+        instante em que o script zera (ver `test_launch_end.py`).
+        """
         self.page.launch_date = date(2020, 1, 1)
         self.page.save()
 
-        html = self.client.get("/").content.decode()
+        response = self.client.get("/")
+        html = response.content.decode()
 
-        self.assertIn("data-done", html)
-        self.assertIn("Já lançamos!", html)
-        self.assertNotIn("data-countdown-done hidden", html)
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn("sp-poster", html)
+        self.assertNotIn("data-countdown", html)
+        self.assertNotIn("Já lançamos!", html)
 
     def test_countdown_hidden_when_switched_off(self):
         self.page.show_countdown = False

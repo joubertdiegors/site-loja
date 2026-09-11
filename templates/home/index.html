@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load i18n jdprint %}
+{% load i18n jdprint store_notices %}
 
 {% comment %}
 Home.
@@ -23,10 +23,15 @@ fixo: uma instalação recém-migrada abre completa, e o primeiro cadastro os
 substitui.
 {% endcomment %}
 
+{# Na Home, a faixa «abaixo do banner» fica mesmo abaixo do banner (ver `content`). #}
+{% block notices_below_banner %}{% endblock %}
+
 {% block content %}
 
   {# O banner — ou o carrossel deles, quando há mais de um ativo. #}
   {% include "components/banner_carousel.html" %}
+
+  {% store_notices "below_banner" %}
 
   {% comment %}
     A faixa de atalhos de categoria que ficava aqui foi retirada da Home.

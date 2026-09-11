@@ -853,6 +853,172 @@
   .toast-error {
     @apply bg-state-error text-white;
   }
+
+  /* ---- Avisos da loja ----------------------------------------------------
+     CONFIGURAÇÕES DA LOJA › Comunicação › Avisos. Quatro posições fechadas;
+     o HTML é um só (`components/store_notices.html`) e o desenho de cada
+     posição é daqui. Nenhuma é janela modal: o aviso chama a atenção sem
+     impedir a navegação, e as faixas ficam no fluxo — empurram o conteúdo,
+     nunca o cobrem.
+
+     A loja não tem tema escuro: as cores são explícitas, e o aviso sai igual
+     com o sistema do visitante no claro ou no escuro, como o resto da página. */
+  .notices {
+    @apply flex flex-col gap-3;
+  }
+
+  .notice {
+    @apply relative grid items-center gap-x-3 gap-y-2 text-sm leading-snug;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+  }
+
+  .notice-icon {
+    @apply flex h-8 w-8 shrink-0 items-center justify-center rounded-pill bg-brand-600 text-white;
+  }
+
+  .notice-title {
+    @apply font-ui-strong;
+  }
+
+  .notice-link {
+    @apply inline-flex items-center gap-1.5 justify-self-start whitespace-nowrap rounded-pill font-ui-strong;
+  }
+
+  /* O X: 36px de alvo (32px na faixa fina), com o nome no `aria-label`. */
+  .notice-close {
+    @apply inline-flex h-9 w-9 items-center justify-center rounded-pill transition-colors;
+  }
+
+  /* Topo: faixa fina roxa, de ponta a ponta, acima do cabeçalho. */
+  .notices-top {
+    @apply gap-0;
+  }
+
+  .notices-top .notice {
+    @apply flex flex-wrap justify-center gap-x-3 gap-y-1 bg-brand-600 px-12 py-2 text-center text-[13px] text-white;
+  }
+
+  .notices-top .notice + .notice {
+    border-top: 1px solid rgb(255 255 255 / 0.16);
+  }
+
+  .notices-top .notice-link {
+    @apply text-yellow-500 underline underline-offset-4 hover:text-white;
+  }
+
+  .notices-top .notice-close {
+    @apply absolute end-2 top-1/2 h-8 w-8 -translate-y-1/2 text-white/80 hover:bg-white/10 hover:text-white;
+  }
+
+  /* Abaixo do banner: a faixa de destaque, no fluxo e na largura do conteúdo. */
+  .notices-below_banner {
+    @apply mx-auto w-full max-w-7xl px-4 pb-4 pt-6 sm:px-6 lg:px-8;
+  }
+
+  .notices-below_banner .notice {
+    @apply rounded-card border border-brand-200 bg-surface-brand px-4 py-3 text-ink shadow-card sm:px-5;
+  }
+
+  .notices-below_banner .notice-link {
+    @apply bg-brand-600 px-4 py-2 text-[13px] text-white transition-colors hover:bg-brand-700;
+  }
+
+  .notices-below_banner .notice-close {
+    @apply text-ink-soft hover:bg-white hover:text-brand-700;
+  }
+
+  /* Após o conteúdo: a mesma faixa, mais quieta — branca, antes do rodapé. */
+  .notices-after_content {
+    @apply mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8;
+  }
+
+  .notices-after_content .notice {
+    @apply rounded-card border border-surface-line bg-white px-4 py-3 text-ink-soft sm:px-5;
+  }
+
+  .notices-after_content .notice-icon {
+    @apply bg-brand-100 text-brand-700;
+  }
+
+  .notices-after_content .notice-title {
+    @apply text-ink;
+  }
+
+  .notices-after_content .notice-link {
+    @apply text-brand-700 underline underline-offset-4 hover:text-brand-800;
+  }
+
+  .notices-after_content .notice-close {
+    @apply text-ink-muted hover:bg-brand-50 hover:text-brand-700;
+  }
+
+  /* Canto: um card flutuante, com o canto de balão de conversa. Vários avisos
+     no canto não se empilham na tela: aparece o primeiro da ordem, e fechá-lo
+     dá lugar ao seguinte. */
+  .notices-corner {
+    @apply fixed bottom-4 end-4 z-40 w-[min(22rem,calc(100vw-2rem))];
+  }
+
+  .notices-corner .notice {
+    @apply items-start rounded-[22px] rounded-ee-md border border-surface-line bg-white p-4 pe-12 text-ink shadow-lift;
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .notices-corner .notice + .notice {
+    display: none;
+  }
+
+  .notices-corner .notice-title {
+    @apply block;
+  }
+
+  .notices-corner .notice-link {
+    @apply text-brand-700 underline underline-offset-4 hover:text-brand-800;
+    grid-column: 2;
+  }
+
+  .notices-corner .notice-close {
+    @apply absolute end-2 top-2 text-ink-muted hover:bg-brand-50 hover:text-brand-700;
+  }
+
+  /* O fim da página nunca fica embaixo do card: o rodapé ganha o espaço dele. */
+  body:has(.notices-corner .notice) .site-footer,
+  body:has(.notices-corner .notice) .sp-footer {
+    padding-bottom: 8rem;
+  }
+
+  /* Celular: a faixa ocupa a largura toda e o link desce para baixo do texto;
+     o card do canto vira uma faixa flutuante de margem a margem, com o X no
+     mesmo lugar. */
+  @media (max-width: 639px) {
+    .notices-below_banner .notice,
+    .notices-after_content .notice {
+      grid-template-columns: auto minmax(0, 1fr) auto;
+    }
+
+    .notices-below_banner .notice-link,
+    .notices-after_content .notice-link {
+      grid-column: 2;
+      grid-row: 2;
+    }
+
+    .notices-below_banner .notice-close,
+    .notices-after_content .notice-close {
+      grid-column: 3;
+      grid-row: 1;
+    }
+
+    .notices-corner {
+      left: 0.75rem;
+      right: 0.75rem;
+      bottom: 0.75rem;
+      width: auto;
+    }
+
+    .notices-top .notice {
+      @apply px-11 text-[12.5px];
+    }
+  }
 }
 
 @keyframes jd-toast {

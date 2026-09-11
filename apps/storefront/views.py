@@ -29,6 +29,7 @@ from django.http import Http404
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.template.loader import render_to_string
+from django.utils import timezone
 from django.utils.translation import get_language
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
@@ -213,6 +214,12 @@ def render_special_page(request, page, *, form=None, preview=False):
             "preview": preview,
             "launch_at_iso": launch_at.isoformat() if launch_at else "",
             "launched": page.is_launched,
+            # O relógio do servidor no momento da resposta: o script conta a
+            # partir dele, não do relógio do visitante (`js/special_page.js`).
+            "server_now_iso": timezone.now().isoformat(),
+            # Para onde o script leva ao zerar: a Home, no idioma da página. Na
+            # pré-visualização, lugar nenhum — o Admin quer ver o estado final.
+            "home_url": "" if preview else reverse("home:index"),
         },
         status=status,
     )
@@ -237,6 +244,12 @@ def launch_notify(request):
     """
     page = SpecialPage.objects.current()
     if page is None or not page.has_form:
+        # A hora chegou entre abrir a página e enviar o e-mail: a loja já está
+        # aberta, então a pessoa vai para ela, sem gravar nada — e não para
+        # um 404 nem de volta para a página do lançamento.
+        ativa = SpecialPage.objects.filter(is_active=True).first()
+        if ativa is not None and ativa.launch_is_over:
+            return redirect(reverse("home:index"))
         raise Http404("Nenhum lançamento em curso.")
 
     form = LaunchNotifyForm(request.POST)

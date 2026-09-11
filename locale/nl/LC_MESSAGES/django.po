@@ -2479,3 +2479,15 @@ msgstr "%(name)s heeft een keuze nodig: %(group)s."
 
 msgid "Escolhas"
 msgstr "Keuzes"
+
+#: templates/components/store_notices.html
+msgid "Aviso"
+msgstr "Mededeling"
+
+#: templates/components/store_notices.html
+msgid "Fechar aviso"
+msgstr "Mededeling sluiten"
+
+#: templates/components/store_notices.html
+msgid "Saiba mais"
+msgstr "Meer informatie"

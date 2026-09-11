@@ -149,6 +149,7 @@ SECOES = (
             Item("core.sitelanguage", "Idiomas da loja"),
             Grupo("Comunicação"),
             Item("core.emailsettings", "Configuração de e-mail", "Servidor de envio, remetente e quem recebe os avisos."),
+            Item("storefront.storenotice", "Avisos", "Faixas e cards de aviso na loja: onde, em que posição e em cada idioma."),
             Grupo("Pagamento e pedidos"),
             Item("orders.bankaccount", "Contas bancárias", "Para o pagamento por transferência."),
             Item("orders.cancellationsettings", "Texto de cancelamento", "O que o cliente recebe ao pedir o cancelamento."),

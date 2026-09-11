@@ -6,6 +6,16 @@ em qualquer idioma e com qualquer método. A resposta é renderizada no lugar,
 sem redirecionamento: não existe URL "de manutenção" para onde mandar o
 visitante, então não existe loop possível.
 
+## Quando o lançamento chega
+
+Um lançamento com data deixa de responder na hora marcada, sozinho: a
+página continua ativa no Admin, mas `SpecialPage.objects.current()` não a
+devolve mais (ver `SpecialPage.launch_is_over`), e cada rota volta a
+entregar o site — a Home em `/`, o produto no endereço do produto. É a
+proteção de verdade: vale num refresh, num link aberto depois da hora e sem
+JavaScript. O redirecionamento do contador para a Home é só a experiência
+de quem estava olhando a contagem.
+
 ## O que continua aberto
 
 * `/admin/` — inclusive o login administrativo. É por ali que a página é
