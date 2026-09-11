@@ -26,6 +26,34 @@
   --cat-brand: #417690;
   --cat-brand-dark: #356279;
   --cat-soft: #f7f9fa;
+  /* Os tons que estavam escritos dentro das regras, agora aqui — é o que
+     permite ao tema escuro trocar a folha inteira num lugar só. Os valores
+     são exatamente os de antes: no tema claro nada muda. */
+  --cat-papel: #fff;
+  --cat-papel-alt: #fbfcfc;
+  --cat-hover: #f2f7f9;
+  --cat-opcao-marcada: #eaf0f3;
+  --cat-tabela-borda: #e3e8eb;
+  --cat-zebra: #fbfcfd;
+  --cat-campo-bg: #fff;
+  --cat-campo-borda: #d8dfe3;
+  --cat-btn-borda: #ccd4d8;
+  --cat-btn-hover: #f4f7f8;
+  --cat-acao: #417690;
+  --cat-acao-hover: #356279;
+  --cat-acao-texto: #fff;
+  --cat-brand-forte: #205067;
+  --cat-dot: #c2cbd1;
+  --cat-knob: #fff;
+  --cat-switch-off: #ccd4d8;
+  --cat-swatch-bg: #eaf0f3;
+  --cat-swatch-borda: #dde5e9;
+  --cat-pill-bg: #f1f4f5;
+  --cat-ok-bg: #eaf4ec;
+  --cat-ok-fg: #2f6b41;
+  --cat-ok-dot: #4a8a5c;
+  --cat-perigo: #a04141;
+  --cat-sombra: 0 18px 50px rgba(20, 30, 36, 0.28);
   --cat-grid: 36px minmax(200px, 1.7fr) minmax(0, 1fr) 84px 72px 104px 76px;
   color: var(--cat-ink);
   font-size: 13px;
@@ -75,13 +103,13 @@
 }
 
 .jd-cat a:hover {
-  color: #205067;
+  color: var(--cat-brand-forte);
 }
 
 /* ---- o cartão ---------------------------------------------------------- */
 
 .jd-cat-card {
-  background: #fff;
+  background: var(--cat-papel);
   border: 1px solid var(--cat-border);
   border-radius: 4px;
   overflow: hidden;
@@ -125,8 +153,8 @@
 .jd-cat-btn {
   font-size: 13px;
   padding: 8px 14px;
-  border: 1px solid #ccd4d8;
-  background: #fff;
+  border: 1px solid var(--cat-btn-borda);
+  background: var(--cat-papel);
   color: var(--cat-ink-soft);
   border-radius: 3px;
   cursor: pointer;
@@ -135,20 +163,20 @@
 }
 
 .jd-cat-btn:hover {
-  background: #f4f7f8;
+  background: var(--cat-btn-hover);
   color: var(--cat-ink-soft);
 }
 
 .jd-cat-btn-primary {
   border: 0;
-  background: var(--cat-brand);
-  color: #fff;
+  background: var(--cat-acao);
+  color: var(--cat-acao-texto);
   font-weight: 500;
 }
 
 .jd-cat-btn-primary:hover {
-  background: var(--cat-brand-dark);
-  color: #fff;
+  background: var(--cat-acao-hover);
+  color: var(--cat-acao-texto);
 }
 
 .jd-cat-btn-quiet {
@@ -173,7 +201,7 @@
   gap: 8px;
   flex: 1;
   max-width: 320px;
-  background: #fff;
+  background: var(--cat-campo-bg);
   border: 1px solid var(--cat-field);
   border-radius: 3px;
   padding: 7px 10px;
@@ -201,7 +229,7 @@
   padding: 7px 10px;
   border: 1px solid var(--cat-field);
   border-radius: 3px;
-  background: #fff;
+  background: var(--cat-campo-bg);
   color: var(--cat-ink-soft);
   max-width: 100%;
 }
@@ -227,20 +255,20 @@
   min-height: 0;
   line-height: 1.35;
   color-scheme: light !important;
-  background-color: #fff !important;
-  color: #25333a !important;
+  background-color: var(--cat-campo-bg) !important;
+  color: var(--cat-ink) !important;
 }
 
 .jd-cat select option,
 .jd-cat select optgroup {
-  background-color: #fff !important;
-  color: #25333a !important;
+  background-color: var(--cat-campo-bg) !important;
+  color: var(--cat-ink) !important;
 }
 
 .jd-cat select option:checked,
 .jd-cat select option:hover {
-  background-color: #eaf0f3 !important;
-  color: #25333a !important;
+  background-color: var(--cat-opcao-marcada) !important;
+  color: var(--cat-ink) !important;
 }
 
 .jd-cat-grow {
@@ -263,7 +291,7 @@
 }
 
 .jd-cat-thead {
-  background: #fff;
+  background: var(--cat-papel);
   border-bottom: 1px solid var(--cat-line);
 }
 
@@ -287,7 +315,7 @@
 
 .jd-cat-caret {
   font-size: 9px;
-  color: #c2cbd1;
+  color: var(--cat-dot);
 }
 
 .jd-cat-col.is-sorted .jd-cat-caret {
@@ -297,15 +325,15 @@
 .jd-cat-row {
   border-bottom: 1px solid var(--cat-line-soft);
   min-height: 44px;
-  background: #fff;
+  background: var(--cat-papel);
 }
 
 .jd-cat-row.is-child {
-  background: #fbfcfc;
+  background: var(--cat-papel-alt);
 }
 
 .jd-cat-row:hover {
-  background: #f2f7f9;
+  background: var(--cat-hover);
 }
 
 .jd-cat-row[hidden] {
@@ -354,8 +382,8 @@
   width: 22px;
   height: 22px;
   border-radius: 3px;
-  background: #eaf0f3;
-  border: 1px solid #dde5e9;
+  background: var(--cat-swatch-bg);
+  border: 1px solid var(--cat-swatch-borda);
   flex: none;
 }
 
@@ -395,7 +423,7 @@
   padding: 3px 8px;
   border-radius: 11px;
   border: 0;
-  background: #f1f4f5;
+  background: var(--cat-pill-bg);
   color: var(--cat-quiet);
   line-height: 1.5;
 }
@@ -405,20 +433,20 @@
 }
 
 .jd-cat-pill.is-on {
-  background: #eaf4ec;
-  color: #2f6b41;
+  background: var(--cat-ok-bg);
+  color: var(--cat-ok-fg);
 }
 
 .jd-cat-dot {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #c2cbd1;
+  background: var(--cat-dot);
   flex: none;
 }
 
 .jd-cat-pill.is-on .jd-cat-dot {
-  background: #4a8a5c;
+  background: var(--cat-ok-dot);
 }
 
 .jd-cat-actions {
@@ -503,9 +531,9 @@
 .jd-cat-modal .jd-modal-dialog {
   width: 100%;
   max-width: 640px;
-  background: #fff;
+  background: var(--cat-papel);
   border-radius: 6px;
-  box-shadow: 0 18px 50px rgba(20, 30, 36, 0.28);
+  box-shadow: var(--cat-sombra);
   display: flex;
   flex-direction: column;
   color: var(--cat-ink);
@@ -524,7 +552,7 @@
   gap: 16px;
   padding: 18px 22px;
   border-bottom: 1px solid var(--cat-line);
-  background: #fff;
+  background: var(--cat-papel);
 }
 
 .jd-cat-modal-title {
@@ -618,7 +646,7 @@
 
 .jd-cat-modal-body {
   padding: 0;
-  background: #fff;
+  background: var(--cat-papel);
 }
 
 .jd-cat-panel {
@@ -658,7 +686,7 @@
   border: 1px solid var(--cat-field);
   border-radius: 3px;
   color: var(--cat-ink);
-  background: #fff;
+  background: var(--cat-campo-bg);
   width: 100%;
   min-width: 0;
 }
@@ -700,7 +728,7 @@
   width: 38px;
   height: 22px;
   border-radius: 11px;
-  background: #ccd4d8;
+  background: var(--cat-switch-off);
   position: relative;
   flex: none;
   cursor: pointer;
@@ -709,7 +737,7 @@
 }
 
 .jd-cat-switch[aria-pressed="true"] {
-  background: #4a8a5c;
+  background: var(--cat-ok-dot);
 }
 
 .jd-cat-knob {
@@ -719,7 +747,7 @@
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--cat-knob);
   transition: left 0.15s;
 }
 
@@ -743,7 +771,7 @@
 }
 
 .jd-cat-table {
-  border: 1px solid #e3e8eb;
+  border: 1px solid var(--cat-tabela-borda);
   border-radius: 4px;
   overflow: hidden;
 }
@@ -771,7 +799,7 @@
 }
 
 .jd-cat-lang-row:nth-child(odd) {
-  background: #fbfcfd;
+  background: var(--cat-zebra);
 }
 
 .jd-cat-lang-label {
@@ -783,12 +811,12 @@
 .jd-cat-lang-row input {
   font-size: 13px;
   padding: 6px 8px;
-  border-color: #d8dfe3;
+  border-color: var(--cat-campo-borda);
 }
 
 .jd-cat-clear {
   font-size: 13px;
-  color: #c2cbd1;
+  color: var(--cat-dot);
   text-align: center;
   cursor: pointer;
   background: none;
@@ -797,12 +825,12 @@
 }
 
 .jd-cat-clear:hover {
-  color: #a04141;
+  color: var(--cat-perigo);
 }
 
 .jd-cat-table-foot {
   padding: 9px 12px;
-  background: #fbfcfd;
+  background: var(--cat-zebra);
 }
 
 .jd-cat-table-foot a {
@@ -856,7 +884,7 @@
 }
 
 .jd-cat-child-status.is-on {
-  color: #2f6b41;
+  color: var(--cat-ok-fg);
 }
 
 .jd-cat-child-status .jd-cat-dot {
@@ -865,7 +893,7 @@
 }
 
 .jd-cat-child-status.is-on .jd-cat-dot {
-  background: #4a8a5c;
+  background: var(--cat-ok-dot);
 }
 
 /* auditoria */
@@ -902,7 +930,7 @@
 }
 
 .jd-cat-log-row:nth-child(even) {
-  background: #fbfcfd;
+  background: var(--cat-zebra);
 }
 
 .jd-cat-log-row > span:first-child {
@@ -931,7 +959,7 @@
 
 .jd-cat-modal-foot .jd-modal-danger {
   font-size: 12.5px;
-  color: #a04141;
+  color: var(--cat-perigo);
   background: none;
   border: 0;
   padding: 0;
@@ -940,8 +968,8 @@
 .jd-cat-modal-foot .jd-modal-cancel {
   font-size: 13px;
   padding: 8px 14px;
-  border: 1px solid #ccd4d8;
-  background: #fff;
+  border: 1px solid var(--cat-btn-borda);
+  background: var(--cat-papel);
   color: var(--cat-ink-soft);
   border-radius: 3px;
 }
@@ -951,13 +979,13 @@
   padding: 8px 16px;
   border: 0;
   background: var(--cat-brand);
-  color: #fff;
+  color: var(--cat-acao-texto);
   border-radius: 3px;
   font-weight: 500;
 }
 
 .jd-cat-modal-foot .jd-modal-save:hover {
-  background: var(--cat-brand-dark);
+  background: var(--cat-acao-hover);
 }
 
 .jd-cat-modal .errornote {
@@ -1121,5 +1149,100 @@
   .jd-cat-log-row {
     grid-template-columns: 1fr;
     gap: 2px;
+  }
+}
+
+/* ---- tema escuro --------------------------------------------------------
+   A mesma folha, com a paleta trocada — nenhuma regra nova. Os dois seletores
+   são os do Admin do Django (`data-theme` quando a pessoa escolhe,
+   `prefers-color-scheme` quando ela deixa no automático), como em
+   `jdprint_shell.css`; o `:not([data-theme="light"])` deixa a escolha manual
+   «claro» vencer o sistema.
+
+   As superfícies acompanham o conteúdo do Admin no escuro e o acento é o
+   violeta do shell, para a tela pertencer ao mesmo sistema. O modal entra
+   junto: ele é filho de `.jd-cat`, mas o seletor cobre os dois casos. */
+
+html[data-theme="dark"] .jd-cat,
+html[data-theme="dark"] .jd-cat-modal {
+  --cat-line: #2b2d33;
+  --cat-line-soft: #26282d;
+  --cat-border: #3a3e45;
+  --cat-field: #4a505a;
+  --cat-ink: #e9eaee;
+  --cat-ink-soft: #c4cbd2;
+  --cat-muted: #9aa2ab;
+  --cat-quiet: #8a939b;
+  --cat-faint: #7c858d;
+  --cat-brand: #b7acf0;
+  --cat-brand-dark: #d2cefd;
+  --cat-brand-forte: #d2cefd;
+  --cat-soft: #232429;
+  --cat-papel: #1d1e23;
+  --cat-papel-alt: #212228;
+  --cat-hover: #282a31;
+  --cat-opcao-marcada: #282a31;
+  --cat-tabela-borda: #2b2d33;
+  --cat-zebra: #212228;
+  --cat-campo-bg: #232429;
+  --cat-campo-borda: #3d4149;
+  --cat-btn-borda: #3d4149;
+  --cat-btn-hover: #282a31;
+  --cat-acao: #5d5294;
+  --cat-acao-hover: #4a4178;
+  --cat-acao-texto: #fff;
+  --cat-dot: #7c858d;
+  --cat-knob: #e9eaee;
+  --cat-switch-off: #444a53;
+  --cat-swatch-bg: #2b2d33;
+  --cat-swatch-borda: #3d4149;
+  --cat-pill-bg: #2b2d33;
+  --cat-ok-bg: #16341f;
+  --cat-ok-fg: #86d9a2;
+  --cat-ok-dot: #4a8a5c;
+  --cat-perigo: #f0958a;
+  --cat-sombra: 0 18px 50px rgba(0, 0, 0, 0.65);
+}
+
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme="light"]) .jd-cat,
+  html:not([data-theme="light"]) .jd-cat-modal {
+    --cat-line: #2b2d33;
+    --cat-line-soft: #26282d;
+    --cat-border: #3a3e45;
+    --cat-field: #4a505a;
+    --cat-ink: #e9eaee;
+    --cat-ink-soft: #c4cbd2;
+    --cat-muted: #9aa2ab;
+    --cat-quiet: #8a939b;
+    --cat-faint: #7c858d;
+    --cat-brand: #b7acf0;
+    --cat-brand-dark: #d2cefd;
+    --cat-brand-forte: #d2cefd;
+    --cat-soft: #232429;
+    --cat-papel: #1d1e23;
+    --cat-papel-alt: #212228;
+    --cat-hover: #282a31;
+    --cat-opcao-marcada: #282a31;
+    --cat-tabela-borda: #2b2d33;
+    --cat-zebra: #212228;
+    --cat-campo-bg: #232429;
+    --cat-campo-borda: #3d4149;
+    --cat-btn-borda: #3d4149;
+    --cat-btn-hover: #282a31;
+    --cat-acao: #5d5294;
+    --cat-acao-hover: #4a4178;
+    --cat-acao-texto: #fff;
+    --cat-dot: #7c858d;
+    --cat-knob: #e9eaee;
+    --cat-switch-off: #444a53;
+    --cat-swatch-bg: #2b2d33;
+    --cat-swatch-borda: #3d4149;
+    --cat-pill-bg: #2b2d33;
+    --cat-ok-bg: #16341f;
+    --cat-ok-fg: #86d9a2;
+    --cat-ok-dot: #4a8a5c;
+    --cat-perigo: #f0958a;
+    --cat-sombra: 0 18px 50px rgba(0, 0, 0, 0.65);
   }
 }

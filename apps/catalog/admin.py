@@ -11,7 +11,7 @@ from urllib.parse import urlencode
 from django import forms
 from django.contrib import admin, messages
 from django.contrib.admin.views.main import ORDER_VAR, PAGE_VAR, SEARCH_VAR, ChangeList
-from django.contrib.admin.widgets import RelatedFieldWidgetWrapper
+from django.contrib.admin.widgets import AutocompleteSelect, RelatedFieldWidgetWrapper
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.db.models import Count, ProtectedError, Q, RestrictedError
@@ -1388,6 +1388,17 @@ class QuickProductForm(forms.Form):
         categorias = Category.objects.prefetch_related("translations").order_by("sort_order", "slug")
         self.fields["category"].queryset = categorias
         self.fields["category"].label_from_instance = lambda c: c.full_path()
+        # A MESMA busca da ficha completa (`ProductAdmin.autocomplete_fields`):
+        # o widget do próprio Admin, o endpoint do próprio Admin e a busca de
+        # `CategoryAdmin.search_fields`. Com dezenas de categorias, o `<select>`
+        # vira uma lista longa demais para achar «Dinossauros» — aqui se
+        # digita o nome. Cada resultado vem com o caminho inteiro
+        # («Impressões 3D › Brinquedos › Dinossauros»), que é o que desfaz a
+        # ambiguidade entre nomes parecidos em ramos diferentes.
+        self.fields["category"].widget = AutocompleteSelect(
+            Product._meta.get_field("category"), admin.site
+        )
+        self.fields["category"].widget.choices = self.fields["category"].choices
         if template is not None:
             # As variantes vêm do modelo, com preço, peso e prazo: perguntar
             # de novo criaria uma variante a mais, sem eixos.

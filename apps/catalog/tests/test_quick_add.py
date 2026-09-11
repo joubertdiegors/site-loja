@@ -154,6 +154,41 @@ class QuickAddTests(QuickAddBase):
         self.assertIn("Você pode alterar", html)
         self.assertIn(reverse("admin:catalog_product_sku_suggestion"), html)
 
+    def test_category_field_is_the_admin_search(self):
+        """O campo Categoria é o mesmo select2 da ficha, com o endpoint do Admin."""
+        html = self.client.get(self.url).content.decode()
+
+        self.assertIn("admin-autocomplete", html)
+        # O widget aponta para a busca do próprio Admin, com o campo declarado
+        # em `ProductAdmin.autocomplete_fields` — e por isso a view a autoriza.
+        self.assertIn(reverse("admin:autocomplete"), html)
+        self.assertIn('data-model-name="product"', html)
+        self.assertIn('data-field-name="category"', html)
+        self.assertIn("vendor/select2/select2.full", html)
+
+    def test_category_search_answers_with_the_whole_path(self):
+        """Digitar o nome do ramo acha a folha, e o resultado diz de onde ela vem."""
+        gatos = make_category(slug="gatos", name="Gatos", parent=self.religioso)
+
+        resposta = self.client.get(
+            reverse("admin:autocomplete"),
+            {"term": "gato", "app_label": "catalog", "model_name": "product", "field_name": "category"},
+        )
+
+        self.assertEqual(resposta.status_code, 200)
+        achados = resposta.json()["results"]
+        self.assertEqual([r["id"] for r in achados], [str(gatos.pk)])
+        self.assertEqual(achados[0]["text"], "Religioso › Gatos")
+
+    def test_duplicating_opens_with_the_category_already_chosen(self):
+        """Na tela de duplicar, a categoria do modelo já vem escrita na caixa."""
+        modelo = make_product(sku="REL-BASE-001", name="Base", category=self.religioso)
+
+        html = self.client.get(self.url, {"_duplicar": modelo.pk}).content.decode()
+
+        self.assertIn(f'value="{self.religioso.pk}" selected', html)
+        self.assertIn("Religioso", html)
+
     def test_creates_a_draft_with_only_name_and_category(self):
         resposta = self.criar()
         self.assertRedirects(resposta, reverse("admin:catalog_product_changelist"))
